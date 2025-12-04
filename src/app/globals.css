@@ -1,0 +1,549 @@
+@import 'tailwindcss';
+@import '../styles/colorblind-patterns.css';
+@import '../styles/prism-vscode-dark.css';
+@import '../styles/mobile-first-utilities.css';
+
+@theme {
+  /* Mobile-first breakpoints (PRP-017) */
+  --breakpoint-xs: 20rem; /* 320px - Small phones (minimum supported) */
+  --breakpoint-sm: 26.75rem; /* 428px - Standard phones */
+  --breakpoint-md: 48rem; /* 768px - Tablets */
+  --breakpoint-lg: 64rem; /* 1024px - Desktop */
+  --breakpoint-xl: 80rem; /* 1280px - Large desktop */
+}
+
+@plugin "daisyui" {
+  themes:
+    light, dark, cupcake, bumblebee, emerald, corporate, synthwave, retro,
+    cyberpunk, valentine, halloween, garden, forest, aqua, lofi, pastel,
+    fantasy, wireframe, black, luxury, dracula, cmyk, autumn, business, acid,
+    lemonade, night, coffee, winter, dim, nord, sunset;
+}
+
+/* Override DaisyUI drawer-side to respect container bounds
+ * DaisyUI's default uses position:fixed + height:100dvh which is viewport-relative.
+ * This makes it absolute (relative to nearest positioned ancestor) so it stays
+ * within containers like the messages page which has bottom-24 for footer clearance.
+ */
+.drawer-side {
+  position: absolute !important;
+  height: 100% !important;
+  top: 0 !important;
+}
+
+/* Font Loading Optimization */
+@font-face {
+  font-family: 'Geist';
+  font-display: swap;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  font-display: swap;
+  size-adjust: 100%;
+}
+
+/* Accessibility Font Scaling System + Mobile-First Fluid Typography (PRP-017) */
+:root {
+  /* Base scale factor - controlled by accessibility settings */
+  --font-scale-factor: 1;
+
+  /* Font loading optimization to reduce CLS */
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Fluid typography using clamp() for mobile-first responsive scaling
+   * Format: clamp(min, preferred, max) * scale-factor
+   * min: mobile (320px), preferred: fluid calc, max: desktop (1024px+)
+   */
+  --text-xs: calc(
+    clamp(0.625rem, 0.5rem + 0.5vw, 0.75rem) * var(--font-scale-factor)
+  );
+  --text-sm: calc(
+    clamp(0.75rem, 0.65rem + 0.5vw, 0.875rem) * var(--font-scale-factor)
+  );
+  --text-base: calc(
+    clamp(0.875rem, 0.8rem + 0.5vw, 1rem) * var(--font-scale-factor)
+  );
+  --text-lg: calc(
+    clamp(1rem, 0.95rem + 0.5vw, 1.125rem) * var(--font-scale-factor)
+  );
+  --text-xl: calc(
+    clamp(1.125rem, 1rem + 0.75vw, 1.25rem) * var(--font-scale-factor)
+  );
+  --text-2xl: calc(
+    clamp(1.25rem, 1.1rem + 1vw, 1.5rem) * var(--font-scale-factor)
+  );
+  --text-3xl: calc(
+    clamp(1.5rem, 1.3rem + 1.25vw, 1.875rem) * var(--font-scale-factor)
+  );
+  --text-4xl: calc(
+    clamp(1.75rem, 1.5rem + 1.5vw, 2.25rem) * var(--font-scale-factor)
+  );
+  --text-5xl: calc(clamp(2rem, 1.75rem + 2vw, 3rem) * var(--font-scale-factor));
+  --text-6xl: calc(
+    clamp(2.5rem, 2rem + 2.5vw, 3.75rem) * var(--font-scale-factor)
+  );
+  --text-7xl: calc(
+    clamp(3rem, 2.5rem + 3vw, 4.5rem) * var(--font-scale-factor)
+  );
+  --text-8xl: calc(clamp(4rem, 3rem + 4vw, 6rem) * var(--font-scale-factor));
+  --text-9xl: calc(clamp(5rem, 4rem + 5vw, 8rem) * var(--font-scale-factor));
+}
+
+/* Subtle Animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* Override Tailwind text size classes to use CSS variables */
+.text-xs {
+  font-size: var(--text-xs) !important;
+}
+.text-sm {
+  font-size: var(--text-sm) !important;
+}
+.text-base {
+  font-size: var(--text-base) !important;
+}
+.text-lg {
+  font-size: var(--text-lg) !important;
+}
+.text-xl {
+  font-size: var(--text-xl) !important;
+}
+.text-2xl {
+  font-size: var(--text-2xl) !important;
+}
+.text-3xl {
+  font-size: var(--text-3xl) !important;
+}
+.text-4xl {
+  font-size: var(--text-4xl) !important;
+}
+.text-5xl {
+  font-size: var(--text-5xl) !important;
+}
+.text-6xl {
+  font-size: var(--text-6xl) !important;
+}
+.text-7xl {
+  font-size: var(--text-7xl) !important;
+}
+.text-8xl {
+  font-size: var(--text-8xl) !important;
+}
+.text-9xl {
+  font-size: var(--text-9xl) !important;
+}
+
+/* Also scale heading elements that don't have explicit classes */
+h1:not([class*='text-']) {
+  font-size: var(--text-4xl);
+}
+h2:not([class*='text-']) {
+  font-size: var(--text-3xl);
+}
+h3:not([class*='text-']) {
+  font-size: var(--text-2xl);
+}
+h4:not([class*='text-']) {
+  font-size: var(--text-xl);
+}
+h5:not([class*='text-']) {
+  font-size: var(--text-lg);
+}
+h6:not([class*='text-']) {
+  font-size: var(--text-base);
+}
+p:not([class*='text-']) {
+  font-size: var(--text-base);
+}
+
+/* Spinning Logo Animations */
+@keyframes spin-clockwise {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spin-counter-clockwise {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+/* Pause animation on hover */
+.pause-on-hover:hover {
+  animation-play-state: paused !important;
+}
+
+/* Leaflet Map Styles */
+/* Note: Leaflet CSS is imported in map components that use it */
+
+/* Fix Leaflet container sizing */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  z-index: 0;
+  font-family: inherit;
+}
+
+/* Fix Leaflet controls for dark mode */
+[data-theme='dark'] .leaflet-control,
+[data-theme='dracula'] .leaflet-control,
+[data-theme='synthwave'] .leaflet-control,
+[data-theme='halloween'] .leaflet-control,
+[data-theme='forest'] .leaflet-control,
+[data-theme='black'] .leaflet-control,
+[data-theme='luxury'] .leaflet-control,
+[data-theme='night'] .leaflet-control,
+[data-theme='coffee'] .leaflet-control,
+[data-theme='dim'] .leaflet-control,
+[data-theme='sunset'] .leaflet-control {
+  background-color: rgba(0, 0, 0, 0.8);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme='dark'] .leaflet-control a,
+[data-theme='dracula'] .leaflet-control a,
+[data-theme='synthwave'] .leaflet-control a,
+[data-theme='halloween'] .leaflet-control a,
+[data-theme='forest'] .leaflet-control a,
+[data-theme='black'] .leaflet-control a,
+[data-theme='luxury'] .leaflet-control a,
+[data-theme='night'] .leaflet-control a,
+[data-theme='coffee'] .leaflet-control a,
+[data-theme='dim'] .leaflet-control a,
+[data-theme='sunset'] .leaflet-control a {
+  color: white;
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+/* Fix popup styles for themes */
+.leaflet-popup-content-wrapper {
+  @apply bg-base-100 text-base-content;
+  border-radius: var(--rounded-box, 1rem);
+}
+
+.leaflet-popup-tip {
+  @apply bg-base-100;
+}
+
+/* Accessibility improvements */
+.leaflet-control-zoom a {
+  @apply transition-colors;
+}
+
+.leaflet-control-zoom a:hover {
+  @apply bg-base-300;
+}
+
+.leaflet-control-zoom a:focus {
+  @apply ring-primary ring-2 outline-none;
+}
+
+/* Fix marker positioning */
+.leaflet-marker-icon {
+  transition: none !important;
+}
+
+/* Custom location marker styles */
+.user-location-marker {
+  @apply bg-primary;
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.user-location-accuracy {
+  @apply fill-primary opacity-20;
+  stroke: theme('colors.primary.DEFAULT');
+  stroke-width: 1;
+  stroke-opacity: 0.5;
+}
+
+/* ===== Syntax Highlighting Styles ===== */
+/* Line numbers styles */
+[data-theme] .line-number {
+  @apply text-base-content/30 select-none;
+  display: inline-block;
+  width: 3rem;
+  text-align: right;
+  padding-right: 1rem;
+  margin-right: 1rem;
+  border-right: 1px solid;
+  @apply border-base-300;
+}
+
+[data-theme] .code-line {
+  display: block;
+}
+
+/* Token colors that work with all themes */
+[data-theme] .token.comment,
+[data-theme] .token.prolog,
+[data-theme] .token.doctype,
+[data-theme] .token.cdata {
+  color: #6a9955; /* Green comments */
+}
+
+[data-theme] .token.punctuation {
+  color: #d4d4d4; /* Light gray */
+}
+
+[data-theme] .token.property,
+[data-theme] .token.tag,
+[data-theme] .token.constant,
+[data-theme] .token.symbol,
+[data-theme] .token.deleted {
+  color: #ce9178; /* Orange */
+}
+
+[data-theme] .token.boolean,
+[data-theme] .token.number {
+  color: #b5cea8; /* Light green */
+}
+
+[data-theme] .token.selector,
+[data-theme] .token.attr-name,
+[data-theme] .token.string,
+[data-theme] .token.char,
+[data-theme] .token.builtin,
+[data-theme] .token.inserted {
+  color: #ce9178; /* Orange for strings */
+}
+
+[data-theme] .token.operator,
+[data-theme] .token.entity,
+[data-theme] .token.url,
+[data-theme] .language-css .token.string,
+[data-theme] .style .token.string,
+[data-theme] .token.variable {
+  color: #d4d4d4; /* Light gray */
+}
+
+[data-theme] .token.atrule,
+[data-theme] .token.attr-value,
+[data-theme] .token.function,
+[data-theme] .token.class-name {
+  color: #dcdcaa; /* Yellow */
+}
+
+[data-theme] .token.keyword {
+  color: #569cd6; /* Blue */
+}
+
+[data-theme] .token.regex,
+[data-theme] .token.important {
+  color: #d16969; /* Red */
+}
+
+[data-theme] .token.important,
+[data-theme] .token.bold {
+  font-weight: bold;
+}
+
+[data-theme] .token.italic {
+  font-style: italic;
+}
+
+[data-theme] .token.entity {
+  cursor: help;
+}
+
+/* Code block container adjustments */
+[data-theme] pre[class*='language-'] {
+  @apply bg-base-200 text-base-content my-4 rounded-lg p-4;
+  overflow-x: auto;
+}
+
+[data-theme] code[class*='language-'] {
+  @apply font-mono text-sm;
+}
+
+/* Mobile-first button sizing override for status page */
+.btn-mobile-compact {
+  height: 1.5rem !important;
+  min-height: 1.5rem !important;
+  padding-left: 0.5rem !important;
+  padding-right: 0.5rem !important;
+  font-size: 0.625rem !important;
+  line-height: 1 !important;
+}
+
+@media (min-width: 26.75rem) {
+  .btn-mobile-compact {
+    height: 2rem !important;
+    min-height: 2rem !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+/* Global Typography Scale (Mobile-first) */
+/* Ensures consistent heading sizes across all pages */
+
+/* Page Title (H1) */
+.page-title {
+  font-size: var(--text-lg) !important;
+  font-weight: bold !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.25rem !important;
+}
+
+@media (min-width: 26.75rem) {
+  /* sm breakpoint */
+  .page-title {
+    font-size: var(--text-2xl) !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+}
+
+@media (min-width: 48rem) {
+  /* md breakpoint */
+  .page-title {
+    font-size: var(--text-3xl) !important;
+    margin-top: 2rem !important;
+    margin-bottom: 1rem !important;
+  }
+}
+
+@media (min-width: 64rem) {
+  /* lg breakpoint */
+  .page-title {
+    font-size: var(--text-4xl) !important;
+    margin-top: 3rem !important;
+    margin-bottom: 1.5rem !important;
+  }
+}
+
+/* Section Title (H2) */
+.section-title {
+  font-size: var(--text-base) !important;
+  font-weight: bold !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.25rem !important;
+}
+
+/* Status Card Title (for status page card headings) */
+.status-card-title {
+  font-size: var(--text-base) !important;
+  font-weight: 600 !important;
+}
+
+@media (min-width: 26.75rem) {
+  .section-title {
+    font-size: var(--text-xl) !important;
+    margin-top: 1rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .status-card-title {
+    font-size: var(--text-lg) !important;
+  }
+}
+
+@media (min-width: 48rem) {
+  .section-title {
+    font-size: var(--text-2xl) !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .status-card-title {
+    font-size: var(--text-xl) !important;
+  }
+}
+
+@media (min-width: 64rem) {
+  .section-title {
+    font-size: var(--text-3xl) !important;
+    margin-top: 2rem !important;
+    margin-bottom: 1rem !important;
+  }
+}
+
+/* Subsection Title (H3) */
+.subsection-title {
+  font-size: var(--text-base) !important;
+  font-weight: bold !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.25rem !important;
+}
+
+@media (min-width: 26.75rem) {
+  .subsection-title {
+    font-size: var(--text-lg) !important;
+    margin-top: 0.75rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+}
+
+@media (min-width: 48rem) {
+  .subsection-title {
+    font-size: var(--text-xl) !important;
+    margin-top: 1rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+}
+
+@media (min-width: 64rem) {
+  .subsection-title {
+    font-size: var(--text-2xl) !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 1rem !important;
+  }
+}
+
+/* Minor Heading (H4) */
+.minor-heading {
+  font-size: var(--text-sm) !important;
+  font-weight: bold !important;
+  margin-top: 0.375rem !important;
+  margin-bottom: 0.125rem !important;
+}
+
+@media (min-width: 26.75rem) {
+  .minor-heading {
+    font-size: var(--text-base) !important;
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+}
+
+@media (min-width: 48rem) {
+  .minor-heading {
+    font-size: var(--text-lg) !important;
+    margin-top: 0.75rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+}
+
+@media (min-width: 64rem) {
+  .minor-heading {
+    font-size: var(--text-xl) !important;
+    margin-top: 1rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+}
