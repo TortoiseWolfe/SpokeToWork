@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# generated files (created by prebuild scripts)
+/public/manifest.json
+
 # production
 /build
 
