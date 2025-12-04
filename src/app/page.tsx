@@ -65,11 +65,10 @@ export default function Home() {
 
               {/* Subtitle - cleaner mobile text */}
               <p className="text-base-content mb-6 text-base leading-relaxed font-medium sm:mb-6 sm:text-xl sm:leading-normal md:text-2xl">
-                Opinionated Next.js Template
-                <br className="sm:hidden" />
-                <span className="mt-1 block sm:mt-0 sm:inline">
-                  {' '}
-                  with Everything Built-In
+                Progressive Web App for in-person job hunting.
+                <br />
+                <span className="mt-1 block">
+                  Track companies and generate optimized bicycle routes.
                 </span>
               </p>
 

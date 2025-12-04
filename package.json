@@ -1,7 +1,7 @@
 {
   "name": "spoketowork",
   "version": "0.0.1",
-  "description": "SpokeToWork - Progressive Web App (works without internet) for in-person job hunting. Track companies and generate optimized bicycle routes.",
+  "description": "SpokeToWork - Progressive Web App for in-person job hunting. Track companies and generate optimized bicycle routes.",
   "packageManager": "pnpm@10.16.1",
   "keywords": [
     "nextjs",

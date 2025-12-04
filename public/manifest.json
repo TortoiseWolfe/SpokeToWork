@@ -1,7 +1,7 @@
 {
   "name": "SpokeToWork",
   "short_name": "SpokeToWork",
-  "description": "SpokeToWork - Modern Next.js template with PWA, theming, and interactive components",
+  "description": "SpokeToWork - Progressive Web App for in-person job hunting. Track companies and generate optimized bicycle routes.",
   "theme_color": "#2563eb",
   "background_color": "#1a1a1a",
   "display": "standalone",

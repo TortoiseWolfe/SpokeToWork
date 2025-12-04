@@ -14,7 +14,7 @@ const defaultConfig = {
   projectName: 'SpokeToWork',
   projectOwner: 'TortoiseWolfe',
   projectDescription:
-    'Progressive Web App (works without internet) for in-person job hunting. Track companies and generate optimized bicycle routes.',
+    'Progressive Web App for in-person job hunting. Track companies and generate optimized bicycle routes.',
   basePath: '',
 };
 
