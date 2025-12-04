@@ -49,42 +49,10 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_PAGESPEED_API_KEY: process.env.NEXT_PUBLIC_PAGESPEED_API_KEY,
   },
-  webpack: (config, { isServer }) => {
-    // Optimize code splitting for better performance
-    if (!isServer) {
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            default: false,
-            vendors: false,
-            // Vendor chunks for node_modules
-            vendor: {
-              name: 'vendor',
-              test: /[\\/]node_modules[\\/]/,
-              priority: 10,
-              reuseExistingChunk: true,
-            },
-            // Common chunks used across multiple pages
-            common: {
-              name: 'common',
-              minChunks: 2,
-              priority: 5,
-              reuseExistingChunk: true,
-            },
-            // Heavy libraries in separate chunks
-            leaflet: {
-              test: /[\\/]node_modules[\\/](leaflet|react-leaflet)[\\/]/,
-              name: 'leaflet',
-              priority: 20,
-            },
-          },
-        },
-      };
-    }
-    return config;
-  },
+  // NOTE: Custom webpack splitChunks was removed because it causes CSS files
+  // to be incorrectly loaded as <script> tags in static export.
+  // See: https://github.com/vercel/next.js/issues/66221
+  // Next.js default chunk splitting is sufficient for most use cases.
 };
 
 export default nextConfig;
