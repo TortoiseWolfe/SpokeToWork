@@ -6,7 +6,7 @@ const matter = require('gray-matter');
 
 const BLOG_DIR = path.join(process.cwd(), 'blog');
 const PUBLIC_DIR = path.join(process.cwd(), 'public');
-const SITE_URL = 'https://tortoisewolfe.github.io/ScriptHammer';
+const SITE_URL = 'https://TortoiseWolfe.github.io/SpokeToWork';
 
 function escapeXml(unsafe) {
   return unsafe
@@ -38,7 +38,7 @@ function generateRSSFeed() {
             title: data.title,
             description: data.excerpt,
             url: `/blog/${data.slug || file.replace('.md', '')}`,
-            author: data.author || 'ScriptHammer Team',
+            author: data.author || 'SpokeToWork Team',
             pubDate: new Date(data.publishDate || new Date()).toUTCString(),
             categories: data.categories || [],
             content: content.substring(0, 500) + '...', // First 500 chars
@@ -54,8 +54,8 @@ function generateRSSFeed() {
   const rss = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
-    <title>ScriptHammer Blog</title>
-    <description>Opinionated Next.js PWA Template with 32 themes and comprehensive tooling</description>
+    <title>SpokeToWork Blog</title>
+    <description>Progressive Web App (works without internet) for in-person job hunting. Track companies and generate optimized bicycle routes.</description>
     <link>${SITE_URL}/blog</link>
     <language>en-US</language>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>

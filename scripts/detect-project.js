@@ -92,7 +92,7 @@ function getProjectInfo() {
 
   // Fallback to defaults
   return {
-    projectName: 'ScriptHammer',
+    projectName: 'SpokeToWork',
     projectOwner: 'TortoiseWolfe',
     projectHost: 'github.com',
     isGitHub: true,

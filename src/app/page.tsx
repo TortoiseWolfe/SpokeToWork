@@ -136,7 +136,7 @@ export default function Home() {
                   Read Blog
                 </Link>
                 <a
-                  href="https://tortoisewolfe.github.io/ScriptHammer/storybook/"
+                  href="https://TortoiseWolfe.github.io/SpokeToWork/storybook/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn btn-primary btn-md group md:btn-lg min-h-11 w-full min-w-11 sm:w-auto"
@@ -273,12 +273,12 @@ export default function Home() {
                   •
                 </span>
                 <a
-                  href="https://github.com/TortoiseWolfe/ScriptHammer/fork"
+                  href="https://github.com/TortoiseWolfe/SpokeToWork"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="link link-hover opacity-87 hover:opacity-100 focus:opacity-100"
                 >
-                  Fork
+                  Source
                 </a>
               </nav>
             </div>

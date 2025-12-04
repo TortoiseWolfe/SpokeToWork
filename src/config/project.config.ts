@@ -11,10 +11,10 @@
 
 // Default configuration
 const defaultConfig = {
-  projectName: 'ScriptHammer',
+  projectName: 'SpokeToWork',
   projectOwner: 'TortoiseWolfe',
   projectDescription:
-    'Opinionated Next.js template with PWA, theming, and interactive components',
+    'Progressive Web App (works without internet) for in-person job hunting. Track companies and generate optimized bicycle routes.',
   basePath: '',
 };
 

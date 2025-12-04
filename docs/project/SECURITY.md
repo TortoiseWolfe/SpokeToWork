@@ -20,7 +20,7 @@ We take the security of CRUDkit seriously. If you believe you have found a secur
 
 ### Please DO:
 
-- Email us at security@scripthammer.example (replace with your actual security email)
+- Email us at security@spoketowork.example (replace with your actual security email)
 - Include the following information in your report:
   - Type of issue (e.g., buffer overflow, SQL injection, cross-site scripting, etc.)
   - Full paths of source file(s) related to the manifestation of the issue
@@ -172,7 +172,7 @@ We use the following tools to maintain security:
 
 For any security-related questions or concerns, please contact:
 
-- Security Email: security@scripthammer.example (replace with actual email)
+- Security Email: security@spoketowork.example (replace with actual email)
 - Project Maintainers: See CONTRIBUTING.md
 
 ## Acknowledgments

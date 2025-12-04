@@ -193,7 +193,7 @@ export default function StatusPage() {
     bestPractices: 95,
     seo: 100,
     timestamp: null as string | null,
-    url: 'https://scripthammer.com/',
+    url: 'https://TortoiseWolfe.github.io/SpokeToWork/',
     isDefault: true,
   };
 
@@ -344,7 +344,7 @@ export default function StatusPage() {
     {
       name: 'Next.js App',
       status: 'operational',
-      url: 'https://scripthammer.com/',
+      url: 'https://TortoiseWolfe.github.io/SpokeToWork/',
     },
     {
       name: 'Contact Form',
@@ -394,7 +394,7 @@ export default function StatusPage() {
             seo: staticData.seo || 0,
             pwa: staticData.pwa || 0,
             timestamp: staticData.timestamp,
-            url: staticData.url || 'https://scripthammer.com/',
+            url: staticData.url || 'https://TortoiseWolfe.github.io/SpokeToWork/',
             isDefault: false,
           };
 
@@ -497,7 +497,7 @@ export default function StatusPage() {
 
     try {
       // Use live PageSpeed API (we have an API key so no rate limit concerns)
-      const url = 'https://scripthammer.com/';
+      const url = 'https://TortoiseWolfe.github.io/SpokeToWork/';
       const apiKey = process.env.NEXT_PUBLIC_PAGESPEED_API_KEY;
       const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&category=performance&category=accessibility&category=best-practices&category=seo&category=pwa${apiKey ? `&key=${apiKey}` : ''}`;
 
@@ -2132,7 +2132,7 @@ export default function StatusPage() {
                         Click &quot;Run Test&quot; for real-time analysis or
                         visit{' '}
                         <a
-                          href="https://pagespeed.web.dev/?url=https://scripthammer.com/"
+                          href="https://pagespeed.web.dev/?url=https://TortoiseWolfe.github.io/SpokeToWork/"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="link break-all"
@@ -2486,7 +2486,7 @@ export default function StatusPage() {
                 description="The core technologies and features that power this application."
                 whyItMatters="Understanding your tech stack helps with troubleshooting and planning upgrades."
                 howToImprove="Keep dependencies updated and document any custom configurations"
-                learnMore="https://github.com/TortoiseWolfe/ScriptHammer/blob/main/README.md"
+                learnMore="https://github.com/TortoiseWolfe/SpokeToWork/blob/main/README.md"
               />
             </div>
           }

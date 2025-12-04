@@ -1,10 +1,10 @@
 {
   "project": {
-    "name": "ScriptHammer",
-    "description": "Opinionated Next.js PWA Template",
-    "repository": "https://github.com/TortoiseWolfe/ScriptHammer",
-    "startDate": "2025-09-10",
-    "isTemplate": true,
+    "name": "SpokeToWork",
+    "description": "Progressive Web App (works without internet) for in-person job hunting. Track companies and generate optimized bicycle routes.",
+    "repository": "https://github.com/TortoiseWolfe/SpokeToWork",
+    "startDate": "2025-12-04",
+    "isTemplate": false,
     "version": "0.0.1",
     "status": "Beta - Core Features Complete",
     "lastUpdated": "2025-10-07",

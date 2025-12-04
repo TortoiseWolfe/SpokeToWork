@@ -28,16 +28,16 @@ CRUDkit uses a comprehensive testing strategy to ensure code quality and reliabi
 
 ```bash
 # Run all tests once
-docker compose exec scripthammer pnpm test
+docker compose exec spoketowork pnpm test
 
 # Run tests in watch mode
-docker compose exec scripthammer pnpm test:watch
+docker compose exec spoketowork pnpm test:watch
 
 # Run tests with UI
-docker compose exec scripthammer pnpm test:ui
+docker compose exec spoketowork pnpm test:ui
 
 # Generate coverage report
-docker compose exec scripthammer pnpm test:coverage
+docker compose exec spoketowork pnpm test:coverage
 ```
 
 **NOTE**: Local pnpm/npm commands are NOT supported. All testing MUST use Docker.
@@ -190,7 +190,7 @@ These thresholds will increase as the project matures:
 
 ```bash
 # Generate coverage report (inside Docker)
-docker compose exec scripthammer pnpm test:coverage
+docker compose exec spoketowork pnpm test:coverage
 
 # Coverage report is generated in /coverage directory
 # View it from your host machine:
@@ -241,7 +241,7 @@ Husky runs tests on staged files before commit. Note that git hooks run on your 
 
 ```bash
 # .husky/pre-commit
-docker compose exec -T scripthammer pnpm lint-staged
+docker compose exec -T spoketowork pnpm lint-staged
 ```
 
 Lint-staged configuration:
@@ -255,7 +255,7 @@ Lint-staged configuration:
 
 ```bash
 # Open Vitest UI for debugging (inside Docker)
-docker compose exec scripthammer pnpm test:ui
+docker compose exec spoketowork pnpm test:ui
 
 # Access the UI at http://localhost:51204 (or the port shown in terminal)
 ```
@@ -302,16 +302,16 @@ E2E tests require multiple test users for multi-user scenarios (messaging, conne
 | Primary | test@example.com | Runs E2E tests |
 | Secondary | test-user-b@example.com | Multi-user tests (connections, messaging) |
 | Tertiary | test-user-c@example.com | Group chat tests (3+ members) |
-| Admin | admin@scripthammer.com | Welcome messages |
+| Admin | admin@spoketowork.example | Welcome messages |
 
 **Setup (one-time):**
 
 ```bash
 # 1. Create test users in Supabase
-docker compose exec scripthammer pnpm exec tsx scripts/seed-test-users.ts
+docker compose exec spoketowork pnpm exec tsx scripts/seed-test-users.ts
 
 # 2. Create connections between users
-docker compose exec scripthammer pnpm exec tsx scripts/seed-connections.ts
+docker compose exec spoketowork pnpm exec tsx scripts/seed-connections.ts
 ```
 
 **Environment Variables (in .env):**
@@ -329,22 +329,22 @@ TEST_USER_TERTIARY_PASSWORD=<secure-password>
 
 ```bash
 # Run all E2E tests (starts dev server automatically)
-docker compose exec scripthammer pnpm exec playwright test
+docker compose exec spoketowork pnpm exec playwright test
 
 # Run specific test file
-docker compose exec scripthammer pnpm exec playwright test tests/e2e/messaging/
+docker compose exec spoketowork pnpm exec playwright test tests/e2e/messaging/
 
 # Run with existing dev server (faster)
-SKIP_WEBSERVER=true docker compose exec -e SKIP_WEBSERVER=true scripthammer pnpm exec playwright test
+SKIP_WEBSERVER=true docker compose exec -e SKIP_WEBSERVER=true spoketowork pnpm exec playwright test
 
 # Run specific browser
-docker compose exec scripthammer pnpm exec playwright test --project=chromium
+docker compose exec spoketowork pnpm exec playwright test --project=chromium
 
 # Run with UI (headed mode)
-docker compose exec scripthammer pnpm exec playwright test --ui
+docker compose exec spoketowork pnpm exec playwright test --ui
 
 # Generate HTML report
-docker compose exec scripthammer pnpm exec playwright show-report
+docker compose exec spoketowork pnpm exec playwright show-report
 ```
 
 ### Test Structure
@@ -391,13 +391,13 @@ test.describe('Feature Name', () => {
 
 ```bash
 # Run with trace on failure
-docker compose exec scripthammer pnpm exec playwright test --trace on
+docker compose exec spoketowork pnpm exec playwright test --trace on
 
 # View trace
-docker compose exec scripthammer pnpm exec playwright show-trace test-results/*/trace.zip
+docker compose exec spoketowork pnpm exec playwright show-trace test-results/*/trace.zip
 
 # Run in debug mode (step through)
-docker compose exec scripthammer pnpm exec playwright test --debug
+docker compose exec spoketowork pnpm exec playwright test --debug
 ```
 
 ## Resources

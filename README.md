@@ -1,16 +1,15 @@
-# ScriptHammer - Modern Next.js Template with PWA
+# SpokeToWork - Job Hunting by Bicycle
 
-[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue)](https://github.com/TortoiseWolfe/ScriptHammer)
-[![Use Template](https://img.shields.io/badge/Use%20this%20template-2ea44f?style=for-the-badge)](https://github.com/TortoiseWolfe/ScriptHammer/generate)
-[![Stars](https://img.shields.io/github/stars/TortoiseWolfe/ScriptHammer?style=social)](https://github.com/TortoiseWolfe/ScriptHammer)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue)](https://github.com/TortoiseWolfe/SpokeToWork)
+[![Stars](https://img.shields.io/github/stars/TortoiseWolfe/SpokeToWork?style=social)](https://github.com/TortoiseWolfe/SpokeToWork)
 
-A comprehensive Next.js starter kit featuring 32 themes, PWA capabilities, component gallery, and extensive testing infrastructure.
+A Progressive Web App (works without internet) for in-person job hunting. Track companies and generate optimized bicycle routes. Forked from [ScriptHammer](https://github.com/TortoiseWolfe/ScriptHammer).
 
 ## 🚀 Live Demos
 
-- **Main App**: [https://www.scripthammer.com/](https://www.scripthammer.com/)
-- **Storybook**: [https://www.scripthammer.com/storybook/](https://www.scripthammer.com/storybook/)
-- **Status Dashboard**: [https://www.scripthammer.com/status](https://www.scripthammer.com/status)
+- **Main App**: [https://TortoiseWolfe.github.io/SpokeToWork/](https://TortoiseWolfe.github.io/SpokeToWork/)
+- **Storybook**: [https://TortoiseWolfe.github.io/SpokeToWork/storybook/](https://TortoiseWolfe.github.io/SpokeToWork/storybook/)
+- **Status Dashboard**: [https://TortoiseWolfe.github.io/SpokeToWork/status](https://TortoiseWolfe.github.io/SpokeToWork/status)
 
 ## ✨ Key Features
 
@@ -67,9 +66,9 @@ docker compose up     # Start everything (first build takes 5-10 minutes)
 
 ```bash
 # Run commands inside container
-docker compose exec scripthammer pnpm run dev         # Dev server
-docker compose exec scripthammer pnpm test            # Run tests
-docker compose exec scripthammer pnpm run storybook   # Storybook
+docker compose exec spoketowork pnpm run dev         # Dev server
+docker compose exec spoketowork pnpm test            # Run tests
+docker compose exec spoketowork pnpm run storybook   # Storybook
 
 # Clean restart if needed
 docker compose down
@@ -234,9 +233,9 @@ See [docs/prp-docs/PRP-STATUS.md](./docs/prp-docs/PRP-STATUS.md) for detailed pr
 
 ## 🤝 Contributing
 
-1. Fork the repository (for contributing back to ScriptHammer)
+1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing`)
-3. Run tests in Docker (`docker compose exec scripthammer pnpm test`)
+3. Run tests in Docker (`docker compose exec spoketowork pnpm test`)
 4. Commit changes (`git commit -m 'Add feature'`)
 5. Push and open a PR
 

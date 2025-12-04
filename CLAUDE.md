@@ -28,8 +28,8 @@ yarn install
 npx <anything>
 
 # ✅ CORRECT - Always use Docker
-docker compose exec scripthammer pnpm install
-docker compose exec scripthammer pnpm add <package>
+docker compose exec spoketowork pnpm install
+docker compose exec spoketowork pnpm add <package>
 ```
 
 **Why this is critical:**
@@ -43,7 +43,7 @@ docker compose exec scripthammer pnpm add <package>
 
 ```bash
 docker compose down
-docker compose run --rm scripthammer rm -rf node_modules
+docker compose run --rm spoketowork rm -rf node_modules
 docker compose up
 ```
 
@@ -57,8 +57,8 @@ sudo chown -R $USER:$USER .next
 sudo rm -rf node_modules
 
 # ✅ CORRECT - Use Docker
-docker compose exec scripthammer rm -rf .next
-docker compose exec scripthammer rm -rf node_modules
+docker compose exec spoketowork rm -rf .next
+docker compose exec spoketowork rm -rf node_modules
 docker compose down && docker compose up
 ```
 
@@ -67,7 +67,7 @@ docker compose down && docker compose up
 **Permission errors? Always try:**
 
 1. `docker compose down && docker compose up` (restarts container, cleans .next)
-2. `docker compose exec scripthammer pnpm run docker:clean`
+2. `docker compose exec spoketowork pnpm run docker:clean`
 
 ### Essential Commands
 
@@ -76,24 +76,24 @@ docker compose down && docker compose up
 docker compose up
 
 # Development server
-docker compose exec scripthammer pnpm run dev
+docker compose exec spoketowork pnpm run dev
 
 # Run tests
-docker compose exec scripthammer pnpm test
-docker compose exec scripthammer pnpm run test:suite    # Full suite
+docker compose exec spoketowork pnpm test
+docker compose exec spoketowork pnpm run test:suite    # Full suite
 
 # Storybook
-docker compose exec scripthammer pnpm run storybook
+docker compose exec spoketowork pnpm run storybook
 
 # E2E tests
-docker compose exec scripthammer pnpm exec playwright test
+docker compose exec spoketowork pnpm exec playwright test
 
 # Type checking & linting
-docker compose exec scripthammer pnpm run type-check
-docker compose exec scripthammer pnpm run lint
+docker compose exec spoketowork pnpm run type-check
+docker compose exec spoketowork pnpm run lint
 
 # Clean start if issues
-docker compose exec scripthammer pnpm run docker:clean
+docker compose exec spoketowork pnpm run docker:clean
 ```
 
 ### Supabase Keep-Alive
@@ -101,7 +101,7 @@ docker compose exec scripthammer pnpm run docker:clean
 Supabase Cloud free tier auto-pauses after 7 days. If paused:
 
 ```bash
-docker compose exec scripthammer pnpm run prime
+docker compose exec spoketowork pnpm run prime
 ```
 
 ## Component Structure (MANDATORY)
@@ -120,7 +120,7 @@ ComponentName/
 **Always use the generator:**
 
 ```bash
-docker compose exec scripthammer pnpm run generate:component
+docker compose exec spoketowork pnpm run generate:component
 ```
 
 See `docs/CREATING_COMPONENTS.md` for details.
@@ -220,7 +220,7 @@ docker compose down && docker compose up
 Instance paused after inactivity:
 
 ```bash
-docker compose exec scripthammer pnpm run prime
+docker compose exec spoketowork pnpm run prime
 ```
 
 ### Tailwind CSS Not Loading

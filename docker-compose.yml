@@ -1,5 +1,5 @@
 services:
-  scripthammer:
+  spoketowork:
     build:
       context: .
       dockerfile: docker/Dockerfile
@@ -28,22 +28,22 @@ services:
       start_period: 40s
     restart: unless-stopped
     networks:
-      - scripthammer-network
+      - spoketowork-network
 
   # Future services can be added here
   # db:
   #   image: postgres:16-alpine
   #   environment:
-  #     POSTGRES_DB: scripthammer
-  #     POSTGRES_USER: scripthammer
-  #     POSTGRES_PASSWORD: scripthammer
+  #     POSTGRES_DB: spoketowork
+  #     POSTGRES_USER: spoketowork
+  #     POSTGRES_PASSWORD: spoketowork
   #   volumes:
   #     - postgres_data:/var/lib/postgresql/data
   #   networks:
-  #     - scripthammer-network
+  #     - spoketowork-network
 
 networks:
-  scripthammer-network:
+  spoketowork-network:
     driver: bridge
 
 volumes:
