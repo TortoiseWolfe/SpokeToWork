@@ -1,12 +1,62 @@
-# SpokeToWork Template - Forking Feedback
+# ScriptHammer Template - Forking Feedback
 
-This document captures issues encountered when forking the SpokeToWork template to create a new project (SpokeToWork).
+This document captures issues encountered when forking the ScriptHammer template to create SpokeToWork. **This feedback is intended for the ScriptHammer maintainers** to improve the forking experience.
+
+## Summary
+
+Forking ScriptHammer required updating **200+ files** with hardcoded references. The Docker-first architecture also created friction with git hooks.
+
+---
 
 ## Issues Encountered
 
-### 1. Git Commits Fail in Docker-First Setup
+### 1. Massive Number of Hardcoded References
 
-**Problem:** Pre-commit hooks fail because `lint-staged` is not installed locally.
+**Problem:** 200+ files contain hardcoded "ScriptHammer" or "scripthammer" references that must be manually updated when forking.
+
+**Affected Areas:**
+
+| Category       | Files | Examples                                                  |
+| -------------- | ----- | --------------------------------------------------------- |
+| Core Config    | 10+   | `package.json`, `docker-compose.yml`, `project.config.ts` |
+| Scripts        | 15+   | `validate-ci.sh`, `seed-test-users.ts`, `generate-*.js`   |
+| Documentation  | 50+   | `README.md`, `CLAUDE.md`, all `/docs/*.md`                |
+| Specs          | 80+   | All files in `/specs/` directory                          |
+| Blog Content   | 20+   | `/public/blog/*.md`, `blog-data.json`                     |
+| Tests          | 10+   | Contract tests, fixtures                                  |
+| Service Worker | 1     | `public/sw.js` (cache names)                              |
+| Workflows      | 5+    | `.github/workflows/*.yml`                                 |
+
+**Suggested Fix:** Create a `scripts/rebrand.sh` script that:
+
+```bash
+#!/bin/bash
+# Usage: ./scripts/rebrand.sh NewProjectName NewOwner "New description"
+
+OLD_NAME="ScriptHammer"
+OLD_NAME_LOWER="scripthammer"
+NEW_NAME=$1
+NEW_NAME_LOWER=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+NEW_OWNER=$2
+NEW_DESC=$3
+
+find . -type f \( -name "*.sh" -o -name "*.ts" -o -name "*.tsx" -o -name "*.js" \
+  -o -name "*.json" -o -name "*.md" -o -name "*.yml" \) \
+  ! -path "./node_modules/*" ! -path "./.next/*" ! -path "./out/*" \
+  -exec sed -i "s/$OLD_NAME_LOWER/$NEW_NAME_LOWER/g; s/$OLD_NAME/$NEW_NAME/g" {} \;
+
+# Update docker-compose service name
+sed -i "s/scripthammer:/$NEW_NAME_LOWER:/g" docker-compose.yml
+
+# Delete CNAME if not using custom domain
+rm -f public/CNAME
+
+echo "Rebranded to $NEW_NAME. Run 'docker compose up --build' to rebuild."
+```
+
+### 2. Git Commits Fail in Docker-First Setup
+
+**Problem:** Pre-commit hooks run on the host but `lint-staged` is only in the container.
 
 **Error:**
 
@@ -15,24 +65,17 @@ sh: 1: lint-staged: not found
 husky - pre-commit script failed (code 1)
 ```
 
-**Cause:** The Docker-first architecture installs `node_modules` only inside the container, but husky runs on the host machine when you `git commit`.
+**Suggested Fix for ScriptHammer:**
 
-**Workarounds:**
-
-- `HUSKY=0 git commit -m "message"` - Skip hooks (not ideal)
-- Install node_modules locally - Violates Docker-first principle
-- Commit through Docker - Requires git config in container
-
-**Suggested Fix:**
-
-1. Add git credentials to `.env` (not committed to repo):
+1. Add to `.env.example`:
 
 ```bash
+# Git config for Docker commits
 GIT_AUTHOR_NAME=YourGitHubUsername
 GIT_AUTHOR_EMAIL=your-email@example.com
 ```
 
-2. Reference in docker-compose.yml (without hardcoded defaults):
+2. Add to `docker-compose.yml`:
 
 ```yaml
 environment:
@@ -42,88 +85,137 @@ environment:
   - GIT_COMMITTER_EMAIL=${GIT_AUTHOR_EMAIL}
 ```
 
-3. Add safe.directory (see Issue #4)
-4. Commit via: `docker compose exec <service> git commit -m "message"`
+3. Document that commits should be via:
 
-### 2. Hardcoded References Throughout Codebase
+```bash
+docker compose exec scripthammer git commit -m "message"
+```
 
-**Problem:** Multiple files contain hardcoded references to "SpokeToWork" and "spoketowork.com" that must be manually updated.
+### 3. Git Safe Directory Issue
 
-**Files requiring updates:**
+**Problem:** Container runs as root but `/app` is owned by host user.
 
-- `package.json` - name, description
-- `docker-compose.yml` - service name, network name
-- `README.md` - project title, description
-- `CLAUDE.md` - all Docker commands
-- `src/config/project.config.ts` - default values
-- `src/config/project-status.json` - project identity
-- `scripts/generate-sitemap.js` - SITE_URL
-- `scripts/generate-rss.js` - SITE_URL, descriptions
-- `.github/workflows/*.yml` - URLs, project references
-- `src/app/page.tsx` - Storybook/Source links
-- `src/app/status/page.tsx` - hardcoded URLs
-- And more...
-
-**Suggested Fix:** Create a `scripts/rebrand.js` script that:
-
-1. Prompts for new project name, owner, description
-2. Updates all hardcoded references automatically
-3. Deletes `public/CNAME` if using GitHub Pages default URL
-
-### 3. Custom Domain File (CNAME) Blocks GitHub Pages
-
-**Problem:** The `public/CNAME` file is set to `spoketowork.com`, which prevents GitHub Pages from using the default `<user>.github.io/<repo>` URL.
-
-**Fix:** Delete `public/CNAME` when not using a custom domain.
-
-### 4. Git Config Not Available in Container
-
-**Problem:** Running `git commit` inside the Docker container fails with multiple issues:
-
-1. "Author identity unknown" - no git user config
-2. "dubious ownership" - /app owned by different user than container root
-
-**Errors:**
+**Error:**
 
 ```
-fatal: unable to auto-detect email address (got 'root@<container>.(none)')
 fatal: detected dubious ownership in repository at '/app'
 ```
 
-**Fix:**
-
-1. Add git environment variables to docker-compose.yml (see Issue #1)
-2. Add safe.directory to your local .gitconfig:
-
-```bash
-git config --global --add safe.directory /app
-```
-
-The Dockerfile should also include this (check `docker/Dockerfile`):
+**Suggested Fix:** Add to `docker/Dockerfile`:
 
 ```dockerfile
 RUN git config --global --add safe.directory /app
 ```
 
-### 5. Missing Documentation for Fork Workflow
+And document that users need:
 
-**Problem:** No clear documentation on the complete steps needed to fork and rebrand the template.
+```bash
+git config --global --add safe.directory /app
+```
 
-**Suggested Addition to TEMPLATE-GUIDE.md:**
+### 4. CNAME Blocks GitHub Pages Default URL
 
-1. Fork the repository
-2. Clone locally
-3. Run rebrand script (suggested above)
-4. Update `.env` with UID/GID
-5. Delete `public/CNAME` if not using custom domain
-6. Verify build: `docker compose exec <service> pnpm run build`
-7. Push to GitHub
-8. Enable GitHub Pages in repository settings
+**Problem:** `public/CNAME` is set to `scripthammer.com`, preventing `<user>.github.io/<repo>` URL.
+
+**Suggested Fix:** Either:
+
+- Remove `public/CNAME` from the template entirely
+- Or add to rebrand script: `rm -f public/CNAME`
+
+### 5. Service Worker Cache Names Hardcoded
+
+**Problem:** `public/sw.js` has hardcoded cache version:
+
+```javascript
+const CACHE_VERSION = 'scripthammer-v1.0.0';
+```
+
+**Suggested Fix:** Use environment variable or auto-detect from package.json:
+
+```javascript
+const CACHE_VERSION = `${PROJECT_NAME}-v${VERSION}`;
+```
+
+### 6. Admin User Email Hardcoded
+
+**Problem:** Multiple files reference `admin@scripthammer.com`:
+
+- `scripts/seed-test-users.ts`
+- `tests/contract/auth/admin-user.contract.test.ts`
+- Various spec files
+
+**Suggested Fix:** Use environment variable `ADMIN_EMAIL` with fallback.
+
+---
+
+## Recommended Fork Workflow
+
+Based on our experience, here's the complete workflow:
+
+### Prerequisites
+
+```bash
+# Add to your ~/.gitconfig
+git config --global --add safe.directory /app
+```
+
+### Step-by-Step
+
+1. **Fork & Clone**
+
+   ```bash
+   gh repo fork TortoiseWolfe/ScriptHammer --clone
+   cd YourNewProject
+   ```
+
+2. **Create .env**
+
+   ```bash
+   cp .env.example .env
+   # Edit .env with your values:
+   # UID, GID, GIT_AUTHOR_NAME, GIT_AUTHOR_EMAIL
+   ```
+
+3. **Run Rebrand Script** (if it exists, otherwise manual)
+
+   ```bash
+   ./scripts/rebrand.sh YourProject YourUsername "Your description"
+   ```
+
+4. **Delete CNAME** (if using GitHub Pages default URL)
+
+   ```bash
+   rm public/CNAME
+   ```
+
+5. **Start Docker & Verify**
+
+   ```bash
+   docker compose up -d
+   docker compose exec yourproject pnpm run build
+   ```
+
+6. **Commit & Push**
+
+   ```bash
+   docker compose exec yourproject git add -A
+   docker compose exec yourproject git commit -m "Rebrand to YourProject"
+   git push
+   ```
+
+7. **Enable GitHub Pages**
+   - Settings -> Pages -> Source: "GitHub Actions"
+
+---
 
 ## Environment
 
-- Template: SpokeToWork
-- Forked To: SpokeToWork
-- Date: 2024-12
-- Docker-first: Yes
-- Target: GitHub Pages (default URL)
+- **Source Template:** ScriptHammer (TortoiseWolfe/ScriptHammer)
+- **Forked To:** SpokeToWork
+- **Date:** December 2025
+- **Files Updated:** 200+
+- **Time Required:** ~2 hours (would be <5 minutes with rebrand script)
+
+---
+
+_This feedback is provided to help improve the ScriptHammer template for future users._
