@@ -4,7 +4,7 @@ This document captures issues encountered when forking the ScriptHammer template
 
 ## Summary
 
-Forking ScriptHammer required updating **200+ files** with hardcoded references. The Docker-first architecture also created friction with git hooks. Additionally, tests require Supabase mocking, description assertions need updating, **the basePath secret in deploy.yml breaks GitHub Pages for forks** (Issue #10), and **production crashes without Supabase GitHub secrets** (Issue #11).
+Forking ScriptHammer required updating **200+ files** with hardcoded references. The Docker-first architecture also created friction with git hooks. Additionally, tests require Supabase mocking, description assertions need updating, **the basePath secret in deploy.yml breaks GitHub Pages for forks** (Issue #10), **production crashes without Supabase GitHub secrets** (Issue #11), **the footer template link needs manual update** (Issue #12), and **the PWA manifest description is generated at build time** (Issue #13).
 
 ---
 
@@ -319,6 +319,67 @@ Error: Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_U
 
 - Document Supabase setup as a required step in the fork workflow
 - Or modify `src/lib/supabase/client.ts` to return a disabled mock client instead of throwing, allowing the app to run in "offline mode" without Supabase
+
+### 12. Footer Template Link Needs Manual Update
+
+**Problem:** The footer says "Open source template available" but doesn't link anywhere. Forkers need to manually add a link back to the template source.
+
+**Current Code** (`src/components/Footer.tsx`):
+
+```tsx
+<p className="text-base-content/40 mt-1 text-xs">
+  Open source template available
+</p>
+```
+
+**Suggested Fix:** The template should include the link by default:
+
+```tsx
+<p className="text-base-content/40 mt-1 text-xs">
+  Open source template available at{' '}
+  <a
+    href="https://scripthammer.com"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="link-hover link"
+  >
+    ScriptHammer.com
+  </a>
+</p>
+```
+
+### 13. PWA Manifest Description is Generated, Not Static
+
+**Problem:** After rebranding, the `public/manifest.json` keeps reverting to the old template description even after editing it directly.
+
+**Root Cause:** `public/manifest.json` is **generated** by `scripts/generate-manifest.js` during the prebuild process. Line 53 has a hardcoded description:
+
+```javascript
+description: `${projectConfig.projectName} - Modern Next.js template with PWA, theming, and interactive components`,
+```
+
+**Files that need description updates for rebranding:**
+
+| File                                     | Purpose                               |
+| ---------------------------------------- | ------------------------------------- |
+| `scripts/generate-manifest.js` (line 53) | **Source** - PWA manifest description |
+| `src/app/page.tsx` (lines 66-74)         | Home page hero tagline                |
+| `package.json`                           | npm package description               |
+| `src/config/project.config.ts`           | App description constant              |
+| `README.md`                              | Repository description                |
+
+**Suggested Fix:**
+
+1. Add `public/manifest.json` to `.gitignore` (it's generated)
+2. Update the description in `scripts/generate-manifest.js` not the manifest file
+3. Document this in the rebrand script or README
+
+**Verification:**
+
+```bash
+docker compose exec spoketowork node scripts/generate-manifest.js
+cat public/manifest.json | grep description
+```
 
 ---
 

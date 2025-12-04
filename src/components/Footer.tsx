@@ -25,7 +25,15 @@ export function Footer() {
           </a>
         </p>
         <p className="text-base-content/40 mt-1 text-xs">
-          Open source template available
+          Open source template available at{' '}
+          <a
+            href="https://scripthammer.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="link-hover link"
+          >
+            ScriptHammer.com
+          </a>
         </p>
       </div>
     </footer>
