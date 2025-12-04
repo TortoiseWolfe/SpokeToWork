@@ -132,17 +132,17 @@ describe('detect-project.js', () => {
   describe('Configuration Generation', () => {
     test('should generate default config when git is not available', () => {
       const config = {
-        projectName: process.env.NEXT_PUBLIC_PROJECT_NAME || 'ScriptHammer',
+        projectName: process.env.NEXT_PUBLIC_PROJECT_NAME || 'SpokeToWork',
         projectOwner: process.env.NEXT_PUBLIC_PROJECT_OWNER || 'TortoiseWolfe',
         projectHost: 'github.com',
-        projectUrl: 'https://github.com/TortoiseWolfe/ScriptHammer',
+        projectUrl: 'https://github.com/TortoiseWolfe/SpokeToWork',
         basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
         isGitHub: true,
         detectionSource: 'fallback',
         generatedAt: new Date().toISOString(),
       };
 
-      assert.strictEqual(config.projectName, 'ScriptHammer');
+      assert.strictEqual(config.projectName, 'SpokeToWork');
       assert.strictEqual(config.projectOwner, 'TortoiseWolfe');
       assert.strictEqual(config.detectionSource, 'fallback');
     });
@@ -154,7 +154,7 @@ describe('detect-project.js', () => {
       process.env.NEXT_PUBLIC_BASE_PATH = '/test';
 
       const config = {
-        projectName: process.env.NEXT_PUBLIC_PROJECT_NAME || 'ScriptHammer',
+        projectName: process.env.NEXT_PUBLIC_PROJECT_NAME || 'SpokeToWork',
         projectOwner: process.env.NEXT_PUBLIC_PROJECT_OWNER || 'TortoiseWolfe',
         basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
       };
@@ -267,11 +267,11 @@ export type DetectedConfig = typeof detectedConfig;
       process.env.NEXT_PUBLIC_PROJECT_OWNER = '';
 
       const config = {
-        projectName: process.env.NEXT_PUBLIC_PROJECT_NAME || 'ScriptHammer',
+        projectName: process.env.NEXT_PUBLIC_PROJECT_NAME || 'SpokeToWork',
         projectOwner: process.env.NEXT_PUBLIC_PROJECT_OWNER || 'TortoiseWolfe',
       };
 
-      assert.strictEqual(config.projectName, 'ScriptHammer');
+      assert.strictEqual(config.projectName, 'SpokeToWork');
       assert.strictEqual(config.projectOwner, 'TortoiseWolfe');
 
       // Restore environment
@@ -320,7 +320,7 @@ export type DetectedConfig = typeof detectedConfig;
       const envOwner = 'EnvOwner';
 
       const config = {
-        projectName: envName || gitInfo?.repo || 'ScriptHammer',
+        projectName: envName || gitInfo?.repo || 'SpokeToWork',
         projectOwner: envOwner || gitInfo?.owner || 'TortoiseWolfe',
       };
 

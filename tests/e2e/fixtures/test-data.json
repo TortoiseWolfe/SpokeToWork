@@ -54,7 +54,7 @@
   },
   "navigation": {
     "pages": [
-      { "name": "Home", "path": "/", "title": "ScriptHammer" },
+      { "name": "Home", "path": "/", "title": "SpokeToWork" },
       { "name": "Themes", "path": "/themes", "title": "Theme" },
       { "name": "Components", "path": "/components", "title": "Component" },
       {
@@ -65,7 +65,7 @@
       { "name": "Status", "path": "/status", "title": "Status" }
     ],
     "externalLinks": [
-      { "name": "GitHub", "url": "github.com/TortoiseWolfe/ScriptHammer" }
+      { "name": "GitHub", "url": "github.com/TortoiseWolfe/SpokeToWork" }
     ]
   },
   "components": {
@@ -91,9 +91,9 @@
   },
   "pwa": {
     "manifest": {
-      "name": "ScriptHammer",
-      "short_name": "ScriptHammer",
-      "start_url": "/ScriptHammer/",
+      "name": "SpokeToWork",
+      "short_name": "SpokeToWork",
+      "start_url": "/SpokeToWork/",
       "display": "standalone",
       "theme_color": "#3b82f6",
       "background_color": "#ffffff"

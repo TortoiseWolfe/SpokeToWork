@@ -88,7 +88,7 @@ To verify production functionality:
 
 ```bash
 # 1. Start the development server
-docker compose exec scripthammer pnpm run dev
+docker compose exec spoketowork pnpm run dev
 
 # 2. Open Chrome and navigate to http://localhost:3000/contact
 

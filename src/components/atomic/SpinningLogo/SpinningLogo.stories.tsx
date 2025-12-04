@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/nextjs';
 import { SpinningLogo } from './SpinningLogo';
-import { ScriptHammerLogo } from './ScriptHammerLogo';
-import { LayeredScriptHammerLogo } from './LayeredScriptHammerLogo';
+import { SpokeToWorkLogo } from './SpokeToWorkLogo';
+import { LayeredSpokeToWorkLogo } from './LayeredSpokeToWorkLogo';
 
 const meta = {
   title: 'Atomic Design/Atomic/SpinningLogo',
@@ -42,81 +42,81 @@ const ReactLogo = () => (
   </svg>
 );
 
-// Layered ScriptHammer Logo as the primary/default story
+// Layered SpokeToWork Logo as the primary/default story
 export const Default: Story = {
   args: {
     children: null,
   },
   render: () => (
-    <LayeredScriptHammerLogo size={250} speed="slow" pauseOnHover={true} />
+    <LayeredSpokeToWorkLogo size={250} speed="slow" pauseOnHover={true} />
   ),
 };
 
-// Original simple ScriptHammer Logo
-export const SimpleScriptHammer: Story = {
+// Original simple SpokeToWork Logo
+export const SimpleSpokeToWork: Story = {
   args: {
-    children: <ScriptHammerLogo />,
+    children: <SpokeToWorkLogo />,
     size: 250,
     pauseOnHover: true,
   },
 };
 
-// Layered ScriptHammer Logo - the new composite logo
-export const LayeredScriptHammer: Story = {
+// Layered SpokeToWork Logo - the new composite logo
+export const LayeredSpokeToWork: Story = {
   args: {
     children: null,
   },
   render: () => (
-    <LayeredScriptHammerLogo size={250} speed="slow" pauseOnHover={true} />
+    <LayeredSpokeToWorkLogo size={250} speed="slow" pauseOnHover={true} />
   ),
 };
 
-export const LayeredScriptHammerLarge: Story = {
+export const LayeredSpokeToWorkLarge: Story = {
   args: {
     children: null,
   },
   render: () => (
-    <LayeredScriptHammerLogo size={350} speed="slow" pauseOnHover={true} />
+    <LayeredSpokeToWorkLogo size={350} speed="slow" pauseOnHover={true} />
   ),
 };
 
-export const ScriptHammerLarge: Story = {
+export const SpokeToWorkLarge: Story = {
   args: {
-    children: <ScriptHammerLogo />,
+    children: <SpokeToWorkLogo />,
     size: 350,
     pauseOnHover: true,
   },
 };
 
-export const ScriptHammerFast: Story = {
+export const SpokeToWorkFast: Story = {
   args: {
-    children: <ScriptHammerLogo />,
+    children: <SpokeToWorkLogo />,
     size: 250,
     speed: 'fast',
     pauseOnHover: true,
   },
 };
 
-export const ScriptHammerVerySlow: Story = {
+export const SpokeToWorkVerySlow: Story = {
   args: {
-    children: <ScriptHammerLogo />,
+    children: <SpokeToWorkLogo />,
     size: 250,
     speed: 60, // 60 second rotation - ultra smooth
     pauseOnHover: true,
   },
 };
 
-export const ScriptHammerStatic: Story = {
+export const SpokeToWorkStatic: Story = {
   args: {
-    children: <ScriptHammerLogo />,
+    children: <SpokeToWorkLogo />,
     size: 250,
     isSpinning: false,
   },
 };
 
-export const ScriptHammerCounterClockwise: Story = {
+export const SpokeToWorkCounterClockwise: Story = {
   args: {
-    children: <ScriptHammerLogo />,
+    children: <SpokeToWorkLogo />,
     size: 250,
     direction: 'counter-clockwise',
     pauseOnHover: true,

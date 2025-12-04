@@ -41,7 +41,7 @@ type Story = StoryObj<typeof AnimatedLogo>;
 
 export const Default: Story = {
   args: {
-    text: 'ScriptHammer',
+    text: 'SpokeToWork',
     size: 'xl',
     animationSpeed: 'normal',
   },

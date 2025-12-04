@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayeredScriptHammerLogo } from '@/components/atomic/SpinningLogo';
+import { LayeredSpokeToWorkLogo } from '@/components/atomic/SpinningLogo';
 import { ColorblindToggle } from '@/components/atomic/ColorblindToggle';
 import { FontSizeControl } from '@/components/navigation/FontSizeControl';
 import { detectedConfig } from '@/config/project-detected';
@@ -152,7 +152,7 @@ export function GlobalNav() {
               className="flex items-center gap-2 transition-opacity hover:opacity-80"
             >
               <div className="h-8 w-8">
-                <LayeredScriptHammerLogo
+                <LayeredSpokeToWorkLogo
                   size={32}
                   speed="slow"
                   className="drop-shadow-sm"

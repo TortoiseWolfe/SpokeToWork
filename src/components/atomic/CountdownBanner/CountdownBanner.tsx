@@ -82,7 +82,7 @@ export const CountdownBanner = () => {
         <div className="flex items-center gap-3">
           <div className="text-center">
             <div className="text-2xl font-bold">$321/year</div>
-            <div className="text-sm">Custom ScriptHammer Setup</div>
+            <div className="text-sm">Custom SpokeToWork Setup</div>
           </div>
           <Button variant="accent" onClick={() => router.push('/schedule')}>
             Book Now

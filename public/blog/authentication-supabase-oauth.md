@@ -26,7 +26,7 @@ twitterCard: summary_large_image
 
 Authentication is the foundation of any application that handles user data. Get it wrong, and you're exposing your users to account takeovers, data breaches, and compliance nightmares. Get it right, and your users don't even notice—they just trust you.
 
-This post documents our implementation of production-ready authentication in ScriptHammer using [Supabase](https://supabase.com/), complete with OAuth (Open Authorization) providers, server-side rate limiting, and database-level security policies. This isn't a "hello world" tutorial—this is what we learned building authentication that actually ships to production.
+This post documents our implementation of production-ready authentication in SpokeToWork using [Supabase](https://supabase.com/), complete with OAuth (Open Authorization) providers, server-side rate limiting, and database-level security policies. This isn't a "hello world" tutorial—this is what we learned building authentication that actually ships to production.
 
 ## 🗄️ Why Supabase? (vs Auth0/Firebase)
 
@@ -980,4 +980,4 @@ Next up: [Offline-First Payment System with Stripe and PayPal](/blog/offline-pay
 
 ---
 
-**Want to see the full implementation?** Check out the [ScriptHammer GitHub repository](https://github.com/TortoiseWolfe/ScriptHammer).
+**Want to see the full implementation?** Check out the [SpokeToWork GitHub repository](https://github.com/TortoiseWolfe/SpokeToWork).

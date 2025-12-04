@@ -1,21 +1,21 @@
 import React from 'react';
 import Image from 'next/image';
 
-export interface ScriptHammerLogoProps {
+export interface SpokeToWorkLogoProps {
   className?: string;
   width?: number;
   height?: number;
 }
 
-export const ScriptHammerLogo: React.FC<ScriptHammerLogoProps> = ({
+export const SpokeToWorkLogo: React.FC<SpokeToWorkLogoProps> = ({
   className = 'w-full h-full',
   width = 400,
   height = 400,
 }) => {
   return (
     <Image
-      src="/scripthammer-logo.svg"
-      alt="ScriptHammer Logo"
+      src="/spoketowork-logo.svg"
+      alt="SpokeToWork Logo"
       width={width}
       height={height}
       className={className}
@@ -25,4 +25,4 @@ export const ScriptHammerLogo: React.FC<ScriptHammerLogoProps> = ({
   );
 };
 
-ScriptHammerLogo.displayName = 'ScriptHammerLogo';
+SpokeToWorkLogo.displayName = 'SpokeToWorkLogo';

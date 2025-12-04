@@ -241,13 +241,13 @@ DELETE the alerts at the bottom of the component (~lines 416-426):
 
 ```bash
 # Run AccountSettings tests
-docker compose exec scripthammer pnpm test -- AccountSettings
+docker compose exec spoketowork pnpm test -- AccountSettings
 
 # Run all tests
-docker compose exec scripthammer pnpm test
+docker compose exec spoketowork pnpm test
 
 # Type check
-docker compose exec scripthammer pnpm run type-check
+docker compose exec spoketowork pnpm run type-check
 ```
 
 ## Verification Checklist

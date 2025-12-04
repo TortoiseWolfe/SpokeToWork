@@ -88,7 +88,7 @@ ${blogPosts
 
 // Generate robots.txt
 function generateRobotsTxt() {
-  const robotsTxt = `# ScriptHammer Robots.txt
+  const robotsTxt = `# SpokeToWork Robots.txt
 User-agent: *
 Allow: /
 

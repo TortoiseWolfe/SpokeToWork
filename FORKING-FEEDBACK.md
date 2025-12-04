@@ -1,6 +1,6 @@
-# ScriptHammer Template - Forking Feedback
+# SpokeToWork Template - Forking Feedback
 
-This document captures issues encountered when forking the ScriptHammer template to create a new project (SpokeToWork).
+This document captures issues encountered when forking the SpokeToWork template to create a new project (SpokeToWork).
 
 ## Issues Encountered
 
@@ -47,7 +47,7 @@ environment:
 
 ### 2. Hardcoded References Throughout Codebase
 
-**Problem:** Multiple files contain hardcoded references to "ScriptHammer" and "scripthammer.com" that must be manually updated.
+**Problem:** Multiple files contain hardcoded references to "SpokeToWork" and "spoketowork.com" that must be manually updated.
 
 **Files requiring updates:**
 
@@ -72,7 +72,7 @@ environment:
 
 ### 3. Custom Domain File (CNAME) Blocks GitHub Pages
 
-**Problem:** The `public/CNAME` file is set to `scripthammer.com`, which prevents GitHub Pages from using the default `<user>.github.io/<repo>` URL.
+**Problem:** The `public/CNAME` file is set to `spoketowork.com`, which prevents GitHub Pages from using the default `<user>.github.io/<repo>` URL.
 
 **Fix:** Delete `public/CNAME` when not using a custom domain.
 
@@ -122,7 +122,7 @@ RUN git config --global --add safe.directory /app
 
 ## Environment
 
-- Template: ScriptHammer
+- Template: SpokeToWork
 - Forked To: SpokeToWork
 - Date: 2024-12
 - Docker-first: Yes

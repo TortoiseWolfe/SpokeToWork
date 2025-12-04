@@ -101,7 +101,7 @@ Complete guide for configuring Supabase authentication with email/password and O
 
 | Field                          | Value                                                        |
 | ------------------------------ | ------------------------------------------------------------ |
-| **Application name**           | `ScriptHammer` (or your preferred name)                      |
+| **Application name**           | `SpokeToWork` (or your preferred name)                       |
 | **Homepage URL**               | `http://localhost:3000` (development) or your production URL |
 | **Application description**    | (Optional) "Next.js template with authentication"            |
 | **Authorization callback URL** | `https://vswxgxbjodpgwfgsjrhq.supabase.co/auth/v1/callback`  |
@@ -161,7 +161,7 @@ Complete guide for configuring Supabase authentication with email/password and O
 **Step 3:** Configure OAuth consent screen (if needed)
 
 - **User Type:** External (for public apps)
-- **App name:** ScriptHammer
+- **App name:** SpokeToWork
 - **User support email:** Your email
 - **Developer contact information:** Your email
 - Click **"Save and Continue"**
@@ -171,7 +171,7 @@ Complete guide for configuring Supabase authentication with email/password and O
 **Step 4:** Create OAuth Client ID
 
 - **Application type:** Web application
-- **Name:** ScriptHammer
+- **Name:** SpokeToWork
 - **Authorized redirect URIs:** Click **"+ ADD URI"**
   - Add: `https://vswxgxbjodpgwfgsjrhq.supabase.co/auth/v1/callback`
 - Click **"CREATE"**
@@ -213,13 +213,13 @@ Complete guide for configuring Supabase authentication with email/password and O
 **Step 2:** Set Site URL
 
 - **Development:** `http://localhost:3000`
-- **Production:** Your deployed URL (e.g., `https://scripthammer.github.io/ScriptHammer`)
+- **Production:** Your deployed URL (e.g., `https://spoketowork.github.io/SpokeToWork`)
 
 **Step 3:** Add Redirect URLs
 
 - Click **"Add redirect URL"** for each environment:
   - `http://localhost:3000/**` (development)
-  - `https://scripthammer.github.io/ScriptHammer/**` (production)
+  - `https://spoketowork.github.io/SpokeToWork/**` (production)
 
 ### 5.2 Email Auth Settings
 
@@ -248,7 +248,7 @@ Complete guide for configuring Supabase authentication with email/password and O
 **Step 1:** Start development server
 
 ```bash
-docker compose exec scripthammer pnpm run dev
+docker compose exec spoketowork pnpm run dev
 ```
 
 **Step 2:** Navigate to sign-up page
@@ -327,7 +327,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
 
 ```bash
 # Exit dev server (Ctrl+C)
-docker compose exec scripthammer pnpm run dev
+docker compose exec spoketowork pnpm run dev
 ```
 
 ## Troubleshooting
