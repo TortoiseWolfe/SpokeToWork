@@ -88,7 +88,7 @@ ${post.categories.map((cat) => `      <category>${escapeXml(cat)}</category>`).j
   // Also generate a simple JSON feed for modern readers
   const jsonFeed = {
     version: 'https://jsonfeed.org/version/1.1',
-    title: 'ScriptHammer Blog',
+    title: 'SpokeToWork Blog',
     home_page_url: `${SITE_URL}/blog`,
     feed_url: `${SITE_URL}/feed.json`,
     description: 'Opinionated Next.js PWA Template',

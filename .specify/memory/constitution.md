@@ -20,7 +20,7 @@ Template Consistency:
 
 Action Items:
   ⚠️  specs/022-on-the-account/plan.md:43 - Incorrectly states "(template only - no project-specific constitution)"
-      Should read: "ScriptHammer Constitution v1.0.1 (6 core principles)"
+      Should read: "SpokeToWork Constitution v1.0.1 (6 core principles)"
 
 Version Decision: No version bump required
   - No principles modified, added, or removed
@@ -31,7 +31,7 @@ Version Decision: No version bump required
 Follow-up: None - constitution is complete and aligned
 -->
 
-# ScriptHammer Constitution
+# SpokeToWork Constitution
 
 ## Core Principles
 

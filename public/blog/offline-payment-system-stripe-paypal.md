@@ -460,7 +460,7 @@ export function PaymentButton({
 
 ### Edge Function: Stripe Checkout
 
-**⚠️ Note**: This is an example implementation. ScriptHammer currently uses `stripe-webhook` for webhook handling. You'll need to create this Edge Function in your own project and adapt it to your specific requirements.
+**⚠️ Note**: This is an example implementation. SpokeToWork currently uses `stripe-webhook` for webhook handling. You'll need to create this Edge Function in your own project and adapt it to your specific requirements.
 
 ```typescript
 // supabase/functions/stripe-create-payment/index.ts (example implementation)
@@ -942,4 +942,4 @@ For authentication to protect these payments, read: [Production-Ready Authentica
 
 ---
 
-**Want to see the full implementation?** Check out the [ScriptHammer GitHub repository](https://github.com/TortoiseWolfe/ScriptHammer).
+**Want to see the full implementation?** Check out the [SpokeToWork GitHub repository](https://github.com/TortoiseWolfe/SpokeToWork).

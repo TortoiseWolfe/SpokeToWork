@@ -18,11 +18,11 @@ test.describe('Homepage Navigation (with Page Objects)', () => {
     await homePage.verifyPageLoad();
 
     // Check the page title
-    await expect(page).toHaveTitle(/ScriptHammer/);
+    await expect(page).toHaveTitle(/SpokeToWork/);
 
     // Check the hero title
     const heroTitle = await homePage.getHeroTitle();
-    expect(heroTitle).toContain('ScriptHammer');
+    expect(heroTitle).toContain('SpokeToWork');
   });
 
   test('navigate to themes page', async () => {

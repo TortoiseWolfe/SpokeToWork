@@ -241,7 +241,7 @@ describe('useWeb3Forms Hook', () => {
 **Command**:
 
 ```bash
-docker compose exec scripthammer pnpm run generate:component
+docker compose exec spoketowork pnpm run generate:component
 # Select: forms
 # Name: ContactForm
 # Path: forms/ContactForm
@@ -896,22 +896,22 @@ NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY=your_access_key_here
 
 ```bash
 # Run all form-related tests
-docker compose exec scripthammer pnpm test src/schemas/contact
-docker compose exec scripthammer pnpm test src/utils/web3forms
-docker compose exec scripthammer pnpm test src/hooks/useWeb3Forms
-docker compose exec scripthammer pnpm test src/components/forms/ContactForm
+docker compose exec spoketowork pnpm test src/schemas/contact
+docker compose exec spoketowork pnpm test src/utils/web3forms
+docker compose exec spoketowork pnpm test src/hooks/useWeb3Forms
+docker compose exec spoketowork pnpm test src/components/forms/ContactForm
 
 # Run integration tests
-docker compose exec scripthammer pnpm test src/tests/contact-form
+docker compose exec spoketowork pnpm test src/tests/contact-form
 
 # Check test coverage
-docker compose exec scripthammer pnpm test:coverage
+docker compose exec spoketowork pnpm test:coverage
 
 # Run accessibility audit
-docker compose exec scripthammer pnpm test:a11y
+docker compose exec spoketowork pnpm test:a11y
 
 # Build and check for errors
-docker compose exec scripthammer pnpm run build
+docker compose exec spoketowork pnpm run build
 ```
 
 ---

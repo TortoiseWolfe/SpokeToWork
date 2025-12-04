@@ -21,7 +21,7 @@ declare global {
  * Disqus Comments Component
  *
  * IMPORTANT FIXES:
- * 1. URL is hardcoded to scripthammer.com because environment variables
+ * 1. URL is hardcoded to spoketowork.com because environment variables
  *    are not available during GitHub Actions static build
  * 2. CSS overrides are applied to prevent OKLCH color parsing errors
  *    (Disqus embed.js cannot parse modern OKLCH color format)
@@ -42,7 +42,7 @@ export default function DisqusComments({
   // Generate production URL - hardcoded for GitHub Actions compatibility
   const productionUrl = url?.startsWith('http')
     ? url
-    : `https://scripthammer.com/blog/${slug}`;
+    : `https://spoketowork.com/blog/${slug}`;
 
   // Set up intersection observer for lazy loading
   useEffect(() => {

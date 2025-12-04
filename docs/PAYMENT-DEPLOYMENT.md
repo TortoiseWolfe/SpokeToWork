@@ -153,7 +153,7 @@ Check Supabase Dashboard → Edge Functions:
 
 ```bash
 docker compose up
-docker compose exec scripthammer pnpm run dev
+docker compose exec spoketowork pnpm run dev
 ```
 
 ### 6.2 Test Payment Flow
@@ -250,7 +250,7 @@ For issues:
 Run integration tests:
 
 ```bash
-docker compose exec scripthammer pnpm exec playwright test e2e/payment
+docker compose exec spoketowork pnpm exec playwright test e2e/payment
 ```
 
 **Note**: Some tests require `SUPABASE_SERVICE_ROLE_KEY` environment variable.

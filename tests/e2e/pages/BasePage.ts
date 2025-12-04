@@ -10,7 +10,7 @@ export class BasePage {
 
   constructor(page: Page) {
     this.page = page;
-    this.baseURL = process.env.BASE_URL || 'http://localhost:3000/ScriptHammer';
+    this.baseURL = process.env.BASE_URL || 'http://localhost:3000/SpokeToWork';
   }
 
   /**

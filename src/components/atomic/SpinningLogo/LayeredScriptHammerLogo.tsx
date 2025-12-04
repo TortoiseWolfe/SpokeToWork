@@ -5,16 +5,18 @@ import Image from 'next/image';
 import { SpinningLogo } from './SpinningLogo';
 import { detectedConfig } from '@/config/project-detected';
 
-export interface LayeredScriptHammerLogoProps {
+export interface LayeredSpokeToWorkLogoProps {
   className?: string;
   size?: number;
   speed?: 'slow' | 'normal' | 'fast' | number;
   pauseOnHover?: boolean;
 }
 
-export const LayeredScriptHammerLogo: React.FC<
-  LayeredScriptHammerLogoProps
-> = ({ className = '', speed = 'slow', pauseOnHover = true }) => {
+export const LayeredSpokeToWorkLogo: React.FC<LayeredSpokeToWorkLogoProps> = ({
+  className = '',
+  speed = 'slow',
+  pauseOnHover = true,
+}) => {
   return (
     <div
       className={`relative ${className}`}
@@ -27,7 +29,7 @@ export const LayeredScriptHammerLogo: React.FC<
       {/* Rotating gear ring with hammer */}
       <SpinningLogo speed={speed} pauseOnHover={pauseOnHover}>
         <Image
-          src={`${detectedConfig.basePath}/scripthammer-logo.svg`}
+          src={`${detectedConfig.basePath}/spoketowork-logo.svg`}
           alt="Gear Ring"
           width={400}
           height={400}
@@ -100,4 +102,4 @@ export const LayeredScriptHammerLogo: React.FC<
   );
 };
 
-LayeredScriptHammerLogo.displayName = 'LayeredScriptHammerLogo';
+LayeredSpokeToWorkLogo.displayName = 'LayeredSpokeToWorkLogo';

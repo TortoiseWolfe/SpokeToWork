@@ -3,7 +3,7 @@
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue)](https://github.com/TortoiseWolfe/SpokeToWork)
 [![Stars](https://img.shields.io/github/stars/TortoiseWolfe/SpokeToWork?style=social)](https://github.com/TortoiseWolfe/SpokeToWork)
 
-A Progressive Web App (works without internet) for in-person job hunting. Track companies and generate optimized bicycle routes. Forked from [ScriptHammer](https://github.com/TortoiseWolfe/ScriptHammer).
+A Progressive Web App (works without internet) for in-person job hunting. Track companies and generate optimized bicycle routes. Forked from [SpokeToWork](https://github.com/TortoiseWolfe/SpokeToWork).
 
 ## 🚀 Live Demos
 

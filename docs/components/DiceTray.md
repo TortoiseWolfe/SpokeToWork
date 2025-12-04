@@ -142,7 +142,7 @@ Comprehensive test coverage includes:
 Run tests with:
 
 ```bash
-docker compose exec scripthammer pnpm test src/components/atomic/DiceTray/
+docker compose exec spoketowork pnpm test src/components/atomic/DiceTray/
 ```
 
 ## Performance Considerations

@@ -10,7 +10,7 @@ The page footer overlaps the conversation list buttons in the sidebar, preventin
 
 ## Steps to Reproduce
 
-1. Navigate to https://scripthammer.com/messages
+1. Navigate to https://spoketowork.com/messages
 2. Log in with valid credentials
 3. Unlock encryption keys
 4. Try to click on a conversation in the sidebar

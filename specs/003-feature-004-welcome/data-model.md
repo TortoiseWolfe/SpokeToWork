@@ -45,8 +45,8 @@ Stores user profile data including welcome message flag.
 | Field                | Type    | Constraints         | Notes                    |
 | -------------------- | ------- | ------------------- | ------------------------ |
 | id                   | UUID    | PK, FK → auth.users |                          |
-| username             | TEXT    | UNIQUE, NOT NULL    | Admin: `scripthammer`    |
-| display_name         | TEXT    |                     | Admin: `ScriptHammer`    |
+| username             | TEXT    | UNIQUE, NOT NULL    | Admin: `spoketowork`     |
+| display_name         | TEXT    |                     | Admin: `SpokeToWork`     |
 | welcome_message_sent | BOOLEAN | DEFAULT FALSE       | **Used for idempotency** |
 | ...                  | ...     | ...                 | Other fields unchanged   |
 
