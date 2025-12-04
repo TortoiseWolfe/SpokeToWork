@@ -44,21 +44,21 @@ export const LayeredSpokeToWorkLogo: React.FC<LayeredSpokeToWorkLogoProps> = ({
         />
       </SpinningLogo>
 
-      {/* Static printing mallet - positioned down and right between script tags */}
+      {/* Static job markers - centered around the wheel */}
       <div
         className="pointer-events-none absolute"
         style={{
-          top: '56%',
-          left: '44%',
-          transform: 'translate(calc(-50% + 2px), -50%)',
-          width: '45%',
-          height: '45%',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '70%',
+          height: '70%',
           opacity: 0.9,
         }}
       >
         <Image
           src={`${detectedConfig.basePath}/printing-mallet.svg`}
-          alt="Printing Mallet"
+          alt="Job Markers"
           width={400}
           height={400}
           className="h-full w-full"
