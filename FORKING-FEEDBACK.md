@@ -4,7 +4,7 @@ This document captures issues encountered when forking the ScriptHammer template
 
 ## Summary
 
-Forking ScriptHammer required updating **200+ files** with hardcoded references. The Docker-first architecture also created friction with git hooks. Additionally, tests require Supabase mocking, description assertions need updating, and **the basePath secret in deploy.yml breaks GitHub Pages for forks** (Issue #10).
+Forking ScriptHammer required updating **200+ files** with hardcoded references. The Docker-first architecture also created friction with git hooks. Additionally, tests require Supabase mocking, description assertions need updating, **the basePath secret in deploy.yml breaks GitHub Pages for forks** (Issue #10), and **production crashes without Supabase GitHub secrets** (Issue #11).
 
 ---
 
@@ -295,6 +295,31 @@ if (envBasePath !== undefined && envBasePath !== '') {
 }
 ```
 
+### 11. Production Crashes Without Supabase GitHub Secrets
+
+**Problem:** After forking, the production site shows "Something went wrong! Try again" because `src/lib/supabase/client.ts` throws an error when Supabase environment variables are missing in the browser.
+
+**Error (in browser console):**
+
+```
+Error: Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env file.
+```
+
+**Root Cause:** The Supabase client initialization (lines 41-45) throws when `NEXT_PUBLIC_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_ANON_KEY` are not set. In production, these values come from GitHub secrets, which forks don't have configured.
+
+**Required Setup:**
+
+1. Create a Supabase project at https://supabase.com/dashboard
+2. Get credentials from **Settings > API**:
+   - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
+   - anon/public key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+3. Add as GitHub secrets at `https://github.com/<owner>/<repo>/settings/secrets/actions`
+
+**Suggested Fix:** Either:
+
+- Document Supabase setup as a required step in the fork workflow
+- Or modify `src/lib/supabase/client.ts` to return a disabled mock client instead of throwing, allowing the app to run in "offline mode" without Supabase
+
 ---
 
 ## Recommended Fork Workflow
@@ -352,7 +377,19 @@ git config --global --add safe.directory /app
    git push
    ```
 
-7. **Enable GitHub Pages**
+7. **Set Up Supabase** (Required for production)
+
+   ```bash
+   # 1. Create project at https://supabase.com/dashboard
+   # 2. Get credentials from Settings > API
+   # 3. Add as GitHub secrets:
+   ```
+
+   Go to `https://github.com/<owner>/<repo>/settings/secrets/actions` and add:
+   - `NEXT_PUBLIC_SUPABASE_URL` - Your project URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Your anon/public key
+
+8. **Enable GitHub Pages**
    - Settings -> Pages -> Source: "GitHub Actions"
 
 ---
