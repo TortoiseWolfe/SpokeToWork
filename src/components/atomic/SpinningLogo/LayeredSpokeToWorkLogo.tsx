@@ -51,8 +51,8 @@ export const LayeredSpokeToWorkLogo: React.FC<LayeredSpokeToWorkLogoProps> = ({
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: '70%',
-          height: '70%',
+          width: '127%',
+          height: '127%',
           opacity: 0.9,
         }}
       >
@@ -72,15 +72,15 @@ export const LayeredSpokeToWorkLogo: React.FC<LayeredSpokeToWorkLogoProps> = ({
         />
       </div>
 
-      {/* Static script tags on top */}
+      {/* Static home icon on top */}
       <div
         className="pointer-events-none absolute"
         style={{
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: '40%',
-          height: '40%',
+          width: '67%',
+          height: '67%',
         }}
       >
         <Image
