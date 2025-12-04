@@ -23,17 +23,27 @@ husky - pre-commit script failed (code 1)
 - Install node_modules locally - Violates Docker-first principle
 - Commit through Docker - Requires git config in container
 
-**Suggested Fix:** Use git environment variables in docker-compose.yml:
+**Suggested Fix:**
+
+1. Add git credentials to `.env` (not committed to repo):
+
+```bash
+GIT_AUTHOR_NAME=YourGitHubUsername
+GIT_AUTHOR_EMAIL=your-email@example.com
+```
+
+2. Reference in docker-compose.yml (without hardcoded defaults):
 
 ```yaml
 environment:
-  - GIT_AUTHOR_NAME=${GIT_AUTHOR_NAME:-YourName}
-  - GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL:-your@email.com}
-  - GIT_COMMITTER_NAME=${GIT_AUTHOR_NAME:-YourName}
-  - GIT_COMMITTER_EMAIL=${GIT_AUTHOR_EMAIL:-your@email.com}
+  - GIT_AUTHOR_NAME=${GIT_AUTHOR_NAME}
+  - GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL}
+  - GIT_COMMITTER_NAME=${GIT_AUTHOR_NAME}
+  - GIT_COMMITTER_EMAIL=${GIT_AUTHOR_EMAIL}
 ```
 
-Also requires `safe.directory` config (see Issue #4).
+3. Add safe.directory (see Issue #4)
+4. Commit via: `docker compose exec <service> git commit -m "message"`
 
 ### 2. Hardcoded References Throughout Codebase
 
