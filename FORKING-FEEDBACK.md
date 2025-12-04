@@ -4,7 +4,7 @@ This document captures issues encountered when forking the ScriptHammer template
 
 ## Summary
 
-Forking ScriptHammer required updating **200+ files** with hardcoded references. The Docker-first architecture also created friction with git hooks.
+Forking ScriptHammer required updating **200+ files** with hardcoded references. The Docker-first architecture also created friction with git hooks. Additionally, tests require Supabase mocking and description assertions need updating.
 
 ---
 
@@ -180,6 +180,73 @@ done
 - Various spec files
 
 **Suggested Fix:** Use environment variable `ADMIN_EMAIL` with fallback.
+
+### 8. Tests Fail Without Supabase Environment Variables
+
+**Problem:** After forking, 37+ unit tests fail with "Missing Supabase environment variables" because `tests/setup.ts` doesn't mock the Supabase client.
+
+**Error:**
+
+```
+Error: Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env file.
+```
+
+**Suggested Fix:** Add Supabase client mock to `tests/setup.ts`:
+
+```typescript
+// Mock Supabase client for all tests
+vi.mock('@/lib/supabase/client', () => ({
+  createClient: vi.fn(() => ({
+    auth: {
+      getSession: vi.fn(() =>
+        Promise.resolve({ data: { session: null }, error: null })
+      ),
+      getUser: vi.fn(() =>
+        Promise.resolve({ data: { user: null }, error: null })
+      ),
+      signInWithPassword: vi.fn(() =>
+        Promise.resolve({ data: {}, error: null })
+      ),
+      signUp: vi.fn(() => Promise.resolve({ data: {}, error: null })),
+      signOut: vi.fn(() => Promise.resolve({ error: null })),
+      resetPasswordForEmail: vi.fn(() => Promise.resolve({ error: null })),
+      updateUser: vi.fn(() => Promise.resolve({ data: {}, error: null })),
+      onAuthStateChange: vi.fn(() => ({
+        data: { subscription: { unsubscribe: vi.fn() } },
+      })),
+    },
+    from: vi.fn(() => ({
+      /* chain methods */
+    })),
+    channel: vi.fn(() => {
+      const channel = {
+        on: vi.fn(() => channel),
+        subscribe: vi.fn(() => channel),
+        unsubscribe: vi.fn(),
+      };
+      return channel;
+    }),
+    removeChannel: vi.fn(),
+  })),
+  getSupabase: vi.fn(() => ({})),
+  supabase: {},
+}));
+```
+
+### 9. Project Description in Tests Hardcoded
+
+**Problem:** Tests in `src/config/__tests__/project.config.test.ts` expect the original template description:
+
+```typescript
+expect(config.projectDescription).toContain('Opinionated Next.js template');
+```
+
+After rebranding, the description changes but tests still expect the old text.
+
+**Suggested Fix:** Either:
+
+- Use a more generic assertion: `expect(config.projectDescription).toBeTruthy()`
+- Or include description updates in the rebrand script
 
 ---
 

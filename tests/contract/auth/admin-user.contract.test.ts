@@ -58,9 +58,9 @@ describe('Admin User Configuration Contract', () => {
     });
 
     it('should use default email if not configured', () => {
-      // Default is admin@spoketowork.com if env not set
+      // Default is admin@spoketowork.example if env not set (RFC 2606 reserved domain)
       if (!process.env.TEST_USER_ADMIN_EMAIL) {
-        expect(TEST_EMAIL_ADMIN).toBe('admin@spoketowork.com');
+        expect(TEST_EMAIL_ADMIN).toBe('admin@spoketowork.example');
       }
     });
   });
