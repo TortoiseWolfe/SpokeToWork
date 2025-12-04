@@ -40,15 +40,21 @@ NEW_NAME_LOWER=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 NEW_OWNER=$2
 NEW_DESC=$3
 
+# 1. Replace text content in all files
 find . -type f \( -name "*.sh" -o -name "*.ts" -o -name "*.tsx" -o -name "*.js" \
   -o -name "*.json" -o -name "*.md" -o -name "*.yml" \) \
   ! -path "./node_modules/*" ! -path "./.next/*" ! -path "./out/*" \
   -exec sed -i "s/$OLD_NAME_LOWER/$NEW_NAME_LOWER/g; s/$OLD_NAME/$NEW_NAME/g" {} \;
 
-# Update docker-compose service name
+# 2. Rename files that contain old project name
+find . -name "*${OLD_NAME}*" -type f ! -path "./node_modules/*" ! -path "./.next/*" | while read f; do
+  mv "$f" "${f//$OLD_NAME/$NEW_NAME}"
+done
+
+# 3. Update docker-compose service name
 sed -i "s/scripthammer:/$NEW_NAME_LOWER:/g" docker-compose.yml
 
-# Delete CNAME if not using custom domain
+# 4. Delete CNAME if not using custom domain
 rm -f public/CNAME
 
 echo "Rebranded to $NEW_NAME. Run 'docker compose up --build' to rebuild."
@@ -136,7 +142,36 @@ const CACHE_VERSION = 'scripthammer-v1.0.0';
 const CACHE_VERSION = `${PROJECT_NAME}-v${VERSION}`;
 ```
 
-### 6. Admin User Email Hardcoded
+### 6. File Names Not Renamed by sed
+
+**Problem:** Using `sed` to replace text only changes file _contents_, not file _names_. This causes TypeScript errors when imports reference the new name but files still have the old name.
+
+**Example:**
+
+```
+src/components/atomic/SpinningLogo/
+├── ScriptHammerLogo.tsx          # ← File still named ScriptHammer
+├── LayeredScriptHammerLogo.tsx   # ← File still named ScriptHammer
+├── index.tsx                      # ← Import says './SpokeToWorkLogo' (broken!)
+└── SpinningLogo.stories.tsx       # ← Import says './LayeredSpokeToWorkLogo' (broken!)
+```
+
+**Error:**
+
+```
+error TS2307: Cannot find module './SpokeToWorkLogo' or its corresponding type declarations.
+```
+
+**Fix:** After running sed, also rename files:
+
+```bash
+# Find and rename files with old project name
+find . -name "*ScriptHammer*" -type f ! -path "./node_modules/*" | while read f; do
+  mv "$f" "${f//ScriptHammer/YourNewName}"
+done
+```
+
+### 7. Admin User Email Hardcoded
 
 **Problem:** Multiple files reference `admin@scripthammer.com`:
 
