@@ -1,0 +1,5 @@
+# ScriptHammer Robots.txt
+User-agent: *
+Allow: /
+
+Sitemap: https://tortoisewolfe.github.io/ScriptHammer/sitemap.xml
