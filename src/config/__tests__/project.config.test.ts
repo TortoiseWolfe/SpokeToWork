@@ -32,9 +32,7 @@ describe('Project Configuration', () => {
 
       expect(config.projectName).toBe('SpokeToWork');
       expect(config.projectOwner).toBe('TortoiseWolfe');
-      expect(config.projectDescription).toContain(
-        'Opinionated Next.js template'
-      );
+      expect(config.projectDescription).toContain('Progressive Web App');
       expect(config.basePath).toBe('');
       expect(config.deployUrl).toBe('http://localhost:3000');
     });
@@ -177,7 +175,7 @@ describe('Project Configuration', () => {
 
       expect(manifest.name).toContain('SpokeToWork');
       expect(manifest.short_name).toBe('SpokeToWork');
-      expect(manifest.description).toContain('Opinionated Next.js template');
+      expect(manifest.description).toContain('Progressive Web App');
       expect(manifest.start_url).toBe('/');
       expect(manifest.display).toBe('standalone');
       expect(manifest.theme_color).toBe('#570df8');

@@ -30,13 +30,23 @@ export default defineConfig({
       // Run with: pnpm test tests/contract --run or pnpm test tests/integration when test DB is properly configured
       'tests/contract/auth/oauth.contract.test.ts', // 1 test - config mismatch
       'tests/contract/auth/password-reset.contract.test.ts', // 2 tests - rate limit
+      'tests/contract/auth/sign-in.contract.test.ts', // 5 tests - requires real Supabase connection
       'tests/contract/auth/sign-up.contract.test.ts', // 4 tests - rate limit + config
       'tests/contract/profile/delete-account.contract.test.ts', // 4 tests - requires test data
+      'tests/contract/profile/get-profile.contract.test.ts', // 4 tests - requires real Supabase connection
+      'tests/contract/profile/update-profile.contract.test.ts', // 8 tests - requires real Supabase connection
       'tests/integration/auth/oauth-flow.test.ts', // 6 tests - rate limit
       'tests/integration/auth/password-reset-flow.test.ts', // 2 tests - rate limit
       'tests/integration/auth/protected-routes.test.ts', // 10 tests - flaky/rate limit
       'tests/integration/auth/sign-in-flow.test.ts', // 7 tests - rate limit
       'tests/integration/auth/sign-up-flow.test.ts', // 5 tests - rate limit + config
+      'tests/integration/auth/rate-limiting.integration.test.ts', // requires admin client with SUPABASE_SERVICE_ROLE_KEY
+      'tests/integration/messaging/connections.test.ts', // requires real Supabase with service role key
+      'src/tests/integration/payment-isolation.test.ts', // requires real Supabase connection
+      // Hook tests with complex Supabase module loading - require real connection
+      'src/hooks/__tests__/useConversationRealtime.test.ts', // module loading triggers client before mock
+      'src/hooks/__tests__/useTypingIndicator.test.ts', // module loading triggers client before mock
+      'src/services/messaging/__tests__/gdpr-service.test.ts', // module loading triggers client before mock
       // Exclude avatar integration tests requiring real browser Canvas API
       // These are covered by E2E tests in /e2e/avatar/upload.spec.ts
       'src/lib/avatar/__tests__/image-processing.test.ts', // 6 tests - requires real Canvas

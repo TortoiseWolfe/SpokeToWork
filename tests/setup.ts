@@ -4,6 +4,58 @@ import { afterEach, vi, expect } from 'vitest';
 import { toHaveNoViolations } from 'jest-axe';
 import 'fake-indexeddb/auto';
 
+// Mock Supabase client for all tests (prevents "Missing Supabase environment variables" errors)
+vi.mock('@/lib/supabase/client', () => ({
+  createClient: vi.fn(() => ({
+    auth: {
+      getSession: vi.fn(() =>
+        Promise.resolve({ data: { session: null }, error: null })
+      ),
+      getUser: vi.fn(() =>
+        Promise.resolve({ data: { user: null }, error: null })
+      ),
+      signInWithPassword: vi.fn(() =>
+        Promise.resolve({ data: {}, error: null })
+      ),
+      signUp: vi.fn(() => Promise.resolve({ data: {}, error: null })),
+      signOut: vi.fn(() => Promise.resolve({ error: null })),
+      resetPasswordForEmail: vi.fn(() => Promise.resolve({ error: null })),
+      updateUser: vi.fn(() => Promise.resolve({ data: {}, error: null })),
+      onAuthStateChange: vi.fn(() => ({
+        data: { subscription: { unsubscribe: vi.fn() } },
+      })),
+    },
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          single: vi.fn(() => Promise.resolve({ data: null, error: null })),
+          order: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        })),
+        order: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        limit: vi.fn(() => Promise.resolve({ data: [], error: null })),
+      })),
+      insert: vi.fn(() => Promise.resolve({ data: null, error: null })),
+      update: vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ data: null, error: null })),
+      })),
+      delete: vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ data: null, error: null })),
+      })),
+    })),
+    channel: vi.fn(() => {
+      const channel = {
+        on: vi.fn(() => channel),
+        subscribe: vi.fn(() => channel),
+        unsubscribe: vi.fn(),
+      };
+      return channel;
+    }),
+    removeChannel: vi.fn(),
+  })),
+  getSupabase: vi.fn(() => ({})),
+  supabase: {},
+}));
+
 // Mock AuthContext with reasonable defaults for component tests
 // Unit tests can override with vi.doUnmock() if needed
 vi.mock('@/contexts/AuthContext', () => ({
