@@ -4,7 +4,7 @@ This document captures issues encountered when forking the ScriptHammer template
 
 ## Summary
 
-Forking ScriptHammer required updating **200+ files** with hardcoded references. The Docker-first architecture also created friction with git hooks. Additionally, tests require Supabase mocking and description assertions need updating.
+Forking ScriptHammer required updating **200+ files** with hardcoded references. The Docker-first architecture also created friction with git hooks. Additionally, tests require Supabase mocking, description assertions need updating, and **the basePath secret in deploy.yml breaks GitHub Pages for forks** (Issue #10).
 
 ---
 
@@ -247,6 +247,53 @@ After rebranding, the description changes but tests still expect the old text.
 
 - Use a more generic assertion: `expect(config.projectDescription).toBeTruthy()`
 - Or include description updates in the rebrand script
+
+### 10. NEXT_PUBLIC_BASE_PATH Secret Breaks Auto-Detection
+
+**Problem:** In `.github/workflows/deploy.yml`, the line:
+
+```yaml
+NEXT_PUBLIC_BASE_PATH: ${{ secrets.NEXT_PUBLIC_BASE_PATH }}
+```
+
+When forking, this secret doesn't exist. GitHub Actions passes **empty string `""`** (not `undefined`) for missing secrets.
+
+In `next.config.ts`, the basePath logic is:
+
+```javascript
+if (process.env.NEXT_PUBLIC_BASE_PATH !== undefined) {
+  return process.env.NEXT_PUBLIC_BASE_PATH; // Returns "" when secret doesn't exist!
+}
+// Auto-detection never runs
+```
+
+**Result:** All CSS/JS assets load from `/_next/static/...` instead of `/RepoName/_next/static/...`, causing 404 errors. The site renders without styling (massive icons, broken layout).
+
+**Root Cause:** Empty string `""` is `!== undefined`, so the auto-detection in `scripts/detect-project.js` is bypassed.
+
+**Suggested Fix:** Remove the `NEXT_PUBLIC_BASE_PATH` line from `deploy.yml` entirely. The auto-detection in `scripts/detect-project.js` correctly handles this:
+
+```javascript
+const basePath =
+  isGitHubActions && info.isGitHub && !cnameExists
+    ? `/${info.projectName}` // "/SpokeToWork"
+    : '';
+```
+
+Auto-detection uses:
+
+- `GITHUB_ACTIONS=true` (set by GitHub automatically)
+- Git remote URL (detects repo name)
+- Absence of CNAME file (custom domain check)
+
+**Alternative:** If keeping the secret line, update `next.config.ts` to treat empty string as undefined:
+
+```javascript
+const envBasePath = process.env.NEXT_PUBLIC_BASE_PATH;
+if (envBasePath !== undefined && envBasePath !== '') {
+  return envBasePath;
+}
+```
 
 ---
 

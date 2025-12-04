@@ -1,4 +1,4 @@
-# ScriptHammer Robots.txt
+# SpokeToWork Robots.txt
 User-agent: *
 Allow: /
 
