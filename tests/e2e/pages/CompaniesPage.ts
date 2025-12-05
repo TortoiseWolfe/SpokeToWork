@@ -495,4 +495,77 @@ export class CompaniesPage extends BasePage {
 
     return ids;
   }
+
+  /**
+   * Delete all test applications created during E2E tests.
+   * Uses the authenticated user's session to delete via UI.
+   * This ensures cleanup works without requiring service role key.
+   */
+  async cleanupTestApplications(testPrefixes: string[] = ['E2E Test', 'E2E Status Test']) {
+    try {
+      // Navigate to companies page if not already there
+      await this.goto();
+      await this.waitForTable();
+    } catch (error) {
+      // If navigation fails (e.g., not signed in), skip cleanup
+      console.log('Cleanup skipped - could not navigate to companies page');
+      return;
+    }
+
+    // Get all company rows
+    const rowCount = await this.getCompanyRowCount();
+    if (rowCount === 0) return;
+
+    // Go through each company and delete test applications
+    for (let i = 0; i < Math.min(rowCount, 20); i++) {
+      // Always click the first row since we may have deleted from previous
+      const rows = this.page.locator('[data-testid^="company-row-"]');
+      const currentRowCount = await rows.count();
+      if (currentRowCount === 0) break;
+
+      // Click row at index i (or last if fewer rows)
+      const rowIndex = Math.min(i, currentRowCount - 1);
+      await rows.nth(rowIndex).click();
+
+      try {
+        await this.waitForDrawer();
+      } catch {
+        continue; // Skip if drawer doesn't open
+      }
+
+      // Find test applications in this drawer
+      const appCards = this.page.locator('[data-testid^="application-card-"]');
+      const appCount = await appCards.count();
+
+      for (let j = appCount - 1; j >= 0; j--) {
+        const card = appCards.nth(j);
+        const cardText = await card.textContent();
+
+        // Check if this is a test application
+        const isTestApp = testPrefixes.some(prefix => cardText?.includes(prefix));
+        if (!isTestApp) continue;
+
+        // Find and click delete button
+        const deleteBtn = card.locator('button[aria-label*="Delete"]');
+        if (await deleteBtn.isVisible().catch(() => false)) {
+          // Set up dialog handler
+          this.page.once('dialog', async (dialog) => {
+            await dialog.accept();
+          });
+
+          await deleteBtn.click();
+          await this.page.waitForTimeout(500);
+        }
+      }
+
+      // Close drawer before moving to next company
+      try {
+        await this.closeDrawer();
+      } catch {
+        // If close fails, press escape
+        await this.page.keyboard.press('Escape');
+        await this.page.waitForTimeout(300);
+      }
+    }
+  }
 }

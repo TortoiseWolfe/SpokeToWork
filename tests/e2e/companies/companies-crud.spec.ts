@@ -9,10 +9,7 @@
  */
 
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
-import { createClient } from '@supabase/supabase-js';
 import { CompaniesPage } from '../pages/CompaniesPage';
-
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
 // Test user credentials from env (required)
 const testEmail =
@@ -26,18 +23,6 @@ if (!testEmail || !testPassword) {
 
 const TEST_USER = { email: testEmail, password: testPassword };
 
-// Admin client for cleanup
-const getAdminClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    return null;
-  }
-
-  return createClient(supabaseUrl, supabaseServiceKey);
-};
-
 test.describe('Companies Page - Application CRUD', () => {
   // Shared context and page for all tests - sign in once
   let sharedContext: BrowserContext;
@@ -46,15 +31,6 @@ test.describe('Companies Page - Application CRUD', () => {
   const testPositionPrefix = 'E2E Test Position';
 
   test.beforeAll(async ({ browser }) => {
-    // Clean up test applications from previous runs
-    const adminClient = getAdminClient();
-    if (adminClient) {
-      await adminClient
-        .from('job_applications')
-        .delete()
-        .like('position_title', `${testPositionPrefix}%`);
-    }
-
     // Create a shared context and page
     sharedContext = await browser.newContext();
     sharedPage = await sharedContext.newPage();
@@ -62,16 +38,15 @@ test.describe('Companies Page - Application CRUD', () => {
 
     // Sign in once for all tests
     await companiesPage.signIn(TEST_USER.email, TEST_USER.password);
+
+    // Clean up test applications from previous runs using authenticated session
+    await companiesPage.cleanupTestApplications([testPositionPrefix]);
   });
 
   test.afterAll(async () => {
-    // Clean up test applications
-    const adminClient = getAdminClient();
-    if (adminClient) {
-      await adminClient
-        .from('job_applications')
-        .delete()
-        .like('position_title', `${testPositionPrefix}%`);
+    // Clean up test applications using authenticated session
+    if (companiesPage) {
+      await companiesPage.cleanupTestApplications([testPositionPrefix]);
     }
 
     await sharedContext?.close();
