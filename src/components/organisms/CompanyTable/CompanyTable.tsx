@@ -156,7 +156,11 @@ export default function CompanyTable({
         data-testid={testId}
         className={`flex items-center justify-center py-12 ${className}`}
       >
-        <span className="loading loading-spinner loading-lg"></span>
+        <span
+          className="loading loading-spinner loading-lg"
+          role="status"
+          aria-label="Loading companies"
+        ></span>
       </div>
     );
   }
