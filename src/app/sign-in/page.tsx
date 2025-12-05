@@ -5,15 +5,24 @@ import SignInForm from '@/components/auth/SignInForm';
 import OAuthButtons from '@/components/auth/OAuthButtons';
 import Link from 'next/link';
 
+// Get basePath for redirects (empty string in dev, '/SpokeToWork' in production)
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 export default function SignInPage() {
-  const [returnUrl, setReturnUrl] = useState('/profile');
+  const [returnUrl, setReturnUrl] = useState(`${basePath}/profile`);
 
   useEffect(() => {
     // Read query params client-side for static export compatibility
     const params = new URLSearchParams(window.location.search);
     const url = params.get('returnUrl');
     if (url) {
-      setReturnUrl(url);
+      // If returnUrl already has basePath or is absolute, use as-is
+      // Otherwise prepend basePath
+      const finalUrl =
+        url.startsWith(basePath) || url.startsWith('http')
+          ? url
+          : `${basePath}${url}`;
+      setReturnUrl(finalUrl);
     }
   }, []);
 

@@ -21,6 +21,9 @@ import IdleTimeoutModal from '@/components/molecular/IdleTimeoutModal';
 
 const logger = createLogger('contexts:auth');
 
+// Get basePath for redirects (empty string in dev, '/SpokeToWork' in production)
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 /**
  * Auth error types for user feedback
  */
@@ -145,7 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (_event === 'SIGNED_OUT' && !isLocalSignOut.current) {
         // Sign-out detected from another tab - redirect to home
         logger.info('Cross-tab sign-out detected, redirecting to home');
-        window.location.href = '/';
+        window.location.href = `${basePath}/`;
         return;
       }
 
@@ -179,7 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}${basePath}/auth/callback`,
         },
       });
       return { error };
@@ -220,7 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // FR-005: Force page reload to clear any stale React state
-    window.location.href = '/';
+    window.location.href = `${basePath}/`;
   };
 
   const refreshSession = async () => {
