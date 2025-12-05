@@ -6,6 +6,9 @@ import { createLogger } from '@/lib/logger/logger';
 
 const logger = createLogger('components:auth:OAuthButtons');
 
+// Get basePath for redirects (empty string in dev, '/SpokeToWork' in production)
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 export interface OAuthButtonsProps {
   /** Additional CSS classes */
   className?: string;
@@ -30,7 +33,7 @@ export default function OAuthButtons({ className = '' }: OAuthButtonsProps) {
       await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}${basePath}/auth/callback`,
         },
       });
     } catch (error) {
