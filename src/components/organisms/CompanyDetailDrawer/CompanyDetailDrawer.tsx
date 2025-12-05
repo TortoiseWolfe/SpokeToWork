@@ -76,12 +76,20 @@ export default function CompanyDetailDrawer({
   // Handle click outside to close
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        drawerRef.current &&
-        !drawerRef.current.contains(event.target as Node)
-      ) {
-        onClose();
+      const target = event.target as Node;
+
+      // Don't close if clicking inside the drawer
+      if (drawerRef.current?.contains(target)) {
+        return;
       }
+
+      // Don't close if clicking inside a modal (e.g., ApplicationForm modal)
+      const modal = document.querySelector('.modal.modal-open');
+      if (modal?.contains(target)) {
+        return;
+      }
+
+      onClose();
     };
 
     if (isOpen) {
