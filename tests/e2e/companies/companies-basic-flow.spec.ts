@@ -174,9 +174,9 @@ test.describe('Companies Page - Basic Flow', () => {
     // Open drawer for first company
     await companiesPage.clickFirstCompanyRow();
 
-    // Verify applications section exists
+    // Verify applications/tracked section exists (shows "Tracked" when no actual applications)
     const applicationsSection = sharedPage.getByRole('heading', {
-      name: /Applications/,
+      name: /Applications|Tracked/,
     });
     await expect(applicationsSection).toBeVisible();
 
