@@ -12,17 +12,16 @@ import { CompaniesPage } from '../pages/CompaniesPage';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
-// Test user credentials - use TEST_USER_EMAIL/PASSWORD from env, fallback to PRIMARY variants
+// Test user credentials from env (required)
 const TEST_USER = {
-  email:
-    process.env.TEST_USER_EMAIL ||
-    process.env.TEST_USER_PRIMARY_EMAIL ||
-    'test@example.com',
+  email: process.env.TEST_USER_EMAIL || process.env.TEST_USER_PRIMARY_EMAIL,
   password:
-    process.env.TEST_USER_PASSWORD ||
-    process.env.TEST_USER_PRIMARY_PASSWORD ||
-    'TestPassword123!',
+    process.env.TEST_USER_PASSWORD || process.env.TEST_USER_PRIMARY_PASSWORD,
 };
+
+if (!TEST_USER.email || !TEST_USER.password) {
+  throw new Error('TEST_USER_EMAIL and TEST_USER_PASSWORD must be set in .env');
+}
 
 test.describe('Companies Page - Basic Flow', () => {
   // Shared context and page for all tests - sign in once
