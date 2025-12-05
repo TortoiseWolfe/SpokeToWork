@@ -5,23 +5,27 @@ import CompanyRow from '@/components/molecular/CompanyRow';
 import CompanyFilters from '@/components/molecular/CompanyFilters';
 import type {
   Company,
+  CompanyWithApplications,
   CompanyFilters as CompanyFiltersType,
   CompanySort,
   ApplicationStatus,
 } from '@/types/company';
 
+/** Type alias for company with or without applications */
+type CompanyType = Company | CompanyWithApplications;
+
 export interface CompanyTableProps {
-  /** List of companies to display */
-  companies: Company[];
+  /** List of companies to display (with or without applications) */
+  companies: CompanyType[];
   /** Loading state */
   isLoading?: boolean;
   /** Callback when a company is clicked */
-  onCompanyClick?: (company: Company) => void;
+  onCompanyClick?: (company: CompanyType) => void;
   /** Callback when edit is requested */
-  onEdit?: (company: Company) => void;
+  onEdit?: (company: CompanyType) => void;
   /** Callback when delete is requested */
-  onDelete?: (company: Company) => void;
-  /** Callback when status is changed */
+  onDelete?: (company: CompanyType) => void;
+  /** Callback when status is changed (legacy - for companies without applications) */
   onStatusChange?: (company: Company, status: ApplicationStatus) => void;
   /** Additional CSS classes */
   className?: string;
@@ -223,8 +227,9 @@ export default function CompanyTable({
                     type="button"
                     className="btn btn-ghost btn-xs"
                     onClick={() => handleSort('priority')}
+                    title="Sort by priority"
                   >
-                    Priority
+                    Apps
                     <SortIcon field="priority" />
                   </button>
                 </th>

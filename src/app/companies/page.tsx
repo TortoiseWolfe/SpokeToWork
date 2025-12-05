@@ -5,19 +5,28 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import CompanyForm from '@/components/organisms/CompanyForm';
 import CompanyTable from '@/components/organisms/CompanyTable';
+import CompanyDetailDrawer from '@/components/organisms/CompanyDetailDrawer';
+import ApplicationForm from '@/components/organisms/ApplicationForm';
 import HomeLocationSettings from '@/components/organisms/HomeLocationSettings';
 import CompanyImport from '@/components/organisms/CompanyImport';
 import CompanyExport from '@/components/molecular/CompanyExport';
 import type { ExportFormat } from '@/components/molecular/CompanyExport';
 import { CompanyService } from '@/lib/companies/company-service';
+import { ApplicationService } from '@/lib/companies/application-service';
 import { supabase } from '@/lib/supabase/client';
 import type {
   Company,
+  CompanyWithApplications,
   CompanyCreate,
   CompanyUpdate,
   HomeLocation,
   ApplicationStatus,
   ImportResult,
+  JobApplication,
+  JobApplicationCreate,
+  JobApplicationUpdate,
+  JobApplicationStatus,
+  ApplicationOutcome,
 } from '@/types/company';
 
 export default function CompaniesPage() {
@@ -25,12 +34,18 @@ export default function CompaniesPage() {
   const router = useRouter();
 
   // State
-  const [companies, setCompanies] = useState<Company[]>([]);
+  const [companies, setCompanies] = useState<CompanyWithApplications[]>([]);
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [selectedCompany, setSelectedCompany] =
+    useState<CompanyWithApplications | null>(null);
+  const [addingAppForCompany, setAddingAppForCompany] =
+    useState<CompanyWithApplications | null>(null);
+  const [editingApplication, setEditingApplication] =
+    useState<JobApplication | null>(null);
   const [homeLocation, setHomeLocation] = useState<HomeLocation | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +93,7 @@ export default function CompaniesPage() {
     loadProfile();
   }, [user]);
 
-  // Load companies
+  // Load companies with application data
   const loadCompanies = useCallback(async () => {
     if (!user) return;
 
@@ -86,7 +101,7 @@ export default function CompaniesPage() {
       setIsLoadingCompanies(true);
       const service = new CompanyService(supabase);
       await service.initialize(user.id);
-      const data = await service.getAll();
+      const data = await service.getAllWithLatestApplication();
       setCompanies(data);
     } catch (err) {
       console.error('Error loading companies:', err);
@@ -185,7 +200,7 @@ export default function CompaniesPage() {
   );
 
   const handleDeleteCompany = useCallback(
-    async (company: Company) => {
+    async (company: Company | CompanyWithApplications) => {
       if (!user) return;
 
       if (
@@ -200,6 +215,10 @@ export default function CompaniesPage() {
         await service.initialize(user.id);
 
         await service.delete(company.id);
+        // Close drawer if deleting the selected company
+        if (selectedCompany?.id === company.id) {
+          setSelectedCompany(null);
+        }
         await loadCompanies();
       } catch (err) {
         console.error('Error deleting company:', err);
@@ -208,7 +227,7 @@ export default function CompaniesPage() {
         );
       }
     },
-    [user, loadCompanies]
+    [user, loadCompanies, selectedCompany]
   );
 
   const handleStatusChange = useCallback(
@@ -232,12 +251,53 @@ export default function CompaniesPage() {
     [user, loadCompanies]
   );
 
-  const handleCompanyClick = useCallback((company: Company) => {
-    setEditingCompany(company);
-    setShowAddForm(false);
-    setShowSettings(false);
-    setShowImport(false);
-  }, []);
+  const handleCompanyClick = useCallback(
+    (company: Company | CompanyWithApplications) => {
+      // Open the detail drawer for this company
+      const companyWithApps = companies.find((c) => c.id === company.id);
+      if (companyWithApps) {
+        setSelectedCompany(companyWithApps);
+      }
+      setShowAddForm(false);
+      setShowSettings(false);
+      setShowImport(false);
+    },
+    [companies]
+  );
+
+  const handleEditFromTable = useCallback(
+    (company: Company | CompanyWithApplications) => {
+      // Extract base Company for the form (strip application data)
+      const baseCompany: Company = {
+        id: company.id,
+        user_id: company.user_id,
+        name: company.name,
+        address: company.address,
+        latitude: company.latitude,
+        longitude: company.longitude,
+        website: company.website,
+        email: company.email,
+        phone: company.phone,
+        contact_name: company.contact_name,
+        contact_title: company.contact_title,
+        notes: company.notes,
+        status: company.status,
+        priority: company.priority,
+        follow_up_date: company.follow_up_date,
+        is_active: company.is_active,
+        extended_range: company.extended_range,
+        route_id: company.route_id,
+        created_at: company.created_at,
+        updated_at: company.updated_at,
+      };
+      setEditingCompany(baseCompany);
+      setSelectedCompany(null);
+      setShowAddForm(false);
+      setShowSettings(false);
+      setShowImport(false);
+    },
+    []
+  );
 
   const handleImport = useCallback(
     async (file: File): Promise<ImportResult> => {
@@ -274,6 +334,188 @@ export default function CompaniesPage() {
       }
     },
     [user]
+  );
+
+  // Application handlers
+  const handleAddApplication = useCallback(
+    (company: CompanyWithApplications) => {
+      setAddingAppForCompany(company);
+      setEditingApplication(null);
+    },
+    []
+  );
+
+  const handleEditApplication = useCallback((application: JobApplication) => {
+    setEditingApplication(application);
+    setAddingAppForCompany(null);
+  }, []);
+
+  const handleSaveApplication = useCallback(
+    async (data: JobApplicationCreate | JobApplicationUpdate) => {
+      if (!user) return;
+
+      try {
+        setError(null);
+        const service = new ApplicationService(supabase);
+        await service.initialize(user.id);
+
+        if (editingApplication) {
+          // Update existing application
+          await service.update({
+            id: editingApplication.id,
+            ...data,
+          } as JobApplicationUpdate);
+        } else if (addingAppForCompany) {
+          // Create new application
+          await service.create({
+            ...data,
+            company_id: addingAppForCompany.id,
+          } as JobApplicationCreate);
+        }
+
+        // Reset state and reload
+        setEditingApplication(null);
+        setAddingAppForCompany(null);
+        await loadCompanies();
+
+        // Refresh selected company data
+        if (selectedCompany) {
+          const companyService = new CompanyService(supabase);
+          await companyService.initialize(user.id);
+          const updatedCompanies =
+            await companyService.getAllWithLatestApplication();
+          const updated = updatedCompanies.find(
+            (c: CompanyWithApplications) => c.id === selectedCompany.id
+          );
+          if (updated) {
+            setSelectedCompany(updated);
+          }
+        }
+      } catch (err) {
+        console.error('Error saving application:', err);
+        setError(
+          err instanceof Error ? err.message : 'Failed to save application'
+        );
+        throw err;
+      }
+    },
+    [
+      user,
+      editingApplication,
+      addingAppForCompany,
+      selectedCompany,
+      loadCompanies,
+    ]
+  );
+
+  const handleDeleteApplication = useCallback(
+    async (application: JobApplication) => {
+      if (!user) return;
+
+      if (
+        !window.confirm(
+          `Are you sure you want to delete the application for "${application.position_title || 'Untitled Position'}"?`
+        )
+      ) {
+        return;
+      }
+
+      try {
+        setError(null);
+        const service = new ApplicationService(supabase);
+        await service.initialize(user.id);
+        await service.delete(application.id);
+        await loadCompanies();
+
+        // Refresh selected company data
+        if (selectedCompany) {
+          const companyService = new CompanyService(supabase);
+          await companyService.initialize(user.id);
+          const updatedCompanies =
+            await companyService.getAllWithLatestApplication();
+          const updated = updatedCompanies.find(
+            (c: CompanyWithApplications) => c.id === selectedCompany.id
+          );
+          if (updated) {
+            setSelectedCompany(updated);
+          }
+        }
+      } catch (err) {
+        console.error('Error deleting application:', err);
+        setError(
+          err instanceof Error ? err.message : 'Failed to delete application'
+        );
+      }
+    },
+    [user, selectedCompany, loadCompanies]
+  );
+
+  const handleApplicationStatusChange = useCallback(
+    async (application: JobApplication, status: JobApplicationStatus) => {
+      if (!user) return;
+
+      try {
+        setError(null);
+        const service = new ApplicationService(supabase);
+        await service.initialize(user.id);
+        await service.update({ id: application.id, status });
+        await loadCompanies();
+
+        // Refresh selected company data
+        if (selectedCompany) {
+          const companyService = new CompanyService(supabase);
+          await companyService.initialize(user.id);
+          const updatedCompanies =
+            await companyService.getAllWithLatestApplication();
+          const updated = updatedCompanies.find(
+            (c: CompanyWithApplications) => c.id === selectedCompany.id
+          );
+          if (updated) {
+            setSelectedCompany(updated);
+          }
+        }
+      } catch (err) {
+        console.error('Error updating application status:', err);
+        setError(
+          err instanceof Error ? err.message : 'Failed to update status'
+        );
+      }
+    },
+    [user, selectedCompany, loadCompanies]
+  );
+
+  const handleApplicationOutcomeChange = useCallback(
+    async (application: JobApplication, outcome: ApplicationOutcome) => {
+      if (!user) return;
+
+      try {
+        setError(null);
+        const service = new ApplicationService(supabase);
+        await service.initialize(user.id);
+        await service.update({ id: application.id, outcome });
+        await loadCompanies();
+
+        // Refresh selected company data
+        if (selectedCompany) {
+          const companyService = new CompanyService(supabase);
+          await companyService.initialize(user.id);
+          const updatedCompanies =
+            await companyService.getAllWithLatestApplication();
+          const updated = updatedCompanies.find(
+            (c: CompanyWithApplications) => c.id === selectedCompany.id
+          );
+          if (updated) {
+            setSelectedCompany(updated);
+          }
+        }
+      } catch (err) {
+        console.error('Error updating application outcome:', err);
+        setError(
+          err instanceof Error ? err.message : 'Failed to update outcome'
+        );
+      }
+    },
+    [user, selectedCompany, loadCompanies]
   );
 
   // Loading state
@@ -440,11 +682,62 @@ export default function CompaniesPage() {
             companies={companies}
             isLoading={isLoadingCompanies}
             onCompanyClick={handleCompanyClick}
-            onEdit={setEditingCompany}
+            onEdit={handleEditFromTable}
             onDelete={handleDeleteCompany}
             onStatusChange={handleStatusChange}
           />
         </>
+      )}
+
+      {/* Company Detail Drawer */}
+      <CompanyDetailDrawer
+        company={selectedCompany}
+        isOpen={selectedCompany !== null}
+        onClose={() => setSelectedCompany(null)}
+        onEditCompany={(company) => {
+          handleEditFromTable(company);
+        }}
+        onAddApplication={handleAddApplication}
+        onEditApplication={handleEditApplication}
+        onDeleteApplication={handleDeleteApplication}
+        onStatusChange={handleApplicationStatusChange}
+        onOutcomeChange={handleApplicationOutcomeChange}
+      />
+
+      {/* Application Form Modal */}
+      {(addingAppForCompany || editingApplication) && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-2xl">
+            <h3 className="text-lg font-bold">
+              {editingApplication ? 'Edit Application' : 'Add Application'}
+            </h3>
+            <p className="text-base-content/70 mb-4 text-sm">
+              {addingAppForCompany
+                ? `Adding application for ${addingAppForCompany.name}`
+                : editingApplication
+                  ? `Editing ${editingApplication.position_title || 'application'}`
+                  : ''}
+            </p>
+            <ApplicationForm
+              application={editingApplication || undefined}
+              companyId={
+                addingAppForCompany?.id || editingApplication?.company_id || ''
+              }
+              onSubmit={handleSaveApplication}
+              onCancel={() => {
+                setAddingAppForCompany(null);
+                setEditingApplication(null);
+              }}
+            />
+          </div>
+          <div
+            className="modal-backdrop"
+            onClick={() => {
+              setAddingAppForCompany(null);
+              setEditingApplication(null);
+            }}
+          />
+        </div>
       )}
     </div>
   );

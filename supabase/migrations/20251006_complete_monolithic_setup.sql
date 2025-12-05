@@ -1431,5 +1431,148 @@ COMMENT ON COLUMN user_profiles.home_latitude IS 'User home latitude for distanc
 COMMENT ON COLUMN user_profiles.home_longitude IS 'User home longitude for distance calculations';
 COMMENT ON COLUMN user_profiles.distance_radius_miles IS 'Configurable radius for extended_range warning (default 20)';
 
+-- ============================================================================
+-- PART 11b: JOB APPLICATIONS (Feature 011 Evolution)
+-- ============================================================================
+-- Multiple job applications per company for job hunt tracking
+-- ============================================================================
+
+-- Job applications table - child of companies
+CREATE TABLE IF NOT EXISTS job_applications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+
+  -- Position details
+  position_title TEXT CHECK (length(position_title) <= 200),
+  job_link TEXT CHECK (length(job_link) <= 1000),
+  work_location_type TEXT NOT NULL DEFAULT 'on_site' CHECK (work_location_type IN (
+    'remote', 'hybrid', 'on_site'
+  )),
+
+  -- Application tracking
+  status TEXT NOT NULL DEFAULT 'not_applied' CHECK (status IN (
+    'not_applied', 'applied', 'screening', 'interviewing', 'offer', 'closed'
+  )),
+  outcome TEXT NOT NULL DEFAULT 'pending' CHECK (outcome IN (
+    'pending', 'hired', 'rejected', 'withdrawn', 'ghosted', 'offer_declined'
+  )),
+  date_applied DATE,
+  interview_date TIMESTAMPTZ,
+
+  -- Tracking (moved from company level)
+  priority INTEGER NOT NULL DEFAULT 3 CHECK (priority >= 1 AND priority <= 5),
+  notes TEXT CHECK (length(notes) <= 5000),
+  follow_up_date DATE,
+
+  -- State
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
+  -- Timestamps
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for common queries
+CREATE INDEX IF NOT EXISTS idx_job_applications_company ON job_applications(company_id);
+CREATE INDEX IF NOT EXISTS idx_job_applications_user ON job_applications(user_id);
+CREATE INDEX IF NOT EXISTS idx_job_applications_status ON job_applications(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_job_applications_outcome ON job_applications(user_id, outcome);
+CREATE INDEX IF NOT EXISTS idx_job_applications_date_applied ON job_applications(user_id, date_applied DESC);
+CREATE INDEX IF NOT EXISTS idx_job_applications_follow_up ON job_applications(user_id, follow_up_date)
+  WHERE follow_up_date IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_job_applications_active ON job_applications(user_id, is_active);
+
+-- Enable RLS
+ALTER TABLE job_applications ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies: User isolation
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'job_applications'
+                 AND policyname = 'Users can view own applications') THEN
+    CREATE POLICY "Users can view own applications" ON job_applications
+      FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'job_applications'
+                 AND policyname = 'Users can create own applications') THEN
+    CREATE POLICY "Users can create own applications" ON job_applications
+      FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'job_applications'
+                 AND policyname = 'Users can update own applications') THEN
+    CREATE POLICY "Users can update own applications" ON job_applications
+      FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'job_applications'
+                 AND policyname = 'Users can delete own applications') THEN
+    CREATE POLICY "Users can delete own applications" ON job_applications
+      FOR DELETE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+-- Auto-update timestamp trigger
+DROP TRIGGER IF EXISTS update_job_applications_updated_at ON job_applications;
+CREATE TRIGGER update_job_applications_updated_at
+  BEFORE UPDATE ON job_applications
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Grant permissions
+GRANT ALL ON job_applications TO authenticated;
+GRANT ALL ON job_applications TO service_role;
+
+COMMENT ON TABLE job_applications IS 'Job applications tracking - multiple per company (Feature 011b)';
+
+-- ============================================================================
+-- DATA MIGRATION: Create one application per existing company
+-- ============================================================================
+-- Maps existing company status to new application status/outcome
+
+INSERT INTO job_applications (
+  company_id,
+  user_id,
+  position_title,
+  status,
+  outcome,
+  priority,
+  notes,
+  follow_up_date,
+  is_active,
+  created_at,
+  updated_at
+)
+SELECT
+  c.id,
+  c.user_id,
+  'Imported Application',
+  CASE c.status
+    WHEN 'not_contacted' THEN 'not_applied'
+    WHEN 'contacted' THEN 'applied'
+    WHEN 'follow_up' THEN 'applied'
+    WHEN 'meeting' THEN 'interviewing'
+    WHEN 'outcome_positive' THEN 'closed'
+    WHEN 'outcome_negative' THEN 'closed'
+    ELSE 'not_applied'
+  END,
+  CASE c.status
+    WHEN 'outcome_positive' THEN 'hired'
+    WHEN 'outcome_negative' THEN 'rejected'
+    ELSE 'pending'
+  END,
+  c.priority,
+  c.notes,
+  c.follow_up_date,
+  c.is_active,
+  c.created_at,
+  c.updated_at
+FROM companies c
+WHERE NOT EXISTS (
+  SELECT 1 FROM job_applications ja WHERE ja.company_id = c.id
+);
+
 -- Commit the transaction - everything succeeded
 COMMIT;
