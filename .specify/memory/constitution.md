@@ -1,34 +1,30 @@
 <!--
-Sync Impact Report - Feature 022 Review
-Review Date: 2025-10-08
-Version: 1.0.1 (no changes)
-Reviewed For: Feature 022 - User Avatar Upload
+Sync Impact Report - Constitution Amendment
+Version Change: 1.0.1 → 1.1.0 (MINOR)
+Amendment Date: 2025-12-04
 
-Constitutional Alignment:
-  ✅ I. Component Structure Compliance - AvatarUpload/AvatarDisplay follow 5-file pattern
-  ✅ II. Test-First Development - Tasks include TDD workflow (tests before implementation)
-  ✅ III. PRP Methodology - Feature using /specify → /plan → /tasks → /implement workflow
-  ✅ IV. Docker-First Development - All development in Docker containers
-  ✅ V. Progressive Enhancement - Client-side crop, progressive upload, offline capable
-  ✅ VI. Privacy & Compliance First - RLS policies, user consent, GDPR compliance
+Rationale: Minor version bump - adding 6 new product-specific principles
+derived from SpokeToWork core PRP (docs/prp-docs/spoketowork-core-prp.md).
+No existing principles removed or modified.
 
-Template Consistency:
-  ✅ .specify/templates/plan-template.md - Constitution Check section present (lines 30-34)
-  ✅ .specify/templates/spec-template.md - User story/requirements structure aligns
-  ✅ .specify/templates/tasks-template.md - PRP workflow and phase organization present
-  ✅ .specify/templates/commands/*.md - No command templates found (expected)
+Added Principles (from core PRP):
+  - VII. Company Tracking & Status Management
+  - VIII. Geographic Data Accuracy
+  - IX. Route Cluster Organization
+  - X. Bicycle-Optimized Routing
+  - XI. Multi-Format Export
+  - XII. Field Operations Support
 
-Action Items:
-  ⚠️  specs/022-on-the-account/plan.md:43 - Incorrectly states "(template only - no project-specific constitution)"
-      Should read: "SpokeToWork Constitution v1.0.1 (6 core principles)"
+Existing Principles (unchanged):
+  ✅ I. Component Structure Compliance
+  ✅ II. Test-First Development
+  ✅ III. PRP Methodology
+  ✅ IV. Docker-First Development
+  ✅ V. Progressive Enhancement (PWA, offline, accessibility)
+  ✅ VI. Privacy & Compliance First
 
-Version Decision: No version bump required
-  - No principles modified, added, or removed
-  - No governance changes
-  - Review confirms existing constitution fully covers Feature 022 requirements
-  - Constitution v1.0.1 remains current (ratified 2025-09-20, last amended 2025-09-25)
-
-Follow-up: None - constitution is complete and aligned
+Templates: No updates required (generic templates work with additions)
+Follow-up TODOs: None
 -->
 
 # SpokeToWork Constitution
@@ -79,6 +75,56 @@ GDPR compliance is mandatory with explicit consent for all data collection.
 Cookie consent system must be implemented before any tracking. Analytics
 only activate after user consent. Geolocation requires explicit permission.
 Third-party services need consent modals. Privacy controls accessible to users.
+
+### VII. Company Tracking & Status Management
+
+The system MUST track companies the user intends to visit for job applications.
+Each company record includes: name, contact details, physical address, geographic
+coordinates, application status (not contacted → contacted → follow-up → meeting
+→ outcome), priority level, notes, follow-up dates, route assignment, and
+active/inactive flag. Bulk import/export supported. Filter and search required.
+
+### VIII. Geographic Data Accuracy
+
+Geocoded coordinates MUST be verifiably correct before route generation. Visual
+verification on a map is required to catch geocoding errors. Manual coordinate
+entry MUST be supported for addresses that fail automatic geocoding. Coordinates
+MUST be validated within reasonable geographic bounds (~20 mile radius from home).
+Incorrect coordinates waste the user's physical effort cycling to wrong locations.
+
+### IX. Route Cluster Organization
+
+Companies MUST be grouped into 5-10 geographic clusters (routes) based on
+proximity and directional bearing from the user's home location. Each cluster
+should be completable in a single bicycle trip. Clusters minimize backtracking.
+Automatic assignment based on distance and direction, with manual override
+capability. Extended range companies handled separately.
+
+### X. Bicycle-Optimized Routing
+
+Routes MUST be optimized for bicycle travel, not car navigation. This includes:
+preference for bike-friendly roads and paths, avoidance of highways and high-
+traffic areas. Routes start and end at the user's home location. Goal is to
+minimize total cycling distance while visiting all selected companies in a
+cluster (TSP optimization). Calculate total distance and estimated travel time.
+
+### XI. Multi-Format Export
+
+Routes MUST be exportable in multiple formats for field use:
+
+- Interactive map viewable in web browser
+- GPS file importable to cycling/navigation apps (GPX format)
+- Printable field sheet with company details, addresses, and route order
+  All exports MUST work offline once downloaded. Export includes company contact
+  info and notes for reference while in the field.
+
+### XII. Field Operations Support
+
+The app MUST support field operations while visiting companies by bicycle.
+Printable field sheets with company details for the day's route. Quick status
+updates (mark as visited, add notes) that sync when connectivity returns.
+Route progress tracking. PWA service worker caches critical data for offline
+access. Core route execution MUST NOT require network connectivity.
 
 ## Technical Standards
 
@@ -194,4 +240,4 @@ The constitution supersedes all other practices. Violations must be justified
 with documented rationale. Temporary exceptions require sprint constitution.
 Use CLAUDE.md for runtime development guidance specific to AI assistance.
 
-**Version**: 1.0.1 | **Ratified**: 2025-09-20 | **Last Amended**: 2025-09-25
+**Version**: 1.1.0 | **Ratified**: 2025-09-20 | **Last Amended**: 2025-12-04
