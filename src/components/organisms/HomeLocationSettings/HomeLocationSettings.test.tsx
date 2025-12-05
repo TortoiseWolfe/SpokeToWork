@@ -6,10 +6,10 @@ import type { HomeLocation } from '@/types/company';
 // Mock the geocoding module
 vi.mock('@/lib/companies/geocoding', () => ({
   geocode: vi.fn().mockResolvedValue({
+    success: true,
     latitude: 40.7128,
     longitude: -74.006,
     displayName: '123 Main St, New York, NY',
-    confidence: 0.9,
   }),
 }));
 

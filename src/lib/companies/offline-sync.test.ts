@@ -7,6 +7,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
+import { IDBFactory } from 'fake-indexeddb';
 import { OfflineSyncService } from './offline-sync';
 import type { Company, OfflineCompany, CompanyFilters } from '@/types/company';
 
@@ -38,13 +39,10 @@ describe('OfflineSyncService', () => {
   let service: OfflineSyncService;
 
   beforeEach(async () => {
-    // Delete database before each test to ensure clean state
-    await new Promise<void>((resolve) => {
-      const request = indexedDB.deleteDatabase('spoketowork-companies');
-      request.onsuccess = () => resolve();
-      request.onerror = () => resolve();
-      request.onblocked = () => resolve();
-    });
+    // Completely reset fake-indexeddb by creating new instance
+    // This ensures no state leaks between tests
+    const newIndexedDB = new IDBFactory();
+    globalThis.indexedDB = newIndexedDB;
 
     // Create fresh service for each test
     service = new OfflineSyncService();
@@ -52,13 +50,9 @@ describe('OfflineSyncService', () => {
   });
 
   afterEach(async () => {
-    // Clean up after each test
-    await new Promise<void>((resolve) => {
-      const request = indexedDB.deleteDatabase('spoketowork-companies');
-      request.onsuccess = () => resolve();
-      request.onerror = () => resolve();
-      request.onblocked = () => resolve();
-    });
+    // Clean up - reset indexedDB again
+    const newIndexedDB = new IDBFactory();
+    globalThis.indexedDB = newIndexedDB;
   });
 
   describe('initialization', () => {
