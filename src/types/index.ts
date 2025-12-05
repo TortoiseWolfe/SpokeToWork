@@ -13,3 +13,23 @@ export {
   isFailure,
   tryCatch,
 } from './result';
+
+// Company Management types (Feature 011)
+export type {
+  ApplicationStatus,
+  Priority,
+  Company,
+  CompanyCreate,
+  CompanyUpdate,
+  CompanyFilters,
+  CompanySort,
+  HomeLocation,
+  GeocodeResult,
+  DistanceResult,
+  ImportResult,
+  SyncResult,
+  OfflineCompany,
+  SyncQueueItem,
+  SyncConflict,
+  GeocodeCache,
+} from './company';

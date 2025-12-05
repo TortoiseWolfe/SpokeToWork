@@ -557,10 +557,14 @@ CREATE POLICY "Authenticated users can search profiles" ON user_profiles
   FOR SELECT TO authenticated USING (true);
 
 CREATE POLICY "Users update own profile" ON user_profiles
-  FOR UPDATE USING (auth.uid() = id);
+  FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
 CREATE POLICY "Service creates profiles" ON user_profiles
   FOR INSERT WITH CHECK (true);
+
+-- Allow users to insert their own profile (needed for upsert operations)
+CREATE POLICY "Users insert own profile" ON user_profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- Auth audit logs (Feature 017)
 CREATE POLICY "Users can view own audit logs" ON auth_audit_logs
@@ -1272,8 +1276,10 @@ COMMENT ON TABLE group_keys IS 'Encrypted symmetric group keys per member per ve
 
 -- Admin profile for system welcome messages (Feature 002)
 -- Fixed UUID: 00000000-0000-0000-0000-000000000001
+-- Only insert if admin user exists in auth.users (created via Supabase Auth)
 INSERT INTO user_profiles (id, username, display_name, welcome_message_sent)
-VALUES ('00000000-0000-0000-0000-000000000001', 'scripthammer', 'ScriptHammer', TRUE)
+SELECT '00000000-0000-0000-0000-000000000001', 'scripthammer', 'ScriptHammer', TRUE
+WHERE EXISTS (SELECT 1 FROM auth.users WHERE id = '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================================
@@ -1313,6 +1319,117 @@ ALTER TABLE messages REPLICA IDENTITY FULL;
 -- ALTER PUBLICATION supabase_realtime ADD TABLE messages;
 --
 -- Or enable via Supabase Dashboard: Database > Replication
+
+-- ============================================================================
+-- PART 11: COMPANY MANAGEMENT (Feature 011)
+-- ============================================================================
+-- Job seeker company tracking with offline support
+-- Features: CRUD, geocoding, status tracking, import/export
+-- ============================================================================
+
+-- Companies table for job seeker tracking
+CREATE TABLE IF NOT EXISTS companies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+
+  -- Company identity
+  name TEXT NOT NULL CHECK (length(name) >= 1 AND length(name) <= 200),
+
+  -- Contact information
+  contact_name TEXT CHECK (length(contact_name) <= 100),
+  contact_title TEXT CHECK (length(contact_title) <= 100),
+  phone TEXT CHECK (length(phone) <= 30),
+  email TEXT CHECK (length(email) <= 254),
+  website TEXT CHECK (length(website) <= 500),
+
+  -- Location
+  address TEXT NOT NULL CHECK (length(address) >= 1 AND length(address) <= 500),
+  latitude DECIMAL(10, 8) NOT NULL CHECK (latitude >= -90 AND latitude <= 90),
+  longitude DECIMAL(11, 8) NOT NULL CHECK (longitude >= -180 AND longitude <= 180),
+  extended_range BOOLEAN NOT NULL DEFAULT FALSE,
+
+  -- Tracking
+  status TEXT NOT NULL DEFAULT 'not_contacted' CHECK (status IN (
+    'not_contacted', 'contacted', 'follow_up', 'meeting', 'outcome_positive', 'outcome_negative'
+  )),
+  priority INTEGER NOT NULL DEFAULT 3 CHECK (priority >= 1 AND priority <= 5),
+  notes TEXT CHECK (length(notes) <= 5000),
+  follow_up_date DATE,
+
+  -- Route assignment (nullable, references future route feature)
+  route_id UUID,
+
+  -- State
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
+  -- Timestamps
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- Uniqueness constraint: name + address per user
+  CONSTRAINT unique_company_per_user UNIQUE (user_id, name, address)
+);
+
+-- Indexes for common queries
+CREATE INDEX IF NOT EXISTS idx_companies_user_id ON companies(user_id);
+CREATE INDEX IF NOT EXISTS idx_companies_status ON companies(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_companies_priority ON companies(user_id, priority DESC);
+CREATE INDEX IF NOT EXISTS idx_companies_follow_up ON companies(user_id, follow_up_date) WHERE follow_up_date IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_companies_active ON companies(user_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_companies_route ON companies(route_id) WHERE route_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_companies_name_search ON companies USING gin(to_tsvector('english', name));
+
+-- Enable RLS
+ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies: User isolation
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'companies' AND policyname = 'Users can view own companies') THEN
+    CREATE POLICY "Users can view own companies" ON companies
+      FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'companies' AND policyname = 'Users can create own companies') THEN
+    CREATE POLICY "Users can create own companies" ON companies
+      FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'companies' AND policyname = 'Users can update own companies') THEN
+    CREATE POLICY "Users can update own companies" ON companies
+      FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'companies' AND policyname = 'Users can delete own companies') THEN
+    CREATE POLICY "Users can delete own companies" ON companies
+      FOR DELETE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+-- Auto-update timestamp trigger (reuse existing function)
+DROP TRIGGER IF EXISTS update_companies_updated_at ON companies;
+CREATE TRIGGER update_companies_updated_at
+  BEFORE UPDATE ON companies
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Grant permissions
+GRANT ALL ON companies TO authenticated;
+GRANT ALL ON companies TO service_role;
+
+COMMENT ON TABLE companies IS 'Job seeker company tracking for route planning (Feature 011)';
+
+-- Add home location columns to user_profiles for distance validation
+ALTER TABLE user_profiles
+  ADD COLUMN IF NOT EXISTS home_address TEXT CHECK (length(home_address) <= 500),
+  ADD COLUMN IF NOT EXISTS home_latitude DECIMAL(10, 8) CHECK (home_latitude >= -90 AND home_latitude <= 90),
+  ADD COLUMN IF NOT EXISTS home_longitude DECIMAL(11, 8) CHECK (home_longitude >= -180 AND home_longitude <= 180),
+  ADD COLUMN IF NOT EXISTS distance_radius_miles INTEGER DEFAULT 20 CHECK (distance_radius_miles >= 1 AND distance_radius_miles <= 100);
+
+COMMENT ON COLUMN user_profiles.home_address IS 'User home address for distance calculations';
+COMMENT ON COLUMN user_profiles.home_latitude IS 'User home latitude for distance calculations';
+COMMENT ON COLUMN user_profiles.home_longitude IS 'User home longitude for distance calculations';
+COMMENT ON COLUMN user_profiles.distance_radius_miles IS 'Configurable radius for extended_range warning (default 20)';
 
 -- Commit the transaction - everything succeeded
 COMMIT;
