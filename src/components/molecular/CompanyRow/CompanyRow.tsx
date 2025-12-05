@@ -1,18 +1,28 @@
 'use client';
 
 import React from 'react';
-import type { Company, ApplicationStatus } from '@/types/company';
+import type {
+  Company,
+  CompanyWithApplications,
+  ApplicationStatus,
+} from '@/types/company';
+import {
+  JOB_STATUS_LABELS,
+  JOB_STATUS_COLORS,
+  OUTCOME_LABELS,
+  OUTCOME_COLORS,
+} from '@/types/company';
 
 export interface CompanyRowProps {
-  /** Company data to display */
-  company: Company;
+  /** Company data to display (with or without applications) */
+  company: Company | CompanyWithApplications;
   /** Callback when row is clicked */
-  onClick?: (company: Company) => void;
+  onClick?: (company: Company | CompanyWithApplications) => void;
   /** Callback when edit is requested */
-  onEdit?: (company: Company) => void;
+  onEdit?: (company: Company | CompanyWithApplications) => void;
   /** Callback when delete is requested */
-  onDelete?: (company: Company) => void;
-  /** Callback when status is changed */
+  onDelete?: (company: Company | CompanyWithApplications) => void;
+  /** Callback when status is changed (legacy - for companies without applications) */
   onStatusChange?: (company: Company, status: ApplicationStatus) => void;
   /** Whether this row is selected */
   isSelected?: boolean;
@@ -22,6 +32,7 @@ export interface CompanyRowProps {
   testId?: string;
 }
 
+// Legacy company status colors (for backward compatibility)
 const STATUS_COLORS: Record<ApplicationStatus, string> = {
   not_contacted: 'badge-ghost',
   contacted: 'badge-info',
@@ -47,6 +58,15 @@ const PRIORITY_LABELS: Record<number, string> = {
   4: '',
   5: '',
 };
+
+/**
+ * Type guard to check if company has applications data
+ */
+function hasApplications(
+  company: Company | CompanyWithApplications
+): company is CompanyWithApplications {
+  return 'applications' in company && 'total_applications' in company;
+}
 
 /**
  * CompanyRow component
@@ -139,9 +159,34 @@ export default function CompanyRow({
         )}
       </td>
 
-      {/* Status */}
+      {/* Applications / Status */}
       <td>
-        {onStatusChange ? (
+        {hasApplications(company) ? (
+          // Show job application status when available
+          <div className="flex flex-col gap-1">
+            {company.latest_application ? (
+              <div className="flex items-center gap-1">
+                <span
+                  className={`badge ${JOB_STATUS_COLORS[company.latest_application.status]} badge-sm`}
+                >
+                  {JOB_STATUS_LABELS[company.latest_application.status]}
+                </span>
+                {company.latest_application.outcome !== 'pending' && (
+                  <span
+                    className={`badge ${OUTCOME_COLORS[company.latest_application.outcome]} badge-sm`}
+                  >
+                    {OUTCOME_LABELS[company.latest_application.outcome]}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <span className="badge badge-ghost badge-sm">
+                No applications
+              </span>
+            )}
+          </div>
+        ) : onStatusChange ? (
+          // Legacy: show company status dropdown
           <select
             className={`select select-ghost select-xs ${STATUS_COLORS[company.status]}`}
             value={company.status}
@@ -156,17 +201,29 @@ export default function CompanyRow({
             ))}
           </select>
         ) : (
+          // Legacy: show company status badge
           <span className={`badge ${STATUS_COLORS[company.status]} badge-sm`}>
             {STATUS_LABELS[company.status]}
           </span>
         )}
       </td>
 
-      {/* Priority */}
+      {/* Applications Count / Priority */}
       <td className="hidden text-center sm:table-cell">
-        <span className={company.priority <= 2 ? 'text-warning font-bold' : ''}>
-          {company.priority}
-        </span>
+        {hasApplications(company) ? (
+          <span
+            className={`badge ${company.total_applications > 0 ? 'badge-info' : 'badge-ghost'} badge-sm`}
+            title={`${company.total_applications} application(s)`}
+          >
+            {company.total_applications}
+          </span>
+        ) : (
+          <span
+            className={company.priority <= 2 ? 'text-warning font-bold' : ''}
+          >
+            {company.priority}
+          </span>
+        )}
       </td>
 
       {/* Actions */}

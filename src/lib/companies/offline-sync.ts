@@ -15,13 +15,19 @@ import type {
   OfflineCompany,
   SyncQueueItem,
   SyncConflict,
-  SyncResult,
   GeocodeCache,
+  JobApplication,
+  JobApplicationCreate,
+  JobApplicationUpdate,
+  JobApplicationFilters,
+  OfflineJobApplication,
+  JobApplicationSyncQueueItem,
+  JobApplicationSyncConflict,
 } from '@/types/company';
 
 // Database configuration
 const DB_NAME = 'spoketowork-companies';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incremented for job_applications support
 
 // Object store names
 const STORES = {
@@ -29,6 +35,9 @@ const STORES = {
   SYNC_QUEUE: 'sync_queue',
   CONFLICTS: 'conflicts',
   GEOCODE_CACHE: 'geocode_cache',
+  JOB_APPLICATIONS: 'job_applications',
+  JOB_APP_SYNC_QUEUE: 'job_app_sync_queue',
+  JOB_APP_CONFLICTS: 'job_app_conflicts',
 } as const;
 
 /**
@@ -87,6 +96,46 @@ function openDatabase(): Promise<IDBDatabase> {
           keyPath: 'address_key',
         });
         cacheStore.createIndex('timestamp', 'timestamp', { unique: false });
+      }
+
+      // Job applications store with sync metadata (added in v2)
+      if (!db.objectStoreNames.contains(STORES.JOB_APPLICATIONS)) {
+        const jobAppsStore = db.createObjectStore(STORES.JOB_APPLICATIONS, {
+          keyPath: 'id',
+        });
+        jobAppsStore.createIndex('company_id', 'company_id', { unique: false });
+        jobAppsStore.createIndex('user_id', 'user_id', { unique: false });
+        jobAppsStore.createIndex('status', 'status', { unique: false });
+        jobAppsStore.createIndex('outcome', 'outcome', { unique: false });
+        jobAppsStore.createIndex('synced_at', 'synced_at', { unique: false });
+        jobAppsStore.createIndex('updated_at', 'updated_at', { unique: false });
+      }
+
+      // Job applications sync queue (added in v2)
+      if (!db.objectStoreNames.contains(STORES.JOB_APP_SYNC_QUEUE)) {
+        const jobAppSyncStore = db.createObjectStore(
+          STORES.JOB_APP_SYNC_QUEUE,
+          {
+            keyPath: 'id',
+          }
+        );
+        jobAppSyncStore.createIndex('application_id', 'application_id', {
+          unique: false,
+        });
+        jobAppSyncStore.createIndex('created_at', 'created_at', {
+          unique: false,
+        });
+      }
+
+      // Job applications conflicts (added in v2)
+      if (!db.objectStoreNames.contains(STORES.JOB_APP_CONFLICTS)) {
+        const jobAppConflictsStore = db.createObjectStore(
+          STORES.JOB_APP_CONFLICTS,
+          { keyPath: 'application_id' }
+        );
+        jobAppConflictsStore.createIndex('detected_at', 'detected_at', {
+          unique: false,
+        });
       }
     };
   });
@@ -588,6 +637,417 @@ export class OfflineSyncService {
         }
       };
       request.onerror = () => reject(new Error('Failed to clean cache'));
+    });
+  }
+
+  // =========================================================================
+  // Local Job Application Operations
+  // =========================================================================
+
+  /**
+   * Save a job application to local storage
+   */
+  async saveJobAppLocal(
+    application: JobApplication,
+    synced: boolean = false
+  ): Promise<void> {
+    const db = await this.ensureDb();
+
+    const offlineApp: OfflineJobApplication = {
+      ...application,
+      synced_at: synced ? new Date().toISOString() : null,
+      local_version: 1,
+      server_version: synced ? 1 : 0,
+    };
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.JOB_APPLICATIONS],
+        'readwrite'
+      );
+      const store = transaction.objectStore(STORES.JOB_APPLICATIONS);
+      const request = store.put(offlineApp);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () =>
+        reject(new Error('Failed to save job application locally'));
+    });
+  }
+
+  /**
+   * Get a job application by ID from local storage
+   */
+  async getJobAppLocal(id: string): Promise<OfflineJobApplication | null> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORES.JOB_APPLICATIONS], 'readonly');
+      const store = transaction.objectStore(STORES.JOB_APPLICATIONS);
+      const request = store.get(id);
+
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () =>
+        reject(new Error('Failed to get job application'));
+    });
+  }
+
+  /**
+   * Get all job applications for a company from local storage
+   */
+  async getJobAppsByCompanyLocal(
+    companyId: string
+  ): Promise<OfflineJobApplication[]> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORES.JOB_APPLICATIONS], 'readonly');
+      const store = transaction.objectStore(STORES.JOB_APPLICATIONS);
+      const index = store.index('company_id');
+      const request = index.getAll(IDBKeyRange.only(companyId));
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () =>
+        reject(new Error('Failed to get job applications'));
+    });
+  }
+
+  /**
+   * Get all job applications from local storage with optional filtering
+   */
+  async getAllJobAppsLocal(
+    filters?: JobApplicationFilters
+  ): Promise<OfflineJobApplication[]> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORES.JOB_APPLICATIONS], 'readonly');
+      const store = transaction.objectStore(STORES.JOB_APPLICATIONS);
+      const request = store.getAll();
+
+      request.onsuccess = () => {
+        let applications = request.result as OfflineJobApplication[];
+
+        if (filters) {
+          applications = this.applyJobAppFilters(applications, filters);
+        }
+
+        resolve(applications);
+      };
+      request.onerror = () =>
+        reject(new Error('Failed to get job applications'));
+    });
+  }
+
+  /**
+   * Apply filters to job application list (client-side filtering)
+   */
+  private applyJobAppFilters(
+    applications: OfflineJobApplication[],
+    filters: JobApplicationFilters
+  ): OfflineJobApplication[] {
+    return applications.filter((app) => {
+      // Company filter
+      if (filters.company_id && app.company_id !== filters.company_id) {
+        return false;
+      }
+
+      // Status filter
+      if (filters.status) {
+        const statuses = Array.isArray(filters.status)
+          ? filters.status
+          : [filters.status];
+        if (!statuses.includes(app.status)) return false;
+      }
+
+      // Outcome filter
+      if (filters.outcome) {
+        const outcomes = Array.isArray(filters.outcome)
+          ? filters.outcome
+          : [filters.outcome];
+        if (!outcomes.includes(app.outcome)) return false;
+      }
+
+      // Work location type filter
+      if (filters.work_location_type) {
+        const types = Array.isArray(filters.work_location_type)
+          ? filters.work_location_type
+          : [filters.work_location_type];
+        if (!types.includes(app.work_location_type)) return false;
+      }
+
+      // Priority filter
+      if (filters.priority) {
+        const priorities = Array.isArray(filters.priority)
+          ? filters.priority
+          : [filters.priority];
+        if (!priorities.includes(app.priority)) return false;
+      }
+
+      // Active filter
+      if (filters.is_active !== undefined) {
+        if (app.is_active !== filters.is_active) return false;
+      }
+
+      // Date range filters
+      if (filters.date_applied_from && app.date_applied) {
+        if (app.date_applied < filters.date_applied_from) return false;
+      }
+      if (filters.date_applied_to && app.date_applied) {
+        if (app.date_applied > filters.date_applied_to) return false;
+      }
+
+      // Search filter
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        const matchesTitle =
+          app.position_title?.toLowerCase().includes(searchLower) ?? false;
+        const matchesNotes =
+          app.notes?.toLowerCase().includes(searchLower) ?? false;
+
+        if (!matchesTitle && !matchesNotes) return false;
+      }
+
+      return true;
+    });
+  }
+
+  /**
+   * Delete a job application from local storage
+   */
+  async deleteJobAppLocal(id: string): Promise<void> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.JOB_APPLICATIONS],
+        'readwrite'
+      );
+      const store = transaction.objectStore(STORES.JOB_APPLICATIONS);
+      const request = store.delete(id);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () =>
+        reject(new Error('Failed to delete job application'));
+    });
+  }
+
+  /**
+   * Update local job application with incremented version
+   */
+  async updateJobAppLocal(application: OfflineJobApplication): Promise<void> {
+    const db = await this.ensureDb();
+
+    const updatedApp: OfflineJobApplication = {
+      ...application,
+      local_version: application.local_version + 1,
+      synced_at: null, // Mark as pending sync
+      updated_at: new Date().toISOString(),
+    };
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.JOB_APPLICATIONS],
+        'readwrite'
+      );
+      const store = transaction.objectStore(STORES.JOB_APPLICATIONS);
+      const request = store.put(updatedApp);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () =>
+        reject(new Error('Failed to update job application'));
+    });
+  }
+
+  // =========================================================================
+  // Job Application Sync Queue Operations
+  // =========================================================================
+
+  /**
+   * Queue a job application change for later synchronization
+   */
+  async queueJobAppChange(
+    action: 'create' | 'update' | 'delete',
+    applicationId: string,
+    payload: JobApplicationCreate | JobApplicationUpdate | null
+  ): Promise<void> {
+    const db = await this.ensureDb();
+
+    const queueItem: JobApplicationSyncQueueItem = {
+      id: generateUUID(),
+      application_id: applicationId,
+      action,
+      payload,
+      created_at: new Date().toISOString(),
+      attempts: 0,
+      last_error: null,
+    };
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.JOB_APP_SYNC_QUEUE],
+        'readwrite'
+      );
+      const store = transaction.objectStore(STORES.JOB_APP_SYNC_QUEUE);
+      const request = store.add(queueItem);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () =>
+        reject(new Error('Failed to queue job application change'));
+    });
+  }
+
+  /**
+   * Get all queued job application changes
+   */
+  async getQueuedJobAppChanges(): Promise<JobApplicationSyncQueueItem[]> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.JOB_APP_SYNC_QUEUE],
+        'readonly'
+      );
+      const store = transaction.objectStore(STORES.JOB_APP_SYNC_QUEUE);
+      const index = store.index('created_at');
+      const request = index.getAll();
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () =>
+        reject(new Error('Failed to get queued job application changes'));
+    });
+  }
+
+  /**
+   * Clear a processed job application queue item
+   */
+  async clearJobAppQueueItem(id: string): Promise<void> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.JOB_APP_SYNC_QUEUE],
+        'readwrite'
+      );
+      const store = transaction.objectStore(STORES.JOB_APP_SYNC_QUEUE);
+      const request = store.delete(id);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () =>
+        reject(new Error('Failed to clear job application queue item'));
+    });
+  }
+
+  /**
+   * Get count of pending job application changes
+   */
+  async getPendingJobAppCount(): Promise<number> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.JOB_APP_SYNC_QUEUE],
+        'readonly'
+      );
+      const store = transaction.objectStore(STORES.JOB_APP_SYNC_QUEUE);
+      const request = store.count();
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () =>
+        reject(new Error('Failed to count pending job application changes'));
+    });
+  }
+
+  // =========================================================================
+  // Job Application Conflict Management
+  // =========================================================================
+
+  /**
+   * Store a job application sync conflict for user resolution
+   */
+  async storeJobAppConflict(
+    applicationId: string,
+    localVersion: OfflineJobApplication,
+    serverVersion: JobApplication
+  ): Promise<void> {
+    const db = await this.ensureDb();
+
+    const conflict: JobApplicationSyncConflict = {
+      application_id: applicationId,
+      local_version: localVersion,
+      server_version: serverVersion,
+      detected_at: new Date().toISOString(),
+    };
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.JOB_APP_CONFLICTS],
+        'readwrite'
+      );
+      const store = transaction.objectStore(STORES.JOB_APP_CONFLICTS);
+      const request = store.put(conflict);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () =>
+        reject(new Error('Failed to store job application conflict'));
+    });
+  }
+
+  /**
+   * Get all unresolved job application conflicts
+   */
+  async getJobAppConflicts(): Promise<JobApplicationSyncConflict[]> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.JOB_APP_CONFLICTS],
+        'readonly'
+      );
+      const store = transaction.objectStore(STORES.JOB_APP_CONFLICTS);
+      const request = store.getAll();
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () =>
+        reject(new Error('Failed to get job application conflicts'));
+    });
+  }
+
+  /**
+   * Resolve a job application conflict by choosing local or server version
+   */
+  async resolveJobAppConflict(
+    applicationId: string,
+    resolution: 'local' | 'server'
+  ): Promise<void> {
+    const db = await this.ensureDb();
+
+    // Get the conflict
+    const conflicts = await this.getJobAppConflicts();
+    const conflict = conflicts.find((c) => c.application_id === applicationId);
+
+    if (!conflict) {
+      throw new Error('Job application conflict not found');
+    }
+
+    // Apply resolution
+    if (resolution === 'server') {
+      // Overwrite local with server version
+      await this.saveJobAppLocal(conflict.server_version, true);
+    }
+    // If 'local', the local version stays and will be synced
+
+    // Clear the conflict
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.JOB_APP_CONFLICTS],
+        'readwrite'
+      );
+      const store = transaction.objectStore(STORES.JOB_APP_CONFLICTS);
+      const request = store.delete(applicationId);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () =>
+        reject(new Error('Failed to resolve job application conflict'));
     });
   }
 }

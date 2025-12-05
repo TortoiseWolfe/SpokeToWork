@@ -19,6 +19,8 @@ import type {
   DistanceResult,
   ImportResult,
   SyncResult,
+  CompanyWithApplications,
+  JobApplication,
 } from '@/types/company';
 import { geocode, haversineDistance, validateDistance } from './geocoding';
 import { OfflineSyncService } from './offline-sync';
@@ -439,6 +441,104 @@ export class CompanyService {
     // Offline: delete locally and queue
     await this.offlineStore.deleteLocal(id);
     await this.offlineStore.queueChange('delete', id, null);
+  }
+
+  // =========================================================================
+  // Company with Applications Queries
+  // =========================================================================
+
+  /**
+   * Get a company with all its job applications
+   */
+  async getCompanyWithApplications(
+    id: string
+  ): Promise<CompanyWithApplications | null> {
+    this.ensureInitialized();
+
+    // Get company
+    const company = await this.getById(id);
+    if (!company) {
+      return null;
+    }
+
+    // Get applications for this company
+    const { data: applications, error } = await this.supabase
+      .from('job_applications')
+      .select('*')
+      .eq('company_id', id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('Failed to fetch applications:', error);
+      return {
+        ...company,
+        applications: [],
+        latest_application: null,
+        total_applications: 0,
+      };
+    }
+
+    const apps = (applications || []) as JobApplication[];
+
+    return {
+      ...company,
+      applications: apps,
+      latest_application: apps[0] || null,
+      total_applications: apps.length,
+    };
+  }
+
+  /**
+   * Get all companies with their latest job application (for list view)
+   */
+  async getAllWithLatestApplication(
+    filters?: CompanyFilters,
+    sort?: CompanySort
+  ): Promise<CompanyWithApplications[]> {
+    this.ensureInitialized();
+
+    // Get all companies first
+    const companies = await this.getAll(filters, sort);
+
+    if (companies.length === 0) {
+      return [];
+    }
+
+    // Get all applications in one query
+    const { data: applications, error } = await this.supabase
+      .from('job_applications')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('Failed to fetch applications:', error);
+      // Return companies without applications
+      return companies.map((company) => ({
+        ...company,
+        applications: [],
+        latest_application: null,
+        total_applications: 0,
+      }));
+    }
+
+    // Group applications by company
+    const appsByCompany = new Map<string, JobApplication[]>();
+    for (const app of (applications || []) as JobApplication[]) {
+      const existing = appsByCompany.get(app.company_id) || [];
+      existing.push(app);
+      appsByCompany.set(app.company_id, existing);
+    }
+
+    // Build the result
+    return companies.map((company) => {
+      const companyApps = appsByCompany.get(company.id) || [];
+      return {
+        ...company,
+        applications: companyApps,
+        latest_application: companyApps[0] || null,
+        total_applications: companyApps.length,
+      };
+    });
   }
 
   // =========================================================================
