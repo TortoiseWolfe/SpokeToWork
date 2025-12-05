@@ -234,6 +234,29 @@ export default function CompanyDetailDrawer({
 
         {/* Company Info */}
         <div className="border-b p-4">
+          {/* Phone - full width, click to copy */}
+          {company.phone && (
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-base-content/70 text-sm">Phone:</span>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm font-mono"
+                onClick={() => {
+                  navigator.clipboard.writeText(company.phone!);
+                  // Visual feedback - button text changes briefly
+                  const btn = document.activeElement as HTMLButtonElement;
+                  const original = btn.textContent;
+                  btn.textContent = 'Copied!';
+                  setTimeout(() => {
+                    btn.textContent = original;
+                  }, 1500);
+                }}
+                title="Click to copy"
+              >
+                {company.phone}
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2 text-sm">
             {company.website && (
               <div>
@@ -253,17 +276,9 @@ export default function CompanyDetailDrawer({
                 <span className="text-base-content/70">Email:</span>{' '}
                 <a
                   href={`mailto:${company.email}`}
-                  className="link link-primary"
+                  className="link link-primary truncate"
                 >
                   {company.email}
-                </a>
-              </div>
-            )}
-            {company.phone && (
-              <div>
-                <span className="text-base-content/70">Phone:</span>{' '}
-                <a href={`tel:${company.phone}`} className="link link-primary">
-                  {company.phone}
                 </a>
               </div>
             )}
@@ -295,7 +310,15 @@ export default function CompanyDetailDrawer({
         >
           <div className="flex items-center justify-between border-b p-4">
             <h3 className="font-semibold">
-              Applications ({company.total_applications})
+              {(() => {
+                const appliedCount = company.applications.filter(
+                  (a) => a.status !== 'not_applied'
+                ).length;
+                if (appliedCount === 0 && company.applications.length > 0) {
+                  return `Tracked (${company.applications.length})`;
+                }
+                return `Applications (${appliedCount})`;
+              })()}
             </h3>
             {onAddApplication && (
               <button

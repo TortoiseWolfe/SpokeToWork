@@ -166,17 +166,24 @@ export default function CompanyRow({
           <div className="flex flex-col gap-1">
             {company.latest_application ? (
               <div className="flex items-center gap-1">
-                <span
-                  className={`badge ${JOB_STATUS_COLORS[company.latest_application.status]} badge-sm`}
-                >
-                  {JOB_STATUS_LABELS[company.latest_application.status]}
-                </span>
-                {company.latest_application.outcome !== 'pending' && (
-                  <span
-                    className={`badge ${OUTCOME_COLORS[company.latest_application.outcome]} badge-sm`}
-                  >
-                    {OUTCOME_LABELS[company.latest_application.outcome]}
-                  </span>
+                {company.latest_application.status === 'not_applied' ? (
+                  // Show "Tracking" for not_applied since they haven't actually applied
+                  <span className="badge badge-ghost badge-sm">Tracking</span>
+                ) : (
+                  <>
+                    <span
+                      className={`badge ${JOB_STATUS_COLORS[company.latest_application.status]} badge-sm`}
+                    >
+                      {JOB_STATUS_LABELS[company.latest_application.status]}
+                    </span>
+                    {company.latest_application.outcome !== 'pending' && (
+                      <span
+                        className={`badge ${OUTCOME_COLORS[company.latest_application.outcome]} badge-sm`}
+                      >
+                        {OUTCOME_LABELS[company.latest_application.outcome]}
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
             ) : (
@@ -211,12 +218,24 @@ export default function CompanyRow({
       {/* Applications Count / Priority */}
       <td className="hidden text-center sm:table-cell">
         {hasApplications(company) ? (
-          <span
-            className={`badge ${company.total_applications > 0 ? 'badge-info' : 'badge-ghost'} badge-sm`}
-            title={`${company.total_applications} application(s)`}
-          >
-            {company.total_applications}
-          </span>
+          (() => {
+            // Only count actual applications (not "not_applied" / tracking entries)
+            const appliedCount = company.applications.filter(
+              (a) => a.status !== 'not_applied'
+            ).length;
+            return (
+              <span
+                className={`badge ${appliedCount > 0 ? 'badge-info' : 'badge-ghost'} badge-sm`}
+                title={
+                  appliedCount > 0
+                    ? `${appliedCount} application(s)`
+                    : `${company.total_applications} tracked`
+                }
+              >
+                {appliedCount > 0 ? appliedCount : '-'}
+              </span>
+            );
+          })()
         ) : (
           <span
             className={company.priority <= 2 ? 'text-warning font-bold' : ''}
