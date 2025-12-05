@@ -72,3 +72,4 @@ tasks
 storybook-static/
 .component-backup-*
 docs/visual-testing/
+master_job_tracker.csv

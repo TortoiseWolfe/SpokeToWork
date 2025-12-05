@@ -308,6 +308,10 @@ export type Database = {
           bio: string | null;
           created_at: string;
           display_name: string | null;
+          distance_radius_miles: number | null;
+          home_address: string | null;
+          home_latitude: number | null;
+          home_longitude: number | null;
           id: string;
           updated_at: string;
           username: string | null;
@@ -318,6 +322,10 @@ export type Database = {
           bio?: string | null;
           created_at?: string;
           display_name?: string | null;
+          distance_radius_miles?: number | null;
+          home_address?: string | null;
+          home_latitude?: number | null;
+          home_longitude?: number | null;
           id: string;
           updated_at?: string;
           username?: string | null;
@@ -328,6 +336,10 @@ export type Database = {
           bio?: string | null;
           created_at?: string;
           display_name?: string | null;
+          distance_radius_miles?: number | null;
+          home_address?: string | null;
+          home_latitude?: number | null;
+          home_longitude?: number | null;
           id?: string;
           updated_at?: string;
           username?: string | null;
