@@ -241,8 +241,7 @@ kill -9 <PID>
 
 **Primary** (required):
 
-- Email: `test@example.com`
-- Password: `TestPassword123!`
+- Configure in `.env`: `TEST_USER_EMAIL`, `TEST_USER_PASSWORD`
 
 **Secondary** (optional - for email verification tests):
 
