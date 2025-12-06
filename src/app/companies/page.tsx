@@ -276,6 +276,7 @@ export default function CompaniesPage() {
         latitude: company.latitude,
         longitude: company.longitude,
         website: company.website,
+        careers_url: company.careers_url,
         email: company.email,
         phone: company.phone,
         contact_name: company.contact_name,

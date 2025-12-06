@@ -57,6 +57,7 @@ const mockCompany: Company = {
   phone: '555-123-4567',
   email: 'john.smith@acme.com',
   website: 'https://acme.com',
+  careers_url: null,
   address: '350 5th Ave, New York, NY 10118',
   latitude: 40.7484,
   longitude: -73.9857,

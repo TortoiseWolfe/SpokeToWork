@@ -1341,6 +1341,7 @@ CREATE TABLE IF NOT EXISTS companies (
   phone TEXT CHECK (length(phone) <= 30),
   email TEXT CHECK (length(email) <= 254),
   website TEXT CHECK (length(website) <= 500),
+  careers_url TEXT CHECK (length(careers_url) <= 500),
 
   -- Location
   address TEXT NOT NULL CHECK (length(address) >= 1 AND length(address) <= 500),

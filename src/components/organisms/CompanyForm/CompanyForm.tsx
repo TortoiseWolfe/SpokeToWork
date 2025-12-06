@@ -74,6 +74,7 @@ export default function CompanyForm({
   const [phone, setPhone] = useState(company?.phone || '');
   const [email, setEmail] = useState(company?.email || '');
   const [website, setWebsite] = useState(company?.website || '');
+  const [careersUrl, setCareersUrl] = useState(company?.careers_url || '');
   const [address, setAddress] = useState(company?.address || '');
   const [latitude, setLatitude] = useState(company?.latitude || 40.7128);
   const [longitude, setLongitude] = useState(company?.longitude || -74.006);
@@ -106,6 +107,7 @@ export default function CompanyForm({
       setPhone(company.phone || '');
       setEmail(company.email || '');
       setWebsite(company.website || '');
+      setCareersUrl(company.careers_url || '');
       setAddress(company.address);
       setLatitude(company.latitude);
       setLongitude(company.longitude);
@@ -201,6 +203,7 @@ export default function CompanyForm({
           phone: phone.trim() || undefined,
           email: email.trim() || undefined,
           website: website.trim() || undefined,
+          careers_url: careersUrl.trim() || undefined,
           address: address.trim(),
           latitude,
           longitude,
@@ -232,6 +235,7 @@ export default function CompanyForm({
       phone,
       email,
       website,
+      careersUrl,
       address,
       latitude,
       longitude,
@@ -348,6 +352,20 @@ export default function CompanyForm({
             className="input input-bordered"
             value={website}
             onChange={(e) => setWebsite(e.target.value)}
+          />
+        </div>
+
+        <div className="form-control">
+          <label className="label" htmlFor="careers-url">
+            <span className="label-text">Careers Page</span>
+          </label>
+          <input
+            id="careers-url"
+            type="url"
+            placeholder="https://example.com/careers"
+            className="input input-bordered"
+            value={careersUrl}
+            onChange={(e) => setCareersUrl(e.target.value)}
           />
         </div>
 

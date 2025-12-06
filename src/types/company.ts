@@ -188,6 +188,7 @@ export interface Company {
   phone: string | null;
   email: string | null;
   website: string | null;
+  careers_url: string | null;
 
   // Location
   address: string;
@@ -225,6 +226,7 @@ export interface CompanyCreate {
   phone?: string;
   email?: string;
   website?: string;
+  careers_url?: string;
   status?: ApplicationStatus;
   priority?: Priority;
   notes?: string;
@@ -246,6 +248,7 @@ export interface CompanyUpdate {
   phone?: string | null;
   email?: string | null;
   website?: string | null;
+  careers_url?: string | null;
   status?: ApplicationStatus;
   priority?: Priority;
   notes?: string | null;
