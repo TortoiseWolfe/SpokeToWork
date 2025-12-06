@@ -160,12 +160,12 @@ export default function CompanyDetailDrawer({
         role="dialog"
         aria-modal="true"
         aria-labelledby="drawer-title"
-        className={`bg-base-100 fixed top-0 right-0 z-50 h-full w-full max-w-md transform shadow-xl transition-transform duration-300 ease-in-out ${
+        className={`bg-base-100 fixed top-0 right-0 z-50 flex h-full w-full max-w-md transform flex-col shadow-xl transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         } ${className}`}
       >
         {/* Header */}
-        <div className="bg-base-200 flex items-start justify-between border-b p-4">
+        <div className="bg-base-200 flex flex-shrink-0 items-start justify-between border-b p-4">
           <div className="flex-1">
             <h2
               id="drawer-title"
@@ -233,7 +233,7 @@ export default function CompanyDetailDrawer({
         </div>
 
         {/* Company Info */}
-        <div className="border-b p-4">
+        <div className="max-h-[40%] flex-shrink-0 overflow-y-auto border-b p-4">
           {/* Phone - full width, click to copy */}
           {company.phone && (
             <div className="mb-3 flex items-center gap-2">
@@ -257,9 +257,9 @@ export default function CompanyDetailDrawer({
               </button>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="flex flex-col gap-2 text-sm">
             {company.website && (
-              <div>
+              <div className="truncate">
                 <span className="text-base-content/70">Website:</span>{' '}
                 <a
                   href={company.website}
@@ -267,16 +267,25 @@ export default function CompanyDetailDrawer({
                   rel="noopener noreferrer"
                   className="link link-primary"
                 >
-                  Visit
+                  {(() => {
+                    try {
+                      return new URL(company.website).hostname.replace(
+                        /^www\./,
+                        ''
+                      );
+                    } catch {
+                      return company.website;
+                    }
+                  })()}
                 </a>
               </div>
             )}
             {company.email && (
-              <div>
+              <div className="min-w-0 truncate">
                 <span className="text-base-content/70">Email:</span>{' '}
                 <a
                   href={`mailto:${company.email}`}
-                  className="link link-primary truncate"
+                  className="link link-primary"
                 >
                   {company.email}
                 </a>
@@ -304,18 +313,17 @@ export default function CompanyDetailDrawer({
         </div>
 
         {/* Applications Section */}
-        <div
-          className="flex flex-col overflow-hidden"
-          style={{ height: 'calc(100% - 200px)' }}
-        >
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex items-center justify-between border-b p-4">
             <h3 className="font-semibold">
               {(() => {
                 const appliedCount = company.applications.filter(
                   (a) => a.status !== 'not_applied'
                 ).length;
-                if (appliedCount === 0 && company.applications.length > 0) {
-                  return `Tracked (${company.applications.length})`;
+                const watchingCount =
+                  company.applications.length - appliedCount;
+                if (appliedCount === 0 && watchingCount > 0) {
+                  return `Watching ${watchingCount} job${watchingCount > 1 ? 's' : ''}`;
                 }
                 return `Applications (${appliedCount})`;
               })()}

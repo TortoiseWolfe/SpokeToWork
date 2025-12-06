@@ -399,7 +399,7 @@ export default function CompanyForm({
             longitude={longitude}
             onCoordinateChange={handleCoordinateChange}
             homeLocation={homeLocation || undefined}
-            height="200px"
+            height="500px"
             interactive={true}
             testId="company-location-map"
           />

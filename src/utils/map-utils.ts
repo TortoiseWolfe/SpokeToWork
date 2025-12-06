@@ -8,7 +8,7 @@ export const DEFAULT_MAP_CONFIG = {
   zoom: 13,
   minZoom: 1,
   maxZoom: 18,
-  height: '400px',
+  height: '500px',
   width: '100%',
   showUserLocation: false,
   allowZoom: true,

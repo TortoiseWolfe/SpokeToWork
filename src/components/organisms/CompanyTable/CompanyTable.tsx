@@ -14,6 +14,12 @@ import type {
 /** Type alias for company with or without applications */
 type CompanyType = Company | CompanyWithApplications;
 
+/** Extract zip code from address string (e.g., "123 Main St, Cleveland, TN 37311" -> "37311") */
+function extractZipCode(address: string): string {
+  const match = address.match(/\b(\d{5})(?:-\d{4})?\b/);
+  return match ? match[1] : '';
+}
+
 export interface CompanyTableProps {
   /** List of companies to display (with or without applications) */
   companies: CompanyType[];
@@ -134,6 +140,11 @@ export default function CompanyTable({
             : Infinity;
           comparison = aDate - bDate;
           break;
+        case 'zip_code':
+          const aZip = extractZipCode(a.address);
+          const bZip = extractZipCode(b.address);
+          comparison = aZip.localeCompare(bZip);
+          break;
       }
 
       return sort.direction === 'asc' ? comparison : -comparison;
@@ -210,6 +221,15 @@ export default function CompanyTable({
                     Company
                     <SortIcon field="name" />
                   </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-xs ml-1"
+                    onClick={() => handleSort('zip_code')}
+                    title="Sort by zip code to cluster nearby companies"
+                  >
+                    Zip
+                    <SortIcon field="zip_code" />
+                  </button>
                 </th>
                 <th className="hidden md:table-cell">Contact</th>
                 <th>
@@ -227,12 +247,14 @@ export default function CompanyTable({
                     type="button"
                     className="btn btn-ghost btn-xs"
                     onClick={() => handleSort('priority')}
-                    title="Sort by priority"
+                    title="Sort by priority (1=highest)"
                   >
-                    Apps
+                    Priority
                     <SortIcon field="priority" />
                   </button>
                 </th>
+                <th className="hidden text-center md:table-cell">Apps</th>
+                <th className="hidden lg:table-cell">Website</th>
                 <th>Actions</th>
               </tr>
             </thead>

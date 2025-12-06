@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { Map as LeafletMap } from 'leaflet';
 import { fixLeafletIconPaths } from '@/utils/map-utils';
@@ -37,6 +37,7 @@ interface CoordinateMapInnerProps {
   interactive?: boolean;
   zoom?: number;
   onMapReady?: (map: LeafletMap) => void;
+  isLocked?: boolean;
 }
 
 const CoordinateMapInner = dynamic<CoordinateMapInnerProps>(
@@ -67,13 +68,15 @@ export default function CoordinateMap({
   longitude,
   onCoordinateChange,
   homeLocation,
-  height = '200px',
+  height = '500px',
   width = '100%',
   interactive = true,
   zoom = 14,
   className = '',
   testId = 'coordinate-map',
 }: CoordinateMapProps) {
+  const [isLocked, setIsLocked] = useState(true);
+
   useEffect(() => {
     fixLeafletIconPaths();
   }, []);
@@ -84,8 +87,17 @@ export default function CoordinateMap({
       className={`relative overflow-hidden rounded-lg ${className}`}
       style={{ height, width }}
       role="application"
-      aria-label={`Map showing coordinates ${latitude.toFixed(4)}, ${longitude.toFixed(4)}${interactive ? '. Click to update location.' : ''}`}
+      aria-label={`Map showing coordinates ${latitude.toFixed(4)}, ${longitude.toFixed(4)}${interactive && !isLocked ? '. Drag marker to update location.' : ''}`}
     >
+      {interactive && (
+        <button
+          type="button"
+          className={`btn btn-sm absolute top-2 right-2 z-[1000] ${isLocked ? 'btn-outline' : 'btn-warning'}`}
+          onClick={() => setIsLocked(!isLocked)}
+        >
+          {isLocked ? 'Unlock to Move' : 'Lock Position'}
+        </button>
+      )}
       <CoordinateMapInner
         latitude={latitude}
         longitude={longitude}
@@ -93,6 +105,7 @@ export default function CoordinateMap({
         homeLocation={homeLocation}
         interactive={interactive}
         zoom={zoom}
+        isLocked={isLocked}
       />
     </div>
   );

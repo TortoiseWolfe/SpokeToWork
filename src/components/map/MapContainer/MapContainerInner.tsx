@@ -34,13 +34,20 @@ interface MapContainerInnerProps {
   children?: React.ReactNode;
 }
 
-// Component to handle center updates after map is rendered
+// Component to handle center updates - only when coordinates actually change
 const MapCenterUpdater: React.FC<{ center: LatLngTuple }> = ({ center }) => {
   const map = useMap();
+  const prevCoordsRef = React.useRef<LatLngTuple | null>(null);
 
   useEffect(() => {
-    map.setView(center);
-  }, [map, center]);
+    // Only re-center if coordinates actually changed
+    // Not on every render (which would fight with user panning)
+    const prev = prevCoordsRef.current;
+    if (!prev || prev[0] !== center[0] || prev[1] !== center[1]) {
+      map.setView(center);
+      prevCoordsRef.current = center;
+    }
+  }, [map, center[0], center[1]]);
 
   return null;
 };
@@ -52,6 +59,34 @@ const MapEventHandler: React.FC<{
   onLocationError?: (error: GeolocationPositionError) => void;
 }> = ({ onMapReady, showUserLocation, onLocationFound, onLocationError }) => {
   const map = useMap();
+
+  // Handle container resize - fixes zoom glitches and tile redraw issues
+  useEffect(() => {
+    const container = map.getContainer();
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      // Delay to ensure DOM has settled after resize
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
+    });
+
+    resizeObserver.observe(container);
+
+    // Also handle window resize as backup
+    const handleWindowResize = () => {
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
+    };
+    window.addEventListener('resize', handleWindowResize);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', handleWindowResize);
+    };
+  }, [map]);
 
   useEffect(() => {
     if (onMapReady) {

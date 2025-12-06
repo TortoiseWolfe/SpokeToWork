@@ -215,33 +215,53 @@ export default function CompanyRow({
         )}
       </td>
 
-      {/* Applications Count / Priority */}
+      {/* Priority */}
       <td className="hidden text-center sm:table-cell">
+        <span
+          className={`badge ${company.priority <= 2 ? 'badge-warning' : company.priority >= 4 ? 'badge-ghost' : 'badge-outline'} badge-sm`}
+          title={`Priority ${company.priority} (1=highest, 5=lowest)`}
+        >
+          {company.priority}
+        </span>
+      </td>
+
+      {/* Applications Count */}
+      <td className="hidden text-center md:table-cell">
         {hasApplications(company) ? (
           (() => {
-            // Only count actual applications (not "not_applied" / tracking entries)
             const appliedCount = company.applications.filter(
               (a) => a.status !== 'not_applied'
             ).length;
-            return (
-              <span
-                className={`badge ${appliedCount > 0 ? 'badge-info' : 'badge-ghost'} badge-sm`}
-                title={
-                  appliedCount > 0
-                    ? `${appliedCount} application(s)`
-                    : `${company.total_applications} tracked`
-                }
-              >
-                {appliedCount > 0 ? appliedCount : '-'}
-              </span>
+            return appliedCount > 0 ? (
+              <span className="badge badge-info badge-sm">{appliedCount}</span>
+            ) : (
+              <span className="text-base-content/50">-</span>
             );
           })()
         ) : (
-          <span
-            className={company.priority <= 2 ? 'text-warning font-bold' : ''}
+          <span className="text-base-content/50">-</span>
+        )}
+      </td>
+
+      {/* Website */}
+      <td className="hidden lg:table-cell">
+        {company.website && (
+          <a
+            href={company.website}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="link link-primary inline-block max-w-[150px] truncate text-sm"
+            onClick={(e) => e.stopPropagation()}
+            title={company.website}
           >
-            {company.priority}
-          </span>
+            {(() => {
+              try {
+                return new URL(company.website).hostname.replace(/^www\./, '');
+              } catch {
+                return company.website;
+              }
+            })()}
+          </a>
         )}
       </td>
 
