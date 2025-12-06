@@ -501,7 +501,9 @@ export class CompaniesPage extends BasePage {
    * Uses the authenticated user's session to delete via UI.
    * This ensures cleanup works without requiring service role key.
    */
-  async cleanupTestApplications(testPrefixes: string[] = ['E2E Test', 'E2E Status Test']) {
+  async cleanupTestApplications(
+    testPrefixes: string[] = ['E2E Test', 'E2E Status Test']
+  ) {
     try {
       // Navigate to companies page if not already there
       await this.goto();
@@ -542,7 +544,9 @@ export class CompaniesPage extends BasePage {
         const cardText = await card.textContent();
 
         // Check if this is a test application
-        const isTestApp = testPrefixes.some(prefix => cardText?.includes(prefix));
+        const isTestApp = testPrefixes.some((prefix) =>
+          cardText?.includes(prefix)
+        );
         if (!isTestApp) continue;
 
         // Find and click delete button

@@ -60,18 +60,20 @@ describe('CoordinateMap', () => {
   it('has correct aria-label for interactive map', () => {
     render(<CoordinateMap {...defaultProps} interactive={true} />);
     const mapContainer = screen.getByTestId('coordinate-map');
+    // Interactive maps show coordinates; drag instruction only when unlocked
     expect(mapContainer).toHaveAttribute(
       'aria-label',
-      expect.stringContaining('Click to update location')
+      expect.stringContaining('Map showing coordinates')
     );
   });
 
   it('has correct aria-label for non-interactive map', () => {
     render(<CoordinateMap {...defaultProps} interactive={false} />);
     const mapContainer = screen.getByTestId('coordinate-map');
+    // Non-interactive maps don't mention drag/update
     expect(mapContainer).not.toHaveAttribute(
       'aria-label',
-      expect.stringContaining('Click to update location')
+      expect.stringContaining('Drag marker')
     );
   });
 

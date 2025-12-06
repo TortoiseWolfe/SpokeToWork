@@ -5,10 +5,8 @@ import {
   Marker,
   Popup,
   useMap,
-  useMapEvents,
-  Circle,
 } from 'react-leaflet';
-import type { LatLngTuple, LeafletMouseEvent } from 'leaflet';
+import type { LatLngTuple } from 'leaflet';
 import L from 'leaflet';
 import { OSM_TILE_URL, OSM_ATTRIBUTION } from '@/utils/map-utils';
 
@@ -19,6 +17,7 @@ interface CoordinateMapInnerProps {
   homeLocation?: { latitude: number; longitude: number };
   interactive?: boolean;
   zoom?: number;
+  isLocked?: boolean;
 }
 
 // Custom blue marker for the main location
@@ -45,29 +44,62 @@ const greenIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
-// Component to handle map center updates
-const MapCenterUpdater: React.FC<{ center: LatLngTuple }> = ({ center }) => {
+// Component to handle resize and invalidate map size
+const MapResizeHandler: React.FC = () => {
   const map = useMap();
 
   useEffect(() => {
-    map.setView(center);
-  }, [map, center]);
+    const container = map.getContainer();
+    if (!container) return;
+
+    // ResizeObserver to detect container size changes
+    const resizeObserver = new ResizeObserver(() => {
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
+    });
+
+    resizeObserver.observe(container);
+
+    // Window resize as backup
+    const handleWindowResize = () => {
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
+    };
+    window.addEventListener('resize', handleWindowResize);
+
+    // Initial invalidateSize after mount
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', handleWindowResize);
+    };
+  }, [map]);
 
   return null;
 };
 
-// Component to handle map click events
-const MapClickHandler: React.FC<{
-  onCoordinateChange?: (lat: number, lng: number) => void;
-  interactive?: boolean;
-}> = ({ onCoordinateChange, interactive }) => {
-  useMapEvents({
-    click: (e: LeafletMouseEvent) => {
-      if (interactive && onCoordinateChange) {
-        onCoordinateChange(e.latlng.lat, e.latlng.lng);
-      }
-    },
-  });
+// Component to handle map center updates - only when coordinates actually change
+const MapCenterUpdater: React.FC<{ lat: number; lng: number }> = ({
+  lat,
+  lng,
+}) => {
+  const map = useMap();
+  const prevCoordsRef = React.useRef<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    // Only re-center if coordinates actually changed (user clicked new location)
+    // Not on every render (which would fight with user panning)
+    const prev = prevCoordsRef.current;
+    if (!prev || prev.lat !== lat || prev.lng !== lng) {
+      map.setView([lat, lng]);
+      prevCoordsRef.current = { lat, lng };
+    }
+  }, [map, lat, lng]);
 
   return null;
 };
@@ -79,6 +111,7 @@ const CoordinateMapInner: React.FC<CoordinateMapInnerProps> = ({
   homeLocation,
   interactive = true,
   zoom = 14,
+  isLocked = true,
 }) => {
   const center: LatLngTuple = [latitude, longitude];
 
@@ -87,20 +120,31 @@ const CoordinateMapInner: React.FC<CoordinateMapInnerProps> = ({
       center={center}
       zoom={zoom}
       scrollWheelZoom={true}
+      wheelPxPerZoomLevel={120}
+      wheelDebounceTime={100}
       className="h-full w-full"
       zoomControl={true}
-      style={{ cursor: interactive ? 'crosshair' : 'default' }}
     >
       <TileLayer attribution={OSM_ATTRIBUTION} url={OSM_TILE_URL} />
 
-      <MapCenterUpdater center={center} />
-      <MapClickHandler
-        onCoordinateChange={onCoordinateChange}
-        interactive={interactive}
-      />
+      <MapResizeHandler />
+      <MapCenterUpdater lat={latitude} lng={longitude} />
 
-      {/* Main marker at current coordinates */}
-      <Marker position={center} icon={blueIcon}>
+      {/* Main marker at current coordinates - draggable when unlocked */}
+      <Marker
+        position={center}
+        icon={blueIcon}
+        draggable={interactive && !isLocked}
+        eventHandlers={{
+          dragend: (e) => {
+            const marker = e.target;
+            const position = marker.getLatLng();
+            if (onCoordinateChange) {
+              onCoordinateChange(position.lat, position.lng);
+            }
+          },
+        }}
+      >
         <Popup>
           <div className="text-sm">
             <strong>Selected Location</strong>
@@ -108,6 +152,14 @@ const CoordinateMapInner: React.FC<CoordinateMapInnerProps> = ({
             Lat: {latitude.toFixed(6)}
             <br />
             Lng: {longitude.toFixed(6)}
+            {interactive && (
+              <>
+                <br />
+                <em>
+                  {isLocked ? 'Unlock to move marker' : 'Drag to reposition'}
+                </em>
+              </>
+            )}
           </div>
         </Popup>
       </Marker>

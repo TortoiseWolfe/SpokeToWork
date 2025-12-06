@@ -320,8 +320,18 @@ export class CompanyService {
     // Apply sorting
     if (sort) {
       local.sort((a, b) => {
-        const aVal = a[sort.field] ?? '';
-        const bVal = b[sort.field] ?? '';
+        let aVal: unknown;
+        let bVal: unknown;
+
+        if (sort.field === 'zip_code') {
+          // Extract zip code from address
+          aVal = a.address.match(/\b(\d{5})(?:-\d{4})?\b/)?.[1] ?? '';
+          bVal = b.address.match(/\b(\d{5})(?:-\d{4})?\b/)?.[1] ?? '';
+        } else {
+          aVal = a[sort.field as keyof typeof a] ?? '';
+          bVal = b[sort.field as keyof typeof b] ?? '';
+        }
+
         const comparison = String(aVal).localeCompare(String(bVal));
         return sort.direction === 'asc' ? comparison : -comparison;
       });

@@ -42,10 +42,12 @@ describe('Validation Service - Time Window Functions', () => {
     });
 
     it('should return true for message created exactly 15 minutes ago', () => {
-      const exactlyFifteen = new Date(
-        Date.now() - 15 * 60 * 1000
-      ).toISOString();
+      // Use fake timers to avoid timing issues at boundary
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2025-01-01T12:15:00.000Z'));
+      const exactlyFifteen = '2025-01-01T12:00:00.000Z';
       expect(isWithinEditWindow(exactlyFifteen)).toBe(true);
+      vi.useRealTimers();
     });
 
     it('should return false for message created 16 minutes ago', () => {

@@ -271,7 +271,13 @@ export interface CompanyFilters {
  * Sort options for company list
  */
 export interface CompanySort {
-  field: 'name' | 'status' | 'priority' | 'created_at' | 'follow_up_date';
+  field:
+    | 'name'
+    | 'status'
+    | 'priority'
+    | 'created_at'
+    | 'follow_up_date'
+    | 'zip_code';
   direction: 'asc' | 'desc';
 }
 

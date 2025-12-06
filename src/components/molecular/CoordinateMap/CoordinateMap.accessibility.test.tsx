@@ -58,15 +58,17 @@ describe('CoordinateMap Accessibility', () => {
     const mapContainer = screen.getByTestId('coordinate-map');
     const ariaLabel = mapContainer.getAttribute('aria-label');
 
-    expect(ariaLabel).toContain('Click to update location');
+    // Interactive maps show coordinates; drag instruction only when unlocked
+    expect(ariaLabel).toContain('Map showing coordinates');
   });
 
-  it('should not mention click when non-interactive', () => {
+  it('should not mention drag when non-interactive', () => {
     render(<CoordinateMap {...defaultProps} interactive={false} />);
     const mapContainer = screen.getByTestId('coordinate-map');
     const ariaLabel = mapContainer.getAttribute('aria-label');
 
-    expect(ariaLabel).not.toContain('Click to update location');
+    // Non-interactive maps don't mention drag/update
+    expect(ariaLabel).not.toContain('Drag marker');
   });
 
   it('should have proper semantic HTML structure', () => {

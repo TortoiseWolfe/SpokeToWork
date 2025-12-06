@@ -394,7 +394,8 @@ export default function StatusPage() {
             seo: staticData.seo || 0,
             pwa: staticData.pwa || 0,
             timestamp: staticData.timestamp,
-            url: staticData.url || 'https://TortoiseWolfe.github.io/SpokeToWork/',
+            url:
+              staticData.url || 'https://TortoiseWolfe.github.io/SpokeToWork/',
             isDefault: false,
           };
 
