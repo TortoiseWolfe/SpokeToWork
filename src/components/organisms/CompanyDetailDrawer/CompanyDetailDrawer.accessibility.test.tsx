@@ -14,6 +14,7 @@ const mockCompany: CompanyWithApplications = {
   latitude: 41.4993,
   longitude: -81.6944,
   website: 'https://acme.example.com',
+  careers_url: null,
   email: 'hr@acme.example.com',
   phone: '555-123-4567',
   contact_name: 'John Smith',

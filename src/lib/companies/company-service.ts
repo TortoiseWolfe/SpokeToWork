@@ -152,6 +152,7 @@ export class CompanyService {
       phone: data.phone?.trim() || null,
       email: data.email?.trim() || null,
       website: data.website?.trim() || null,
+      careers_url: data.careers_url?.trim() || null,
       address: data.address.trim(),
       latitude: data.latitude,
       longitude: data.longitude,

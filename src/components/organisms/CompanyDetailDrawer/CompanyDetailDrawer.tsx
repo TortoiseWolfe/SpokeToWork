@@ -280,6 +280,19 @@ export default function CompanyDetailDrawer({
                 </a>
               </div>
             )}
+            {company.careers_url && (
+              <div className="truncate">
+                <span className="text-base-content/70">Careers:</span>{' '}
+                <a
+                  href={company.careers_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="link link-secondary"
+                >
+                  View Openings
+                </a>
+              </div>
+            )}
             {company.email && (
               <div className="min-w-0 truncate">
                 <span className="text-base-content/70">Email:</span>{' '}

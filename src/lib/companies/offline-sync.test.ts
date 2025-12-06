@@ -21,6 +21,7 @@ const mockCompany: Company = {
   phone: '555-1234',
   email: 'john@test.com',
   website: 'https://test.com',
+  careers_url: null,
   address: '123 Main St, Test City, TC 12345',
   latitude: 40.7128,
   longitude: -74.006,

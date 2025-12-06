@@ -16,6 +16,7 @@ const mockCompanies: Company[] = [
     phone: '555-1234',
     email: 'john@acme.com',
     website: 'https://acme.com',
+    careers_url: null,
     address: '123 Main St, New York, NY',
     latitude: 40.7128,
     longitude: -74.006,
