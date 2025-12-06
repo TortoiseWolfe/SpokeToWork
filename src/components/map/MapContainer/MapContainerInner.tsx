@@ -38,16 +38,18 @@ interface MapContainerInnerProps {
 const MapCenterUpdater: React.FC<{ center: LatLngTuple }> = ({ center }) => {
   const map = useMap();
   const prevCoordsRef = React.useRef<LatLngTuple | null>(null);
+  const lat = center[0];
+  const lng = center[1];
 
   useEffect(() => {
     // Only re-center if coordinates actually changed
     // Not on every render (which would fight with user panning)
     const prev = prevCoordsRef.current;
-    if (!prev || prev[0] !== center[0] || prev[1] !== center[1]) {
+    if (!prev || prev[0] !== lat || prev[1] !== lng) {
       map.setView(center);
       prevCoordsRef.current = center;
     }
-  }, [map, center[0], center[1]]);
+  }, [map, center, lat, lng]);
 
   return null;
 };
