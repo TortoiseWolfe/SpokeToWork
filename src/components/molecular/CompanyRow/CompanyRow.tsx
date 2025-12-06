@@ -218,7 +218,7 @@ export default function CompanyRow({
       {/* Priority */}
       <td className="hidden text-center sm:table-cell">
         <span
-          className={`badge ${company.priority <= 2 ? 'badge-warning' : company.priority >= 4 ? 'badge-ghost' : 'badge-outline'} badge-sm`}
+          className={`badge ${company.priority === 1 ? 'badge-error' : company.priority === 2 ? 'badge-warning' : company.priority >= 4 ? 'badge-ghost' : 'badge-outline'} badge-sm`}
           title={`Priority ${company.priority} (1=highest, 5=lowest)`}
         >
           {company.priority}
