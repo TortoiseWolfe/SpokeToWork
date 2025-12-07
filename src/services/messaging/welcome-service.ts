@@ -19,6 +19,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   createMessagingClient,
   type ConversationInsert,
+  type ConversationRow,
 } from '@/lib/supabase/messaging-client';
 import { encryptionService } from '@/lib/messaging/encryption';
 import { createLogger } from '@/lib/logger';
@@ -357,11 +358,11 @@ export class WelcomeService {
       participant_2,
     });
 
-    const { data: created, error: createError } = await (msgClient as any)
+    const { data: created, error: createError } = await msgClient
       .from('conversations')
       .insert(insertData)
       .select('id')
-      .single();
+      .single<Pick<ConversationRow, 'id'>>();
 
     if (createError) {
       logger.error('Conversation insert failed', {

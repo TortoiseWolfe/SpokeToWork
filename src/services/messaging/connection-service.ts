@@ -117,11 +117,11 @@ export class ConnectionService {
       status: 'pending',
     };
 
-    const { data, error } = await (msgClient as any)
+    const { data, error } = await msgClient
       .from('user_connections')
       .insert(insertData)
       .select()
-      .single();
+      .single<UserConnectionRow>();
 
     if (error) {
       throw new ConnectionError(
@@ -226,12 +226,12 @@ export class ConnectionService {
       status: newStatus,
     };
 
-    const { data, error } = await (msgClient as any)
+    const { data, error } = await msgClient
       .from('user_connections')
       .update(updateData)
       .eq('id', input.connection_id)
       .select()
-      .single();
+      .single<UserConnectionRow>();
 
     if (error) {
       throw new ConnectionError(
@@ -601,11 +601,11 @@ export class ConnectionService {
       participant_2_id: participant_2,
     };
 
-    const { data: created, error: createError } = await (msgClient as any)
+    const { data: created, error: createError } = await msgClient
       .from('conversations')
       .insert(insertData)
       .select('id')
-      .single();
+      .single<Pick<ConversationRow, 'id'>>();
 
     if (createError) {
       // Handle race condition - conversation may have been created by other user

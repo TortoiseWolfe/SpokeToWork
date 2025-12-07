@@ -2,6 +2,15 @@ import { useState, useEffect } from 'react';
 import { connectionService } from '@/services/messaging/connection-service';
 import type { ConnectionList } from '@/types/messaging';
 
+/**
+ * Hook for managing user connections (friend requests, blocks, etc.)
+ *
+ * Error Handling Pattern:
+ * - Errors are captured in the `error` state for UI display
+ * - Action functions (accept, decline, block, remove) re-throw after setError
+ *   so callers can optionally handle with try/catch for additional behavior
+ * - Query function (fetchConnections) does NOT re-throw - errors are in state only
+ */
 export function useConnections() {
   const [connections, setConnections] = useState<ConnectionList>({
     pending_sent: [],

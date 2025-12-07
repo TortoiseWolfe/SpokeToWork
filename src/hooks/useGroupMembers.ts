@@ -18,6 +18,15 @@ interface ConnectedUser extends UserProfile {
   connectionId: string;
 }
 
+/**
+ * Type for joined profile data from Supabase query
+ */
+interface JoinedProfile {
+  id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
 export interface UseGroupMembersReturn {
   /** List of connected users matching search query */
   searchResults: ConnectedUser[];
@@ -97,11 +106,14 @@ export function useGroupMembers(
       const connectedUsers: ConnectedUser[] = (connections || []).map(
         (conn) => {
           const isRequester = conn.requester_id === user.id;
-          const profile = isRequester ? conn.addressee : conn.requester;
+          // Cast to unknown first, then to JoinedProfile to handle Supabase's complex join types
+          const profile = (isRequester
+            ? conn.addressee
+            : conn.requester) as unknown as JoinedProfile;
           return {
-            id: (profile as any).id,
-            display_name: (profile as any).display_name,
-            avatar_url: (profile as any).avatar_url,
+            id: profile.id,
+            display_name: profile.display_name,
+            avatar_url: profile.avatar_url,
             connectionId: conn.id,
           };
         }

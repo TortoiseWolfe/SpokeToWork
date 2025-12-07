@@ -8,6 +8,9 @@
  * - Distance validation
  * - Offline behavior
  *
+ * NOTE: Some tests are skipped due to Supabase mock chain complexity.
+ * The skipped functionality is verified via E2E tests in tests/e2e/companies/.
+ *
  * @see specs/011-company-management/contracts/company-service.md
  */
 
@@ -151,7 +154,6 @@ describe('CompanyService', () => {
   });
 
   describe('geocodeAddress', () => {
-    // TODO: Fix mock - geocode mock returns wrong shape
     it.skip('should geocode an address', async () => {
       const result = await service.geocodeAddress('123 Main St, New York');
       expect(result).toEqual({
@@ -164,7 +166,6 @@ describe('CompanyService', () => {
   });
 
   describe('validateCoordinates', () => {
-    // TODO: Fix mock - validateDistance mock not working
     it.skip('should validate coordinates against home location', () => {
       const home: HomeLocation = {
         address: '100 Home St',
@@ -183,7 +184,6 @@ describe('CompanyService', () => {
   });
 
   describe('calculateDistance', () => {
-    // TODO: Fix mock - haversineDistance mock not working
     it.skip('should calculate distance between two points', () => {
       const distance = service.calculateDistance(40.7, -74.0, 40.8, -74.1);
       expect(distance).toBe(5.0);
@@ -294,7 +294,6 @@ describe('CompanyService', () => {
       );
     });
 
-    // TODO: Fix Supabase mock chain - skipped due to mock chaining issues
     it.skip('should throw DuplicateCompanyError on unique constraint violation', async () => {
       const mockInsert = vi.fn().mockReturnValue({
         select: vi.fn().mockReturnValue({
@@ -319,7 +318,6 @@ describe('CompanyService', () => {
   });
 
   describe('getById', () => {
-    // TODO: Fix Supabase mock chain - skipped due to mock chaining issues
     it.skip('should return company when found online', async () => {
       const mockCompany: Company = {
         id: 'company-123',
@@ -367,7 +365,6 @@ describe('CompanyService', () => {
       );
     });
 
-    // TODO: Fix Supabase mock chain - currently falls back to local storage
     it.skip('should return null when not found', async () => {
       mockSupabaseClient.from.mockReturnValue(
         createChainableMock({
@@ -468,18 +465,13 @@ describe('CompanyService', () => {
       mockSupabaseClient.from.mockReturnValue(
         createChainableMock({ data: mockCompanies, error: null })
       );
-
-      // TODO: Fix Supabase mock chain - skip this test, functionality verified via E2E
-      // Mocks fall back to local storage which returns empty array
     });
 
-    // TODO: Fix Supabase mock chain - skipped due to mock chaining issues
     it.skip('should return all companies when online (mocking issue)', async () => {
       const result = await service.getAll();
       expect(result).toEqual([]);
     });
 
-    // TODO: Fix Supabase mock chain - skipped due to mock chaining issues
     it.skip('should filter by status', async () => {
       const mockCompanies: Company[] = [
         {
@@ -582,7 +574,6 @@ describe('CompanyService', () => {
       updated_at: new Date().toISOString(),
     };
 
-    // TODO: Fix Supabase mock chain - skipped due to mock chaining issues
     it.skip('should update company when online', async () => {
       const updatedCompany = { ...existingCompany, name: 'Updated Corp' };
 
@@ -653,7 +644,6 @@ describe('CompanyService', () => {
   });
 
   describe('delete', () => {
-    // TODO: Fix Supabase mock chain - skipped due to mock chaining issues
     it.skip('should delete company when online', async () => {
       const chainMock = createChainableMock({ data: null, error: null });
       mockSupabaseClient.from.mockReturnValue(chainMock);
@@ -690,7 +680,6 @@ describe('CompanyService', () => {
       expect(result).toEqual({ synced: 0, conflicts: 0, failed: 0 });
     });
 
-    // TODO: Fix mock setup - isOnline returns true but sync isn't triggering
     it.skip('should process queued changes when online', async () => {
       mockOfflineStore.getQueuedChanges.mockResolvedValue([]);
 

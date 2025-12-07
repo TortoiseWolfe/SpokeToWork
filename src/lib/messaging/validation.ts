@@ -6,11 +6,7 @@
  */
 
 import { ValidationError } from '@/types/messaging';
-
-/**
- * Valid email regex pattern (RFC 5322 simplified)
- */
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { EMAIL_REGEX, UUID_REGEX } from '@/lib/validation/patterns';
 
 /**
  * Validate email address format
@@ -146,10 +142,7 @@ export function validateUUID(id: string, fieldName: string = 'id'): void {
     throw new ValidationError(`${fieldName} is required`, fieldName);
   }
 
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-  if (!uuidRegex.test(id)) {
+  if (!UUID_REGEX.test(id)) {
     throw new ValidationError(`Invalid ${fieldName} format`, fieldName);
   }
 }
