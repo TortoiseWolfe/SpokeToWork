@@ -775,6 +775,74 @@ export interface UnifiedCompanySort {
 }
 
 // =============================================================================
+// FEATURE 012: OFFLINE TYPES
+// =============================================================================
+
+/**
+ * Offline private company with sync metadata
+ */
+export interface OfflinePrivateCompany extends PrivateCompany {
+  synced_at: string | null; // null = pending sync
+  local_version: number; // Increment on each local edit
+  server_version: number; // Last known server version
+}
+
+/**
+ * Offline user company tracking with sync metadata
+ */
+export interface OfflineUserCompanyTracking extends UserCompanyTracking {
+  synced_at: string | null;
+  local_version: number;
+  server_version: number;
+}
+
+/**
+ * Sync queue item for pending private company changes
+ */
+export interface PrivateCompanySyncQueueItem {
+  id: string;
+  private_company_id: string;
+  action: 'create' | 'update' | 'delete';
+  payload: PrivateCompanyCreate | PrivateCompanyUpdate | null;
+  created_at: string;
+  attempts: number;
+  last_error: string | null;
+}
+
+/**
+ * Sync queue item for pending tracking changes
+ */
+export interface TrackingSyncQueueItem {
+  id: string;
+  tracking_id: string;
+  action: 'create' | 'update' | 'delete';
+  payload: TrackSharedCompanyCreate | UserCompanyTrackingUpdate | null;
+  created_at: string;
+  attempts: number;
+  last_error: string | null;
+}
+
+/**
+ * Sync conflict for private company
+ */
+export interface PrivateCompanySyncConflict {
+  private_company_id: string;
+  local_version: OfflinePrivateCompany;
+  server_version: PrivateCompany;
+  detected_at: string;
+}
+
+/**
+ * Sync conflict for tracking
+ */
+export interface TrackingSyncConflict {
+  tracking_id: string;
+  local_version: OfflineUserCompanyTracking;
+  server_version: UserCompanyTracking;
+  detected_at: string;
+}
+
+// =============================================================================
 // FEATURE 012: DISPLAY HELPERS
 // =============================================================================
 

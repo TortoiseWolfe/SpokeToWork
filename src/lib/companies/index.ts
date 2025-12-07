@@ -28,13 +28,20 @@ export type {
   JobApplicationFilters,
   JobApplicationSort,
   CompanyWithApplications,
-  // Offline types
+  // Feature 011 Offline types
   OfflineCompany,
   OfflineJobApplication,
   SyncQueueItem,
   JobApplicationSyncQueueItem,
   SyncConflict,
   JobApplicationSyncConflict,
+  // Feature 012 Offline types
+  OfflinePrivateCompany,
+  OfflineUserCompanyTracking,
+  PrivateCompanySyncQueueItem,
+  TrackingSyncQueueItem,
+  PrivateCompanySyncConflict,
+  TrackingSyncConflict,
   // Utility types
   HomeLocation,
   GeocodeResult,

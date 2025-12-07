@@ -23,14 +23,32 @@ import type {
   OfflineJobApplication,
   JobApplicationSyncQueueItem,
   JobApplicationSyncConflict,
+  // Feature 012 types
+  PrivateCompany,
+  PrivateCompanyCreate,
+  PrivateCompanyUpdate,
+  UserCompanyTracking,
+  TrackSharedCompanyCreate,
+  UserCompanyTrackingUpdate,
+  MetroArea,
+  SharedCompany,
+  UnifiedCompany,
+  OfflinePrivateCompany,
+  OfflineUserCompanyTracking,
+  PrivateCompanySyncQueueItem,
+  TrackingSyncQueueItem,
+  PrivateCompanySyncConflict,
+  TrackingSyncConflict,
+  UnifiedCompanyFilters,
 } from '@/types/company';
 
 // Database configuration
 const DB_NAME = 'spoketowork-companies';
-const DB_VERSION = 2; // Incremented for job_applications support
+const DB_VERSION = 3; // Incremented for Feature 012 multi-tenant support
 
 // Object store names
 const STORES = {
+  // Feature 011 stores
   COMPANIES: 'companies',
   SYNC_QUEUE: 'sync_queue',
   CONFLICTS: 'conflicts',
@@ -38,6 +56,16 @@ const STORES = {
   JOB_APPLICATIONS: 'job_applications',
   JOB_APP_SYNC_QUEUE: 'job_app_sync_queue',
   JOB_APP_CONFLICTS: 'job_app_conflicts',
+  // Feature 012 stores
+  PRIVATE_COMPANIES: 'private_companies',
+  PRIVATE_SYNC_QUEUE: 'private_sync_queue',
+  PRIVATE_CONFLICTS: 'private_conflicts',
+  TRACKING: 'user_company_tracking',
+  TRACKING_SYNC_QUEUE: 'tracking_sync_queue',
+  TRACKING_CONFLICTS: 'tracking_conflicts',
+  METRO_AREAS: 'metro_areas',
+  SHARED_COMPANIES: 'shared_companies',
+  UNIFIED_CACHE: 'unified_cache',
 } as const;
 
 /**
@@ -136,6 +164,116 @@ function openDatabase(): Promise<IDBDatabase> {
         jobAppConflictsStore.createIndex('detected_at', 'detected_at', {
           unique: false,
         });
+      }
+
+      // =========================================================================
+      // Feature 012: Multi-tenant stores (added in v3)
+      // =========================================================================
+
+      // Private companies store
+      if (!db.objectStoreNames.contains(STORES.PRIVATE_COMPANIES)) {
+        const privateStore = db.createObjectStore(STORES.PRIVATE_COMPANIES, {
+          keyPath: 'id',
+        });
+        privateStore.createIndex('user_id', 'user_id', { unique: false });
+        privateStore.createIndex('metro_area_id', 'metro_area_id', {
+          unique: false,
+        });
+        privateStore.createIndex('status', 'status', { unique: false });
+        privateStore.createIndex('synced_at', 'synced_at', { unique: false });
+      }
+
+      // Private companies sync queue
+      if (!db.objectStoreNames.contains(STORES.PRIVATE_SYNC_QUEUE)) {
+        const privateSyncStore = db.createObjectStore(
+          STORES.PRIVATE_SYNC_QUEUE,
+          { keyPath: 'id' }
+        );
+        privateSyncStore.createIndex(
+          'private_company_id',
+          'private_company_id',
+          {
+            unique: false,
+          }
+        );
+        privateSyncStore.createIndex('created_at', 'created_at', {
+          unique: false,
+        });
+      }
+
+      // Private companies conflicts
+      if (!db.objectStoreNames.contains(STORES.PRIVATE_CONFLICTS)) {
+        const privateConflictsStore = db.createObjectStore(
+          STORES.PRIVATE_CONFLICTS,
+          { keyPath: 'private_company_id' }
+        );
+        privateConflictsStore.createIndex('detected_at', 'detected_at', {
+          unique: false,
+        });
+      }
+
+      // User company tracking store
+      if (!db.objectStoreNames.contains(STORES.TRACKING)) {
+        const trackingStore = db.createObjectStore(STORES.TRACKING, {
+          keyPath: 'id',
+        });
+        trackingStore.createIndex('user_id', 'user_id', { unique: false });
+        trackingStore.createIndex('shared_company_id', 'shared_company_id', {
+          unique: false,
+        });
+        trackingStore.createIndex('synced_at', 'synced_at', { unique: false });
+      }
+
+      // Tracking sync queue
+      if (!db.objectStoreNames.contains(STORES.TRACKING_SYNC_QUEUE)) {
+        const trackingSyncStore = db.createObjectStore(
+          STORES.TRACKING_SYNC_QUEUE,
+          { keyPath: 'id' }
+        );
+        trackingSyncStore.createIndex('tracking_id', 'tracking_id', {
+          unique: false,
+        });
+        trackingSyncStore.createIndex('created_at', 'created_at', {
+          unique: false,
+        });
+      }
+
+      // Tracking conflicts
+      if (!db.objectStoreNames.contains(STORES.TRACKING_CONFLICTS)) {
+        const trackingConflictsStore = db.createObjectStore(
+          STORES.TRACKING_CONFLICTS,
+          { keyPath: 'tracking_id' }
+        );
+        trackingConflictsStore.createIndex('detected_at', 'detected_at', {
+          unique: false,
+        });
+      }
+
+      // Metro areas cache (read-only, long TTL)
+      if (!db.objectStoreNames.contains(STORES.METRO_AREAS)) {
+        const metroStore = db.createObjectStore(STORES.METRO_AREAS, {
+          keyPath: 'id',
+        });
+        metroStore.createIndex('name', 'name', { unique: false });
+      }
+
+      // Shared companies cache (read-only)
+      if (!db.objectStoreNames.contains(STORES.SHARED_COMPANIES)) {
+        const sharedStore = db.createObjectStore(STORES.SHARED_COMPANIES, {
+          keyPath: 'id',
+        });
+        sharedStore.createIndex('metro_area_id', 'metro_area_id', {
+          unique: false,
+        });
+        sharedStore.createIndex('name', 'name', { unique: false });
+      }
+
+      // Unified view cache
+      if (!db.objectStoreNames.contains(STORES.UNIFIED_CACHE)) {
+        const unifiedStore = db.createObjectStore(STORES.UNIFIED_CACHE, {
+          keyPath: 'cache_key',
+        });
+        unifiedStore.createIndex('timestamp', 'timestamp', { unique: false });
       }
     };
   });
@@ -1049,6 +1187,617 @@ export class OfflineSyncService {
       request.onerror = () =>
         reject(new Error('Failed to resolve job application conflict'));
     });
+  }
+
+  // =========================================================================
+  // Feature 012: Private Company Operations
+  // =========================================================================
+
+  /**
+   * Save a private company to local storage
+   */
+  async savePrivateCompanyLocal(
+    company: PrivateCompany,
+    synced: boolean = false
+  ): Promise<void> {
+    const db = await this.ensureDb();
+
+    const offlineCompany: OfflinePrivateCompany = {
+      ...company,
+      synced_at: synced ? new Date().toISOString() : null,
+      local_version: 1,
+      server_version: synced ? 1 : 0,
+    };
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.PRIVATE_COMPANIES],
+        'readwrite'
+      );
+      const store = transaction.objectStore(STORES.PRIVATE_COMPANIES);
+      const request = store.put(offlineCompany);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () =>
+        reject(new Error('Failed to save private company locally'));
+    });
+  }
+
+  /**
+   * Get a private company by ID from local storage
+   */
+  async getPrivateCompanyLocal(
+    id: string
+  ): Promise<OfflinePrivateCompany | null> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.PRIVATE_COMPANIES],
+        'readonly'
+      );
+      const store = transaction.objectStore(STORES.PRIVATE_COMPANIES);
+      const request = store.get(id);
+
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () =>
+        reject(new Error('Failed to get private company'));
+    });
+  }
+
+  /**
+   * Get all private companies from local storage
+   */
+  async getAllPrivateCompaniesLocal(
+    userId?: string
+  ): Promise<OfflinePrivateCompany[]> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.PRIVATE_COMPANIES],
+        'readonly'
+      );
+      const store = transaction.objectStore(STORES.PRIVATE_COMPANIES);
+
+      let request: IDBRequest;
+      if (userId) {
+        const index = store.index('user_id');
+        request = index.getAll(IDBKeyRange.only(userId));
+      } else {
+        request = store.getAll();
+      }
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () =>
+        reject(new Error('Failed to get private companies'));
+    });
+  }
+
+  /**
+   * Delete a private company from local storage
+   */
+  async deletePrivateCompanyLocal(id: string): Promise<void> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.PRIVATE_COMPANIES],
+        'readwrite'
+      );
+      const store = transaction.objectStore(STORES.PRIVATE_COMPANIES);
+      const request = store.delete(id);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () =>
+        reject(new Error('Failed to delete private company'));
+    });
+  }
+
+  /**
+   * Update local private company with incremented version
+   */
+  async updatePrivateCompanyLocal(
+    company: OfflinePrivateCompany
+  ): Promise<void> {
+    const db = await this.ensureDb();
+
+    const updatedCompany: OfflinePrivateCompany = {
+      ...company,
+      local_version: company.local_version + 1,
+      synced_at: null,
+      updated_at: new Date().toISOString(),
+    };
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.PRIVATE_COMPANIES],
+        'readwrite'
+      );
+      const store = transaction.objectStore(STORES.PRIVATE_COMPANIES);
+      const request = store.put(updatedCompany);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () =>
+        reject(new Error('Failed to update private company'));
+    });
+  }
+
+  /**
+   * Queue a private company change for later synchronization
+   */
+  async queuePrivateCompanyChange(
+    action: 'create' | 'update' | 'delete',
+    privateCompanyId: string,
+    payload: PrivateCompanyCreate | PrivateCompanyUpdate | null
+  ): Promise<void> {
+    const db = await this.ensureDb();
+
+    const queueItem: PrivateCompanySyncQueueItem = {
+      id: generateUUID(),
+      private_company_id: privateCompanyId,
+      action,
+      payload,
+      created_at: new Date().toISOString(),
+      attempts: 0,
+      last_error: null,
+    };
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.PRIVATE_SYNC_QUEUE],
+        'readwrite'
+      );
+      const store = transaction.objectStore(STORES.PRIVATE_SYNC_QUEUE);
+      const request = store.add(queueItem);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () =>
+        reject(new Error('Failed to queue private company change'));
+    });
+  }
+
+  /**
+   * Get all queued private company changes
+   */
+  async getQueuedPrivateCompanyChanges(): Promise<
+    PrivateCompanySyncQueueItem[]
+  > {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.PRIVATE_SYNC_QUEUE],
+        'readonly'
+      );
+      const store = transaction.objectStore(STORES.PRIVATE_SYNC_QUEUE);
+      const index = store.index('created_at');
+      const request = index.getAll();
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () =>
+        reject(new Error('Failed to get queued private company changes'));
+    });
+  }
+
+  /**
+   * Clear a processed private company queue item
+   */
+  async clearPrivateCompanyQueueItem(id: string): Promise<void> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.PRIVATE_SYNC_QUEUE],
+        'readwrite'
+      );
+      const store = transaction.objectStore(STORES.PRIVATE_SYNC_QUEUE);
+      const request = store.delete(id);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () =>
+        reject(new Error('Failed to clear private company queue item'));
+    });
+  }
+
+  /**
+   * Get count of pending private company changes
+   */
+  async getPendingPrivateCompanyCount(): Promise<number> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.PRIVATE_SYNC_QUEUE],
+        'readonly'
+      );
+      const store = transaction.objectStore(STORES.PRIVATE_SYNC_QUEUE);
+      const request = store.count();
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () =>
+        reject(new Error('Failed to count pending private company changes'));
+    });
+  }
+
+  // =========================================================================
+  // Feature 012: User Company Tracking Operations
+  // =========================================================================
+
+  /**
+   * Save user tracking to local storage
+   */
+  async saveTrackingLocal(
+    tracking: UserCompanyTracking,
+    synced: boolean = false
+  ): Promise<void> {
+    const db = await this.ensureDb();
+
+    const offlineTracking: OfflineUserCompanyTracking = {
+      ...tracking,
+      synced_at: synced ? new Date().toISOString() : null,
+      local_version: 1,
+      server_version: synced ? 1 : 0,
+    };
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORES.TRACKING], 'readwrite');
+      const store = transaction.objectStore(STORES.TRACKING);
+      const request = store.put(offlineTracking);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () =>
+        reject(new Error('Failed to save tracking locally'));
+    });
+  }
+
+  /**
+   * Get tracking by ID from local storage
+   */
+  async getTrackingLocal(
+    id: string
+  ): Promise<OfflineUserCompanyTracking | null> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORES.TRACKING], 'readonly');
+      const store = transaction.objectStore(STORES.TRACKING);
+      const request = store.get(id);
+
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(new Error('Failed to get tracking'));
+    });
+  }
+
+  /**
+   * Get all tracking records from local storage
+   */
+  async getAllTrackingLocal(
+    userId?: string
+  ): Promise<OfflineUserCompanyTracking[]> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORES.TRACKING], 'readonly');
+      const store = transaction.objectStore(STORES.TRACKING);
+
+      let request: IDBRequest;
+      if (userId) {
+        const index = store.index('user_id');
+        request = index.getAll(IDBKeyRange.only(userId));
+      } else {
+        request = store.getAll();
+      }
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () =>
+        reject(new Error('Failed to get tracking records'));
+    });
+  }
+
+  /**
+   * Queue a tracking change for later synchronization
+   */
+  async queueTrackingChange(
+    action: 'create' | 'update' | 'delete',
+    trackingId: string,
+    payload: TrackSharedCompanyCreate | UserCompanyTrackingUpdate | null
+  ): Promise<void> {
+    const db = await this.ensureDb();
+
+    const queueItem: TrackingSyncQueueItem = {
+      id: generateUUID(),
+      tracking_id: trackingId,
+      action,
+      payload,
+      created_at: new Date().toISOString(),
+      attempts: 0,
+      last_error: null,
+    };
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.TRACKING_SYNC_QUEUE],
+        'readwrite'
+      );
+      const store = transaction.objectStore(STORES.TRACKING_SYNC_QUEUE);
+      const request = store.add(queueItem);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () =>
+        reject(new Error('Failed to queue tracking change'));
+    });
+  }
+
+  /**
+   * Get all queued tracking changes
+   */
+  async getQueuedTrackingChanges(): Promise<TrackingSyncQueueItem[]> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.TRACKING_SYNC_QUEUE],
+        'readonly'
+      );
+      const store = transaction.objectStore(STORES.TRACKING_SYNC_QUEUE);
+      const index = store.index('created_at');
+      const request = index.getAll();
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () =>
+        reject(new Error('Failed to get queued tracking changes'));
+    });
+  }
+
+  /**
+   * Clear a processed tracking queue item
+   */
+  async clearTrackingQueueItem(id: string): Promise<void> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.TRACKING_SYNC_QUEUE],
+        'readwrite'
+      );
+      const store = transaction.objectStore(STORES.TRACKING_SYNC_QUEUE);
+      const request = store.delete(id);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () =>
+        reject(new Error('Failed to clear tracking queue item'));
+    });
+  }
+
+  // =========================================================================
+  // Feature 012: Metro Areas Cache (Read-only)
+  // =========================================================================
+
+  /**
+   * Cache all metro areas
+   */
+  async cacheMetroAreas(areas: MetroArea[]): Promise<void> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORES.METRO_AREAS], 'readwrite');
+      const store = transaction.objectStore(STORES.METRO_AREAS);
+
+      // Clear existing and add new
+      const clearRequest = store.clear();
+      clearRequest.onsuccess = () => {
+        let completed = 0;
+        if (areas.length === 0) {
+          resolve();
+          return;
+        }
+
+        areas.forEach((area) => {
+          const addRequest = store.add(area);
+          addRequest.onsuccess = () => {
+            completed++;
+            if (completed === areas.length) {
+              resolve();
+            }
+          };
+          addRequest.onerror = () =>
+            reject(new Error('Failed to cache metro area'));
+        });
+      };
+      clearRequest.onerror = () =>
+        reject(new Error('Failed to clear metro areas cache'));
+    });
+  }
+
+  /**
+   * Get cached metro areas
+   */
+  async getCachedMetroAreas(): Promise<MetroArea[]> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORES.METRO_AREAS], 'readonly');
+      const store = transaction.objectStore(STORES.METRO_AREAS);
+      const request = store.getAll();
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () =>
+        reject(new Error('Failed to get cached metro areas'));
+    });
+  }
+
+  // =========================================================================
+  // Feature 012: Shared Companies Cache (Read-only)
+  // =========================================================================
+
+  /**
+   * Cache shared companies for a metro area
+   */
+  async cacheSharedCompanies(companies: SharedCompany[]): Promise<void> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(
+        [STORES.SHARED_COMPANIES],
+        'readwrite'
+      );
+      const store = transaction.objectStore(STORES.SHARED_COMPANIES);
+
+      let completed = 0;
+      if (companies.length === 0) {
+        resolve();
+        return;
+      }
+
+      companies.forEach((company) => {
+        const request = store.put(company);
+        request.onsuccess = () => {
+          completed++;
+          if (completed === companies.length) {
+            resolve();
+          }
+        };
+        request.onerror = () =>
+          reject(new Error('Failed to cache shared company'));
+      });
+    });
+  }
+
+  /**
+   * Get cached shared companies
+   */
+  async getCachedSharedCompanies(
+    metroAreaId?: string
+  ): Promise<SharedCompany[]> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORES.SHARED_COMPANIES], 'readonly');
+      const store = transaction.objectStore(STORES.SHARED_COMPANIES);
+
+      let request: IDBRequest;
+      if (metroAreaId) {
+        const index = store.index('metro_area_id');
+        request = index.getAll(IDBKeyRange.only(metroAreaId));
+      } else {
+        request = store.getAll();
+      }
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () =>
+        reject(new Error('Failed to get cached shared companies'));
+    });
+  }
+
+  // =========================================================================
+  // Feature 012: Unified View Cache
+  // =========================================================================
+
+  /**
+   * Cache unified company view
+   */
+  async cacheUnifiedCompanies(
+    cacheKey: string,
+    companies: UnifiedCompany[]
+  ): Promise<void> {
+    const db = await this.ensureDb();
+
+    const entry = {
+      cache_key: cacheKey,
+      companies,
+      timestamp: Date.now(),
+    };
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORES.UNIFIED_CACHE], 'readwrite');
+      const store = transaction.objectStore(STORES.UNIFIED_CACHE);
+      const request = store.put(entry);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () =>
+        reject(new Error('Failed to cache unified companies'));
+    });
+  }
+
+  /**
+   * Get cached unified companies
+   */
+  async getCachedUnifiedCompanies(
+    cacheKey: string,
+    maxAgeMs: number = 5 * 60 * 1000
+  ): Promise<UnifiedCompany[] | null> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORES.UNIFIED_CACHE], 'readonly');
+      const store = transaction.objectStore(STORES.UNIFIED_CACHE);
+      const request = store.get(cacheKey);
+
+      request.onsuccess = () => {
+        const entry = request.result;
+        if (!entry) {
+          resolve(null);
+          return;
+        }
+
+        // Check if cache is expired
+        if (Date.now() - entry.timestamp > maxAgeMs) {
+          resolve(null);
+          return;
+        }
+
+        resolve(entry.companies);
+      };
+      request.onerror = () =>
+        reject(new Error('Failed to get cached unified companies'));
+    });
+  }
+
+  /**
+   * Clear unified cache
+   */
+  async clearUnifiedCache(): Promise<void> {
+    const db = await this.ensureDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORES.UNIFIED_CACHE], 'readwrite');
+      const store = transaction.objectStore(STORES.UNIFIED_CACHE);
+      const request = store.clear();
+
+      request.onsuccess = () => resolve();
+      request.onerror = () =>
+        reject(new Error('Failed to clear unified cache'));
+    });
+  }
+
+  // =========================================================================
+  // Feature 012: Sync Summary
+  // =========================================================================
+
+  /**
+   * Get Feature 012 sync summary
+   */
+  async getMultiTenantSyncSummary(): Promise<{
+    pendingPrivateCompanies: number;
+    pendingTracking: number;
+    cachedMetroAreas: number;
+    cachedSharedCompanies: number;
+  }> {
+    const [privateQueue, trackingQueue, metroAreas, sharedCompanies] =
+      await Promise.all([
+        this.getQueuedPrivateCompanyChanges(),
+        this.getQueuedTrackingChanges(),
+        this.getCachedMetroAreas(),
+        this.getCachedSharedCompanies(),
+      ]);
+
+    return {
+      pendingPrivateCompanies: privateQueue.length,
+      pendingTracking: trackingQueue.length,
+      cachedMetroAreas: metroAreas.length,
+      cachedSharedCompanies: sharedCompanies.length,
+    };
   }
 }
 
