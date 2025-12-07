@@ -1,0 +1,161 @@
+{
+  "metro_area": {
+    "id": "cleveland-tn",
+    "name": "Cleveland, TN",
+    "center_latitude": 35.1595,
+    "center_longitude": -84.8766,
+    "radius_miles": 25
+  },
+  "companies": [
+    {
+      "name": "Whirlpool Corporation",
+      "website": "https://www.whirlpoolcorporation.com",
+      "careers_url": "https://www.whirlpoolcorporation.com/careers/",
+      "locations": [
+        {
+          "address": "2000 M Street NW, Cleveland, TN 37311",
+          "latitude": 35.1701,
+          "longitude": -84.8676,
+          "is_headquarters": false,
+          "phone": "423-472-3371"
+        }
+      ],
+      "notes": "Major employer - appliance manufacturing"
+    },
+    {
+      "name": "Wacker Polysilicon North America",
+      "website": "https://www.wacker.com",
+      "careers_url": "https://careers.wacker.com",
+      "locations": [
+        {
+          "address": "553 McArthur Road NW, Charleston, TN 37310",
+          "latitude": 35.2819,
+          "longitude": -84.7553,
+          "is_headquarters": false,
+          "phone": "423-336-4000"
+        }
+      ],
+      "notes": "Silicon wafer manufacturing"
+    },
+    {
+      "name": "Duracell",
+      "website": "https://www.duracell.com",
+      "careers_url": "https://www.duracell.com/en-us/careers/",
+      "locations": [
+        {
+          "address": "2000 Spring Creek Boulevard, Cleveland, TN 37311",
+          "latitude": 35.1458,
+          "longitude": -84.8612,
+          "is_headquarters": false,
+          "phone": "423-476-7000"
+        }
+      ],
+      "notes": "Battery manufacturing"
+    },
+    {
+      "name": "Amazon Fulfillment Center (CHA2)",
+      "website": "https://www.amazon.com",
+      "careers_url": "https://www.amazondelivers.jobs/",
+      "locations": [
+        {
+          "address": "500 Urbane Road NW, Cleveland, TN 37311",
+          "latitude": 35.1925,
+          "longitude": -84.8864,
+          "is_headquarters": false,
+          "phone": null
+        }
+      ],
+      "notes": "Major logistics and fulfillment operations"
+    },
+    {
+      "name": "Mars Wrigley",
+      "website": "https://www.mars.com",
+      "careers_url": "https://careers.mars.com",
+      "locations": [
+        {
+          "address": "1170 Keith Street NW, Cleveland, TN 37311",
+          "latitude": 35.1807,
+          "longitude": -84.8779,
+          "is_headquarters": false,
+          "phone": "423-472-1800"
+        }
+      ],
+      "notes": "Candy manufacturing"
+    },
+    {
+      "name": "Life Care Centers of America",
+      "website": "https://www.lcca.com",
+      "careers_url": "https://www.lcca.com/careers",
+      "locations": [
+        {
+          "address": "3070 Keith Street NW, Cleveland, TN 37312",
+          "latitude": 35.2036,
+          "longitude": -84.8807,
+          "is_headquarters": true,
+          "phone": "423-472-9585"
+        }
+      ],
+      "notes": "Healthcare services - headquarters"
+    },
+    {
+      "name": "Lee University",
+      "website": "https://www.leeuniversity.edu",
+      "careers_url": "https://www.leeuniversity.edu/employment/",
+      "locations": [
+        {
+          "address": "1120 N Ocoee Street, Cleveland, TN 37311",
+          "latitude": 35.1678,
+          "longitude": -84.8596,
+          "is_headquarters": true,
+          "phone": "423-614-8000"
+        }
+      ],
+      "notes": "Higher education"
+    },
+    {
+      "name": "Bradley County Schools",
+      "website": "https://www.bradleyschools.org",
+      "careers_url": "https://www.bradleyschools.org/page/employment",
+      "locations": [
+        {
+          "address": "800 S Lee Highway, Cleveland, TN 37311",
+          "latitude": 35.1467,
+          "longitude": -84.8589,
+          "is_headquarters": true,
+          "phone": "423-476-0620"
+        }
+      ],
+      "notes": "Public education"
+    },
+    {
+      "name": "Tennova Healthcare - Cleveland",
+      "website": "https://www.tennova.com",
+      "careers_url": "https://jobs.tennova.com",
+      "locations": [
+        {
+          "address": "2305 Chambliss Avenue NW, Cleveland, TN 37311",
+          "latitude": 35.1747,
+          "longitude": -84.8741,
+          "is_headquarters": false,
+          "phone": "423-559-6000"
+        }
+      ],
+      "notes": "Hospital and medical services"
+    },
+    {
+      "name": "Mueller Company",
+      "website": "https://www.muellercompany.com",
+      "careers_url": "https://www.muellercompany.com/careers/",
+      "locations": [
+        {
+          "address": "1150 Stapp Drive SE, Cleveland, TN 37311",
+          "latitude": 35.1389,
+          "longitude": -84.8438,
+          "is_headquarters": false,
+          "phone": "423-476-4544"
+        }
+      ],
+      "notes": "Water infrastructure products"
+    }
+  ]
+}

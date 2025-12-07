@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import CompanyTable from './CompanyTable';
-import type { Company } from '@/types/company';
+import type { Company, UnifiedCompany, CompanySource } from '@/types/company';
 
 const mockCompanies: Company[] = [
   {
@@ -143,5 +143,102 @@ describe('CompanyTable', () => {
   it('applies custom className', () => {
     render(<CompanyTable companies={mockCompanies} className="custom-class" />);
     expect(screen.getByTestId('company-table')).toHaveClass('custom-class');
+  });
+});
+
+// T053 [US1] - Source badge tests for unified companies
+const mockUnifiedCompanies: UnifiedCompany[] = [
+  {
+    source: 'shared' as CompanySource,
+    tracking_id: 'tracking-1',
+    company_id: 'company-1',
+    private_company_id: null,
+    user_id: 'user-1',
+    metro_area_id: 'metro-1',
+    name: 'Community Corp',
+    website: 'https://community.com',
+    careers_url: null,
+    address: '123 Main St, Cleveland, TN 37311',
+    latitude: 35.1595,
+    longitude: -84.8766,
+    phone: '555-1234',
+    email: 'info@community.com',
+    contact_name: 'John Doe',
+    contact_title: 'Manager',
+    notes: null,
+    status: 'contacted',
+    priority: 2,
+    follow_up_date: null,
+    is_active: true,
+    is_verified: true,
+    submit_to_shared: false,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    source: 'private' as CompanySource,
+    tracking_id: null,
+    company_id: null,
+    private_company_id: 'private-1',
+    user_id: 'user-1',
+    metro_area_id: 'metro-1',
+    name: 'Private LLC',
+    website: 'https://private.com',
+    careers_url: null,
+    address: '456 Oak Ave, Cleveland, TN 37312',
+    latitude: 35.1595,
+    longitude: -84.8766,
+    phone: '555-5678',
+    email: 'info@private.com',
+    contact_name: 'Jane Smith',
+    contact_title: 'Owner',
+    notes: null,
+    status: 'not_contacted',
+    priority: 1,
+    follow_up_date: null,
+    is_active: true,
+    is_verified: false,
+    submit_to_shared: false,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
+describe('CompanyTable - Source Badges (Feature 012)', () => {
+  it('displays "Community" badge for shared companies', () => {
+    render(<CompanyTable companies={mockUnifiedCompanies} />);
+    expect(screen.getByText('Community')).toBeInTheDocument();
+  });
+
+  it('displays "Private" badge for private companies', () => {
+    render(<CompanyTable companies={mockUnifiedCompanies} />);
+    expect(screen.getByText('Private')).toBeInTheDocument();
+  });
+
+  it('applies correct badge color for Community (shared)', () => {
+    render(<CompanyTable companies={mockUnifiedCompanies} />);
+    const communityBadge = screen.getByText('Community');
+    expect(communityBadge).toHaveClass('badge-info');
+  });
+
+  it('applies correct badge color for Private', () => {
+    render(<CompanyTable companies={mockUnifiedCompanies} />);
+    const privateBadge = screen.getByText('Private');
+    expect(privateBadge).toHaveClass('badge-ghost');
+  });
+
+  it('renders unified companies with correct names', () => {
+    render(<CompanyTable companies={mockUnifiedCompanies} />);
+    expect(screen.getByText('Community Corp')).toBeInTheDocument();
+    expect(screen.getByText('Private LLC')).toBeInTheDocument();
+  });
+
+  it('filters unified companies by search', () => {
+    render(<CompanyTable companies={mockUnifiedCompanies} />);
+    const searchInput = screen.getByLabelText('Search companies');
+    fireEvent.change(searchInput, { target: { value: 'Community' } });
+
+    expect(screen.getByText('Community Corp')).toBeInTheDocument();
+    expect(screen.queryByText('Private LLC')).not.toBeInTheDocument();
   });
 });

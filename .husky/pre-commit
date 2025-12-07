@@ -8,10 +8,10 @@ if [ -d "/app" ] && [ "$PWD" = "/app" ]; then
   # We're inside the Docker container, run directly with --no-stash
   echo "📦 Running lint-staged inside Docker container..."
   pnpm exec lint-staged --no-stash
-elif command -v docker >/dev/null 2>&1 && docker compose ps 2>/dev/null | grep -q scripthammer; then
+elif command -v docker >/dev/null 2>&1 && docker compose ps 2>/dev/null | grep -q spoketowork; then
   # We're on the host and Docker is running
   echo "🐳 Running lint-staged via Docker..."
-  docker compose exec -T scripthammer pnpm exec lint-staged --no-stash
+  docker compose exec -T spoketowork pnpm exec lint-staged --no-stash
 else
   # We're on the host without Docker or Docker isn't running
   echo "💻 Running lint-staged locally..."

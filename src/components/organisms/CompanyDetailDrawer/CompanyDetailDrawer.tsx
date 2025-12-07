@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type {
   CompanyWithApplications,
+  UnifiedCompany,
   JobApplication,
   JobApplicationStatus,
   ApplicationOutcome,
+  CompanySource,
 } from '@/types/company';
 import {
   JOB_STATUS_LABELS,
@@ -13,10 +15,49 @@ import {
   OUTCOME_LABELS,
   OUTCOME_COLORS,
   WORK_LOCATION_LABELS,
+  COMPANY_SOURCE_LABELS,
+  COMPANY_SOURCE_COLORS,
 } from '@/types/company';
 
+/** All company types supported by drawer */
+type CompanyType = CompanyWithApplications | UnifiedCompany;
+
+/** Type guard to check if company is from unified view (Feature 012) */
+function isUnifiedCompany(company: CompanyType): company is UnifiedCompany {
+  return (
+    'source' in company &&
+    ('tracking_id' in company || 'private_company_id' in company)
+  );
+}
+
+/** Company tracking status for unified companies */
+type CompanyTrackingStatus =
+  | 'not_contacted'
+  | 'contacted'
+  | 'follow_up'
+  | 'applied'
+  | 'not_interested';
+
+/** Labels for tracking status badges */
+const TRACKING_STATUS_LABELS: Record<CompanyTrackingStatus, string> = {
+  not_contacted: 'Not Contacted',
+  contacted: 'Contacted',
+  follow_up: 'Follow Up',
+  applied: 'Applied',
+  not_interested: 'Not Interested',
+};
+
+/** Colors for tracking status badges */
+const TRACKING_STATUS_COLORS: Record<CompanyTrackingStatus, string> = {
+  not_contacted: 'badge-ghost',
+  contacted: 'badge-info',
+  follow_up: 'badge-warning',
+  applied: 'badge-success',
+  not_interested: 'badge-error',
+};
+
 export interface CompanyDetailDrawerProps {
-  /** Company to display (with applications) */
+  /** Company to display (with applications or unified) */
   company: CompanyWithApplications | null;
   /** Whether the drawer is open */
   isOpen: boolean;
@@ -40,6 +81,25 @@ export interface CompanyDetailDrawerProps {
     application: JobApplication,
     outcome: ApplicationOutcome
   ) => void;
+  /** Callback when tracking status is changed (for unified companies - T085) */
+  onTrackingStatusChange?: (
+    company: UnifiedCompany,
+    status: CompanyTrackingStatus
+  ) => void;
+  /** Callback when tracking priority is changed (for unified companies - T085) */
+  onTrackingPriorityChange?: (
+    company: UnifiedCompany,
+    priority: number
+  ) => void;
+  /** Callback when submit to community is requested (T099) */
+  onSubmitToCommunity?: (company: UnifiedCompany) => Promise<void>;
+  /** Callback when suggest edit is requested (T106) */
+  onSuggestEdit?: (
+    company: UnifiedCompany,
+    field: string,
+    oldValue: string | null,
+    newValue: string
+  ) => Promise<void>;
   /** Additional CSS classes */
   className?: string;
   /** Test ID for testing */
@@ -68,10 +128,125 @@ export default function CompanyDetailDrawer({
   onDeleteApplication,
   onStatusChange,
   onOutcomeChange,
+  onTrackingStatusChange,
+  onTrackingPriorityChange,
+  onSubmitToCommunity,
+  onSuggestEdit,
   className = '',
   testId = 'company-detail-drawer',
 }: CompanyDetailDrawerProps) {
   const drawerRef = useRef<HTMLDivElement>(null);
+
+  // T086: Optimistic UI state for tracking updates
+  const [optimisticStatus, setOptimisticStatus] =
+    useState<CompanyTrackingStatus | null>(null);
+  const [optimisticPriority, setOptimisticPriority] = useState<number | null>(
+    null
+  );
+  const [isUpdating, setIsUpdating] = useState(false);
+  // T099: Submit to community state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  // T106/T107: Edit suggestion state
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+
+  // Reset optimistic state when company changes
+  useEffect(() => {
+    setOptimisticStatus(null);
+    setOptimisticPriority(null);
+    setIsUpdating(false);
+    setIsSubmitting(false);
+    setEditingField(null);
+    setEditValue('');
+    setIsSubmittingEdit(false);
+  }, [company?.id]);
+
+  // Handle optimistic status change
+  const handleTrackingStatusChange = async (
+    comp: UnifiedCompany,
+    newStatus: CompanyTrackingStatus
+  ) => {
+    if (!onTrackingStatusChange) return;
+
+    // Optimistic update
+    setOptimisticStatus(newStatus);
+    setIsUpdating(true);
+
+    try {
+      await onTrackingStatusChange(comp, newStatus);
+      // Success - clear optimistic state (real data will come from prop)
+      setOptimisticStatus(null);
+    } catch {
+      // Revert optimistic update on error
+      setOptimisticStatus(null);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Handle optimistic priority change
+  const handleTrackingPriorityChange = async (
+    comp: UnifiedCompany,
+    newPriority: number
+  ) => {
+    if (!onTrackingPriorityChange) return;
+
+    // Optimistic update
+    setOptimisticPriority(newPriority);
+    setIsUpdating(true);
+
+    try {
+      await onTrackingPriorityChange(comp, newPriority);
+      // Success - clear optimistic state
+      setOptimisticPriority(null);
+    } catch {
+      // Revert optimistic update on error
+      setOptimisticPriority(null);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // T099: Handle submit to community
+  const handleSubmitToCommunity = async (comp: UnifiedCompany) => {
+    if (!onSubmitToCommunity) return;
+
+    setIsSubmitting(true);
+    try {
+      await onSubmitToCommunity(comp);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // T106/T107: Handle suggest edit
+  const handleStartEdit = (field: string, currentValue: string | null) => {
+    setEditingField(field);
+    setEditValue(currentValue ?? '');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingField(null);
+    setEditValue('');
+  };
+
+  const handleSubmitEdit = async (
+    comp: UnifiedCompany,
+    field: string,
+    oldValue: string | null
+  ) => {
+    if (!onSuggestEdit || !editValue.trim()) return;
+
+    setIsSubmittingEdit(true);
+    try {
+      await onSuggestEdit(comp, field, oldValue, editValue.trim());
+      setEditingField(null);
+      setEditValue('');
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
 
   // Handle click outside to close
   useEffect(() => {
@@ -142,6 +317,13 @@ export default function CompanyDetailDrawer({
 
   if (!company) return null;
 
+  // Check if this is a unified company (no applications array)
+  const hasApplications =
+    'applications' in company && Array.isArray(company.applications);
+  const applications = hasApplications
+    ? (company as CompanyWithApplications).applications
+    : [];
+
   return (
     <>
       {/* Backdrop */}
@@ -172,6 +354,19 @@ export default function CompanyDetailDrawer({
               className="flex items-center gap-2 text-xl font-bold"
             >
               {company.name}
+              {/* Source badge for unified companies (Feature 012) */}
+              {isUnifiedCompany(company) && (
+                <span
+                  className={`badge ${COMPANY_SOURCE_COLORS[company.source]} badge-sm`}
+                  title={
+                    company.source === 'shared'
+                      ? 'Community company'
+                      : 'Your private company'
+                  }
+                >
+                  {COMPANY_SOURCE_LABELS[company.source]}
+                </span>
+              )}
               {!company.is_active && (
                 <span className="badge badge-ghost badge-sm">Inactive</span>
               )}
@@ -323,6 +518,268 @@ export default function CompanyDetailDrawer({
               </p>
             </div>
           )}
+
+          {/* Tracking Status Section for Unified Companies (T085/T086) */}
+          {isUnifiedCompany(company) &&
+            (() => {
+              // T086: Use optimistic values when available
+              const displayStatus = (optimisticStatus ??
+                company.status) as CompanyTrackingStatus;
+              const displayPriority = optimisticPriority ?? company.priority;
+
+              return (
+                <div className="mt-3 border-t pt-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    {/* Tracking Status */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-base-content/70 text-sm">
+                        Status:
+                      </span>
+                      {onTrackingStatusChange ? (
+                        <select
+                          className={`select select-bordered select-sm ${TRACKING_STATUS_COLORS[displayStatus] || 'badge-ghost'} ${isUpdating ? 'opacity-70' : ''}`}
+                          value={displayStatus}
+                          onChange={(e) =>
+                            handleTrackingStatusChange(
+                              company,
+                              e.target.value as CompanyTrackingStatus
+                            )
+                          }
+                          disabled={isUpdating}
+                          aria-label="Change tracking status"
+                          data-testid="tracking-status-select"
+                        >
+                          {Object.entries(TRACKING_STATUS_LABELS).map(
+                            ([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      ) : (
+                        <span
+                          className={`badge ${TRACKING_STATUS_COLORS[displayStatus] || 'badge-ghost'} badge-sm`}
+                          data-testid="tracking-status-badge"
+                        >
+                          {TRACKING_STATUS_LABELS[displayStatus] ||
+                            displayStatus}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Priority */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-base-content/70 text-sm">
+                        Priority:
+                      </span>
+                      {onTrackingPriorityChange ? (
+                        <select
+                          className={`select select-bordered select-sm ${isUpdating ? 'opacity-70' : ''}`}
+                          value={displayPriority}
+                          onChange={(e) =>
+                            handleTrackingPriorityChange(
+                              company,
+                              parseInt(e.target.value, 10)
+                            )
+                          }
+                          disabled={isUpdating}
+                          aria-label="Change priority"
+                          data-testid="tracking-priority-select"
+                        >
+                          <option value={1}>1 (High)</option>
+                          <option value={2}>2</option>
+                          <option value={3}>3 (Normal)</option>
+                          <option value={4}>4</option>
+                          <option value={5}>5 (Low)</option>
+                        </select>
+                      ) : (
+                        <span
+                          className={
+                            displayPriority <= 2 ? 'text-warning font-bold' : ''
+                          }
+                          data-testid="tracking-priority-badge"
+                        >
+                          {displayPriority}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Loading indicator */}
+                    {isUpdating && (
+                      <span
+                        className="loading loading-spinner loading-xs"
+                        aria-label="Saving..."
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+          {/* T099/T100/T101: Submit to Community Section for Private Companies */}
+          {isUnifiedCompany(company) && company.source === 'private' && (
+            <div className="mt-3 border-t pt-3">
+              {company.submit_to_shared ? (
+                <div className="flex items-center gap-2">
+                  <span
+                    className="badge badge-warning badge-sm"
+                    data-testid="pending-review-badge"
+                  >
+                    Pending Review
+                  </span>
+                  <span className="text-base-content/70 text-xs">
+                    Submitted for community review
+                  </span>
+                </div>
+              ) : (
+                onSubmitToCommunity && (
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-secondary btn-sm"
+                    onClick={() => handleSubmitToCommunity(company)}
+                    disabled={isSubmitting}
+                    data-testid="submit-to-community-btn"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <span className="loading loading-spinner loading-xs" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="mr-1 h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                          />
+                        </svg>
+                        Submit to Community
+                      </>
+                    )}
+                  </button>
+                )
+              )}
+            </div>
+          )}
+
+          {/* T106/T107: Suggest Edit Section for Shared Companies */}
+          {isUnifiedCompany(company) &&
+            company.source === 'shared' &&
+            onSuggestEdit && (
+              <div className="mt-3 border-t pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-base-content/70 text-sm">
+                    Data Correction
+                  </span>
+                  {!editingField && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs"
+                      onClick={() =>
+                        handleStartEdit('website', company.website)
+                      }
+                      data-testid="suggest-edit-btn"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="mr-1 h-3 w-3"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                      Suggest Edit
+                    </button>
+                  )}
+                </div>
+
+                {/* Inline Edit Form (T107) */}
+                {editingField && (
+                  <div
+                    className="mt-2 space-y-2"
+                    data-testid="edit-suggestion-form"
+                  >
+                    <div className="flex items-center gap-2">
+                      <select
+                        className="select select-bordered select-sm"
+                        value={editingField}
+                        onChange={(e) => {
+                          const newField = e.target.value;
+                          const fieldValue =
+                            company[newField as keyof typeof company];
+                          setEditingField(newField);
+                          setEditValue(
+                            typeof fieldValue === 'string' ? fieldValue : ''
+                          );
+                        }}
+                        aria-label="Select field to edit"
+                        data-testid="edit-field-select"
+                      >
+                        <option value="website">Website</option>
+                        <option value="careers_url">Careers URL</option>
+                        <option value="phone">Phone</option>
+                        <option value="email">Email</option>
+                      </select>
+                    </div>
+                    <input
+                      type="text"
+                      className="input input-bordered input-sm w-full"
+                      placeholder={`New ${editingField}`}
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      data-testid="edit-value-input"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm flex-1"
+                        onClick={() => {
+                          const oldValue =
+                            company[editingField as keyof typeof company];
+                          handleSubmitEdit(
+                            company,
+                            editingField,
+                            typeof oldValue === 'string' ? oldValue : null
+                          );
+                        }}
+                        disabled={isSubmittingEdit || !editValue.trim()}
+                        data-testid="submit-edit-btn"
+                      >
+                        {isSubmittingEdit ? (
+                          <span className="loading loading-spinner loading-xs" />
+                        ) : (
+                          'Submit'
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={handleCancelEdit}
+                        disabled={isSubmittingEdit}
+                        data-testid="cancel-edit-btn"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
         </div>
 
         {/* Applications Section */}
@@ -330,11 +787,10 @@ export default function CompanyDetailDrawer({
           <div className="flex items-center justify-between border-b p-4">
             <h3 className="font-semibold">
               {(() => {
-                const appliedCount = company.applications.filter(
+                const appliedCount = applications.filter(
                   (a) => a.status !== 'not_applied'
                 ).length;
-                const watchingCount =
-                  company.applications.length - appliedCount;
+                const watchingCount = applications.length - appliedCount;
                 if (appliedCount === 0 && watchingCount > 0) {
                   return `Watching ${watchingCount} job${watchingCount > 1 ? 's' : ''}`;
                 }
@@ -369,7 +825,7 @@ export default function CompanyDetailDrawer({
 
           {/* Applications List */}
           <div className="flex-1 overflow-y-auto p-4">
-            {company.applications.length === 0 ? (
+            {applications.length === 0 ? (
               <div className="text-base-content/50 py-8 text-center">
                 <p>No applications yet.</p>
                 {onAddApplication && (
@@ -384,7 +840,7 @@ export default function CompanyDetailDrawer({
               </div>
             ) : (
               <div className="space-y-3">
-                {company.applications.map((app) => (
+                {applications.map((app) => (
                   <div
                     key={app.id}
                     data-testid={`application-card-${app.id}`}

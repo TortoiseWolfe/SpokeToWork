@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase/client';
 import type {
   Company,
   CompanyWithApplications,
+  UnifiedCompany,
   CompanyCreate,
   CompanyUpdate,
   HomeLocation,
@@ -28,6 +29,16 @@ import type {
   JobApplicationStatus,
   ApplicationOutcome,
 } from '@/types/company';
+
+/** All company types supported by this page */
+type CompanyType = Company | CompanyWithApplications | UnifiedCompany;
+
+/** Type guard to check if company is a legacy type with id */
+function isLegacyCompany(
+  company: CompanyType
+): company is Company | CompanyWithApplications {
+  return 'id' in company && typeof company.id === 'string';
+}
 
 export default function CompaniesPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -200,8 +211,10 @@ export default function CompaniesPage() {
   );
 
   const handleDeleteCompany = useCallback(
-    async (company: Company | CompanyWithApplications) => {
+    async (company: CompanyType) => {
       if (!user) return;
+      // Only legacy companies can be deleted from this page
+      if (!isLegacyCompany(company)) return;
 
       if (
         !window.confirm(`Are you sure you want to delete "${company.name}"?`)
@@ -252,7 +265,9 @@ export default function CompaniesPage() {
   );
 
   const handleCompanyClick = useCallback(
-    (company: Company | CompanyWithApplications) => {
+    (company: CompanyType) => {
+      // Only legacy companies can be selected from this page
+      if (!isLegacyCompany(company)) return;
       // Open the detail drawer for this company
       const companyWithApps = companies.find((c) => c.id === company.id);
       if (companyWithApps) {
@@ -265,40 +280,39 @@ export default function CompaniesPage() {
     [companies]
   );
 
-  const handleEditFromTable = useCallback(
-    (company: Company | CompanyWithApplications) => {
-      // Extract base Company for the form (strip application data)
-      const baseCompany: Company = {
-        id: company.id,
-        user_id: company.user_id,
-        name: company.name,
-        address: company.address,
-        latitude: company.latitude,
-        longitude: company.longitude,
-        website: company.website,
-        careers_url: company.careers_url,
-        email: company.email,
-        phone: company.phone,
-        contact_name: company.contact_name,
-        contact_title: company.contact_title,
-        notes: company.notes,
-        status: company.status,
-        priority: company.priority,
-        follow_up_date: company.follow_up_date,
-        is_active: company.is_active,
-        extended_range: company.extended_range,
-        route_id: company.route_id,
-        created_at: company.created_at,
-        updated_at: company.updated_at,
-      };
-      setEditingCompany(baseCompany);
-      setSelectedCompany(null);
-      setShowAddForm(false);
-      setShowSettings(false);
-      setShowImport(false);
-    },
-    []
-  );
+  const handleEditFromTable = useCallback((company: CompanyType) => {
+    // Only legacy companies can be edited from this page
+    if (!isLegacyCompany(company)) return;
+    // Extract base Company for the form (strip application data)
+    const baseCompany: Company = {
+      id: company.id,
+      user_id: company.user_id,
+      name: company.name,
+      address: company.address,
+      latitude: company.latitude,
+      longitude: company.longitude,
+      website: company.website,
+      careers_url: company.careers_url,
+      email: company.email,
+      phone: company.phone,
+      contact_name: company.contact_name,
+      contact_title: company.contact_title,
+      notes: company.notes,
+      status: company.status,
+      priority: company.priority,
+      follow_up_date: company.follow_up_date,
+      is_active: company.is_active,
+      extended_range: company.extended_range,
+      route_id: company.route_id,
+      created_at: company.created_at,
+      updated_at: company.updated_at,
+    };
+    setEditingCompany(baseCompany);
+    setSelectedCompany(null);
+    setShowAddForm(false);
+    setShowSettings(false);
+    setShowImport(false);
+  }, []);
 
   const handleImport = useCallback(
     async (file: File): Promise<ImportResult> => {

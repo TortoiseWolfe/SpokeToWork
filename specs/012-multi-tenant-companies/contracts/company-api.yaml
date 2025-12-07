@@ -1,0 +1,569 @@
+# OpenAPI 3.0 Specification for Multi-Tenant Company API
+# Note: This is a Supabase-backed API using PostgREST conventions
+# Actual endpoints are auto-generated from database schema
+
+openapi: 3.0.3
+info:
+  title: SpokeToWork Company API
+  version: 2.0.0
+  description: |
+    Multi-tenant company management API for job search tracking.
+    Uses Supabase PostgREST for CRUD operations with RLS enforcement.
+
+servers:
+  - url: https://{project}.supabase.co/rest/v1
+    variables:
+      project:
+        default: utxdunkaropkwnrqrsef
+
+paths:
+  /user_companies_unified:
+    get:
+      summary: Get unified company list
+      description: Returns all companies for the authenticated user (shared tracking + private)
+      tags: [Companies]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: select
+          in: query
+          schema:
+            type: string
+            default: "*"
+        - name: order
+          in: query
+          schema:
+            type: string
+            example: "name.asc"
+        - name: is_active
+          in: query
+          schema:
+            type: string
+            example: "eq.true"
+      responses:
+        '200':
+          description: List of companies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UnifiedCompany'
+
+  /shared_companies:
+    get:
+      summary: Search shared companies
+      description: Search shared company registry for match detection
+      tags: [Shared Companies]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: name
+          in: query
+          description: Fuzzy name search using pg_trgm
+          schema:
+            type: string
+        - name: metro_area_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of matching companies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SharedCompany'
+
+  /private_companies:
+    get:
+      summary: Get user's private companies
+      tags: [Private Companies]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User's private companies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PrivateCompany'
+    post:
+      summary: Create private company
+      tags: [Private Companies]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrivateCompanyCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivateCompany'
+
+  /user_company_tracking:
+    post:
+      summary: Start tracking a shared company
+      tags: [Tracking]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrackingCreate'
+      responses:
+        '201':
+          description: Tracking created
+    patch:
+      summary: Update tracking record
+      tags: [Tracking]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "eq.{uuid}"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrackingUpdate'
+      responses:
+        '200':
+          description: Updated
+
+  /company_contributions:
+    post:
+      summary: Submit private company to community
+      tags: [Contributions]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContributionCreate'
+      responses:
+        '201':
+          description: Contribution submitted
+    get:
+      summary: Get contribution status
+      description: Returns user's own contributions or all (admin only)
+      tags: [Contributions]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Contributions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Contribution'
+
+  /company_edit_suggestions:
+    post:
+      summary: Suggest edit to shared company
+      tags: [Contributions]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditSuggestionCreate'
+      responses:
+        '201':
+          description: Suggestion submitted
+
+  /rpc/find_similar_companies:
+    post:
+      summary: Find similar companies for match detection
+      description: Custom RPC function using pg_trgm and PostGIS
+      tags: [Match Detection]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_name]
+              properties:
+                company_name:
+                  type: string
+                  example: "Amazon"
+                latitude:
+                  type: number
+                  example: 35.1595
+                longitude:
+                  type: number
+                  example: -84.8707
+                website_domain:
+                  type: string
+                  example: "amazon.com"
+      responses:
+        '200':
+          description: Similar companies found
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MatchResult'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UnifiedCompany:
+      type: object
+      properties:
+        source:
+          type: string
+          enum: [shared, private]
+        company_id:
+          type: string
+          format: uuid
+          nullable: true
+        private_company_id:
+          type: string
+          format: uuid
+          nullable: true
+        tracking_id:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+        website:
+          type: string
+          nullable: true
+        careers_url:
+          type: string
+          nullable: true
+        address:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        phone:
+          type: string
+        email:
+          type: string
+        contact_name:
+          type: string
+        contact_title:
+          type: string
+        notes:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/CompanyStatus'
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 5
+        follow_up_date:
+          type: string
+          format: date
+          nullable: true
+        is_active:
+          type: boolean
+        is_verified:
+          type: boolean
+        user_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SharedCompany:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        metro_area_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        website:
+          type: string
+          nullable: true
+        careers_url:
+          type: string
+          nullable: true
+        is_verified:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    PrivateCompany:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        metro_area_id:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+        website:
+          type: string
+          nullable: true
+        careers_url:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        latitude:
+          type: number
+          nullable: true
+        longitude:
+          type: number
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        contact_name:
+          type: string
+          nullable: true
+        contact_title:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/CompanyStatus'
+        priority:
+          type: integer
+        follow_up_date:
+          type: string
+          format: date
+          nullable: true
+        is_active:
+          type: boolean
+        submit_to_shared:
+          type: boolean
+
+    PrivateCompanyCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        website:
+          type: string
+        careers_url:
+          type: string
+        address:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        phone:
+          type: string
+        email:
+          type: string
+        contact_name:
+          type: string
+        contact_title:
+          type: string
+        notes:
+          type: string
+        status:
+          $ref: '#/components/schemas/CompanyStatus'
+        priority:
+          type: integer
+          default: 3
+
+    TrackingCreate:
+      type: object
+      required: [shared_company_id]
+      properties:
+        shared_company_id:
+          type: string
+          format: uuid
+        location_id:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          $ref: '#/components/schemas/CompanyStatus'
+        priority:
+          type: integer
+          default: 3
+        notes:
+          type: string
+        contact_name:
+          type: string
+        contact_title:
+          type: string
+
+    TrackingUpdate:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/CompanyStatus'
+        priority:
+          type: integer
+        notes:
+          type: string
+        contact_name:
+          type: string
+        contact_title:
+          type: string
+        follow_up_date:
+          type: string
+          format: date
+        is_active:
+          type: boolean
+
+    ContributionCreate:
+      type: object
+      required: [private_company_id]
+      properties:
+        private_company_id:
+          type: string
+          format: uuid
+
+    Contribution:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        private_company_id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ContributionStatus'
+        admin_notes:
+          type: string
+          nullable: true
+        reviewed_by:
+          type: string
+          format: uuid
+          nullable: true
+        reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    EditSuggestionCreate:
+      type: object
+      required: [shared_company_id, field_name, new_value]
+      properties:
+        shared_company_id:
+          type: string
+          format: uuid
+        location_id:
+          type: string
+          format: uuid
+          nullable: true
+        field_name:
+          type: string
+          enum: [phone, email, contact_name, website, careers_url]
+        old_value:
+          type: string
+        new_value:
+          type: string
+
+    MatchResult:
+      type: object
+      properties:
+        company:
+          $ref: '#/components/schemas/SharedCompany'
+        locations:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              address:
+                type: string
+              distance_miles:
+                type: number
+        confidence:
+          type: string
+          enum: [high, medium, low]
+        name_similarity:
+          type: number
+        domain_match:
+          type: boolean
+        reasons:
+          type: array
+          items:
+            type: string
+
+    CompanyStatus:
+      type: string
+      enum:
+        - not_contacted
+        - contacted
+        - follow_up
+        - meeting
+        - applied
+        - interviewing
+        - offer
+        - closed
+
+    ContributionStatus:
+      type: string
+      enum:
+        - pending
+        - approved
+        - rejected
+        - merged

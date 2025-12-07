@@ -291,6 +291,63 @@ export function validateDistance(
 }
 
 /**
+ * Metro area coordinate validation result
+ */
+export interface MetroAreaValidationResult {
+  isValid: boolean;
+  distanceFromCenter: number;
+  warning: string | null;
+}
+
+/**
+ * Default warning threshold in miles
+ */
+export const METRO_AREA_WARNING_THRESHOLD = 50;
+
+/**
+ * Validate coordinates against a metro area center
+ * Constitution VIII - Geographic Accuracy: Warn if coordinates >50 miles from metro center
+ *
+ * @param companyLat - Company latitude
+ * @param companyLng - Company longitude
+ * @param metroLat - Metro area center latitude
+ * @param metroLng - Metro area center longitude
+ * @param metroName - Metro area name for warning message
+ * @param warningThreshold - Distance threshold in miles (default 50)
+ * @returns Validation result with warning if out of bounds
+ */
+export function validateMetroAreaCoordinates(
+  companyLat: number,
+  companyLng: number,
+  metroLat: number,
+  metroLng: number,
+  metroName: string,
+  warningThreshold: number = METRO_AREA_WARNING_THRESHOLD
+): MetroAreaValidationResult {
+  const distance = haversineDistance(
+    metroLat,
+    metroLng,
+    companyLat,
+    companyLng
+  );
+  const roundedDistance = Math.round(distance * 10) / 10;
+
+  if (distance > warningThreshold) {
+    return {
+      isValid: false,
+      distanceFromCenter: roundedDistance,
+      warning: `Coordinates are ${roundedDistance} miles from ${metroName} center (threshold: ${warningThreshold} miles)`,
+    };
+  }
+
+  return {
+    isValid: true,
+    distanceFromCenter: roundedDistance,
+    warning: null,
+  };
+}
+
+/**
  * Get current queue length (for debugging/monitoring)
  */
 export function getQueueLength(): number {

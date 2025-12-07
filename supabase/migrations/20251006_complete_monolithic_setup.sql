@@ -1575,5 +1575,622 @@ WHERE NOT EXISTS (
   SELECT 1 FROM job_applications ja WHERE ja.company_id = c.id
 );
 
+-- ============================================================================
+-- PART 12: MULTI-TENANT COMPANY DATA MODEL (Feature 012)
+-- ============================================================================
+-- Transform from single-user to multi-tenant with:
+--   - Shared company registry (deduplicated, admin-managed)
+--   - User-specific tracking records
+--   - Metro area organization with PostGIS
+--   - Moderated community contributions
+-- ============================================================================
+
+-- T001: Enable PostGIS extension for spatial queries
+CREATE EXTENSION IF NOT EXISTS postgis;
+
+-- T002: Enable pg_trgm extension for fuzzy name matching
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- T003: Add is_admin column to user_profiles for admin identification
+ALTER TABLE user_profiles
+  ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE;
+
+COMMENT ON COLUMN user_profiles.is_admin IS 'Admin flag for moderation queue access (Feature 012)';
+
+-- T004: Create company_status enum (if not exists via DO block)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'company_status') THEN
+    CREATE TYPE company_status AS ENUM (
+      'not_contacted',
+      'contacted',
+      'follow_up',
+      'meeting',
+      'applied',
+      'interviewing',
+      'offer',
+      'closed'
+    );
+  END IF;
+END $$;
+
+-- T005: Create contribution_status enum
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'contribution_status') THEN
+    CREATE TYPE contribution_status AS ENUM (
+      'pending',
+      'approved',
+      'rejected',
+      'merged'
+    );
+  END IF;
+END $$;
+
+-- ============================================================================
+-- PHASE 2: FOUNDATIONAL DATABASE SCHEMA (7 Tables)
+-- ============================================================================
+
+-- T014: Create metro_areas table
+CREATE TABLE IF NOT EXISTS metro_areas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(100) NOT NULL,
+  state VARCHAR(2) NOT NULL,
+  center_lat DECIMAL(10, 7) NOT NULL,
+  center_lng DECIMAL(10, 7) NOT NULL,
+  radius_miles INTEGER NOT NULL DEFAULT 30,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT unique_metro_area UNIQUE (name, state)
+);
+
+CREATE INDEX IF NOT EXISTS idx_metro_areas_state ON metro_areas(state);
+
+ALTER TABLE metro_areas ENABLE ROW LEVEL SECURITY;
+
+-- Metro areas are public read
+DROP POLICY IF EXISTS "Anyone can view metro areas" ON metro_areas;
+CREATE POLICY "Anyone can view metro areas" ON metro_areas
+  FOR SELECT USING (true);
+
+COMMENT ON TABLE metro_areas IS 'Geographic regions organizing company data (Feature 012)';
+
+-- T015: Create shared_companies table
+CREATE TABLE IF NOT EXISTS shared_companies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  metro_area_id UUID REFERENCES metro_areas(id),
+  name VARCHAR(255) NOT NULL,
+  website VARCHAR(500),
+  careers_url VARCHAR(500),
+  is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  is_seed BOOLEAN NOT NULL DEFAULT FALSE, -- T087: Whether this company is seed data for new users
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT unique_shared_company_per_metro UNIQUE (metro_area_id, name)
+);
+
+-- GIN index for fuzzy name matching with pg_trgm
+CREATE INDEX IF NOT EXISTS idx_shared_companies_name_trgm ON shared_companies USING gin(name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_shared_companies_metro ON shared_companies(metro_area_id);
+-- T091: Index for seed company queries
+CREATE INDEX IF NOT EXISTS idx_shared_companies_seed ON shared_companies(metro_area_id, is_seed) WHERE is_seed = TRUE;
+
+ALTER TABLE shared_companies ENABLE ROW LEVEL SECURITY;
+
+-- Public read, admin write
+DROP POLICY IF EXISTS "Anyone can view shared companies" ON shared_companies;
+CREATE POLICY "Anyone can view shared companies" ON shared_companies
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admin can insert shared companies" ON shared_companies;
+CREATE POLICY "Admin can insert shared companies" ON shared_companies
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Admin can update shared companies" ON shared_companies;
+CREATE POLICY "Admin can update shared companies" ON shared_companies
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Admin can delete shared companies" ON shared_companies;
+CREATE POLICY "Admin can delete shared companies" ON shared_companies
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+COMMENT ON TABLE shared_companies IS 'Deduplicated company registry, admin-managed (Feature 012)';
+
+-- T016: Create company_locations table
+CREATE TABLE IF NOT EXISTS company_locations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shared_company_id UUID NOT NULL REFERENCES shared_companies(id) ON DELETE CASCADE,
+  address VARCHAR(500) NOT NULL,
+  latitude DECIMAL(10, 7) NOT NULL,
+  longitude DECIMAL(10, 7) NOT NULL,
+  phone VARCHAR(20),
+  email VARCHAR(255),
+  is_headquarters BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- GIST index for PostGIS spatial queries
+CREATE INDEX IF NOT EXISTS idx_company_locations_geo ON company_locations
+  USING GIST (ST_SetSRID(ST_Point(longitude, latitude), 4326)::geography);
+CREATE INDEX IF NOT EXISTS idx_company_locations_company ON company_locations(shared_company_id);
+
+ALTER TABLE company_locations ENABLE ROW LEVEL SECURITY;
+
+-- Public read, admin write
+DROP POLICY IF EXISTS "Anyone can view company locations" ON company_locations;
+CREATE POLICY "Anyone can view company locations" ON company_locations
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admin can insert company locations" ON company_locations;
+CREATE POLICY "Admin can insert company locations" ON company_locations
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Admin can update company locations" ON company_locations;
+CREATE POLICY "Admin can update company locations" ON company_locations
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Admin can delete company locations" ON company_locations;
+CREATE POLICY "Admin can delete company locations" ON company_locations
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+COMMENT ON TABLE company_locations IS 'Physical addresses for shared companies (Feature 012)';
+
+-- T017: Create user_company_tracking table
+CREATE TABLE IF NOT EXISTS user_company_tracking (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  shared_company_id UUID NOT NULL REFERENCES shared_companies(id) ON DELETE CASCADE,
+  location_id UUID REFERENCES company_locations(id),
+  status company_status NOT NULL DEFAULT 'not_contacted',
+  priority INTEGER NOT NULL DEFAULT 3 CHECK (priority >= 1 AND priority <= 5),
+  notes TEXT,
+  contact_name VARCHAR(100),
+  contact_title VARCHAR(100),
+  follow_up_date DATE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT unique_user_company_location UNIQUE (user_id, shared_company_id, location_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_tracking_user ON user_company_tracking(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_tracking_company ON user_company_tracking(shared_company_id);
+CREATE INDEX IF NOT EXISTS idx_user_tracking_status ON user_company_tracking(user_id, status);
+
+ALTER TABLE user_company_tracking ENABLE ROW LEVEL SECURITY;
+
+-- Users can only access their own tracking records
+DROP POLICY IF EXISTS "Users can view own tracking" ON user_company_tracking;
+CREATE POLICY "Users can view own tracking" ON user_company_tracking
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can create own tracking" ON user_company_tracking;
+CREATE POLICY "Users can create own tracking" ON user_company_tracking
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own tracking" ON user_company_tracking;
+CREATE POLICY "Users can update own tracking" ON user_company_tracking
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own tracking" ON user_company_tracking;
+CREATE POLICY "Users can delete own tracking" ON user_company_tracking
+  FOR DELETE USING (auth.uid() = user_id);
+
+COMMENT ON TABLE user_company_tracking IS 'User relationship to shared companies (Feature 012)';
+
+-- T018: Create private_companies table
+CREATE TABLE IF NOT EXISTS private_companies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  metro_area_id UUID REFERENCES metro_areas(id),
+  name VARCHAR(255) NOT NULL,
+  website VARCHAR(500),
+  careers_url VARCHAR(500),
+  address VARCHAR(500),
+  latitude DECIMAL(10, 7),
+  longitude DECIMAL(10, 7),
+  phone VARCHAR(20),
+  email VARCHAR(255),
+  contact_name VARCHAR(100),
+  contact_title VARCHAR(100),
+  notes TEXT,
+  status company_status NOT NULL DEFAULT 'not_contacted',
+  priority INTEGER NOT NULL DEFAULT 3 CHECK (priority >= 1 AND priority <= 5),
+  follow_up_date DATE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  submit_to_shared BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_private_companies_user ON private_companies(user_id);
+CREATE INDEX IF NOT EXISTS idx_private_companies_name_trgm ON private_companies USING gin(name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_private_companies_metro ON private_companies(metro_area_id);
+
+ALTER TABLE private_companies ENABLE ROW LEVEL SECURITY;
+
+-- Users can only access their own private companies
+DROP POLICY IF EXISTS "Users can view own private companies" ON private_companies;
+CREATE POLICY "Users can view own private companies" ON private_companies
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can create own private companies" ON private_companies;
+CREATE POLICY "Users can create own private companies" ON private_companies
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own private companies" ON private_companies;
+CREATE POLICY "Users can update own private companies" ON private_companies
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own private companies" ON private_companies;
+CREATE POLICY "Users can delete own private companies" ON private_companies
+  FOR DELETE USING (auth.uid() = user_id);
+
+COMMENT ON TABLE private_companies IS 'User-owned companies not yet in shared registry (Feature 012)';
+
+-- T019: Create company_contributions table
+CREATE TABLE IF NOT EXISTS company_contributions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id),
+  private_company_id UUID NOT NULL REFERENCES private_companies(id),
+  status contribution_status NOT NULL DEFAULT 'pending',
+  admin_notes TEXT,
+  reviewed_by UUID REFERENCES auth.users(id),
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_contributions_user ON company_contributions(user_id);
+CREATE INDEX IF NOT EXISTS idx_contributions_status ON company_contributions(status);
+CREATE INDEX IF NOT EXISTS idx_contributions_pending ON company_contributions(status) WHERE status = 'pending';
+
+ALTER TABLE company_contributions ENABLE ROW LEVEL SECURITY;
+
+-- Users can view own + admin can view all
+DROP POLICY IF EXISTS "Users can view own contributions" ON company_contributions;
+CREATE POLICY "Users can view own contributions" ON company_contributions
+  FOR SELECT USING (
+    auth.uid() = user_id OR
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Users can create contributions" ON company_contributions;
+CREATE POLICY "Users can create contributions" ON company_contributions
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admin can update contributions" ON company_contributions;
+CREATE POLICY "Admin can update contributions" ON company_contributions
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+COMMENT ON TABLE company_contributions IS 'Pending submissions to shared registry (Feature 012)';
+
+-- T020: Create company_edit_suggestions table
+CREATE TABLE IF NOT EXISTS company_edit_suggestions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id),
+  shared_company_id UUID NOT NULL REFERENCES shared_companies(id),
+  location_id UUID REFERENCES company_locations(id),
+  field_name VARCHAR(50) NOT NULL,
+  old_value TEXT,
+  new_value TEXT NOT NULL,
+  status contribution_status NOT NULL DEFAULT 'pending',
+  admin_notes TEXT,
+  reviewed_by UUID REFERENCES auth.users(id),
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_edit_suggestions_user ON company_edit_suggestions(user_id);
+CREATE INDEX IF NOT EXISTS idx_edit_suggestions_company ON company_edit_suggestions(shared_company_id);
+CREATE INDEX IF NOT EXISTS idx_edit_suggestions_pending ON company_edit_suggestions(status) WHERE status = 'pending';
+
+ALTER TABLE company_edit_suggestions ENABLE ROW LEVEL SECURITY;
+
+-- Users can view own + admin can view all
+DROP POLICY IF EXISTS "Users can view own suggestions" ON company_edit_suggestions;
+CREATE POLICY "Users can view own suggestions" ON company_edit_suggestions
+  FOR SELECT USING (
+    auth.uid() = user_id OR
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Users can create suggestions" ON company_edit_suggestions;
+CREATE POLICY "Users can create suggestions" ON company_edit_suggestions
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admin can update suggestions" ON company_edit_suggestions;
+CREATE POLICY "Admin can update suggestions" ON company_edit_suggestions
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+COMMENT ON TABLE company_edit_suggestions IS 'Pending data corrections for shared companies (Feature 012)';
+
+-- T022: Create user_companies_unified view
+CREATE OR REPLACE VIEW user_companies_unified AS
+SELECT
+  'shared'::text as source,
+  sc.id as company_id,
+  NULL::uuid as private_company_id,
+  uct.id as tracking_id,
+  sc.name,
+  sc.website,
+  sc.careers_url,
+  COALESCE(cl.address, '') as address,
+  COALESCE(cl.latitude, 0) as latitude,
+  COALESCE(cl.longitude, 0) as longitude,
+  COALESCE(cl.phone, '') as phone,
+  COALESCE(cl.email, '') as email,
+  COALESCE(uct.contact_name, '') as contact_name,
+  COALESCE(uct.contact_title, '') as contact_title,
+  uct.notes,
+  uct.status,
+  uct.priority,
+  uct.follow_up_date,
+  uct.is_active,
+  sc.is_verified,
+  uct.user_id,
+  uct.created_at,
+  uct.updated_at
+FROM user_company_tracking uct
+JOIN shared_companies sc ON uct.shared_company_id = sc.id
+LEFT JOIN company_locations cl ON uct.location_id = cl.id
+
+UNION ALL
+
+SELECT
+  'private'::text as source,
+  NULL::uuid as company_id,
+  pc.id as private_company_id,
+  NULL::uuid as tracking_id,
+  pc.name,
+  pc.website,
+  pc.careers_url,
+  COALESCE(pc.address, '') as address,
+  COALESCE(pc.latitude, 0) as latitude,
+  COALESCE(pc.longitude, 0) as longitude,
+  COALESCE(pc.phone, '') as phone,
+  COALESCE(pc.email, '') as email,
+  COALESCE(pc.contact_name, '') as contact_name,
+  COALESCE(pc.contact_title, '') as contact_title,
+  pc.notes,
+  pc.status,
+  pc.priority,
+  pc.follow_up_date,
+  pc.is_active,
+  false as is_verified,
+  pc.user_id,
+  pc.created_at,
+  pc.updated_at
+FROM private_companies pc;
+
+COMMENT ON VIEW user_companies_unified IS 'Unified view combining shared tracking + private companies (Feature 012)';
+
+-- T023: Create assign_metro_area trigger function
+CREATE OR REPLACE FUNCTION assign_metro_area()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.latitude IS NOT NULL AND NEW.longitude IS NOT NULL THEN
+    SELECT id INTO NEW.metro_area_id
+    FROM metro_areas
+    WHERE ST_DWithin(
+      ST_SetSRID(ST_Point(NEW.longitude, NEW.latitude), 4326)::geography,
+      ST_SetSRID(ST_Point(center_lng, center_lat), 4326)::geography,
+      radius_miles * 1609.34  -- Convert miles to meters
+    )
+    ORDER BY ST_Distance(
+      ST_SetSRID(ST_Point(NEW.longitude, NEW.latitude), 4326)::geography,
+      ST_SetSRID(ST_Point(center_lng, center_lat), 4326)::geography
+    )
+    LIMIT 1;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_private_company_metro_area ON private_companies;
+CREATE TRIGGER trg_private_company_metro_area
+  BEFORE INSERT OR UPDATE ON private_companies
+  FOR EACH ROW
+  EXECUTE FUNCTION assign_metro_area();
+
+COMMENT ON FUNCTION assign_metro_area() IS 'Auto-infer metro_area_id from coordinates (Feature 012)';
+
+-- T024: Create update_updated_at triggers for new tables
+DROP TRIGGER IF EXISTS trg_shared_companies_updated_at ON shared_companies;
+CREATE TRIGGER trg_shared_companies_updated_at
+  BEFORE UPDATE ON shared_companies
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_user_company_tracking_updated_at ON user_company_tracking;
+CREATE TRIGGER trg_user_company_tracking_updated_at
+  BEFORE UPDATE ON user_company_tracking
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_private_companies_updated_at ON private_companies;
+CREATE TRIGGER trg_private_companies_updated_at
+  BEFORE UPDATE ON private_companies
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- T025: Insert Cleveland, TN metro area
+INSERT INTO metro_areas (name, state, center_lat, center_lng, radius_miles)
+VALUES ('Cleveland, TN', 'TN', 35.1595, -84.8707, 30)
+ON CONFLICT (name, state) DO NOTHING;
+
+-- T071: Create find_similar_companies RPC function for match detection
+CREATE OR REPLACE FUNCTION find_similar_companies(
+  company_name TEXT,
+  latitude DECIMAL DEFAULT NULL,
+  longitude DECIMAL DEFAULT NULL,
+  website_domain TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+  company_id UUID,
+  company_name TEXT,
+  website TEXT,
+  careers_url TEXT,
+  is_verified BOOLEAN,
+  location_id UUID,
+  address TEXT,
+  distance_miles DECIMAL,
+  name_similarity DECIMAL,
+  domain_match BOOLEAN,
+  confidence TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  similarity_threshold DECIMAL := 0.3;
+  proximity_miles DECIMAL := 5.0;
+BEGIN
+  RETURN QUERY
+  SELECT
+    sc.id as company_id,
+    sc.name as company_name,
+    sc.website,
+    sc.careers_url,
+    sc.is_verified,
+    cl.id as location_id,
+    cl.address,
+    CASE
+      WHEN latitude IS NOT NULL AND longitude IS NOT NULL AND cl.latitude IS NOT NULL THEN
+        ROUND((ST_Distance(
+          ST_SetSRID(ST_Point(longitude, latitude), 4326)::geography,
+          ST_SetSRID(ST_Point(cl.longitude, cl.latitude), 4326)::geography
+        ) / 1609.34)::decimal, 2)
+      ELSE NULL
+    END as distance_miles,
+    ROUND(similarity(sc.name, company_name)::decimal, 3) as name_similarity,
+    CASE
+      WHEN website_domain IS NOT NULL AND sc.website IS NOT NULL
+           AND sc.website ILIKE '%' || website_domain || '%'
+      THEN TRUE
+      ELSE FALSE
+    END as domain_match,
+    CASE
+      WHEN similarity(sc.name, company_name) >= 0.7 THEN 'high'
+      WHEN website_domain IS NOT NULL AND sc.website ILIKE '%' || website_domain || '%' THEN 'high'
+      WHEN similarity(sc.name, company_name) >= 0.4 THEN 'medium'
+      ELSE 'low'
+    END as confidence
+  FROM shared_companies sc
+  LEFT JOIN company_locations cl ON cl.shared_company_id = sc.id
+  WHERE similarity(sc.name, company_name) >= similarity_threshold
+     OR (latitude IS NOT NULL AND longitude IS NOT NULL AND cl.latitude IS NOT NULL AND
+         ST_DWithin(
+           ST_SetSRID(ST_Point(longitude, latitude), 4326)::geography,
+           ST_SetSRID(ST_Point(cl.longitude, cl.latitude), 4326)::geography,
+           proximity_miles * 1609.34
+         ))
+     OR (website_domain IS NOT NULL AND sc.website ILIKE '%' || website_domain || '%')
+  ORDER BY name_similarity DESC, distance_miles ASC NULLS LAST
+  LIMIT 10;
+END;
+$$;
+
+COMMENT ON FUNCTION find_similar_companies IS 'Match detection using fuzzy name + proximity + domain (Feature 012)';
+
+-- Grant permissions for new tables
+GRANT SELECT ON metro_areas TO authenticated;
+GRANT SELECT ON shared_companies TO authenticated;
+GRANT SELECT ON company_locations TO authenticated;
+GRANT ALL ON user_company_tracking TO authenticated;
+GRANT ALL ON private_companies TO authenticated;
+GRANT ALL ON company_contributions TO authenticated;
+GRANT ALL ON company_edit_suggestions TO authenticated;
+GRANT SELECT ON user_companies_unified TO authenticated;
+
+GRANT ALL ON metro_areas TO service_role;
+GRANT ALL ON shared_companies TO service_role;
+GRANT ALL ON company_locations TO service_role;
+GRANT ALL ON user_company_tracking TO service_role;
+GRANT ALL ON private_companies TO service_role;
+GRANT ALL ON company_contributions TO service_role;
+GRANT ALL ON company_edit_suggestions TO service_role;
+
+-- T091: Create seed_user_companies function to auto-create tracking for new users
+CREATE OR REPLACE FUNCTION seed_user_companies()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Auto-create tracking records for seed companies in user's metro area
+  IF NEW.metro_area_id IS NOT NULL THEN
+    INSERT INTO user_company_tracking (user_id, shared_company_id, status, priority, is_active)
+    SELECT
+      NEW.id,
+      sc.id,
+      'not_contacted',
+      3,
+      true
+    FROM shared_companies sc
+    WHERE sc.metro_area_id = NEW.metro_area_id
+      AND sc.is_seed = true
+      AND sc.is_verified = true
+    ON CONFLICT DO NOTHING;  -- Ignore if already tracking
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- T091: Trigger to auto-seed companies on user profile creation
+DROP TRIGGER IF EXISTS trg_seed_user_companies ON user_profiles;
+CREATE TRIGGER trg_seed_user_companies
+  AFTER INSERT ON user_profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION seed_user_companies();
+
+COMMENT ON FUNCTION seed_user_companies() IS 'Auto-create tracking for seed companies when user signs up (Feature 012 US4)';
+
+-- T091: Helper function to get metro areas with seed company counts
+CREATE OR REPLACE FUNCTION get_metro_areas_with_seed_count()
+RETURNS TABLE (
+  id UUID,
+  name TEXT,
+  seed_company_count BIGINT
+)
+LANGUAGE SQL
+STABLE
+AS $$
+  SELECT
+    ma.id,
+    ma.name,
+    COUNT(sc.id) as seed_company_count
+  FROM metro_areas ma
+  LEFT JOIN shared_companies sc ON sc.metro_area_id = ma.id
+    AND sc.is_seed = true
+    AND sc.is_verified = true
+  GROUP BY ma.id, ma.name
+  HAVING COUNT(sc.id) > 0
+  ORDER BY ma.name;
+$$;
+
+COMMENT ON FUNCTION get_metro_areas_with_seed_count() IS 'Get metro areas that have seed data available (Feature 012 US4)';
+
+-- ============================================================================
+-- END FEATURE 012: Multi-Tenant Company Data Model
+-- ============================================================================
+
 -- Commit the transaction - everything succeeded
 COMMIT;

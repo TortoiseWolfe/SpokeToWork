@@ -6,13 +6,34 @@ import CompanyFilters from '@/components/molecular/CompanyFilters';
 import type {
   Company,
   CompanyWithApplications,
+  UnifiedCompany,
   CompanyFilters as CompanyFiltersType,
   CompanySort,
   ApplicationStatus,
 } from '@/types/company';
 
-/** Type alias for company with or without applications */
-type CompanyType = Company | CompanyWithApplications;
+/** Type alias for all company types supported */
+type CompanyType = Company | CompanyWithApplications | UnifiedCompany;
+
+/**
+ * Type guard to check if company is from unified view (Feature 012)
+ */
+function isUnifiedCompany(company: CompanyType): company is UnifiedCompany {
+  return (
+    'source' in company &&
+    ('tracking_id' in company || 'private_company_id' in company)
+  );
+}
+
+/**
+ * Get the unique ID for a company (supports legacy, unified, or applications)
+ */
+function getCompanyId(company: CompanyType): string {
+  if (isUnifiedCompany(company)) {
+    return company.tracking_id ?? company.private_company_id ?? 'unknown';
+  }
+  return company.id;
+}
 
 /** Extract zip code from address string (e.g., "123 Main St, Cleveland, TN 37311" -> "37311") */
 function extractZipCode(address: string): string {
@@ -21,7 +42,7 @@ function extractZipCode(address: string): string {
 }
 
 export interface CompanyTableProps {
-  /** List of companies to display (with or without applications) */
+  /** List of companies to display (legacy, with applications, or unified) */
   companies: CompanyType[];
   /** Loading state */
   isLoading?: boolean;
@@ -102,9 +123,13 @@ export default function CompanyTable({
         if (company.is_active !== filters.is_active) return false;
       }
 
-      // Extended range filter
+      // Extended range filter (legacy companies only)
       if (filters.extended_range !== undefined) {
-        if (company.extended_range !== filters.extended_range) return false;
+        if (
+          'extended_range' in company &&
+          company.extended_range !== filters.extended_range
+        )
+          return false;
       }
 
       return true;
@@ -201,11 +226,44 @@ export default function CompanyTable({
       {/* Table */}
       {sortedCompanies.length === 0 ? (
         <div className="card bg-base-100 p-8 text-center">
-          <p className="text-base-content/70">
-            {companies.length === 0
-              ? 'No companies yet. Add your first company to get started.'
-              : 'No companies match your filters.'}
-          </p>
+          {companies.length === 0 ? (
+            <>
+              <p className="text-base-content/70 mb-4">
+                No companies yet. Start tracking companies you&apos;re
+                interested in.
+              </p>
+              <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    // Dispatch custom event to open add form
+                    window.dispatchEvent(new CustomEvent('open-add-company'));
+                  }}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="mr-1 h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  Add Your First Company
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="text-base-content/70">
+              No companies match your filters.
+            </p>
+          )}
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -259,17 +317,20 @@ export default function CompanyTable({
               </tr>
             </thead>
             <tbody>
-              {sortedCompanies.map((company) => (
-                <CompanyRow
-                  key={company.id}
-                  company={company}
-                  onClick={onCompanyClick}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  onStatusChange={onStatusChange}
-                  testId={`company-row-${company.id}`}
-                />
-              ))}
+              {sortedCompanies.map((company) => {
+                const companyId = getCompanyId(company);
+                return (
+                  <CompanyRow
+                    key={companyId}
+                    company={company}
+                    onClick={onCompanyClick}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onStatusChange={onStatusChange}
+                    testId={`company-row-${companyId}`}
+                  />
+                );
+              })}
             </tbody>
           </table>
         </div>

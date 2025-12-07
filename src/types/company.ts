@@ -1,8 +1,10 @@
 /**
- * Company Management Types - Feature 011
+ * Company Management Types - Feature 011 & 012
  *
- * Type definitions for company tracking, job applications, offline sync, and geocoding.
+ * Type definitions for company tracking, job applications, offline sync, geocoding,
+ * and multi-tenant company data model.
  * @see specs/011-company-management/data-model.md
+ * @see specs/012-multi-tenant-companies/data-model.md
  */
 
 // =============================================================================
@@ -470,4 +472,364 @@ export const OUTCOME_COLORS: Record<ApplicationOutcome, string> = {
   withdrawn: 'badge-warning',
   ghosted: 'badge-neutral',
   offer_declined: 'badge-warning',
+};
+
+// =============================================================================
+// FEATURE 012: MULTI-TENANT COMPANY DATA MODEL
+// =============================================================================
+
+/**
+ * Contribution/moderation status for community submissions
+ */
+export type ContributionStatus = 'pending' | 'approved' | 'rejected' | 'merged';
+
+/**
+ * Match confidence level for duplicate detection
+ */
+export type MatchConfidence = 'high' | 'medium' | 'low';
+
+/**
+ * Source type for unified company view
+ */
+export type CompanySource = 'shared' | 'private';
+
+/**
+ * Metro area - geographic region for organizing companies
+ */
+export interface MetroArea {
+  id: string;
+  name: string;
+  state: string;
+  center_lat: number;
+  center_lng: number;
+  radius_miles: number;
+  created_at: string;
+}
+
+/**
+ * Shared company - deduplicated company in community registry
+ */
+export interface SharedCompany {
+  id: string;
+  metro_area_id: string;
+  name: string;
+  website: string | null;
+  careers_url: string | null;
+  is_verified: boolean;
+  is_seed: boolean; // Whether this company is seed data for new users (T087)
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Company location - physical address for a shared company
+ */
+export interface CompanyLocation {
+  id: string;
+  shared_company_id: string;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  phone: string | null;
+  email: string | null;
+  is_headquarters: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * User company tracking - user's relationship to a shared company
+ */
+export interface UserCompanyTracking {
+  id: string;
+  user_id: string;
+  shared_company_id: string;
+  location_id: string | null;
+  status: CompanyStatus;
+  priority: Priority;
+  notes: string | null;
+  contact_name: string | null;
+  contact_title: string | null;
+  follow_up_date: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Private company - user-owned company not yet in shared registry
+ */
+export interface PrivateCompany {
+  id: string;
+  user_id: string;
+  metro_area_id: string | null;
+  name: string;
+  website: string | null;
+  careers_url: string | null;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  phone: string | null;
+  email: string | null;
+  contact_name: string | null;
+  contact_title: string | null;
+  notes: string | null;
+  status: CompanyStatus;
+  priority: Priority;
+  follow_up_date: string | null;
+  is_active: boolean;
+  submit_to_shared: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Company contribution - pending submission to shared registry
+ */
+export interface CompanyContribution {
+  id: string;
+  user_id: string;
+  private_company_id: string;
+  status: ContributionStatus;
+  reviewer_id: string | null;
+  reviewed_at: string | null;
+  reviewer_notes: string | null;
+  created_shared_company_id: string | null;
+  merged_with_company_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Company edit suggestion - pending data correction for shared company
+ */
+export interface CompanyEditSuggestion {
+  id: string;
+  user_id: string;
+  shared_company_id: string;
+  location_id: string | null;
+  field_name: string;
+  old_value: string | null;
+  new_value: string;
+  reason: string | null;
+  status: ContributionStatus;
+  reviewer_id: string | null;
+  reviewed_at: string | null;
+  reviewer_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Unified company view - combines shared tracking + private companies
+ * This matches the database view user_companies_unified
+ */
+export interface UnifiedCompany {
+  source: CompanySource;
+  tracking_id: string | null;
+  company_id: string | null;
+  private_company_id: string | null;
+  user_id: string;
+  metro_area_id: string | null;
+  name: string;
+  website: string | null;
+  careers_url: string | null;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  phone: string | null;
+  email: string | null;
+  contact_name: string | null;
+  contact_title: string | null;
+  notes: string | null;
+  status: CompanyStatus;
+  priority: Priority;
+  follow_up_date: string | null;
+  is_active: boolean;
+  is_verified: boolean;
+  submit_to_shared: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Match result from find_similar_companies RPC
+ */
+export interface MatchResult {
+  company_id: string;
+  company_name: string;
+  website: string | null;
+  careers_url: string | null;
+  is_verified: boolean;
+  location_id: string | null;
+  address: string | null;
+  distance_miles: number | null;
+  name_similarity: number;
+  domain_match: boolean;
+  confidence: MatchConfidence;
+}
+
+/**
+ * Create payload for tracking a shared company
+ */
+export interface TrackSharedCompanyCreate {
+  shared_company_id: string;
+  location_id?: string;
+  status?: CompanyStatus;
+  priority?: Priority;
+  notes?: string;
+  contact_name?: string;
+  contact_title?: string;
+  follow_up_date?: string;
+}
+
+/**
+ * Update payload for user company tracking
+ */
+export interface UserCompanyTrackingUpdate {
+  id: string;
+  location_id?: string | null;
+  status?: CompanyStatus;
+  priority?: Priority;
+  notes?: string | null;
+  contact_name?: string | null;
+  contact_title?: string | null;
+  follow_up_date?: string | null;
+  is_active?: boolean;
+}
+
+/**
+ * Create payload for private company
+ */
+export interface PrivateCompanyCreate {
+  name: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  website?: string;
+  careers_url?: string;
+  phone?: string;
+  email?: string;
+  contact_name?: string;
+  contact_title?: string;
+  notes?: string;
+  status?: CompanyStatus;
+  priority?: Priority;
+  follow_up_date?: string;
+}
+
+/**
+ * Update payload for private company
+ */
+export interface PrivateCompanyUpdate {
+  id: string;
+  name?: string;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  website?: string | null;
+  careers_url?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  contact_name?: string | null;
+  contact_title?: string | null;
+  notes?: string | null;
+  status?: CompanyStatus;
+  priority?: Priority;
+  follow_up_date?: string | null;
+  is_active?: boolean;
+  submit_to_shared?: boolean;
+}
+
+/**
+ * Create payload for edit suggestion
+ */
+export interface EditSuggestionCreate {
+  shared_company_id: string;
+  location_id?: string;
+  field_name: 'phone' | 'email' | 'contact_name' | 'website' | 'careers_url';
+  old_value?: string;
+  new_value: string;
+  reason?: string;
+}
+
+/**
+ * Filter options for unified company list
+ */
+export interface UnifiedCompanyFilters {
+  source?: CompanySource;
+  metro_area_id?: string;
+  status?: CompanyStatus | CompanyStatus[];
+  priority?: Priority | Priority[];
+  is_active?: boolean;
+  is_verified?: boolean;
+  search?: string;
+}
+
+/**
+ * Sort options for unified company list
+ */
+export interface UnifiedCompanySort {
+  field: 'name' | 'status' | 'priority' | 'created_at' | 'follow_up_date';
+  direction: 'asc' | 'desc';
+}
+
+// =============================================================================
+// FEATURE 012: DISPLAY HELPERS
+// =============================================================================
+
+/**
+ * Display labels for contribution statuses
+ */
+export const CONTRIBUTION_STATUS_LABELS: Record<ContributionStatus, string> = {
+  pending: 'Pending Review',
+  approved: 'Approved',
+  rejected: 'Rejected',
+  merged: 'Merged',
+};
+
+/**
+ * Color classes for contribution statuses (DaisyUI/Tailwind)
+ */
+export const CONTRIBUTION_STATUS_COLORS: Record<ContributionStatus, string> = {
+  pending: 'badge-warning',
+  approved: 'badge-success',
+  rejected: 'badge-error',
+  merged: 'badge-info',
+};
+
+/**
+ * Display labels for company source
+ */
+export const COMPANY_SOURCE_LABELS: Record<CompanySource, string> = {
+  shared: 'Community',
+  private: 'Private',
+};
+
+/**
+ * Color classes for company source (DaisyUI/Tailwind)
+ * - shared: badge-info (cyan) - community/public companies
+ * - private: badge-ghost (muted) - user's personal companies
+ */
+export const COMPANY_SOURCE_COLORS: Record<CompanySource, string> = {
+  shared: 'badge-info',
+  private: 'badge-ghost',
+};
+
+/**
+ * Display labels for match confidence
+ */
+export const MATCH_CONFIDENCE_LABELS: Record<MatchConfidence, string> = {
+  high: 'High Match',
+  medium: 'Possible Match',
+  low: 'Weak Match',
+};
+
+/**
+ * Color classes for match confidence (DaisyUI/Tailwind)
+ */
+export const MATCH_CONFIDENCE_COLORS: Record<MatchConfidence, string> = {
+  high: 'badge-success',
+  medium: 'badge-warning',
+  low: 'badge-ghost',
 };

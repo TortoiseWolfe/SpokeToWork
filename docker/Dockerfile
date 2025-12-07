@@ -31,6 +31,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     chromium \
     imagemagick \
+    bc \
     # Dependencies for Chromium, Firefox, and WebKit
     libnss3 \
     libnspr4 \

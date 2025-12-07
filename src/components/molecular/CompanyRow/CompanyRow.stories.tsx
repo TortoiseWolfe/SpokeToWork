@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/nextjs';
 import { fn } from '@storybook/test';
 import CompanyRow from './CompanyRow';
-import type { Company } from '@/types/company';
+import type { Company, UnifiedCompany, CompanySource } from '@/types/company';
 
 const mockCompany: Company = {
   id: 'company-123',
@@ -136,6 +136,97 @@ export const ReadOnly: Story = {
     docs: {
       description: {
         story: 'Without any action handlers (read-only mode).',
+      },
+    },
+  },
+};
+
+// Feature 012: Unified Company Stories (T061)
+const mockUnifiedCompanyShared: UnifiedCompany = {
+  source: 'shared' as CompanySource,
+  tracking_id: 'tracking-123',
+  company_id: 'shared-company-456',
+  private_company_id: null,
+  user_id: 'user-789',
+  metro_area_id: 'metro-cleveland-tn',
+  name: 'Community Employer Inc',
+  website: 'https://community-employer.com',
+  careers_url: 'https://community-employer.com/careers',
+  address: '100 Market St, Cleveland, TN 37311',
+  latitude: 35.1595,
+  longitude: -84.8766,
+  phone: '423-555-0100',
+  email: 'hiring@community-employer.com',
+  contact_name: 'Sarah Johnson',
+  contact_title: 'Talent Acquisition',
+  notes: 'Great benefits package',
+  status: 'contacted',
+  priority: 2,
+  follow_up_date: '2025-01-20',
+  is_active: true,
+  is_verified: true,
+  submit_to_shared: false,
+  created_at: '2025-01-01T00:00:00Z',
+  updated_at: '2025-01-05T00:00:00Z',
+};
+
+const mockUnifiedCompanyPrivate: UnifiedCompany = {
+  source: 'private' as CompanySource,
+  tracking_id: null,
+  company_id: null,
+  private_company_id: 'private-789',
+  user_id: 'user-789',
+  metro_area_id: 'metro-cleveland-tn',
+  name: 'My Private Lead',
+  website: 'https://private-lead.com',
+  careers_url: null,
+  address: '200 Oak Ave, Cleveland, TN 37312',
+  latitude: 35.1595,
+  longitude: -84.8766,
+  phone: '423-555-0200',
+  email: 'info@private-lead.com',
+  contact_name: 'Mike Brown',
+  contact_title: 'Owner',
+  notes: 'Found at networking event',
+  status: 'not_contacted',
+  priority: 1,
+  follow_up_date: null,
+  is_active: true,
+  is_verified: false,
+  submit_to_shared: false,
+  created_at: '2025-01-02T00:00:00Z',
+  updated_at: '2025-01-02T00:00:00Z',
+};
+
+export const CommunityCompany: Story = {
+  args: {
+    company: mockUnifiedCompanyShared,
+    onClick: fn(),
+    onEdit: fn(),
+    onDelete: fn(),
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Company from the shared community registry (Feature 012). Shows "Community" badge.',
+      },
+    },
+  },
+};
+
+export const PrivateCompany: Story = {
+  args: {
+    company: mockUnifiedCompanyPrivate,
+    onClick: fn(),
+    onEdit: fn(),
+    onDelete: fn(),
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'User\'s private company not yet in community registry (Feature 012). Shows "Private" badge.',
       },
     },
   },

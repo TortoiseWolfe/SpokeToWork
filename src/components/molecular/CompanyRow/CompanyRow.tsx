@@ -4,24 +4,31 @@ import React from 'react';
 import type {
   Company,
   CompanyWithApplications,
+  UnifiedCompany,
   ApplicationStatus,
+  CompanySource,
 } from '@/types/company';
 import {
   JOB_STATUS_LABELS,
   JOB_STATUS_COLORS,
   OUTCOME_LABELS,
   OUTCOME_COLORS,
+  COMPANY_SOURCE_LABELS,
+  COMPANY_SOURCE_COLORS,
 } from '@/types/company';
 
+/** All company types supported by CompanyRow */
+type CompanyType = Company | CompanyWithApplications | UnifiedCompany;
+
 export interface CompanyRowProps {
-  /** Company data to display (with or without applications) */
-  company: Company | CompanyWithApplications;
+  /** Company data to display (legacy, with applications, or unified) */
+  company: CompanyType;
   /** Callback when row is clicked */
-  onClick?: (company: Company | CompanyWithApplications) => void;
+  onClick?: (company: CompanyType) => void;
   /** Callback when edit is requested */
-  onEdit?: (company: Company | CompanyWithApplications) => void;
+  onEdit?: (company: CompanyType) => void;
   /** Callback when delete is requested */
-  onDelete?: (company: Company | CompanyWithApplications) => void;
+  onDelete?: (company: CompanyType) => void;
   /** Callback when status is changed (legacy - for companies without applications) */
   onStatusChange?: (company: Company, status: ApplicationStatus) => void;
   /** Whether this row is selected */
@@ -63,9 +70,29 @@ const PRIORITY_LABELS: Record<number, string> = {
  * Type guard to check if company has applications data
  */
 function hasApplications(
-  company: Company | CompanyWithApplications
+  company: CompanyType
 ): company is CompanyWithApplications {
   return 'applications' in company && 'total_applications' in company;
+}
+
+/**
+ * Type guard to check if company is from unified view (Feature 012)
+ */
+function isUnifiedCompany(company: CompanyType): company is UnifiedCompany {
+  return (
+    'source' in company &&
+    ('tracking_id' in company || 'private_company_id' in company)
+  );
+}
+
+/**
+ * Get the unique ID for a company (supports legacy, unified, or applications)
+ */
+function getCompanyId(company: CompanyType): string {
+  if (isUnifiedCompany(company)) {
+    return company.tracking_id ?? company.private_company_id ?? 'unknown';
+  }
+  return company.id;
 }
 
 /**
@@ -105,8 +132,13 @@ export default function CompanyRow({
 
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     e.stopPropagation();
-    if (onStatusChange) {
-      onStatusChange(company, e.target.value as ApplicationStatus);
+    // Only legacy Company type supports status change callback
+    if (
+      onStatusChange &&
+      !isUnifiedCompany(company) &&
+      !hasApplications(company)
+    ) {
+      onStatusChange(company as Company, e.target.value as ApplicationStatus);
     }
   };
 
@@ -130,7 +162,20 @@ export default function CompanyRow({
           <div>
             <div className="flex items-center gap-2 font-bold">
               {company.name}
-              {company.extended_range && (
+              {/* Source badge for unified companies (Feature 012) */}
+              {isUnifiedCompany(company) && (
+                <span
+                  className={`badge ${COMPANY_SOURCE_COLORS[company.source]} badge-xs`}
+                  title={
+                    company.source === 'shared'
+                      ? 'Community company'
+                      : 'Your private company'
+                  }
+                >
+                  {COMPANY_SOURCE_LABELS[company.source]}
+                </span>
+              )}
+              {'extended_range' in company && company.extended_range && (
                 <span
                   className="badge badge-warning badge-xs"
                   title="Extended range"

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import CoordinateMap from '@/components/molecular/CoordinateMap';
+import CompanyMatchSuggestion from '@/components/molecular/CompanyMatchSuggestion';
 import { geocode, validateDistance } from '@/lib/companies/geocoding';
 import type {
   Company,
@@ -10,6 +11,7 @@ import type {
   ApplicationStatus,
   Priority,
   HomeLocation,
+  MatchResult,
 } from '@/types/company';
 
 export interface CompanyFormProps {
@@ -21,6 +23,15 @@ export interface CompanyFormProps {
   onSubmit?: (data: CompanyCreate | CompanyUpdate) => Promise<void>;
   /** Callback when form is cancelled */
   onCancel?: () => void;
+  /** Callback to find similar companies (match detection) */
+  onFindSimilar?: (
+    name: string,
+    latitude?: number,
+    longitude?: number,
+    websiteDomain?: string
+  ) => Promise<MatchResult[]>;
+  /** Callback when user wants to track an existing shared company */
+  onTrackExisting?: (match: MatchResult) => Promise<void>;
   /** Additional CSS classes */
   className?: string;
   /** Test ID for testing */
@@ -60,6 +71,8 @@ export default function CompanyForm({
   homeLocation,
   onSubmit,
   onCancel,
+  onFindSimilar,
+  onTrackExisting,
   className = '',
   testId = 'company-form',
 }: CompanyFormProps) {
@@ -67,6 +80,13 @@ export default function CompanyForm({
 
   // Form state
   const [name, setName] = useState(company?.name || '');
+
+  // Match detection state
+  const [matches, setMatches] = useState<MatchResult[]>([]);
+  const [isSearchingMatches, setIsSearchingMatches] = useState(false);
+  const [matchError, setMatchError] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const matchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [contactName, setContactName] = useState(company?.contact_name || '');
   const [contactTitle, setContactTitle] = useState(
     company?.contact_title || ''
@@ -134,6 +154,118 @@ export default function CompanyForm({
       setExtendedRange(!result.within_radius);
     }
   }, [latitude, longitude, homeLocation, hasCoordinates]);
+
+  // Extract domain from website URL
+  const extractDomain = useCallback((url: string): string | undefined => {
+    if (!url) return undefined;
+    try {
+      return new URL(url).hostname.replace(/^www\./, '');
+    } catch {
+      return undefined;
+    }
+  }, []);
+
+  // Match detection with debounce
+  const searchForMatches = useCallback(async () => {
+    if (
+      !onFindSimilar ||
+      !name.trim() ||
+      name.trim().length < 2 ||
+      isEditMode
+    ) {
+      return;
+    }
+
+    setIsSearchingMatches(true);
+    setMatchError(null);
+
+    try {
+      const websiteDomain = extractDomain(website);
+      const results = await onFindSimilar(
+        name.trim(),
+        hasCoordinates ? latitude : undefined,
+        hasCoordinates ? longitude : undefined,
+        websiteDomain
+      );
+      setMatches(results);
+      setHasSearched(true);
+    } catch (error) {
+      // Handle timeout gracefully
+      if (error instanceof Error && error.message.includes('timeout')) {
+        setMatchError(
+          'Match search timed out. You can proceed with adding as a new company.'
+        );
+      } else {
+        console.error('Match search failed:', error);
+      }
+      setMatches([]);
+      setHasSearched(true);
+    } finally {
+      setIsSearchingMatches(false);
+    }
+  }, [
+    name,
+    website,
+    latitude,
+    longitude,
+    hasCoordinates,
+    onFindSimilar,
+    isEditMode,
+    extractDomain,
+  ]);
+
+  // Debounced name change handler
+  const handleNameChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newName = e.target.value;
+      setName(newName);
+
+      // Clear previous debounce
+      if (matchDebounceRef.current) {
+        clearTimeout(matchDebounceRef.current);
+      }
+
+      // Reset match state when name changes
+      if (newName.trim().length < 2) {
+        setMatches([]);
+        setHasSearched(false);
+        return;
+      }
+
+      // Debounce match search (500ms after user stops typing)
+      if (onFindSimilar && !isEditMode) {
+        matchDebounceRef.current = setTimeout(() => {
+          searchForMatches();
+        }, 500);
+      }
+    },
+    [onFindSimilar, isEditMode, searchForMatches]
+  );
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (matchDebounceRef.current) {
+        clearTimeout(matchDebounceRef.current);
+      }
+    };
+  }, []);
+
+  // Handle tracking an existing company
+  const handleTrackExisting = useCallback(
+    async (match: MatchResult) => {
+      if (onTrackExisting) {
+        await onTrackExisting(match);
+      }
+    },
+    [onTrackExisting]
+  );
+
+  // Handle dismissing matches (user wants to add as new)
+  const handleAddAsNew = useCallback(() => {
+    setMatches([]);
+    setHasSearched(true);
+  }, []);
 
   const handleGeocode = useCallback(async () => {
     if (!address.trim()) {
@@ -268,6 +400,12 @@ export default function CompanyForm({
             <span className="label-text">
               Company Name <span className="text-error">*</span>
             </span>
+            {isSearchingMatches && (
+              <span className="label-text-alt flex items-center gap-1">
+                <span className="loading loading-spinner loading-xs"></span>
+                Checking for matches...
+              </span>
+            )}
           </label>
           <input
             id="company-name"
@@ -275,10 +413,41 @@ export default function CompanyForm({
             placeholder="Enter company name"
             className="input input-bordered"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={handleNameChange}
             required
           />
         </div>
+
+        {/* Match Detection Results (T074-T078) */}
+        {!isEditMode && matches.length > 0 && (
+          <CompanyMatchSuggestion
+            matches={matches}
+            onTrack={handleTrackExisting}
+            onAddNew={handleAddAsNew}
+            isLoading={isSubmitting}
+            testId="company-form-matches"
+          />
+        )}
+
+        {/* Match Timeout Warning */}
+        {matchError && (
+          <div className="alert alert-warning">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6 shrink-0 stroke-current"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+            <span>{matchError}</span>
+          </div>
+        )}
 
         {/* Contact Information */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
