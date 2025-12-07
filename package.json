@@ -73,7 +73,9 @@
     "test:pwa:verbose": "node scripts/test-pwa.js --verbose",
     "test:pwa:build": "echo 'Building production in Docker...' && docker compose exec spoketowork pnpm run build && echo 'Starting server...' && docker compose exec -d spoketowork sh -c 'cd out && python3 -m http.server 3001' && sleep 5 && docker compose exec -e TEST_PORT=3001 spoketowork node scripts/test-pwa.js --production && docker compose exec spoketowork pkill -f 'python3 -m http.server' || true",
     "cleanup:intents": "tsx scripts/cleanup-expired-intents.ts",
-    "retry:webhooks": "tsx scripts/retry-failed-webhooks.ts"
+    "retry:webhooks": "tsx scripts/retry-failed-webhooks.ts",
+    "gitleaks": "gitleaks detect --source . --config .gitleaks.toml",
+    "gitleaks:staged": "gitleaks protect --staged --config .gitleaks.toml"
   },
   "dependencies": {
     "@calcom/embed-react": "^1.5.3",
@@ -157,8 +159,10 @@
     "dotenv": "^17.2.2",
     "eslint": "^9.35.0",
     "eslint-config-next": "15.5.2",
+    "eslint-plugin-no-secrets": "^2.2.1",
     "eslint-plugin-storybook": "^9.1.5",
     "fake-indexeddb": "^6.2.2",
+    "gitleaks-secret-scanner": "^1.2.2",
     "glob": "^10.0.0",
     "hash-wasm": "^4.12.0",
     "husky": "^9.1.7",

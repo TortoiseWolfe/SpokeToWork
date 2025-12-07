@@ -3,6 +3,23 @@
 echo "🧹 Cleaning .next directory before checks..."
 rm -rf .next/* .next/.* 2>/dev/null || true
 
+# Secret scanning - run gitleaks on staged files
+echo "🔐 Scanning for secrets..."
+if [ -d "/app" ] && [ "$PWD" = "/app" ]; then
+  # Inside Docker container
+  pnpm run gitleaks:staged || { echo "❌ Secrets detected! Commit blocked."; exit 1; }
+elif command -v docker >/dev/null 2>&1 && docker compose ps 2>/dev/null | grep -q spoketowork; then
+  # On host with Docker running
+  docker compose exec -T spoketowork pnpm run gitleaks:staged || { echo "❌ Secrets detected! Commit blocked."; exit 1; }
+else
+  # Fallback to local (if gitleaks is installed)
+  if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks protect --staged --config .gitleaks.toml || { echo "❌ Secrets detected! Commit blocked."; exit 1; }
+  else
+    echo "⚠️  gitleaks not found - skipping secret scan (install gitleaks for security)"
+  fi
+fi
+
 # Detect if we're running inside the Docker container
 if [ -d "/app" ] && [ "$PWD" = "/app" ]; then
   # We're inside the Docker container, run directly with --no-stash

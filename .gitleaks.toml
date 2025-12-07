@@ -1,0 +1,94 @@
+# Gitleaks Configuration for SpokeToWork
+# https://github.com/gitleaks/gitleaks
+
+title = "SpokeToWork Secret Detection"
+
+# Extend the default rules
+[extend]
+useDefault = true
+
+# Custom rules for project-specific patterns
+[[rules]]
+id = "supabase-service-role-key"
+description = "Supabase Service Role Key"
+regex = '''sbp_[a-zA-Z0-9]{40}'''
+keywords = ["sbp_"]
+severity = "high"
+
+[[rules]]
+id = "supabase-anon-key-in-code"
+description = "Supabase Anon Key hardcoded (should use env var)"
+regex = '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+'''
+keywords = ["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"]
+severity = "medium"
+
+[[rules]]
+id = "stripe-live-key"
+description = "Stripe Live API Key"
+regex = '''sk_live_[a-zA-Z0-9]{24,}'''
+keywords = ["sk_live_"]
+severity = "critical"
+
+[[rules]]
+id = "stripe-live-publishable"
+description = "Stripe Live Publishable Key"
+regex = '''pk_live_[a-zA-Z0-9]{24,}'''
+keywords = ["pk_live_"]
+severity = "high"
+
+# Allowlist for false positives
+[allowlist]
+description = "Allowed patterns and paths"
+
+# Allow test fixtures, example files, and gitignored paths
+paths = [
+  # Example/sample files
+  '''\.env\.example$''',
+  '''\.env\.sample$''',
+  '''docs/.*\.md$''',
+  # Test files
+  '''.*\.test\.ts$''',
+  '''.*\.spec\.ts$''',
+  '''.*\.stories\.tsx?$''',
+  '''test-results/.*''',
+  '''playwright-report/.*''',
+  # Gitignored paths (should never be committed)
+  '''\.env$''',
+  '''\.env\.local$''',
+  '''\.env\..*\.local$''',
+  '''\.next/.*''',
+  '''out/.*''',
+  '''\.claude/settings\.local\.json$''',
+  '''node_modules/.*''',
+  '''coverage/.*''',
+]
+
+# Allow specific commits (historical leaks - credentials have been rotated)
+# These commits contained hardcoded SUPABASE_ACCESS_TOKEN in scripts that has since been removed
+# The token should be rotated in Supabase dashboard
+commits = [
+  "76f4f4e2c0fb73aa7c72892bb3c005dfb3cfa8c0",
+  "b005edc8fe8372fc6ed79dae1b7bc240e65f6e62",
+]
+
+# Allow specific regex patterns that are false positives
+regexes = [
+  # UUID patterns (not secrets)
+  '''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}''',
+  # Example/placeholder values
+  '''YOUR_.*_HERE''',
+  '''PLACEHOLDER_.*''',
+  '''example\.com''',
+  '''test@example\.com''',
+]
+
+# Stop words that indicate the string is not a secret
+stopwords = [
+  "example",
+  "placeholder",
+  "your_",
+  "test_",
+  "fake_",
+  "dummy_",
+  "sample_",
+]

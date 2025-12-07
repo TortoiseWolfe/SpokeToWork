@@ -1,62 +1,131 @@
 'use client';
 
+/**
+ * Companies Page - Multi-Tenant Version
+ *
+ * Uses the unified company view that combines:
+ * - Shared companies the user is tracking (via user_company_tracking)
+ * - Private companies the user has created
+ *
+ * @see src/hooks/useCompanies.ts
+ * @see src/lib/companies/multi-tenant-service.ts
+ */
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { useCompanies } from '@/hooks/useCompanies';
 import CompanyForm from '@/components/organisms/CompanyForm';
 import CompanyTable from '@/components/organisms/CompanyTable';
 import CompanyDetailDrawer from '@/components/organisms/CompanyDetailDrawer';
-import ApplicationForm from '@/components/organisms/ApplicationForm';
 import HomeLocationSettings from '@/components/organisms/HomeLocationSettings';
 import CompanyImport from '@/components/organisms/CompanyImport';
 import CompanyExport from '@/components/molecular/CompanyExport';
 import type { ExportFormat } from '@/components/molecular/CompanyExport';
-import { CompanyService } from '@/lib/companies/company-service';
-import { ApplicationService } from '@/lib/companies/application-service';
 import { supabase } from '@/lib/supabase/client';
 import type {
+  UnifiedCompany,
   Company,
   CompanyWithApplications,
-  UnifiedCompany,
   CompanyCreate,
   CompanyUpdate,
   HomeLocation,
-  ApplicationStatus,
+  CompanyStatus,
   ImportResult,
-  JobApplication,
-  JobApplicationCreate,
-  JobApplicationUpdate,
-  JobApplicationStatus,
-  ApplicationOutcome,
+  PrivateCompanyCreate,
 } from '@/types/company';
 
-/** All company types supported by this page */
+/** Type alias for company types used in this page */
 type CompanyType = Company | CompanyWithApplications | UnifiedCompany;
 
-/** Type guard to check if company is a legacy type with id */
-function isLegacyCompany(
-  company: CompanyType
-): company is Company | CompanyWithApplications {
-  return 'id' in company && typeof company.id === 'string';
+/**
+ * Type guard to check if company is from unified view (Feature 012)
+ */
+function isUnifiedCompany(company: CompanyType): company is UnifiedCompany {
+  return (
+    'source' in company &&
+    ('tracking_id' in company || 'private_company_id' in company)
+  );
+}
+
+/**
+ * Get the unique identifier for a unified company
+ * Returns tracking_id for shared companies, private_company_id for private
+ */
+function getCompanyId(company: UnifiedCompany): string {
+  if (company.source === 'shared' && company.tracking_id) {
+    return company.tracking_id;
+  }
+  if (company.source === 'private' && company.private_company_id) {
+    return company.private_company_id;
+  }
+  throw new Error('Invalid company: missing identifier');
+}
+
+/**
+ * Convert UnifiedCompany to legacy format for components that haven't been updated yet
+ */
+function toCompanyWithApplications(
+  company: UnifiedCompany
+): CompanyWithApplications {
+  const id = getCompanyId(company);
+  return {
+    id,
+    user_id: company.user_id,
+    name: company.name,
+    address: company.address,
+    latitude: company.latitude ?? 0,
+    longitude: company.longitude ?? 0,
+    website: company.website,
+    careers_url: company.careers_url,
+    email: company.email,
+    phone: company.phone,
+    contact_name: company.contact_name,
+    contact_title: company.contact_title,
+    notes: company.notes,
+    status: company.status,
+    priority: company.priority,
+    follow_up_date: company.follow_up_date,
+    is_active: company.is_active,
+    extended_range: false, // Not in unified view
+    route_id: null, // Not in unified view
+    created_at: company.created_at,
+    updated_at: company.updated_at,
+    applications: [],
+    latest_application: null,
+    total_applications: 0,
+  };
 }
 
 export default function CompaniesPage() {
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
+  // Use the multi-tenant companies hook
+  const {
+    companies: unifiedCompanies,
+    isLoading: isLoadingCompanies,
+    error: companiesError,
+    refetch,
+    createPrivate,
+    updatePrivate,
+    deletePrivate,
+    updateTracking,
+    stopTracking,
+  } = useCompanies();
+
+  // Convert to legacy format for existing components
+  const companies = unifiedCompanies.map(toCompanyWithApplications);
+
   // State
-  const [companies, setCompanies] = useState<CompanyWithApplications[]>([]);
-  const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [editingCompany, setEditingCompany] = useState<UnifiedCompany | null>(
+    null
+  );
   const [selectedCompany, setSelectedCompany] =
     useState<CompanyWithApplications | null>(null);
-  const [addingAppForCompany, setAddingAppForCompany] =
-    useState<CompanyWithApplications | null>(null);
-  const [editingApplication, setEditingApplication] =
-    useState<JobApplication | null>(null);
   const [homeLocation, setHomeLocation] = useState<HomeLocation | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -104,29 +173,12 @@ export default function CompaniesPage() {
     loadProfile();
   }, [user]);
 
-  // Load companies with application data
-  const loadCompanies = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      setIsLoadingCompanies(true);
-      const service = new CompanyService(supabase);
-      await service.initialize(user.id);
-      const data = await service.getAllWithLatestApplication();
-      setCompanies(data);
-    } catch (err) {
-      console.error('Error loading companies:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load companies');
-    } finally {
-      setIsLoadingCompanies(false);
-    }
-  }, [user]);
-
+  // Set error from hook
   useEffect(() => {
-    if (user && !isLoadingProfile) {
-      loadCompanies();
+    if (companiesError) {
+      setError(companiesError.message);
     }
-  }, [user, isLoadingProfile, loadCompanies]);
+  }, [companiesError]);
 
   const handleSaveHomeLocation = useCallback(
     async (location: HomeLocation) => {
@@ -153,12 +205,14 @@ export default function CompaniesPage() {
 
         setHomeLocation(location);
         setShowSettings(false);
+        // Refetch companies as metro area may have changed
+        await refetch();
       } catch (err) {
         console.error('Error saving home location:', err);
         throw err;
       }
     },
-    [user]
+    [user, refetch]
   );
 
   const handleAddCompany = useCallback(
@@ -167,20 +221,33 @@ export default function CompaniesPage() {
 
       try {
         setError(null);
-        const service = new CompanyService(supabase);
-        await service.initialize(user.id);
 
-        await service.create(data as CompanyCreate);
+        // Create as private company
+        const privateData: PrivateCompanyCreate = {
+          name: data.name ?? '',
+          address: data.address,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          website: data.website ?? undefined,
+          careers_url: data.careers_url ?? undefined,
+          phone: data.phone ?? undefined,
+          email: data.email ?? undefined,
+          contact_name: data.contact_name ?? undefined,
+          contact_title: data.contact_title ?? undefined,
+          notes: data.notes ?? undefined,
+          status: data.status,
+          priority: data.priority,
+        };
 
+        await createPrivate(privateData);
         setShowAddForm(false);
-        await loadCompanies();
       } catch (err) {
         console.error('Error adding company:', err);
         setError(err instanceof Error ? err.message : 'Failed to add company');
         throw err;
       }
     },
-    [user, loadCompanies]
+    [user, createPrivate]
   );
 
   const handleEditCompany = useCallback(
@@ -189,16 +256,44 @@ export default function CompaniesPage() {
 
       try {
         setError(null);
-        const service = new CompanyService(supabase);
-        await service.initialize(user.id);
 
-        await service.update({
-          id: editingCompany.id,
-          ...data,
-        } as CompanyUpdate);
+        if (
+          editingCompany.source === 'private' &&
+          editingCompany.private_company_id
+        ) {
+          // Update private company
+          await updatePrivate({
+            id: editingCompany.private_company_id,
+            name: data.name,
+            address: data.address,
+            latitude: data.latitude,
+            longitude: data.longitude,
+            website: data.website ?? null,
+            careers_url: data.careers_url ?? null,
+            phone: data.phone ?? null,
+            email: data.email ?? null,
+            contact_name: data.contact_name ?? null,
+            contact_title: data.contact_title ?? null,
+            notes: data.notes ?? null,
+            status: data.status,
+            priority: data.priority,
+          });
+        } else if (
+          editingCompany.source === 'shared' &&
+          editingCompany.tracking_id
+        ) {
+          // Update tracking record (limited fields)
+          await updateTracking({
+            id: editingCompany.tracking_id,
+            status: data.status,
+            priority: data.priority,
+            notes: data.notes ?? null,
+            contact_name: data.contact_name ?? null,
+            contact_title: data.contact_title ?? null,
+          });
+        }
 
         setEditingCompany(null);
-        await loadCompanies();
       } catch (err) {
         console.error('Error updating company:', err);
         setError(
@@ -207,14 +302,12 @@ export default function CompaniesPage() {
         throw err;
       }
     },
-    [user, editingCompany, loadCompanies]
+    [user, editingCompany, updatePrivate, updateTracking]
   );
 
   const handleDeleteCompany = useCallback(
     async (company: CompanyType) => {
       if (!user) return;
-      // Only legacy companies can be deleted from this page
-      if (!isLegacyCompany(company)) return;
 
       if (
         !window.confirm(`Are you sure you want to delete "${company.name}"?`)
@@ -224,15 +317,32 @@ export default function CompaniesPage() {
 
       try {
         setError(null);
-        const service = new CompanyService(supabase);
-        await service.initialize(user.id);
 
-        await service.delete(company.id);
+        // Get company ID
+        const companyId = isUnifiedCompany(company)
+          ? getCompanyId(company)
+          : company.id;
+
+        // Find the unified company
+        const unified = unifiedCompanies.find(
+          (c) => getCompanyId(c) === companyId
+        );
+
+        if (!unified) {
+          throw new Error('Company not found');
+        }
+
+        if (unified.source === 'private' && unified.private_company_id) {
+          await deletePrivate(unified.private_company_id);
+        } else if (unified.source === 'shared' && unified.tracking_id) {
+          // For shared companies, stop tracking instead of deleting
+          await stopTracking(unified.tracking_id);
+        }
+
         // Close drawer if deleting the selected company
-        if (selectedCompany?.id === company.id) {
+        if (selectedCompany?.id === companyId) {
           setSelectedCompany(null);
         }
-        await loadCompanies();
       } catch (err) {
         console.error('Error deleting company:', err);
         setError(
@@ -240,20 +350,36 @@ export default function CompaniesPage() {
         );
       }
     },
-    [user, loadCompanies, selectedCompany]
+    [user, unifiedCompanies, deletePrivate, stopTracking, selectedCompany]
   );
 
   const handleStatusChange = useCallback(
-    async (company: Company, status: ApplicationStatus) => {
+    async (company: Company, status: CompanyStatus) => {
       if (!user) return;
 
       try {
         setError(null);
-        const service = new CompanyService(supabase);
-        await service.initialize(user.id);
 
-        await service.update({ id: company.id, status });
-        await loadCompanies();
+        // Find the unified company
+        const unified = unifiedCompanies.find(
+          (c) => getCompanyId(c) === company.id
+        );
+
+        if (!unified) {
+          throw new Error('Company not found');
+        }
+
+        if (unified.source === 'private' && unified.private_company_id) {
+          await updatePrivate({
+            id: unified.private_company_id,
+            status,
+          });
+        } else if (unified.source === 'shared' && unified.tracking_id) {
+          await updateTracking({
+            id: unified.tracking_id,
+            status,
+          });
+        }
       } catch (err) {
         console.error('Error updating status:', err);
         setError(
@@ -261,17 +387,18 @@ export default function CompaniesPage() {
         );
       }
     },
-    [user, loadCompanies]
+    [user, unifiedCompanies, updatePrivate, updateTracking]
   );
 
   const handleCompanyClick = useCallback(
     (company: CompanyType) => {
-      // Only legacy companies can be selected from this page
-      if (!isLegacyCompany(company)) return;
-      // Open the detail drawer for this company
-      const companyWithApps = companies.find((c) => c.id === company.id);
-      if (companyWithApps) {
-        setSelectedCompany(companyWithApps);
+      // Convert to CompanyWithApplications for the drawer
+      const companyId = isUnifiedCompany(company)
+        ? getCompanyId(company)
+        : company.id;
+      const found = companies.find((c) => c.id === companyId);
+      if (found) {
+        setSelectedCompany(found);
       }
       setShowAddForm(false);
       setShowSettings(false);
@@ -280,257 +407,168 @@ export default function CompaniesPage() {
     [companies]
   );
 
-  const handleEditFromTable = useCallback((company: CompanyType) => {
-    // Only legacy companies can be edited from this page
-    if (!isLegacyCompany(company)) return;
-    // Extract base Company for the form (strip application data)
-    const baseCompany: Company = {
-      id: company.id,
-      user_id: company.user_id,
-      name: company.name,
-      address: company.address,
-      latitude: company.latitude,
-      longitude: company.longitude,
-      website: company.website,
-      careers_url: company.careers_url,
-      email: company.email,
-      phone: company.phone,
-      contact_name: company.contact_name,
-      contact_title: company.contact_title,
-      notes: company.notes,
-      status: company.status,
-      priority: company.priority,
-      follow_up_date: company.follow_up_date,
-      is_active: company.is_active,
-      extended_range: company.extended_range,
-      route_id: company.route_id,
-      created_at: company.created_at,
-      updated_at: company.updated_at,
-    };
-    setEditingCompany(baseCompany);
-    setSelectedCompany(null);
-    setShowAddForm(false);
-    setShowSettings(false);
-    setShowImport(false);
-  }, []);
+  const handleEditFromTable = useCallback(
+    (company: CompanyType) => {
+      // Get the company ID
+      const companyId = isUnifiedCompany(company)
+        ? getCompanyId(company)
+        : company.id;
+
+      // Find the unified company for editing
+      const unified = unifiedCompanies.find(
+        (c) => getCompanyId(c) === companyId
+      );
+
+      if (unified) {
+        setEditingCompany(unified);
+        setSelectedCompany(null);
+        setShowAddForm(false);
+        setShowSettings(false);
+        setShowImport(false);
+      }
+    },
+    [unifiedCompanies]
+  );
 
   const handleImport = useCallback(
     async (file: File): Promise<ImportResult> => {
       if (!user) throw new Error('Not authenticated');
 
-      const service = new CompanyService(supabase);
-      await service.initialize(user.id);
-
-      const result = await service.importFromCSV(file);
-      await loadCompanies();
-      return result;
+      // CSV import temporarily disabled - multi-tenant schema requires importing
+      // companies as private first, then optionally contributing to shared registry
+      return {
+        success: 0,
+        failed: 0,
+        errors: [
+          {
+            row: 0,
+            reason:
+              'CSV import temporarily disabled during multi-tenant migration',
+          },
+        ],
+      };
     },
-    [user, loadCompanies]
+    [user]
   );
 
   const handleExport = useCallback(
     async (format: ExportFormat): Promise<Blob> => {
       if (!user) throw new Error('Not authenticated');
 
-      const service = new CompanyService(supabase);
-      await service.initialize(user.id);
+      // Export from unified companies
+      const exportData = unifiedCompanies.map((c) => ({
+        name: c.name,
+        address: c.address,
+        latitude: c.latitude,
+        longitude: c.longitude,
+        website: c.website,
+        phone: c.phone,
+        email: c.email,
+        contact_name: c.contact_name,
+        status: c.status,
+        priority: c.priority,
+        notes: c.notes,
+        source: c.source,
+        is_verified: c.is_verified,
+      }));
 
       switch (format) {
-        case 'csv':
-          return service.exportToCSV();
-        case 'json':
-          return service.exportToJSON();
-        case 'gpx':
-          return service.exportToGPX();
-        case 'printable':
-          return service.exportToPrintable();
+        case 'csv': {
+          if (exportData.length === 0) {
+            return new Blob(['No companies to export'], { type: 'text/csv' });
+          }
+          const headers = Object.keys(exportData[0]).join(',');
+          const rows = exportData.map((row) =>
+            Object.values(row)
+              .map((v) =>
+                v === null ? '' : `"${String(v).replace(/"/g, '""')}"`
+              )
+              .join(',')
+          );
+          const csv = [headers, ...rows].join('\n');
+          return new Blob([csv], { type: 'text/csv' });
+        }
+        case 'json': {
+          const json = JSON.stringify(exportData, null, 2);
+          return new Blob([json], { type: 'application/json' });
+        }
+        case 'gpx': {
+          const waypoints = exportData
+            .filter((c) => c.latitude && c.longitude)
+            .map(
+              (c) => `  <wpt lat="${c.latitude}" lon="${c.longitude}">
+    <name>${escapeXML(c.name)}</name>
+    <desc>${escapeXML(c.address || '')}</desc>
+  </wpt>`
+            );
+          const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="SpokeToWork">
+${waypoints.join('\n')}
+</gpx>`;
+          return new Blob([gpx], { type: 'application/gpx+xml' });
+        }
+        case 'printable': {
+          const statusLabels: Record<string, string> = {
+            not_contacted: 'Not Contacted',
+            contacted: 'Contacted',
+            follow_up: 'Follow Up',
+            meeting: 'Meeting',
+            outcome_positive: 'Positive',
+            outcome_negative: 'Negative',
+          };
+          const rows = exportData
+            .map(
+              (c) => `    <tr>
+      <td>${escapeXML(c.name)}</td>
+      <td>${escapeXML(c.address || '-')}</td>
+      <td>${escapeXML(c.contact_name || '-')}</td>
+      <td>${escapeXML(c.phone || '-')}</td>
+      <td>${statusLabels[c.status] || c.status}</td>
+      <td>${c.priority}</td>
+    </tr>`
+            )
+            .join('\n');
+          const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Companies List</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { color: #333; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f4f4f4; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+  </style>
+</head>
+<body>
+  <h1>Companies List</h1>
+  <p>Generated: ${new Date().toLocaleDateString()}</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Address</th>
+        <th>Contact</th>
+        <th>Phone</th>
+        <th>Status</th>
+        <th>Priority</th>
+      </tr>
+    </thead>
+    <tbody>
+${rows}
+    </tbody>
+  </table>
+</body>
+</html>`;
+          return new Blob([html], { type: 'text/html' });
+        }
         default:
           throw new Error(`Unknown format: ${format}`);
       }
     },
-    [user]
-  );
-
-  // Application handlers
-  const handleAddApplication = useCallback(
-    (company: CompanyWithApplications) => {
-      setAddingAppForCompany(company);
-      setEditingApplication(null);
-    },
-    []
-  );
-
-  const handleEditApplication = useCallback((application: JobApplication) => {
-    setEditingApplication(application);
-    setAddingAppForCompany(null);
-  }, []);
-
-  const handleSaveApplication = useCallback(
-    async (data: JobApplicationCreate | JobApplicationUpdate) => {
-      if (!user) return;
-
-      try {
-        setError(null);
-        const service = new ApplicationService(supabase);
-        await service.initialize(user.id);
-
-        if (editingApplication) {
-          // Update existing application
-          await service.update({
-            id: editingApplication.id,
-            ...data,
-          } as JobApplicationUpdate);
-        } else if (addingAppForCompany) {
-          // Create new application
-          await service.create({
-            ...data,
-            company_id: addingAppForCompany.id,
-          } as JobApplicationCreate);
-        }
-
-        // Reset state and reload
-        setEditingApplication(null);
-        setAddingAppForCompany(null);
-        await loadCompanies();
-
-        // Refresh selected company data
-        if (selectedCompany) {
-          const companyService = new CompanyService(supabase);
-          await companyService.initialize(user.id);
-          const updatedCompanies =
-            await companyService.getAllWithLatestApplication();
-          const updated = updatedCompanies.find(
-            (c: CompanyWithApplications) => c.id === selectedCompany.id
-          );
-          if (updated) {
-            setSelectedCompany(updated);
-          }
-        }
-      } catch (err) {
-        console.error('Error saving application:', err);
-        setError(
-          err instanceof Error ? err.message : 'Failed to save application'
-        );
-        throw err;
-      }
-    },
-    [
-      user,
-      editingApplication,
-      addingAppForCompany,
-      selectedCompany,
-      loadCompanies,
-    ]
-  );
-
-  const handleDeleteApplication = useCallback(
-    async (application: JobApplication) => {
-      if (!user) return;
-
-      if (
-        !window.confirm(
-          `Are you sure you want to delete the application for "${application.position_title || 'Untitled Position'}"?`
-        )
-      ) {
-        return;
-      }
-
-      try {
-        setError(null);
-        const service = new ApplicationService(supabase);
-        await service.initialize(user.id);
-        await service.delete(application.id);
-        await loadCompanies();
-
-        // Refresh selected company data
-        if (selectedCompany) {
-          const companyService = new CompanyService(supabase);
-          await companyService.initialize(user.id);
-          const updatedCompanies =
-            await companyService.getAllWithLatestApplication();
-          const updated = updatedCompanies.find(
-            (c: CompanyWithApplications) => c.id === selectedCompany.id
-          );
-          if (updated) {
-            setSelectedCompany(updated);
-          }
-        }
-      } catch (err) {
-        console.error('Error deleting application:', err);
-        setError(
-          err instanceof Error ? err.message : 'Failed to delete application'
-        );
-      }
-    },
-    [user, selectedCompany, loadCompanies]
-  );
-
-  const handleApplicationStatusChange = useCallback(
-    async (application: JobApplication, status: JobApplicationStatus) => {
-      if (!user) return;
-
-      try {
-        setError(null);
-        const service = new ApplicationService(supabase);
-        await service.initialize(user.id);
-        await service.update({ id: application.id, status });
-        await loadCompanies();
-
-        // Refresh selected company data
-        if (selectedCompany) {
-          const companyService = new CompanyService(supabase);
-          await companyService.initialize(user.id);
-          const updatedCompanies =
-            await companyService.getAllWithLatestApplication();
-          const updated = updatedCompanies.find(
-            (c: CompanyWithApplications) => c.id === selectedCompany.id
-          );
-          if (updated) {
-            setSelectedCompany(updated);
-          }
-        }
-      } catch (err) {
-        console.error('Error updating application status:', err);
-        setError(
-          err instanceof Error ? err.message : 'Failed to update status'
-        );
-      }
-    },
-    [user, selectedCompany, loadCompanies]
-  );
-
-  const handleApplicationOutcomeChange = useCallback(
-    async (application: JobApplication, outcome: ApplicationOutcome) => {
-      if (!user) return;
-
-      try {
-        setError(null);
-        const service = new ApplicationService(supabase);
-        await service.initialize(user.id);
-        await service.update({ id: application.id, outcome });
-        await loadCompanies();
-
-        // Refresh selected company data
-        if (selectedCompany) {
-          const companyService = new CompanyService(supabase);
-          await companyService.initialize(user.id);
-          const updatedCompanies =
-            await companyService.getAllWithLatestApplication();
-          const updated = updatedCompanies.find(
-            (c: CompanyWithApplications) => c.id === selectedCompany.id
-          );
-          if (updated) {
-            setSelectedCompany(updated);
-          }
-        }
-      } catch (err) {
-        console.error('Error updating application outcome:', err);
-        setError(
-          err instanceof Error ? err.message : 'Failed to update outcome'
-        );
-      }
-    },
-    [user, selectedCompany, loadCompanies]
+    [user, unifiedCompanies]
   );
 
   // Loading state
@@ -548,6 +586,11 @@ export default function CompaniesPage() {
   }
 
   const showingForm = showAddForm || editingCompany || showImport;
+
+  // Convert editing company to legacy format for form
+  const editingCompanyLegacy = editingCompany
+    ? toCompanyWithApplications(editingCompany)
+    : null;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -657,10 +700,10 @@ export default function CompaniesPage() {
       )}
 
       {/* Edit Company Form */}
-      {editingCompany && (
+      {editingCompany && editingCompanyLegacy && (
         <div className="mb-8">
           <CompanyForm
-            company={editingCompany}
+            company={editingCompanyLegacy}
             homeLocation={homeLocation}
             onSubmit={handleEditCompany}
             onCancel={() => setEditingCompany(null)}
@@ -712,48 +755,19 @@ export default function CompaniesPage() {
         onEditCompany={(company) => {
           handleEditFromTable(company);
         }}
-        onAddApplication={handleAddApplication}
-        onEditApplication={handleEditApplication}
-        onDeleteApplication={handleDeleteApplication}
-        onStatusChange={handleApplicationStatusChange}
-        onOutcomeChange={handleApplicationOutcomeChange}
       />
-
-      {/* Application Form Modal */}
-      {(addingAppForCompany || editingApplication) && (
-        <div className="modal modal-open">
-          <div className="modal-box max-w-2xl">
-            <h3 className="text-lg font-bold">
-              {editingApplication ? 'Edit Application' : 'Add Application'}
-            </h3>
-            <p className="text-base-content/70 mb-4 text-sm">
-              {addingAppForCompany
-                ? `Adding application for ${addingAppForCompany.name}`
-                : editingApplication
-                  ? `Editing ${editingApplication.position_title || 'application'}`
-                  : ''}
-            </p>
-            <ApplicationForm
-              application={editingApplication || undefined}
-              companyId={
-                addingAppForCompany?.id || editingApplication?.company_id || ''
-              }
-              onSubmit={handleSaveApplication}
-              onCancel={() => {
-                setAddingAppForCompany(null);
-                setEditingApplication(null);
-              }}
-            />
-          </div>
-          <div
-            className="modal-backdrop"
-            onClick={() => {
-              setAddingAppForCompany(null);
-              setEditingApplication(null);
-            }}
-          />
-        </div>
-      )}
     </div>
   );
+}
+
+/**
+ * Escape XML special characters
+ */
+function escapeXML(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }

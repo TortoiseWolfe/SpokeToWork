@@ -100,6 +100,59 @@ vi.mock('leaflet/dist/leaflet.css', () => ({}));
 vi.mock('prismjs/themes/prism-tomorrow.css', () => ({}));
 vi.mock('@/styles/prism-override.css', () => ({}));
 
+// Mock Leaflet and react-leaflet for SSR-safe testing
+// Leaflet requires `window` which doesn't exist in Node.js/jsdom after test teardown
+vi.mock('leaflet', () => {
+  const IconDefault = {
+    prototype: { _getIconUrl: undefined },
+    mergeOptions: vi.fn(),
+  };
+  const Icon = vi.fn().mockImplementation(() => ({}));
+  (Icon as unknown as { Default: typeof IconDefault }).Default = IconDefault;
+
+  return {
+    default: {
+      Icon,
+      icon: vi.fn().mockReturnValue({}),
+      marker: vi.fn().mockReturnValue({
+        addTo: vi.fn(),
+        setLatLng: vi.fn(),
+        bindPopup: vi.fn(),
+      }),
+      map: vi.fn().mockReturnValue({
+        setView: vi.fn(),
+        invalidateSize: vi.fn(),
+        getContainer: vi.fn(),
+        remove: vi.fn(),
+      }),
+    },
+    Icon,
+  };
+});
+
+vi.mock('react-leaflet', () => {
+  const React = require('react');
+  return {
+    MapContainer: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': 'mock-leaflet-map' },
+        children
+      ),
+    TileLayer: () => null,
+    Marker: ({ children }: { children?: React.ReactNode }) =>
+      React.createElement('div', { 'data-testid': 'mock-marker' }, children),
+    Popup: ({ children }: { children?: React.ReactNode }) =>
+      React.createElement('div', null, children),
+    Circle: () => null,
+    useMap: () => ({
+      setView: vi.fn(),
+      invalidateSize: vi.fn(),
+      getContainer: vi.fn(() => document.createElement('div')),
+    }),
+  };
+});
+
 // Extend Vitest matchers with jest-axe accessibility matchers
 expect.extend(toHaveNoViolations);
 

@@ -1,5 +1,22 @@
 #!/bin/bash
 
+# Final secrets scan before push
+echo "🔐 Final secrets scan before push..."
+if [ -d "/app" ] && [ "$PWD" = "/app" ]; then
+  # Inside Docker container
+  pnpm run gitleaks || { echo "❌ Secrets detected! Push blocked."; exit 1; }
+elif command -v docker >/dev/null 2>&1 && docker compose ps 2>/dev/null | grep -q spoketowork; then
+  # On host with Docker running
+  docker compose exec -T spoketowork pnpm run gitleaks || { echo "❌ Secrets detected! Push blocked."; exit 1; }
+else
+  # Fallback to local (if gitleaks is installed)
+  if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks detect --source . --config .gitleaks.toml || { echo "❌ Secrets detected! Push blocked."; exit 1; }
+  else
+    echo "⚠️  gitleaks not found - skipping secret scan (install gitleaks for security)"
+  fi
+fi
+
 # Run full CI validation before pushing to catch all issues
 echo "🚀 Running CI validation before push..."
 

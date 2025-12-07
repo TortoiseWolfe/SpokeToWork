@@ -7,11 +7,14 @@
 
 import { readFileSync } from 'fs';
 
-const PROJECT_REF = 'utxdunkaropkwnrqrsef';
-const ACCESS_TOKEN =
-  process.env.SUPABASE_ACCESS_TOKEN ||
-  'SUPABASE_ACCESS_TOKEN_REDACTED';
-const USER_ID = '05ef57ea-65a8-4694-aff6-2d8ece3dd8e5';
+const PROJECT_REF =
+  process.env.NEXT_PUBLIC_SUPABASE_PROJECT_REF || 'utxdunkaropkwnrqrsef';
+const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
+if (!ACCESS_TOKEN) {
+  throw new Error('SUPABASE_ACCESS_TOKEN environment variable is required');
+}
+const USER_ID =
+  process.env.TEST_USER_ID || '05ef57ea-65a8-4694-aff6-2d8ece3dd8e5';
 
 async function executeSQL(query: string): Promise<unknown[]> {
   const response = await fetch(

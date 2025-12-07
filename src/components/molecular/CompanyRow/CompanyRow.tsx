@@ -192,13 +192,35 @@ export default function CompanyRow({
         </div>
       </td>
 
-      {/* Contact */}
+      {/* Contact - show all available: name, title, phone, email */}
       <td className="hidden md:table-cell">
-        {company.contact_name && (
-          <div className="text-sm">
-            <div>{company.contact_name}</div>
+        {(company.contact_name ||
+          company.contact_title ||
+          company.phone ||
+          company.email) && (
+          <div className="space-y-0.5 text-sm">
+            {company.contact_name && (
+              <div className="font-medium">{company.contact_name}</div>
+            )}
             {company.contact_title && (
               <div className="text-xs opacity-70">{company.contact_title}</div>
+            )}
+            {company.phone && (
+              <div className="text-xs">
+                <a href={`tel:${company.phone}`} className="link link-hover">
+                  {company.phone}
+                </a>
+              </div>
+            )}
+            {company.email && (
+              <div className="text-xs">
+                <a
+                  href={`mailto:${company.email}`}
+                  className="link link-primary"
+                >
+                  {company.email}
+                </a>
+              </div>
             )}
           </div>
         )}

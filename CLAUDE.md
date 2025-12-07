@@ -239,13 +239,58 @@ kill -9 <PID>
 
 ## Test Users
 
+**CRITICAL: ALWAYS read credentials from `.env` file. NEVER use generic passwords like `TestPassword123!`**
+
 **Primary** (required):
 
-- Configure in `.env`: `TEST_USER_EMAIL`, `TEST_USER_PASSWORD`
+- Email: Read from `TEST_USER_EMAIL` in `.env`
+- Password: Read from `TEST_USER_PASSWORD` in `.env`
 
 **Secondary** (optional - for email verification tests):
 
-- Configure in `.env`: `TEST_USER_SECONDARY_EMAIL`, `TEST_USER_SECONDARY_PASSWORD`
+- Email: Read from `TEST_USER_SECONDARY_EMAIL` in `.env`
+- Password: Read from `TEST_USER_SECONDARY_PASSWORD` in `.env`
+
+**When creating test users via SQL (Supabase Management API):**
+
+CRITICAL: Supabase Auth (GoTrue) requires these columns to be empty strings, NOT NULL:
+
+- `confirmation_token`, `email_change`, `email_change_token_new`, `recovery_token`
+
+See: https://github.com/supabase/auth/issues/1940
+
+```sql
+-- Complete INSERT for auth.users (all required fields)
+INSERT INTO auth.users (
+  id, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, instance_id, aud, role,
+  raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, email_change, email_change_token_new, recovery_token
+) VALUES (
+  gen_random_uuid(),
+  'test@example.com',
+  crypt('PASSWORD_FROM_ENV', gen_salt('bf')),
+  NOW(), NOW(), NOW(),
+  '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated',
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{}'::jsonb,
+  '', '', '', ''  -- CRITICAL: empty strings, not NULL!
+);
+
+-- Also create identity record (required for login)
+INSERT INTO auth.identities (
+  id, user_id, provider_id, provider, identity_data,
+  last_sign_in_at, created_at, updated_at
+) VALUES (
+  gen_random_uuid(),
+  '<user_id_from_above>',
+  'test@example.com',
+  'email',
+  '{"sub":"<user_id>","email":"test@example.com","email_verified":true}'::jsonb,
+  NOW(), NOW(), NOW()
+);
+```
 
 ## Documentation
 

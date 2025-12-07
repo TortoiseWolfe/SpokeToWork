@@ -1,5 +1,6 @@
 // For more info, see https://github.com/storybookjs/eslint-plugin-storybook#configuration-flat-config-format
 import storybook from 'eslint-plugin-storybook';
+import noSecrets from 'eslint-plugin-no-secrets';
 
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -39,6 +40,27 @@ const eslintConfig = [
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-require-imports': 'off',
       'react/no-children-prop': 'off',
+    },
+  },
+  // Secret detection - catches hardcoded API keys and credentials
+  {
+    plugins: {
+      'no-secrets': noSecrets,
+    },
+    rules: {
+      'no-secrets/no-secrets': [
+        'error',
+        {
+          tolerance: 4.5,
+          ignoreContent: [
+            'example.com',
+            'test@example.com',
+            'YOUR_.*_HERE',
+            'PLACEHOLDER_.*',
+            'localhost',
+          ],
+        },
+      ],
     },
   },
   ...storybook.configs['flat/recommended'],

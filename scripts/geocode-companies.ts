@@ -5,10 +5,12 @@
  * Nominatim rate limit: 1 request per second
  */
 
-const PROJECT_REF = 'utxdunkaropkwnrqrsef';
-const ACCESS_TOKEN =
-  process.env.SUPABASE_ACCESS_TOKEN ||
-  'SUPABASE_ACCESS_TOKEN_REDACTED';
+const PROJECT_REF =
+  process.env.NEXT_PUBLIC_SUPABASE_PROJECT_REF || 'utxdunkaropkwnrqrsef';
+const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
+if (!ACCESS_TOKEN) {
+  throw new Error('SUPABASE_ACCESS_TOKEN environment variable is required');
+}
 
 interface Company {
   id: string;

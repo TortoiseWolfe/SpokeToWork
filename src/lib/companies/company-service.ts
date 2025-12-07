@@ -1,8 +1,16 @@
 /**
  * Company Service - Feature 011
  *
- * Main service for company CRUD operations with offline support.
- * Integrates geocoding, IndexedDB storage, and Supabase sync.
+ * @deprecated This service uses the OLD `companies` table.
+ * Use MultiTenantCompanyService from './multi-tenant-service' instead,
+ * which uses the unified view (user_companies_unified) and multi-tenant
+ * tables (shared_companies, user_company_tracking, private_companies).
+ *
+ * This service is kept for backwards compatibility with:
+ * - job_applications (still references old companies table)
+ * - CSV import/export (needs migration to multi-tenant)
+ *
+ * DO NOT use this service for new features.
  *
  * @see specs/011-company-management/contracts/company-service.md
  */

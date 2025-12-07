@@ -1487,12 +1487,14 @@ ALTER TABLE user_profiles
   ADD COLUMN IF NOT EXISTS home_address TEXT CHECK (length(home_address) <= 500),
   ADD COLUMN IF NOT EXISTS home_latitude DECIMAL(10, 8) CHECK (home_latitude >= -90 AND home_latitude <= 90),
   ADD COLUMN IF NOT EXISTS home_longitude DECIMAL(11, 8) CHECK (home_longitude >= -180 AND home_longitude <= 180),
-  ADD COLUMN IF NOT EXISTS distance_radius_miles INTEGER DEFAULT 20 CHECK (distance_radius_miles >= 1 AND distance_radius_miles <= 100);
+  ADD COLUMN IF NOT EXISTS distance_radius_miles INTEGER DEFAULT 20 CHECK (distance_radius_miles >= 1 AND distance_radius_miles <= 100),
+  ADD COLUMN IF NOT EXISTS metro_area_id UUID REFERENCES metro_areas(id);
 
 COMMENT ON COLUMN user_profiles.home_address IS 'User home address for distance calculations';
 COMMENT ON COLUMN user_profiles.home_latitude IS 'User home latitude for distance calculations';
 COMMENT ON COLUMN user_profiles.home_longitude IS 'User home longitude for distance calculations';
 COMMENT ON COLUMN user_profiles.distance_radius_miles IS 'Configurable radius for extended_range warning (default 20)';
+COMMENT ON COLUMN user_profiles.metro_area_id IS 'Auto-assigned metro area based on home coordinates (Feature 012)';
 
 -- ============================================================================
 -- PART 11b: JOB APPLICATIONS (Feature 011 Evolution)
@@ -1994,7 +1996,9 @@ COMMENT ON TABLE company_edit_suggestions IS 'Pending data corrections for share
 
 -- T022: Create user_companies_unified view
 DROP VIEW IF EXISTS user_companies_unified;
-CREATE OR REPLACE VIEW user_companies_unified AS
+-- View uses security_invoker to respect RLS on underlying tables
+CREATE OR REPLACE VIEW user_companies_unified
+WITH (security_invoker = true) AS
 SELECT
   CAST('shared' AS text) as source,
   sc.id as company_id,
@@ -2203,7 +2207,44 @@ GRANT ALL ON private_companies TO service_role;
 GRANT ALL ON company_contributions TO service_role;
 GRANT ALL ON company_edit_suggestions TO service_role;
 
+-- Auto-assign metro_area_id to user_profiles based on home coordinates
+CREATE OR REPLACE FUNCTION assign_user_metro_area()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Auto-assign metro area based on home coordinates
+  IF NEW.home_latitude IS NOT NULL AND NEW.home_longitude IS NOT NULL THEN
+    SELECT id INTO NEW.metro_area_id
+    FROM metro_areas
+    WHERE ST_DWithin(
+      CAST(ST_SetSRID(ST_Point(NEW.home_longitude, NEW.home_latitude), 4326) AS geography),
+      CAST(ST_SetSRID(ST_Point(center_lng, center_lat), 4326) AS geography),
+      radius_miles * 1609.34  -- Convert miles to meters
+    )
+    ORDER BY ST_Distance(
+      CAST(ST_SetSRID(ST_Point(NEW.home_longitude, NEW.home_latitude), 4326) AS geography),
+      CAST(ST_SetSRID(ST_Point(center_lng, center_lat), 4326) AS geography)
+    )
+    LIMIT 1;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+COMMENT ON FUNCTION assign_user_metro_area() IS 'Auto-assign metro_area_id based on user home coordinates (Feature 012)';
+
+-- Trigger to auto-assign metro area when user sets home location
+DROP TRIGGER IF EXISTS trg_assign_user_metro_area ON user_profiles;
+CREATE TRIGGER trg_assign_user_metro_area
+  BEFORE INSERT OR UPDATE OF home_latitude, home_longitude ON user_profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION assign_user_metro_area();
+
 -- T091: Create seed_user_companies function to auto-create tracking for new users
+-- Updated: Also fires on UPDATE when metro_area_id is set for the first time
 CREATE OR REPLACE FUNCTION seed_user_companies()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -2212,7 +2253,9 @@ SET search_path = public
 AS $$
 BEGIN
   -- Auto-create tracking records for seed companies in user's metro area
-  IF NEW.metro_area_id IS NOT NULL THEN
+  -- Only seed when metro_area_id transitions from NULL to a value
+  -- This prevents re-seeding when user changes metro areas
+  IF NEW.metro_area_id IS NOT NULL AND (OLD IS NULL OR OLD.metro_area_id IS NULL) THEN
     INSERT INTO user_company_tracking (user_id, shared_company_id, status, priority, is_active)
     SELECT
       NEW.id,
@@ -2230,14 +2273,16 @@ BEGIN
 END;
 $$;
 
--- T091: Trigger to auto-seed companies on user profile creation
+-- T091: Trigger to auto-seed companies on user profile creation or home location update
+-- Note: Uses AFTER INSERT OR UPDATE (not UPDATE OF metro_area_id) because metro_area_id
+-- is set by the assign_user_metro_area BEFORE trigger, not by the UPDATE statement itself
 DROP TRIGGER IF EXISTS trg_seed_user_companies ON user_profiles;
 CREATE TRIGGER trg_seed_user_companies
-  AFTER INSERT ON user_profiles
+  AFTER INSERT OR UPDATE ON user_profiles
   FOR EACH ROW
   EXECUTE FUNCTION seed_user_companies();
 
-COMMENT ON FUNCTION seed_user_companies() IS 'Auto-create tracking for seed companies when user signs up (Feature 012 US4)';
+COMMENT ON FUNCTION seed_user_companies() IS 'Auto-create tracking for seed companies when user signs up or sets home location (Feature 012 US4)';
 
 -- T091: Helper function to get metro areas with seed company counts
 CREATE OR REPLACE FUNCTION get_metro_areas_with_seed_count()
