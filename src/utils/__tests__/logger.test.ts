@@ -13,13 +13,13 @@ describe('logger utility', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    process.env.NODE_ENV = originalEnv;
+    (process.env as { NODE_ENV?: string }).NODE_ENV = originalEnv;
     vi.resetModules();
   });
 
   describe('in development mode', () => {
     beforeEach(async () => {
-      process.env.NODE_ENV = 'development';
+      (process.env as { NODE_ENV?: string }).NODE_ENV = 'development';
       vi.resetModules();
     });
 
@@ -60,7 +60,7 @@ describe('logger utility', () => {
 
   describe('in production mode', () => {
     beforeEach(async () => {
-      process.env.NODE_ENV = 'production';
+      (process.env as { NODE_ENV?: string }).NODE_ENV = 'production';
       vi.resetModules();
     });
 
