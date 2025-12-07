@@ -2141,12 +2141,12 @@ BEGIN
   RETURN QUERY
   SELECT
     sc.id as company_id,
-    sc.name as company_name,
-    sc.website,
-    sc.careers_url,
+    CAST(sc.name AS TEXT) as company_name,
+    CAST(sc.website AS TEXT) as website,
+    CAST(sc.careers_url AS TEXT) as careers_url,
     sc.is_verified,
     cl.id as location_id,
-    cl.address,
+    CAST(cl.address AS TEXT) as address,
     CASE
       WHEN p_latitude IS NOT NULL AND p_longitude IS NOT NULL AND cl.latitude IS NOT NULL THEN
         ROUND(CAST(ST_Distance(
