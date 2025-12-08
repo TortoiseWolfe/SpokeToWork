@@ -772,20 +772,22 @@ CREATE POLICY "Users can create conversations with connections" ON conversations
   );
 
 -- Admin can create conversations with any user (Feature 002 - welcome messages)
+-- Uses dynamic lookup by username to avoid hardcoded UUID dependency
 DROP POLICY IF EXISTS "Admin can create any conversation" ON conversations;
 CREATE POLICY "Admin can create any conversation" ON conversations
   FOR INSERT WITH CHECK (
-    auth.uid() = 'a30ac480-9050-4853-b0ae-4e3d9e24259d'::uuid
+    auth.uid() = (SELECT id FROM public.user_profiles WHERE username = 'spoketowork' LIMIT 1)
   );
 
 -- Users can create conversations with admin for welcome messages (Feature 004)
 -- This allows the client-side welcome service to create the conversation
+-- Uses dynamic lookup by username to avoid hardcoded UUID dependency
 DROP POLICY IF EXISTS "Users can create conversation with admin" ON conversations;
 CREATE POLICY "Users can create conversation with admin" ON conversations
   FOR INSERT WITH CHECK (
     (auth.uid() = participant_1_id OR auth.uid() = participant_2_id) AND
-    (participant_1_id = 'a30ac480-9050-4853-b0ae-4e3d9e24259d'::uuid OR
-     participant_2_id = 'a30ac480-9050-4853-b0ae-4e3d9e24259d'::uuid)
+    (participant_1_id = (SELECT id FROM public.user_profiles WHERE username = 'spoketowork' LIMIT 1) OR
+     participant_2_id = (SELECT id FROM public.user_profiles WHERE username = 'spoketowork' LIMIT 1))
   );
 
 DROP POLICY IF EXISTS "System can update last_message_at" ON conversations;
@@ -869,17 +871,18 @@ CREATE POLICY "Users can send messages to own conversations" ON messages
 -- Users can insert welcome messages from admin (Feature 004)
 -- Allows client-side welcome service to insert message with sender_id = admin
 -- Only allowed in conversations where user is a participant with admin
+-- Uses dynamic lookup by username to avoid hardcoded UUID dependency
 DROP POLICY IF EXISTS "Users can insert welcome message from admin" ON messages;
 CREATE POLICY "Users can insert welcome message from admin" ON messages
   FOR INSERT WITH CHECK (
-    sender_id = 'a30ac480-9050-4853-b0ae-4e3d9e24259d'::uuid AND
+    sender_id = (SELECT id FROM public.user_profiles WHERE username = 'spoketowork' LIMIT 1) AND
     EXISTS (
       SELECT 1 FROM conversations
       WHERE conversations.id = conversation_id AND (
         (conversations.participant_1_id = auth.uid() AND
-         conversations.participant_2_id = 'a30ac480-9050-4853-b0ae-4e3d9e24259d'::uuid) OR
+         conversations.participant_2_id = (SELECT id FROM public.user_profiles WHERE username = 'spoketowork' LIMIT 1)) OR
         (conversations.participant_2_id = auth.uid() AND
-         conversations.participant_1_id = 'a30ac480-9050-4853-b0ae-4e3d9e24259d'::uuid)
+         conversations.participant_1_id = (SELECT id FROM public.user_profiles WHERE username = 'spoketowork' LIMIT 1))
       )
     )
   );

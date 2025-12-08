@@ -3,14 +3,14 @@
  * Seed script for creating all test users
  * Creates:
  *   - Admin: admin@spoketowork.com (username: spoketowork) - for welcome messages
- *   - Primary: test@example.com (username: testuser) - runs E2E tests
- *   - Secondary: test-user-b@example.com (username: testuser-b) - multi-user tests
- *   - Tertiary: test-user-c@example.com (username: testuser-c) - group chat tests
+ *   - Primary: (from TEST_USER_PRIMARY_EMAIL) - runs E2E tests
+ *   - Secondary: (from TEST_USER_SECONDARY_EMAIL) - multi-user tests
+ *   - Tertiary: (from TEST_USER_TERTIARY_EMAIL) - group chat tests
  *
- * Passwords are read from environment variables:
- *   - TEST_USER_PRIMARY_PASSWORD (default: TestPassword123!)
- *   - TEST_USER_SECONDARY_PASSWORD (default: TestPassword456!)
- *   - TEST_USER_TERTIARY_PASSWORD (default: TestPassword789!)
+ * Credentials are read from environment variables:
+ *   - TEST_USER_PRIMARY_EMAIL, TEST_USER_PRIMARY_PASSWORD
+ *   - TEST_USER_SECONDARY_EMAIL, TEST_USER_SECONDARY_PASSWORD
+ *   - TEST_USER_TERTIARY_EMAIL, TEST_USER_TERTIARY_PASSWORD
  *
  * Usage: docker compose exec spoketowork pnpm exec tsx scripts/seed-test-users.ts
  * Environment: Requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
@@ -26,18 +26,27 @@ import * as crypto from 'crypto';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Get passwords from env vars - REQUIRED, no fallbacks
+// Get credentials from env vars - REQUIRED, no fallbacks
+const PRIMARY_EMAIL = process.env.TEST_USER_PRIMARY_EMAIL;
 const PRIMARY_PASSWORD = process.env.TEST_USER_PRIMARY_PASSWORD;
+const SECONDARY_EMAIL = process.env.TEST_USER_SECONDARY_EMAIL;
 const SECONDARY_PASSWORD = process.env.TEST_USER_SECONDARY_PASSWORD;
+const TERTIARY_EMAIL = process.env.TEST_USER_TERTIARY_EMAIL;
 const TERTIARY_PASSWORD = process.env.TEST_USER_TERTIARY_PASSWORD;
 
 // Validate required env vars
-if (!PRIMARY_PASSWORD || !SECONDARY_PASSWORD || !TERTIARY_PASSWORD) {
-  console.error('❌ ERROR: Missing test user passwords in environment');
+const missingVars: string[] = [];
+if (!PRIMARY_EMAIL) missingVars.push('TEST_USER_PRIMARY_EMAIL');
+if (!PRIMARY_PASSWORD) missingVars.push('TEST_USER_PRIMARY_PASSWORD');
+if (!SECONDARY_EMAIL) missingVars.push('TEST_USER_SECONDARY_EMAIL');
+if (!SECONDARY_PASSWORD) missingVars.push('TEST_USER_SECONDARY_PASSWORD');
+if (!TERTIARY_EMAIL) missingVars.push('TEST_USER_TERTIARY_EMAIL');
+if (!TERTIARY_PASSWORD) missingVars.push('TEST_USER_TERTIARY_PASSWORD');
+
+if (missingVars.length > 0) {
+  console.error('❌ ERROR: Missing test user credentials in environment');
   console.error('Required environment variables:');
-  if (!PRIMARY_PASSWORD) console.error('  - TEST_USER_PRIMARY_PASSWORD');
-  if (!SECONDARY_PASSWORD) console.error('  - TEST_USER_SECONDARY_PASSWORD');
-  if (!TERTIARY_PASSWORD) console.error('  - TEST_USER_TERTIARY_PASSWORD');
+  missingVars.forEach((v) => console.error(`  - ${v}`));
   console.error('\nAdd these to your .env file');
   process.exit(1);
 }
@@ -78,20 +87,20 @@ interface TestUser {
 
 const TEST_USERS: TestUser[] = [
   {
-    email: 'test@example.com',
-    password: PRIMARY_PASSWORD,
+    email: PRIMARY_EMAIL!,
+    password: PRIMARY_PASSWORD!,
     username: 'testuser',
     displayName: 'Test User',
   },
   {
-    email: 'test-user-b@example.com',
-    password: SECONDARY_PASSWORD,
+    email: SECONDARY_EMAIL!,
+    password: SECONDARY_PASSWORD!,
     username: 'testuser-b',
     displayName: 'Test User B',
   },
   {
-    email: 'test-user-c@example.com',
-    password: TERTIARY_PASSWORD,
+    email: TERTIARY_EMAIL!,
+    password: TERTIARY_PASSWORD!,
     username: 'testuser-c',
     displayName: 'Test User C',
   },

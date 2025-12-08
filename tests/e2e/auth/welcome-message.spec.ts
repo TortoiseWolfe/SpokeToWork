@@ -13,7 +13,6 @@ import { test, expect } from '@playwright/test';
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
-const ADMIN_USER_ID = 'a30ac480-9050-4853-b0ae-4e3d9e24259d';
 
 const PROJECT_REF = SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
 
@@ -49,11 +48,26 @@ async function executeSQL(query: string): Promise<unknown[]> {
   return response.json();
 }
 
+/**
+ * Get admin user ID by username (dynamic lookup)
+ */
+async function getAdminUserId(): Promise<string> {
+  const admins = (await executeSQL(
+    `SELECT id FROM user_profiles WHERE username = 'spoketowork'`
+  )) as { id: string }[];
+
+  if (!admins[0]?.id) {
+    throw new Error('Admin user (spoketowork) not found');
+  }
+
+  return admins[0].id;
+}
+
 test.describe('Welcome Message Flow', () => {
   test.beforeEach(async () => {
-    // Get test user ID
+    // Get test user ID (use ILIKE for case-insensitive match - Supabase stores lowercase)
     const users = (await executeSQL(
-      `SELECT id FROM auth.users WHERE email = '${TEST_EMAIL}'`
+      `SELECT id FROM auth.users WHERE email ILIKE '${TEST_EMAIL}'`
     )) as { id: string }[];
 
     if (!users[0]?.id) {
@@ -119,9 +133,13 @@ test.describe('Welcome Message Flow', () => {
     console.log('Step 2: Checking database...');
 
     const users = (await executeSQL(
-      `SELECT id FROM auth.users WHERE email = '${TEST_EMAIL}'`
+      `SELECT id FROM auth.users WHERE email ILIKE '${TEST_EMAIL}'`
     )) as { id: string }[];
     const testUserId = users[0].id;
+
+    // Get admin user ID dynamically
+    const adminUserId = await getAdminUserId();
+    console.log(`Admin user ID: ${adminUserId}`);
 
     // Check welcome_message_sent flag
     const profiles = (await executeSQL(
@@ -133,8 +151,8 @@ test.describe('Welcome Message Flow', () => {
     const conversations = (await executeSQL(`
       SELECT id, participant_1_id, participant_2_id
       FROM conversations
-      WHERE (participant_1_id = '${testUserId}' AND participant_2_id = '${ADMIN_USER_ID}')
-         OR (participant_1_id = '${ADMIN_USER_ID}' AND participant_2_id = '${testUserId}')
+      WHERE (participant_1_id = '${testUserId}' AND participant_2_id = '${adminUserId}')
+         OR (participant_1_id = '${adminUserId}' AND participant_2_id = '${testUserId}')
     `)) as { id: string; participant_1_id: string; participant_2_id: string }[];
     console.log(`Conversations with admin: ${conversations.length}`);
 
@@ -145,7 +163,7 @@ test.describe('Welcome Message Flow', () => {
         SELECT id, sender_id
         FROM messages
         WHERE conversation_id = '${conversations[0].id}'
-        AND sender_id = '${ADMIN_USER_ID}'
+        AND sender_id = '${adminUserId}'
       `)) as { id: string; sender_id: string }[];
       console.log(`Messages from admin: ${messages.length}`);
     }

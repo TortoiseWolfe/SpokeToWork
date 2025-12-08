@@ -17,7 +17,6 @@ import { test, expect } from '@playwright/test';
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
-const ADMIN_USER_ID = 'a30ac480-9050-4853-b0ae-4e3d9e24259d';
 
 // Extract project ref from Supabase URL
 const PROJECT_REF = SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
@@ -100,6 +99,21 @@ async function executeSQL(
   }
 
   throw new Error('Exhausted retries');
+}
+
+/**
+ * Get admin user ID by username (dynamic lookup)
+ */
+async function getAdminUserId(): Promise<string> {
+  const admins = (await executeSQL(
+    `SELECT id FROM user_profiles WHERE username = 'spoketowork'`
+  )) as { id: string }[];
+
+  if (!admins[0]?.id) {
+    throw new Error('Admin user (spoketowork) not found');
+  }
+
+  return admins[0].id;
 }
 
 /**
@@ -235,10 +249,11 @@ async function hasEncryptionKeys(userId: string): Promise<boolean> {
  */
 async function hasConversationWithAdmin(userId: string): Promise<boolean> {
   if (!isValidUUID(userId)) return false;
+  const adminUserId = await getAdminUserId();
   const result = (await executeSQL(`
     SELECT id FROM conversations
-    WHERE (participant_1_id = '${userId}' AND participant_2_id = '${ADMIN_USER_ID}')
-       OR (participant_1_id = '${ADMIN_USER_ID}' AND participant_2_id = '${userId}')
+    WHERE (participant_1_id = '${userId}' AND participant_2_id = '${adminUserId}')
+       OR (participant_1_id = '${adminUserId}' AND participant_2_id = '${userId}')
   `)) as { id?: string }[];
   return !!result[0]?.id;
 }
@@ -248,10 +263,11 @@ async function hasConversationWithAdmin(userId: string): Promise<boolean> {
  */
 async function hasWelcomeMessage(userId: string): Promise<boolean> {
   if (!isValidUUID(userId)) return false;
+  const adminUserId = await getAdminUserId();
   const conversations = (await executeSQL(`
     SELECT id FROM conversations
-    WHERE (participant_1_id = '${userId}' AND participant_2_id = '${ADMIN_USER_ID}')
-       OR (participant_1_id = '${ADMIN_USER_ID}' AND participant_2_id = '${userId}')
+    WHERE (participant_1_id = '${userId}' AND participant_2_id = '${adminUserId}')
+       OR (participant_1_id = '${adminUserId}' AND participant_2_id = '${userId}')
   `)) as { id?: string }[];
 
   if (!conversations[0]?.id) return false;
@@ -259,7 +275,7 @@ async function hasWelcomeMessage(userId: string): Promise<boolean> {
   const messages = (await executeSQL(`
     SELECT id FROM messages
     WHERE conversation_id = '${conversations[0].id}'
-    AND sender_id = '${ADMIN_USER_ID}'
+    AND sender_id = '${adminUserId}'
   `)) as { id?: string }[];
 
   return !!messages[0]?.id;

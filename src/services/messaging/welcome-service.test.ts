@@ -45,7 +45,7 @@ Object.defineProperty(global, 'crypto', {
 import {
   WelcomeService,
   WELCOME_MESSAGE_CONTENT,
-  ADMIN_USER_ID,
+  ADMIN_EMAIL,
 } from './welcome-service';
 
 describe('WelcomeService', () => {
@@ -68,9 +68,9 @@ describe('WelcomeService', () => {
     vi.unstubAllEnvs();
   });
 
-  describe('ADMIN_USER_ID', () => {
-    it('is UUID of admin user created by seed script', () => {
-      expect(ADMIN_USER_ID).toBe('a30ac480-9050-4853-b0ae-4e3d9e24259d');
+  describe('ADMIN_EMAIL', () => {
+    it('is the email of admin user created by seed script', () => {
+      expect(ADMIN_EMAIL).toBe('admin@spoketowork.com');
     });
   });
 
@@ -82,6 +82,21 @@ describe('WelcomeService', () => {
         x: 'admin-x',
         y: 'admin-y',
       };
+
+      // Mock supabase client for admin user lookup
+      mockFns.mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === 'user_profiles') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'admin-user-id' },
+              error: null,
+            }),
+          };
+        }
+        return { select: vi.fn().mockReturnThis() };
+      });
 
       mockFns.mockMessagingFrom.mockImplementation((table: string) => {
         if (table === 'user_encryption_keys') {
@@ -105,6 +120,21 @@ describe('WelcomeService', () => {
     });
 
     it('throws when admin key missing (T011)', async () => {
+      // Mock supabase client for admin user lookup
+      mockFns.mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === 'user_profiles') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'admin-user-id' },
+              error: null,
+            }),
+          };
+        }
+        return { select: vi.fn().mockReturnThis() };
+      });
+
       mockFns.mockMessagingFrom.mockImplementation((table: string) => {
         if (table === 'user_encryption_keys') {
           return {
@@ -129,14 +159,14 @@ describe('WelcomeService', () => {
 
   describe('sendWelcomeMessage', () => {
     it('sends welcome message with new signature (T012)', async () => {
-      // Setup: User profile without welcome message sent
+      // Setup: User profile mocks for welcome status and admin ID lookup
       mockFns.mockSupabaseFrom.mockImplementation((table: string) => {
         if (table === 'user_profiles') {
           return {
             select: vi.fn().mockReturnThis(),
             eq: vi.fn().mockReturnThis(),
             single: vi.fn().mockResolvedValue({
-              data: { welcome_message_sent: false },
+              data: { id: 'admin-user-id', welcome_message_sent: false },
               error: null,
             }),
             update: vi.fn().mockReturnThis(),
@@ -219,14 +249,14 @@ describe('WelcomeService', () => {
       // Import the mocked encryptionService
       const { encryptionService } = await import('@/lib/messaging/encryption');
 
-      // Setup mocks
+      // Setup mocks - include admin ID for admin lookup
       mockFns.mockSupabaseFrom.mockImplementation((table: string) => {
         if (table === 'user_profiles') {
           return {
             select: vi.fn().mockReturnThis(),
             eq: vi.fn().mockReturnThis(),
             single: vi.fn().mockResolvedValue({
-              data: { welcome_message_sent: false },
+              data: { id: 'admin-user-id', welcome_message_sent: false },
               error: null,
             }),
             update: vi.fn().mockReturnThis(),
@@ -306,7 +336,7 @@ describe('WelcomeService', () => {
             select: vi.fn().mockReturnThis(),
             eq: vi.fn().mockReturnThis(),
             single: vi.fn().mockResolvedValue({
-              data: { welcome_message_sent: true },
+              data: { id: 'admin-user-id', welcome_message_sent: true },
               error: null,
             }),
           };
@@ -326,14 +356,14 @@ describe('WelcomeService', () => {
     });
 
     it('returns skipped when admin key missing (T026)', async () => {
-      // Profile check succeeds
+      // Profile check succeeds - include admin ID for admin lookup
       mockFns.mockSupabaseFrom.mockImplementation((table: string) => {
         if (table === 'user_profiles') {
           return {
             select: vi.fn().mockReturnThis(),
             eq: vi.fn().mockReturnThis(),
             single: vi.fn().mockResolvedValue({
-              data: { welcome_message_sent: false },
+              data: { id: 'admin-user-id', welcome_message_sent: false },
               error: null,
             }),
           };

@@ -27,11 +27,16 @@ import { createLogger } from '@/lib/logger';
 const logger = createLogger('messaging:welcome');
 
 /**
- * Admin user ID constant (FR-010)
- * UUID of the admin user created by seed-test-users.ts
- * Used as consistent welcome message sender
+ * Admin email constant (FR-010)
+ * The admin user created by seed-test-users.ts
+ * Used to look up admin for welcome message sender
  */
-export const ADMIN_USER_ID = 'a30ac480-9050-4853-b0ae-4e3d9e24259d';
+export const ADMIN_EMAIL = 'admin@spoketowork.com';
+
+/**
+ * Cached admin user ID (populated on first lookup)
+ */
+let cachedAdminUserId: string | null = null;
 
 /**
  * Welcome message content (FR-010)
@@ -82,6 +87,33 @@ export interface SendWelcomeResult {
  */
 export class WelcomeService {
   /**
+   * Get admin user ID by email (cached for efficiency)
+   *
+   * @returns Admin user's UUID
+   * @throws Error if admin not found
+   */
+  async getAdminUserId(): Promise<string> {
+    if (cachedAdminUserId) {
+      return cachedAdminUserId;
+    }
+
+    const supabase = createClient();
+
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('username', 'spoketowork')
+      .single();
+
+    if (error || !data) {
+      throw new Error('Admin user not found');
+    }
+
+    cachedAdminUserId = data.id;
+    return data.id;
+  }
+
+  /**
    * Fetch admin's public key from database (FR-001, FR-010)
    *
    * @returns Admin's ECDH public key in JWK format
@@ -90,11 +122,12 @@ export class WelcomeService {
   async getAdminPublicKey(): Promise<JsonWebKey> {
     const supabase = createClient();
     const msgClient = createMessagingClient(supabase);
+    const adminUserId = await this.getAdminUserId();
 
     const { data, error } = await msgClient
       .from('user_encryption_keys')
       .select('public_key')
-      .eq('user_id', ADMIN_USER_ID)
+      .eq('user_id', adminUserId)
       .eq('revoked', false)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -166,7 +199,20 @@ export class WelcomeService {
         };
       }
 
-      // Step 2: Fetch admin's public key (FR-001) - with error handling (US3)
+      // Step 2: Get admin user ID (dynamic lookup)
+      let adminUserId: string;
+      try {
+        adminUserId = await this.getAdminUserId();
+      } catch (error) {
+        logger.error('Failed to get admin user ID', { error });
+        return {
+          success: false,
+          skipped: true,
+          reason: 'Admin user not found',
+        };
+      }
+
+      // Step 3: Fetch admin's public key (FR-001) - with error handling (US3)
       let adminPublicKeyJwk: JsonWebKey;
       try {
         adminPublicKeyJwk = await this.getAdminPublicKey();
@@ -205,6 +251,7 @@ export class WelcomeService {
       // Step 5: Get or create conversation with canonical ordering (FR-006)
       const conversationId = await this.getOrCreateAdminConversation(
         userId,
+        adminUserId,
         msgClient
       );
 
@@ -234,7 +281,7 @@ export class WelcomeService {
         .from('messages')
         .insert({
           conversation_id: conversationId,
-          sender_id: ADMIN_USER_ID,
+          sender_id: adminUserId,
           encrypted_content: encrypted.ciphertext,
           initialization_vector: encrypted.iv,
           sequence_number: nextSequenceNumber,
@@ -329,16 +376,16 @@ export class WelcomeService {
    * Uses canonical ordering (smaller UUID = participant_1_id) (FR-006).
    *
    * @param userId - Target user's UUID
+   * @param adminId - Admin user's UUID
    * @param msgClient - Messaging client
    * @returns Conversation ID
    * @private
    */
   private async getOrCreateAdminConversation(
     userId: string,
+    adminId: string,
     msgClient: ReturnType<typeof createMessagingClient>
   ): Promise<string | null> {
-    const adminId = ADMIN_USER_ID;
-
     // Apply canonical ordering (FR-006): participant_1 = min, participant_2 = max
     const [participant_1, participant_2] =
       adminId < userId ? [adminId, userId] : [userId, adminId];
