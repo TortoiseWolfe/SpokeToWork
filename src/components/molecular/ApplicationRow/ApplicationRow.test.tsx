@@ -11,6 +11,8 @@ const mockApplication: JobApplication = {
   user_id: 'user-789',
   position_title: 'Senior Software Engineer',
   job_link: 'https://example.com/jobs/123',
+  position_url: 'https://example.com/apply/123',
+  status_url: null,
   work_location_type: 'hybrid',
   status: 'interviewing',
   outcome: 'pending',
@@ -51,7 +53,7 @@ describe('ApplicationRow', () => {
 
     expect(screen.getByText('Senior Software Engineer')).toBeInTheDocument();
     expect(screen.getByText('Hybrid')).toBeInTheDocument();
-    expect(screen.getByText('View Job')).toBeInTheDocument();
+    expect(screen.getByText('Careers')).toBeInTheDocument();
   });
 
   it('displays status badge', () => {
@@ -222,7 +224,7 @@ describe('ApplicationRow', () => {
       </TableWrapper>
     );
 
-    const jobLink = screen.getByText('View Job');
+    const jobLink = screen.getByText('Careers');
     expect(jobLink).toHaveAttribute('target', '_blank');
     expect(jobLink).toHaveAttribute('rel', 'noopener noreferrer');
   });

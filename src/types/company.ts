@@ -78,7 +78,9 @@ export interface JobApplication {
 
   // Job details
   position_title: string | null;
-  job_link: string | null; // URL to specific job posting
+  job_link: string | null; // URL to careers page
+  position_url: string | null; // URL to specific job posting
+  status_url: string | null; // URL to candidate portal/status check
 
   // Work arrangement
   work_location_type: WorkLocationType;
@@ -114,6 +116,8 @@ export interface JobApplicationCreate {
   private_company_id?: string | null; // Provide for private company applications
   position_title?: string;
   job_link?: string;
+  position_url?: string;
+  status_url?: string;
   work_location_type?: WorkLocationType;
   status?: JobApplicationStatus;
   outcome?: ApplicationOutcome;
@@ -131,6 +135,8 @@ export interface JobApplicationUpdate {
   id: string;
   position_title?: string | null;
   job_link?: string | null;
+  position_url?: string | null;
+  status_url?: string | null;
   work_location_type?: WorkLocationType;
   status?: JobApplicationStatus;
   outcome?: ApplicationOutcome;
@@ -291,7 +297,8 @@ export interface CompanySort {
     | 'priority'
     | 'created_at'
     | 'follow_up_date'
-    | 'zip_code';
+    | 'zip_code'
+    | 'applications';
   direction: 'asc' | 'desc';
 }
 

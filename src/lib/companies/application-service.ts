@@ -133,9 +133,15 @@ export class ApplicationService {
       }
     }
 
-    // Validate job_link URL if provided
+    // Validate URL fields if provided
     if (data.job_link && !this.isValidUrl(data.job_link)) {
       throw new ApplicationValidationError('Invalid job link URL');
+    }
+    if (data.position_url && !this.isValidUrl(data.position_url)) {
+      throw new ApplicationValidationError('Invalid position URL');
+    }
+    if (data.status_url && !this.isValidUrl(data.status_url)) {
+      throw new ApplicationValidationError('Invalid status URL');
     }
 
     const application: Record<string, unknown> = {
@@ -144,6 +150,8 @@ export class ApplicationService {
       user_id: this.userId!,
       position_title: data.position_title?.trim() || null,
       job_link: data.job_link?.trim() || null,
+      position_url: data.position_url?.trim() || null,
+      status_url: data.status_url?.trim() || null,
       work_location_type: data.work_location_type ?? 'on_site',
       status: data.status ?? 'not_applied',
       outcome: data.outcome ?? 'pending',
@@ -287,9 +295,15 @@ export class ApplicationService {
       throw new ApplicationNotFoundError(data.id);
     }
 
-    // Validate job_link URL if provided
+    // Validate URL fields if provided
     if (data.job_link && !this.isValidUrl(data.job_link)) {
       throw new ApplicationValidationError('Invalid job link URL');
+    }
+    if (data.position_url && !this.isValidUrl(data.position_url)) {
+      throw new ApplicationValidationError('Invalid position URL');
+    }
+    if (data.status_url && !this.isValidUrl(data.status_url)) {
+      throw new ApplicationValidationError('Invalid status URL');
     }
 
     const updateData: Partial<JobApplication> = {};
@@ -299,6 +313,12 @@ export class ApplicationService {
     }
     if (data.job_link !== undefined) {
       updateData.job_link = data.job_link?.trim() || null;
+    }
+    if (data.position_url !== undefined) {
+      updateData.position_url = data.position_url?.trim() || null;
+    }
+    if (data.status_url !== undefined) {
+      updateData.status_url = data.status_url?.trim() || null;
     }
     if (data.work_location_type !== undefined) {
       updateData.work_location_type = data.work_location_type;

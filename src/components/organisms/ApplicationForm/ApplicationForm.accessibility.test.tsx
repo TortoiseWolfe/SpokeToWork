@@ -26,6 +26,8 @@ describe('ApplicationForm Accessibility', () => {
       user_id: 'user-123',
       position_title: 'Software Engineer',
       job_link: 'https://example.com/job',
+      position_url: null,
+      status_url: null,
       work_location_type: 'remote',
       status: 'applied',
       outcome: 'pending',
@@ -55,7 +57,7 @@ describe('ApplicationForm Accessibility', () => {
 
     // Check that all inputs have labels
     expect(screen.getByLabelText(/position title/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/job posting link/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/careers page url/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/work location/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/^status$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/outcome/i)).toBeInTheDocument();
@@ -71,7 +73,7 @@ describe('ApplicationForm Accessibility', () => {
 
     // All interactive elements should be focusable
     const positionInput = screen.getByLabelText(/position title/i);
-    const jobLinkInput = screen.getByLabelText(/job posting link/i);
+    const jobLinkInput = screen.getByLabelText(/careers page url/i);
     const workLocationSelect = screen.getByLabelText(/work location/i);
     const submitButton = screen.getByRole('button', {
       name: /add application/i,

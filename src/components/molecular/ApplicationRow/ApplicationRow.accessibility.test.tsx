@@ -13,6 +13,8 @@ const mockApplication: JobApplication = {
   user_id: 'user-789',
   position_title: 'Software Engineer',
   job_link: 'https://example.com/job',
+  position_url: null,
+  status_url: null,
   work_location_type: 'remote',
   status: 'applied',
   outcome: 'pending',
@@ -146,7 +148,7 @@ describe('ApplicationRow Accessibility', () => {
       </AccessibleTableWrapper>
     );
 
-    const jobLink = screen.getByText('View Job');
+    const jobLink = screen.getByText('Careers');
     expect(jobLink).toHaveAttribute('target', '_blank');
     expect(jobLink).toHaveAttribute('rel', 'noopener noreferrer');
   });

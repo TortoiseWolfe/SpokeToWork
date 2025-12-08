@@ -170,6 +170,17 @@ export default function CompanyTable({
           const bZip = extractZipCode(b.address);
           comparison = aZip.localeCompare(bZip);
           break;
+        case 'applications':
+          const aCount =
+            (a as CompanyWithApplications).total_applications ??
+            (a as CompanyWithApplications).applications?.length ??
+            0;
+          const bCount =
+            (b as CompanyWithApplications).total_applications ??
+            (b as CompanyWithApplications).applications?.length ??
+            0;
+          comparison = aCount - bCount;
+          break;
       }
 
       return sort.direction === 'asc' ? comparison : -comparison;
@@ -311,7 +322,16 @@ export default function CompanyTable({
                     <SortIcon field="priority" />
                   </button>
                 </th>
-                <th className="hidden text-center md:table-cell">Apps</th>
+                <th className="hidden text-center md:table-cell">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-xs"
+                    onClick={() => handleSort('applications')}
+                  >
+                    Apps
+                    <SortIcon field="applications" />
+                  </button>
+                </th>
                 <th className="hidden lg:table-cell">Website</th>
                 <th>Actions</th>
               </tr>

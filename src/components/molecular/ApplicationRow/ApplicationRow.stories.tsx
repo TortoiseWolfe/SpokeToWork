@@ -53,6 +53,8 @@ const baseApplication: JobApplication = {
   user_id: 'user-789',
   position_title: 'Senior Software Engineer',
   job_link: 'https://example.com/jobs/senior-engineer',
+  position_url: 'https://example.com/apply/senior-engineer',
+  status_url: null,
   work_location_type: 'hybrid',
   status: 'interviewing',
   outcome: 'pending',

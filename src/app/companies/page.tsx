@@ -11,7 +11,7 @@
  * @see src/lib/companies/multi-tenant-service.ts
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useCompanies } from '@/hooks/useCompanies';
@@ -120,9 +120,6 @@ export default function CompaniesPage() {
     stopTracking,
   } = useCompanies();
 
-  // Convert to legacy format for existing components
-  const companies = unifiedCompanies.map(toCompanyWithApplications);
-
   // State
   const [showAddForm, setShowAddForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -147,6 +144,27 @@ export default function CompaniesPage() {
   const [showApplicationForm, setShowApplicationForm] = useState(false);
   const [editingApplication, setEditingApplication] =
     useState<JobApplication | null>(null);
+  // Application counts per company (company_id -> count)
+  const [applicationCounts, setApplicationCounts] = useState<
+    Record<string, number>
+  >({});
+
+  // Convert to legacy format for existing components, merging application counts
+  const companies = useMemo(() => {
+    return unifiedCompanies.map((company) => {
+      const base = toCompanyWithApplications(company);
+      // Get the count for this company based on its source
+      const companyId =
+        company.source === 'shared'
+          ? company.company_id
+          : company.private_company_id;
+      const count = companyId ? applicationCounts[companyId] || 0 : 0;
+      return {
+        ...base,
+        total_applications: count,
+      };
+    });
+  }, [unifiedCompanies, applicationCounts]);
 
   // Redirect to sign-in if not authenticated
   useEffect(() => {
@@ -203,6 +221,40 @@ export default function CompaniesPage() {
     if (user) {
       applicationService.initialize(user.id);
     }
+  }, [user, applicationService]);
+
+  // Feature 014: Load application counts for all companies
+  useEffect(() => {
+    async function loadApplicationCounts() {
+      if (!user) {
+        setApplicationCounts({});
+        return;
+      }
+
+      try {
+        // Use applicationService to get all applications (respects RLS)
+        const allApps = await applicationService.getAll();
+
+        // Build counts map from applications
+        const counts: Record<string, number> = {};
+
+        allApps.forEach((app) => {
+          if (app.shared_company_id) {
+            counts[app.shared_company_id] =
+              (counts[app.shared_company_id] || 0) + 1;
+          } else if (app.private_company_id) {
+            counts[app.private_company_id] =
+              (counts[app.private_company_id] || 0) + 1;
+          }
+        });
+
+        setApplicationCounts(counts);
+      } catch (err) {
+        console.error('Error loading application counts:', err);
+      }
+    }
+
+    loadApplicationCounts();
   }, [user, applicationService]);
 
   // Feature 014: Fetch applications when a company is selected
