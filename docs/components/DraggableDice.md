@@ -154,4 +154,3 @@ docker compose exec spoketowork pnpm test src/components/atomic/DraggableDice/
 
 - **Dice**: Base dice component without drag functionality
 - **DiceTray**: Container that manages multiple DraggableDice
-- **CaptainShipCrew**: Game using DraggableDice for gameplay

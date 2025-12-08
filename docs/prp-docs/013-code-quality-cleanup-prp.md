@@ -173,4 +173,3 @@ Code review identified 30+ `as any` type casts, deprecated API usage, inconsiste
 
 - Payment consent server-side validation
 - Race condition fixes in welcome-service (needs design)
-- Large component splitting (CaptainShipCrewWithNPC)

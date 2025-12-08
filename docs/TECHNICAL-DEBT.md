@@ -266,19 +266,10 @@ The offline queue integration tests previously had issues with React Hook Form t
 
 ## Test Coverage Improvements Needed
 
-### Component Tests
-
-1. **CaptainShipCrewWithNPC** (`src/components/atomic/CaptainShipCrewWithNPC/CaptainShipCrewWithNPC.test.tsx`)
-   - TODO comment on line 14: "Add more specific tests"
-   - Currently only has basic render test
-   - Need tests for game logic, player interactions, NPC behavior
-
 ### Accessibility Tests
 
 Multiple components have TODO comments for expanding test coverage:
 
-- **CaptainShipCrewWithNPC** (`CaptainShipCrewWithNPC.accessibility.test.tsx`) - line 14
-- **CaptainShipCrew** (`CaptainShipCrew.accessibility.test.tsx`) - line 14
 - **Dice** (`Dice.accessibility.test.tsx`) - line 14
 - **DraggableDice** (`DraggableDice.accessibility.test.tsx`) - line 14
 - **DiceTray** (`DiceTray.accessibility.test.tsx`) - line 14
@@ -295,11 +286,7 @@ Each TODO indicates need for:
 
 ### Validation System Extension
 
-**Location**: `src/components/atomic/CaptainShipCrewWithNPC/CaptainShipCrewWithNPC.tsx`
-**TODO**: Line 8 - "Add validation to other atomic components throughout the app"
-
-- Current implementation demonstrates validation system with ValidatedInput
-- Should extend to other atomic components: Button, Input, and other form components
+- Should extend ValidatedInput pattern to other atomic components: Button, Input, and other form components
 - This would improve form consistency and error handling across the application
 
 ### Error Handler Integrations

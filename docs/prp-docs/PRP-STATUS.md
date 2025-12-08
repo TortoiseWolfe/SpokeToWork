@@ -224,8 +224,7 @@ graph TD
    - Low effort, high value
 
 2. **Component Test Coverage Expansion**
-   - Address 6 TODO comments in game components
-   - Add comprehensive tests for CaptainShipCrew features
+   - Address TODO comments in dice components
    - Improves code reliability
 
 3. **Notification System Implementation**
