@@ -69,8 +69,8 @@ describe('WelcomeService', () => {
   });
 
   describe('ADMIN_USER_ID', () => {
-    it('is fixed UUID for admin', () => {
-      expect(ADMIN_USER_ID).toBe('00000000-0000-0000-0000-000000000001');
+    it('is UUID of admin user created by seed script', () => {
+      expect(ADMIN_USER_ID).toBe('a30ac480-9050-4853-b0ae-4e3d9e24259d');
     });
   });
 
@@ -414,16 +414,14 @@ describe('WelcomeService', () => {
 
   describe('WELCOME_MESSAGE_CONTENT', () => {
     it('includes required content per FR-010', () => {
-      // Must explain message privacy
-      expect(WELCOME_MESSAGE_CONTENT).toContain('private');
-      expect(WELCOME_MESSAGE_CONTENT).toContain('encryption');
+      // Must explain SpokeToWork features (tutorial)
+      expect(WELCOME_MESSAGE_CONTENT).toContain('Companies');
+      expect(WELCOME_MESSAGE_CONTENT).toContain('Home Location');
+      expect(WELCOME_MESSAGE_CONTENT).toContain('status');
+      expect(WELCOME_MESSAGE_CONTENT).toContain('Export');
 
-      // Must explain password-derived keys
-      expect(WELCOME_MESSAGE_CONTENT).toContain('password');
-      expect(WELCOME_MESSAGE_CONTENT).toContain('key');
-
-      // Must explain cross-device access
-      expect(WELCOME_MESSAGE_CONTENT).toContain('any device');
+      // Must mention encrypted messaging
+      expect(WELCOME_MESSAGE_CONTENT).toContain('encrypted');
     });
 
     it('uses layman terms (no jargon)', () => {

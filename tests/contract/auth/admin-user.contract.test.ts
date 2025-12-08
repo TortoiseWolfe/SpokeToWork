@@ -81,15 +81,14 @@ describe('Admin WelcomeService Integration', () => {
         '@/services/messaging/welcome-service'
       );
 
-      // Privacy explanation
-      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('private');
+      // Tutorial content for SpokeToWork job search features
+      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('companies');
+      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('home location');
+      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('status');
+      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('export');
 
-      // Key derivation explanation
-      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('password');
-      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('key');
-
-      // Cross-device access
-      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('device');
+      // Mentions encrypted messaging
+      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('encrypted');
     });
 
     it('should be in layman terms (no crypto jargon)', async () => {

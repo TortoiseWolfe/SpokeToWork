@@ -168,7 +168,25 @@ export function ReAuthModal({
         }
 
         // Derive keys from password
-        await keyManagementService.deriveKeys(password);
+        const keyPair = await keyManagementService.deriveKeys(password);
+
+        // Send welcome message if not already sent (Feature 004)
+        // This handles users who set up keys before the welcome message fix
+        if (user?.id && keyPair?.privateKey && keyPair?.publicKeyJwk) {
+          try {
+            const { welcomeService } = await import(
+              '@/services/messaging/welcome-service'
+            );
+            await welcomeService.sendWelcomeMessage(
+              user.id,
+              keyPair.privateKey,
+              keyPair.publicKeyJwk
+            );
+          } catch (err) {
+            // Don't block unlock if welcome message fails
+            logger.error('Welcome message failed', { error: err });
+          }
+        }
 
         // Success - clear form and notify parent
         setPassword('');
@@ -191,7 +209,7 @@ export function ReAuthModal({
         setLoading(false);
       }
     },
-    [password, onSuccess]
+    [password, onSuccess, user]
   );
 
   if (!isOpen) {

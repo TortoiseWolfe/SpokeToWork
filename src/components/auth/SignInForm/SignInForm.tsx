@@ -139,34 +139,28 @@ export default function SignInForm({
           logger.info('New user - initializing encryption keys');
           const keyPair = await keyManagementService.initializeKeys(password);
 
-          // Send welcome message (non-blocking, Feature 003-feature-004-welcome)
+          // Send welcome message (Feature 003-feature-004-welcome)
+          // MUST await to ensure it completes before page navigation
           // Pass privateKey for ECDH shared secret derivation with admin's public key
-          import('@/services/messaging/welcome-service')
-            .then(({ welcomeService }) => {
-              // Get current user ID from auth context or session
-              const { createClient } = require('@/lib/supabase/client');
-              const supabase = createClient();
-              supabase.auth.getUser().then(({ data }: any) => {
-                if (
-                  data?.user?.id &&
-                  keyPair.privateKey &&
-                  keyPair.publicKeyJwk
-                ) {
-                  welcomeService
-                    .sendWelcomeMessage(
-                      data.user.id,
-                      keyPair.privateKey,
-                      keyPair.publicKeyJwk
-                    )
-                    .catch((err: Error) => {
-                      logger.error('Welcome message failed', { error: err });
-                    });
-                }
-              });
-            })
-            .catch((err: Error) => {
-              logger.error('Failed to load welcome service', { error: err });
-            });
+          try {
+            const { welcomeService } = await import(
+              '@/services/messaging/welcome-service'
+            );
+            // Get current user ID
+            const { createClient } = await import('@/lib/supabase/client');
+            const supabase = createClient();
+            const { data } = await supabase.auth.getUser();
+            if (data?.user?.id && keyPair.privateKey && keyPair.publicKeyJwk) {
+              await welcomeService.sendWelcomeMessage(
+                data.user.id,
+                keyPair.privateKey,
+                keyPair.publicKeyJwk
+              );
+            }
+          } catch (err) {
+            // Don't block sign-in if welcome message fails
+            logger.error('Welcome message failed', { error: err });
+          }
         } else {
           // Check if user needs migration (legacy random keys)
           const needsMigration = await keyManagementService.needsMigration();
@@ -184,29 +178,27 @@ export default function SignInForm({
 
           // Check if user needs welcome message (Feature 004)
           // This handles cases where keys exist but welcome message wasn't sent
+          // MUST await to ensure it completes before page navigation
           if (keyPair?.privateKey && keyPair?.publicKeyJwk) {
-            import('@/services/messaging/welcome-service')
-              .then(({ welcomeService }) => {
-                const { createClient } = require('@/lib/supabase/client');
-                const supabase = createClient();
-                supabase.auth.getUser().then(({ data }: any) => {
-                  if (data?.user?.id) {
-                    // welcomeService.sendWelcomeMessage checks welcome_message_sent flag
-                    welcomeService
-                      .sendWelcomeMessage(
-                        data.user.id,
-                        keyPair.privateKey,
-                        keyPair.publicKeyJwk
-                      )
-                      .catch((err: Error) => {
-                        logger.error('Welcome message failed', { error: err });
-                      });
-                  }
-                });
-              })
-              .catch((err: Error) => {
-                logger.error('Failed to load welcome service', { error: err });
-              });
+            try {
+              const { welcomeService } = await import(
+                '@/services/messaging/welcome-service'
+              );
+              const { createClient } = await import('@/lib/supabase/client');
+              const supabase = createClient();
+              const { data } = await supabase.auth.getUser();
+              if (data?.user?.id) {
+                // welcomeService.sendWelcomeMessage checks welcome_message_sent flag
+                await welcomeService.sendWelcomeMessage(
+                  data.user.id,
+                  keyPair.privateKey,
+                  keyPair.publicKeyJwk
+                );
+              }
+            } catch (err) {
+              // Don't block sign-in if welcome message fails
+              logger.error('Welcome message failed', { error: err });
+            }
           }
         }
       } catch (keyError) {

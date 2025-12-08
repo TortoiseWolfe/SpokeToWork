@@ -775,7 +775,7 @@ CREATE POLICY "Users can create conversations with connections" ON conversations
 DROP POLICY IF EXISTS "Admin can create any conversation" ON conversations;
 CREATE POLICY "Admin can create any conversation" ON conversations
   FOR INSERT WITH CHECK (
-    auth.uid() = '00000000-0000-0000-0000-000000000001'::uuid
+    auth.uid() = 'a30ac480-9050-4853-b0ae-4e3d9e24259d'::uuid
   );
 
 -- Users can create conversations with admin for welcome messages (Feature 004)
@@ -784,8 +784,8 @@ DROP POLICY IF EXISTS "Users can create conversation with admin" ON conversation
 CREATE POLICY "Users can create conversation with admin" ON conversations
   FOR INSERT WITH CHECK (
     (auth.uid() = participant_1_id OR auth.uid() = participant_2_id) AND
-    (participant_1_id = '00000000-0000-0000-0000-000000000001'::uuid OR
-     participant_2_id = '00000000-0000-0000-0000-000000000001'::uuid)
+    (participant_1_id = 'a30ac480-9050-4853-b0ae-4e3d9e24259d'::uuid OR
+     participant_2_id = 'a30ac480-9050-4853-b0ae-4e3d9e24259d'::uuid)
   );
 
 DROP POLICY IF EXISTS "System can update last_message_at" ON conversations;
@@ -829,24 +829,39 @@ ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view messages in own conversations" ON messages;
 CREATE POLICY "Users can view messages in own conversations" ON messages
   FOR SELECT USING (
+    -- Direct messages: check conversations table
     EXISTS (
-      SELECT 1 FROM conversations
-      WHERE conversations.id = messages.conversation_id AND (
-        conversations.participant_1_id = auth.uid() OR
-        conversations.participant_2_id = auth.uid()
-      )
+      SELECT 1 FROM conversations c
+      WHERE c.id = messages.conversation_id
+        AND c.is_group = false
+        AND (c.participant_1_id = auth.uid() OR c.participant_2_id = auth.uid())
+    )
+    -- Group messages: check conversation_members table
+    OR EXISTS (
+      SELECT 1 FROM conversation_members cm
+      WHERE cm.conversation_id = messages.conversation_id
+        AND cm.user_id = auth.uid()
+        AND cm.left_at IS NULL
     )
   );
 
 DROP POLICY IF EXISTS "Users can send messages to own conversations" ON messages;
 CREATE POLICY "Users can send messages to own conversations" ON messages
   FOR INSERT WITH CHECK (
-    sender_id = auth.uid() AND
-    EXISTS (
-      SELECT 1 FROM conversations
-      WHERE conversations.id = conversation_id AND (
-        conversations.participant_1_id = auth.uid() OR
-        conversations.participant_2_id = auth.uid()
+    sender_id = auth.uid() AND (
+      -- Direct messages: check conversations table
+      EXISTS (
+        SELECT 1 FROM conversations c
+        WHERE c.id = messages.conversation_id
+          AND c.is_group = false
+          AND (c.participant_1_id = auth.uid() OR c.participant_2_id = auth.uid())
+      )
+      -- Group messages: check conversation_members table
+      OR EXISTS (
+        SELECT 1 FROM conversation_members cm
+        WHERE cm.conversation_id = messages.conversation_id
+          AND cm.user_id = auth.uid()
+          AND cm.left_at IS NULL
       )
     )
   );
@@ -857,14 +872,14 @@ CREATE POLICY "Users can send messages to own conversations" ON messages
 DROP POLICY IF EXISTS "Users can insert welcome message from admin" ON messages;
 CREATE POLICY "Users can insert welcome message from admin" ON messages
   FOR INSERT WITH CHECK (
-    sender_id = '00000000-0000-0000-0000-000000000001'::uuid AND
+    sender_id = 'a30ac480-9050-4853-b0ae-4e3d9e24259d'::uuid AND
     EXISTS (
       SELECT 1 FROM conversations
       WHERE conversations.id = conversation_id AND (
         (conversations.participant_1_id = auth.uid() AND
-         conversations.participant_2_id = '00000000-0000-0000-0000-000000000001'::uuid) OR
+         conversations.participant_2_id = 'a30ac480-9050-4853-b0ae-4e3d9e24259d'::uuid) OR
         (conversations.participant_2_id = auth.uid() AND
-         conversations.participant_1_id = '00000000-0000-0000-0000-000000000001'::uuid)
+         conversations.participant_1_id = 'a30ac480-9050-4853-b0ae-4e3d9e24259d'::uuid)
       )
     )
   );
@@ -1171,16 +1186,17 @@ ALTER TABLE conversation_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_keys ENABLE ROW LEVEL SECURITY;
 
 -- T013: RLS policies for conversation_members
+-- NOTE: These policies query 'conversations' table instead of self-referencing
+-- to avoid infinite recursion during policy evaluation
 
 -- SELECT: Members can see other members of their conversations
 DROP POLICY IF EXISTS "Members can view conversation members" ON conversation_members;
 CREATE POLICY "Members can view conversation members" ON conversation_members
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM conversation_members cm
-      WHERE cm.conversation_id = conversation_members.conversation_id
-        AND cm.user_id = auth.uid()
-        AND cm.left_at IS NULL
+      SELECT 1 FROM conversations c
+      WHERE c.id = conversation_members.conversation_id
+        AND (c.participant_1_id = auth.uid() OR c.participant_2_id = auth.uid())
     )
   );
 
@@ -1189,10 +1205,9 @@ DROP POLICY IF EXISTS "Members can add to their conversations" ON conversation_m
 CREATE POLICY "Members can add to their conversations" ON conversation_members
   FOR INSERT WITH CHECK (
     EXISTS (
-      SELECT 1 FROM conversation_members cm
-      WHERE cm.conversation_id = conversation_id
-        AND cm.user_id = auth.uid()
-        AND cm.left_at IS NULL
+      SELECT 1 FROM conversations c
+      WHERE c.id = conversation_members.conversation_id
+        AND (c.participant_1_id = auth.uid() OR c.participant_2_id = auth.uid())
     )
     OR user_id = auth.uid()  -- Self-join on creation
   );
@@ -1203,11 +1218,9 @@ CREATE POLICY "Members can update membership" ON conversation_members
   FOR UPDATE USING (
     user_id = auth.uid()
     OR EXISTS (
-      SELECT 1 FROM conversation_members cm
-      WHERE cm.conversation_id = conversation_members.conversation_id
-        AND cm.user_id = auth.uid()
-        AND cm.role = 'owner'
-        AND cm.left_at IS NULL
+      SELECT 1 FROM conversations c
+      WHERE c.id = conversation_members.conversation_id
+        AND (c.participant_1_id = auth.uid() OR c.participant_2_id = auth.uid())
     )
   );
 
@@ -1329,15 +1342,15 @@ COMMENT ON TABLE group_keys IS 'Encrypted symmetric group keys per member per ve
 --   ✅ Group chat policies: 8 policies (membership access, key distribution)
 --   ✅ Permissions: Authenticated users + service role (all tables)
 --   ✅ Test user: test@example.com (primary, email confirmed)
---   ✅ Admin user: scripthammer (Feature 002 - welcome messages)
+--   ✅ Admin user: spoketowork (Feature 002 - welcome messages)
 -- ============================================================================
 
 -- Admin profile for system welcome messages (Feature 002)
--- Fixed UUID: 00000000-0000-0000-0000-000000000001
+-- Fixed UUID: a30ac480-9050-4853-b0ae-4e3d9e24259d
 -- Only insert if admin user exists in auth.users (created via Supabase Auth)
 INSERT INTO user_profiles (id, username, display_name, welcome_message_sent)
-SELECT '00000000-0000-0000-0000-000000000001', 'scripthammer', 'ScriptHammer', TRUE
-WHERE EXISTS (SELECT 1 FROM auth.users WHERE id = '00000000-0000-0000-0000-000000000001')
+SELECT 'a30ac480-9050-4853-b0ae-4e3d9e24259d', 'spoketowork', 'SpokeToWork', TRUE
+WHERE EXISTS (SELECT 1 FROM auth.users WHERE id = 'a30ac480-9050-4853-b0ae-4e3d9e24259d')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================================
