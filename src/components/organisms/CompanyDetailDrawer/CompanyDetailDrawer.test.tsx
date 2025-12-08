@@ -33,7 +33,8 @@ const mockCompany: CompanyWithApplications = {
   applications: [
     {
       id: 'app-1',
-      company_id: 'company-123',
+      shared_company_id: 'company-123',
+      private_company_id: null,
       user_id: 'user-456',
       position_title: 'Senior Engineer',
       job_link: 'https://jobs.acme.com/123',
@@ -51,7 +52,8 @@ const mockCompany: CompanyWithApplications = {
     },
     {
       id: 'app-2',
-      company_id: 'company-123',
+      shared_company_id: 'company-123',
+      private_company_id: null,
       user_id: 'user-456',
       position_title: 'Tech Lead',
       job_link: null,
@@ -70,7 +72,8 @@ const mockCompany: CompanyWithApplications = {
   ],
   latest_application: {
     id: 'app-1',
-    company_id: 'company-123',
+    shared_company_id: 'company-123',
+    private_company_id: null,
     user_id: 'user-456',
     position_title: 'Senior Engineer',
     job_link: 'https://jobs.acme.com/123',

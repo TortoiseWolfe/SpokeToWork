@@ -20,6 +20,7 @@ import CompanyTable from '@/components/organisms/CompanyTable';
 import CompanyDetailDrawer from '@/components/organisms/CompanyDetailDrawer';
 import HomeLocationSettings from '@/components/organisms/HomeLocationSettings';
 import CompanyImport from '@/components/organisms/CompanyImport';
+import ApplicationForm from '@/components/organisms/ApplicationForm';
 import CompanyExport from '@/components/molecular/CompanyExport';
 import type { ExportFormat } from '@/components/molecular/CompanyExport';
 import { supabase } from '@/lib/supabase/client';
@@ -33,7 +34,12 @@ import type {
   CompanyStatus,
   ImportResult,
   PrivateCompanyCreate,
+  JobApplication,
+  JobApplicationCreate,
+  JobApplicationStatus,
+  ApplicationOutcome,
 } from '@/types/company';
+import { ApplicationService } from '@/lib/companies/application-service';
 
 /** Type alias for company types used in this page */
 type CompanyType = Company | CompanyWithApplications | UnifiedCompany;
@@ -126,9 +132,21 @@ export default function CompaniesPage() {
   );
   const [selectedCompany, setSelectedCompany] =
     useState<CompanyWithApplications | null>(null);
+  const [selectedUnified, setSelectedUnified] = useState<UnifiedCompany | null>(
+    null
+  );
   const [homeLocation, setHomeLocation] = useState<HomeLocation | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Feature 014: Application service and state
+  const [applicationService] = useState(() => new ApplicationService(supabase));
+  const [companyApplications, setCompanyApplications] = useState<
+    JobApplication[]
+  >([]);
+  const [showApplicationForm, setShowApplicationForm] = useState(false);
+  const [editingApplication, setEditingApplication] =
+    useState<JobApplication | null>(null);
 
   // Redirect to sign-in if not authenticated
   useEffect(() => {
@@ -179,6 +197,47 @@ export default function CompaniesPage() {
       setError(companiesError.message);
     }
   }, [companiesError]);
+
+  // Feature 014: Initialize application service with user
+  useEffect(() => {
+    if (user) {
+      applicationService.initialize(user.id);
+    }
+  }, [user, applicationService]);
+
+  // Feature 014: Fetch applications when a company is selected
+  useEffect(() => {
+    async function fetchApplications() {
+      if (!selectedUnified || !user) {
+        setCompanyApplications([]);
+        return;
+      }
+
+      try {
+        let apps: JobApplication[] = [];
+        if (selectedUnified.source === 'shared' && selectedUnified.company_id) {
+          apps = await applicationService.getByCompanyId(
+            selectedUnified.company_id,
+            'shared'
+          );
+        } else if (
+          selectedUnified.source === 'private' &&
+          selectedUnified.private_company_id
+        ) {
+          apps = await applicationService.getByCompanyId(
+            selectedUnified.private_company_id,
+            'private'
+          );
+        }
+        setCompanyApplications(apps);
+      } catch (err) {
+        console.error('Error fetching applications:', err);
+        setCompanyApplications([]);
+      }
+    }
+
+    fetchApplications();
+  }, [selectedUnified, user, applicationService]);
 
   const handleSaveHomeLocation = useCallback(
     async (location: HomeLocation) => {
@@ -390,6 +449,200 @@ export default function CompaniesPage() {
     [user, unifiedCompanies, updatePrivate, updateTracking]
   );
 
+  // Feature 014: Add application handler (T011)
+  const handleAddApplication = useCallback(
+    async (company: CompanyWithApplications) => {
+      if (!user || !selectedUnified) return;
+
+      // Open application form modal or navigate to form
+      setShowApplicationForm(true);
+      setEditingApplication(null);
+    },
+    [user, selectedUnified]
+  );
+
+  // Feature 014: Submit new application
+  const handleSubmitApplication = useCallback(
+    async (data: JobApplicationCreate) => {
+      if (!user || !selectedUnified) return;
+
+      try {
+        setError(null);
+
+        // Create application with correct company reference
+        const applicationData: JobApplicationCreate = {
+          ...data,
+          shared_company_id:
+            selectedUnified.source === 'shared'
+              ? selectedUnified.company_id
+              : null,
+          private_company_id:
+            selectedUnified.source === 'private'
+              ? selectedUnified.private_company_id
+              : null,
+        };
+
+        await applicationService.create(applicationData);
+
+        // Refresh applications list
+        let apps: JobApplication[] = [];
+        if (selectedUnified.source === 'shared' && selectedUnified.company_id) {
+          apps = await applicationService.getByCompanyId(
+            selectedUnified.company_id,
+            'shared'
+          );
+        } else if (
+          selectedUnified.source === 'private' &&
+          selectedUnified.private_company_id
+        ) {
+          apps = await applicationService.getByCompanyId(
+            selectedUnified.private_company_id,
+            'private'
+          );
+        }
+        setCompanyApplications(apps);
+
+        // Update selected company with new applications
+        if (selectedCompany) {
+          setSelectedCompany({
+            ...selectedCompany,
+            applications: apps,
+            latest_application: apps[0] || null,
+            total_applications: apps.length,
+          });
+        }
+
+        setShowApplicationForm(false);
+      } catch (err) {
+        console.error('Error creating application:', err);
+        setError(
+          err instanceof Error ? err.message : 'Failed to create application'
+        );
+        throw err;
+      }
+    },
+    [user, selectedUnified, selectedCompany, applicationService]
+  );
+
+  // Feature 014: Edit application handler (T025)
+  const handleEditApplication = useCallback((application: JobApplication) => {
+    setEditingApplication(application);
+    setShowApplicationForm(true);
+  }, []);
+
+  // Feature 014: Delete application handler (T026)
+  const handleDeleteApplication = useCallback(
+    async (application: JobApplication) => {
+      if (!user) return;
+
+      if (
+        !window.confirm('Are you sure you want to delete this application?')
+      ) {
+        return;
+      }
+
+      try {
+        setError(null);
+        await applicationService.delete(application.id);
+
+        // Refresh applications list
+        if (selectedUnified) {
+          let apps: JobApplication[] = [];
+          if (
+            selectedUnified.source === 'shared' &&
+            selectedUnified.company_id
+          ) {
+            apps = await applicationService.getByCompanyId(
+              selectedUnified.company_id,
+              'shared'
+            );
+          } else if (
+            selectedUnified.source === 'private' &&
+            selectedUnified.private_company_id
+          ) {
+            apps = await applicationService.getByCompanyId(
+              selectedUnified.private_company_id,
+              'private'
+            );
+          }
+          setCompanyApplications(apps);
+
+          // Update selected company
+          if (selectedCompany) {
+            setSelectedCompany({
+              ...selectedCompany,
+              applications: apps,
+              latest_application: apps[0] || null,
+              total_applications: apps.length,
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error deleting application:', err);
+        setError(
+          err instanceof Error ? err.message : 'Failed to delete application'
+        );
+      }
+    },
+    [user, selectedUnified, selectedCompany, applicationService]
+  );
+
+  // Feature 014: Application status change handler
+  const handleApplicationStatusChange = useCallback(
+    async (application: JobApplication, status: JobApplicationStatus) => {
+      if (!user) return;
+
+      try {
+        setError(null);
+        await applicationService.update({
+          id: application.id,
+          status,
+        });
+
+        // Refresh applications
+        setCompanyApplications((prev) =>
+          prev.map((app) =>
+            app.id === application.id ? { ...app, status } : app
+          )
+        );
+      } catch (err) {
+        console.error('Error updating application status:', err);
+        setError(
+          err instanceof Error ? err.message : 'Failed to update status'
+        );
+      }
+    },
+    [user, applicationService]
+  );
+
+  // Feature 014: Application outcome change handler
+  const handleApplicationOutcomeChange = useCallback(
+    async (application: JobApplication, outcome: ApplicationOutcome) => {
+      if (!user) return;
+
+      try {
+        setError(null);
+        await applicationService.update({
+          id: application.id,
+          outcome,
+        });
+
+        // Refresh applications
+        setCompanyApplications((prev) =>
+          prev.map((app) =>
+            app.id === application.id ? { ...app, outcome } : app
+          )
+        );
+      } catch (err) {
+        console.error('Error updating application outcome:', err);
+        setError(
+          err instanceof Error ? err.message : 'Failed to update outcome'
+        );
+      }
+    },
+    [user, applicationService]
+  );
+
   const handleCompanyClick = useCallback(
     (company: CompanyType) => {
       // Convert to CompanyWithApplications for the drawer
@@ -397,14 +650,28 @@ export default function CompaniesPage() {
         ? getCompanyId(company)
         : company.id;
       const found = companies.find((c) => c.id === companyId);
+
+      // Feature 014: Also track unified company for application queries
+      const unified = unifiedCompanies.find(
+        (c) => getCompanyId(c) === companyId
+      );
+
       if (found) {
-        setSelectedCompany(found);
+        // Include applications in the selected company
+        setSelectedCompany({
+          ...found,
+          applications: companyApplications,
+          latest_application: companyApplications[0] || null,
+          total_applications: companyApplications.length,
+        });
       }
+      setSelectedUnified(unified || null);
       setShowAddForm(false);
       setShowSettings(false);
       setShowImport(false);
+      setShowApplicationForm(false);
     },
-    [companies]
+    [companies, unifiedCompanies, companyApplications]
   );
 
   const handleEditFromTable = useCallback(
@@ -747,15 +1014,108 @@ ${rows}
         </>
       )}
 
-      {/* Company Detail Drawer */}
+      {/* Company Detail Drawer - Feature 014: Added application handlers */}
       <CompanyDetailDrawer
-        company={selectedCompany}
+        company={
+          selectedCompany
+            ? {
+                ...selectedCompany,
+                applications: companyApplications,
+                latest_application: companyApplications[0] || null,
+                total_applications: companyApplications.length,
+              }
+            : null
+        }
         isOpen={selectedCompany !== null}
-        onClose={() => setSelectedCompany(null)}
+        onClose={() => {
+          setSelectedCompany(null);
+          setSelectedUnified(null);
+          setShowApplicationForm(false);
+        }}
         onEditCompany={(company) => {
           handleEditFromTable(company);
         }}
+        onAddApplication={handleAddApplication}
+        onEditApplication={handleEditApplication}
+        onDeleteApplication={handleDeleteApplication}
+        onStatusChange={handleApplicationStatusChange}
+        onOutcomeChange={handleApplicationOutcomeChange}
       />
+
+      {/* Feature 014: Application Form Modal */}
+      {showApplicationForm && selectedUnified && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-lg">
+            <h3 className="mb-4 text-lg font-bold">
+              {editingApplication ? 'Edit Application' : 'Add Application'}
+            </h3>
+            <ApplicationForm
+              companyId={
+                selectedUnified.source === 'shared'
+                  ? selectedUnified.company_id || ''
+                  : selectedUnified.private_company_id || ''
+              }
+              companyType={
+                selectedUnified.source === 'shared' ? 'shared' : 'private'
+              }
+              companyName={selectedUnified.name}
+              application={editingApplication}
+              onSubmit={async (data) => {
+                if (editingApplication) {
+                  // Update existing application
+                  await applicationService.update({
+                    id: editingApplication.id,
+                    ...data,
+                  });
+                  // Refresh applications
+                  let apps: JobApplication[] = [];
+                  if (
+                    selectedUnified.source === 'shared' &&
+                    selectedUnified.company_id
+                  ) {
+                    apps = await applicationService.getByCompanyId(
+                      selectedUnified.company_id,
+                      'shared'
+                    );
+                  } else if (
+                    selectedUnified.source === 'private' &&
+                    selectedUnified.private_company_id
+                  ) {
+                    apps = await applicationService.getByCompanyId(
+                      selectedUnified.private_company_id,
+                      'private'
+                    );
+                  }
+                  setCompanyApplications(apps);
+                  if (selectedCompany) {
+                    setSelectedCompany({
+                      ...selectedCompany,
+                      applications: apps,
+                      latest_application: apps[0] || null,
+                      total_applications: apps.length,
+                    });
+                  }
+                  setShowApplicationForm(false);
+                  setEditingApplication(null);
+                } else {
+                  await handleSubmitApplication(data as JobApplicationCreate);
+                }
+              }}
+              onCancel={() => {
+                setShowApplicationForm(false);
+                setEditingApplication(null);
+              }}
+            />
+          </div>
+          <div
+            className="modal-backdrop"
+            onClick={() => {
+              setShowApplicationForm(false);
+              setEditingApplication(null);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

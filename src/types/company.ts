@@ -65,11 +65,21 @@ export type ApplicationOutcome =
   | 'offer_declined';
 
 /**
+ * Helper type for company reference (exactly one must be set)
+ * @since Feature 014
+ */
+export type CompanyReference =
+  | { shared_company_id: string; private_company_id: null }
+  | { shared_company_id: null; private_company_id: string };
+
+/**
  * Job application entity - tracks individual job applications per company
+ * @updated Feature 014: Changed company_id to shared_company_id/private_company_id
  */
 export interface JobApplication {
   id: string;
-  company_id: string;
+  shared_company_id: string | null; // FK to shared_companies (Feature 014)
+  private_company_id: string | null; // FK to private_companies (Feature 014)
   user_id: string;
 
   // Job details
@@ -102,9 +112,12 @@ export interface JobApplication {
 
 /**
  * Job application creation payload
+ * @updated Feature 014: Changed company_id to shared_company_id/private_company_id
+ * Exactly one of shared_company_id or private_company_id must be provided
  */
 export interface JobApplicationCreate {
-  company_id: string;
+  shared_company_id?: string | null; // Provide for shared company applications
+  private_company_id?: string | null; // Provide for private company applications
   position_title?: string;
   job_link?: string;
   work_location_type?: WorkLocationType;
@@ -137,9 +150,11 @@ export interface JobApplicationUpdate {
 
 /**
  * Filter options for job application list
+ * @updated Feature 014: Changed company_id to shared_company_id/private_company_id
  */
 export interface JobApplicationFilters {
-  company_id?: string;
+  shared_company_id?: string; // Filter by shared company
+  private_company_id?: string; // Filter by private company
   status?: JobApplicationStatus | JobApplicationStatus[];
   outcome?: ApplicationOutcome | ApplicationOutcome[];
   work_location_type?: WorkLocationType | WorkLocationType[];
@@ -523,6 +538,7 @@ export interface SharedCompany {
 
 /**
  * Company location - physical address for a shared company
+ * @updated Feature 014: Added contact_name, contact_title
  */
 export interface CompanyLocation {
   id: string;
@@ -532,6 +548,8 @@ export interface CompanyLocation {
   longitude: number | null;
   phone: string | null;
   email: string | null;
+  contact_name: string | null; // Feature 014
+  contact_title: string | null; // Feature 014
   is_headquarters: boolean;
   created_at: string;
   updated_at: string;

@@ -1,10 +1,11 @@
 /**
- * Job Application Service - Feature 011
+ * Job Application Service - Feature 011, Updated Feature 014
  *
  * Service for job application CRUD operations with offline support.
  * Handles tracking of job applications per company (parent-child model).
  *
  * @see specs/011-company-management/data-model.md
+ * @updated Feature 014: Multi-tenant company references (shared_company_id/private_company_id)
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -15,9 +16,15 @@ import type {
   JobApplicationFilters,
   JobApplicationSort,
   CompanyWithApplications,
-  Company,
+  UnifiedCompany,
   SyncResult,
 } from '@/types/company';
+
+/**
+ * Company type for determining which table to query
+ * @since Feature 014
+ */
+export type CompanyType = 'shared' | 'private';
 
 /**
  * Error types for job application operations
@@ -74,24 +81,56 @@ export class ApplicationService {
 
   /**
    * Create a new job application
+   * @updated Feature 014: Uses shared_company_id or private_company_id instead of company_id
    */
   async create(data: JobApplicationCreate): Promise<JobApplication> {
     this.ensureInitialized();
 
-    // Validate required fields
-    if (!data.company_id) {
-      throw new ApplicationValidationError('Company ID is required');
+    // Validate: exactly one company reference must be provided
+    const hasShared = !!data.shared_company_id;
+    const hasPrivate = !!data.private_company_id;
+
+    if (!hasShared && !hasPrivate) {
+      throw new ApplicationValidationError(
+        'Either shared_company_id or private_company_id is required'
+      );
     }
 
-    // Verify company exists
-    const { data: company, error: companyError } = await this.supabase
-      .from('companies')
-      .select('id')
-      .eq('id', data.company_id)
-      .single();
+    if (hasShared && hasPrivate) {
+      throw new ApplicationValidationError(
+        'Cannot specify both shared_company_id and private_company_id'
+      );
+    }
 
-    if (companyError || !company) {
-      throw new CompanyNotFoundError(data.company_id);
+    // Verify company exists in the appropriate table
+    if (hasShared) {
+      const { data: company, error: companyError } = await this.supabase
+        .from('shared_companies')
+        .select('id')
+        .eq('id', data.shared_company_id)
+        .single();
+
+      if (companyError || !company) {
+        throw new CompanyNotFoundError(data.shared_company_id!);
+      }
+    } else {
+      // Verify private company exists AND belongs to current user
+      const { data: company, error: companyError } = await this.supabase
+        .from('private_companies')
+        .select('id, user_id')
+        .eq('id', data.private_company_id)
+        .single();
+
+      if (companyError || !company) {
+        throw new CompanyNotFoundError(data.private_company_id!);
+      }
+
+      // RLS should handle this, but double-check ownership
+      if (company.user_id !== this.userId) {
+        throw new ApplicationValidationError(
+          "Cannot create application for another user's private company"
+        );
+      }
     }
 
     // Validate job_link URL if provided
@@ -99,16 +138,9 @@ export class ApplicationService {
       throw new ApplicationValidationError('Invalid job link URL');
     }
 
-    const now = new Date().toISOString();
-    const application: Omit<
-      JobApplication,
-      'id' | 'created_at' | 'updated_at'
-    > & {
-      id?: string;
-      created_at?: string;
-      updated_at?: string;
-    } = {
-      company_id: data.company_id,
+    const application: Record<string, unknown> = {
+      shared_company_id: data.shared_company_id || null,
+      private_company_id: data.private_company_id || null,
       user_id: this.userId!,
       position_title: data.position_title?.trim() || null,
       job_link: data.job_link?.trim() || null,
@@ -160,21 +192,33 @@ export class ApplicationService {
 
   /**
    * Get all job applications for a company
+   * @updated Feature 014: Uses companyType to determine which FK to query
+   * @param companyId - The company ID (shared or private)
+   * @param companyType - 'shared' or 'private' to determine which FK column to use
+   * @param filters - Optional filters to apply
+   * @param sort - Optional sort configuration
    */
   async getByCompanyId(
     companyId: string,
-    filters?: Omit<JobApplicationFilters, 'company_id'>,
+    companyType: CompanyType = 'shared',
+    filters?: Omit<
+      JobApplicationFilters,
+      'shared_company_id' | 'private_company_id'
+    >,
     sort?: JobApplicationSort
   ): Promise<JobApplication[]> {
     this.ensureInitialized();
 
+    const fkColumn =
+      companyType === 'shared' ? 'shared_company_id' : 'private_company_id';
+
     let query = this.supabase
       .from('job_applications')
       .select('*')
-      .eq('company_id', companyId);
+      .eq(fkColumn, companyId);
 
-    // Apply filters
-    query = this.applyFilters(query, { ...filters, company_id: companyId });
+    // Apply additional filters
+    query = this.applyFilters(query, filters);
 
     // Apply sorting
     const sortField = sort?.field ?? 'created_at';
@@ -317,18 +361,20 @@ export class ApplicationService {
   // =========================================================================
 
   /**
-   * Get a company with all its applications
+   * Get a shared company with all its applications
+   * @updated Feature 014: Uses shared_companies table and shared_company_id FK
    */
-  async getCompanyWithApplications(
-    companyId: string
-  ): Promise<CompanyWithApplications | null> {
+  async getSharedCompanyWithApplications(companyId: string): Promise<{
+    company: UnifiedCompany;
+    applications: JobApplication[];
+  } | null> {
     this.ensureInitialized();
 
-    // Get company
+    // Get company from user_companies_unified view
     const { data: company, error: companyError } = await this.supabase
-      .from('companies')
+      .from('user_companies_unified')
       .select('*')
-      .eq('id', companyId)
+      .eq('company_id', companyId)
       .single();
 
     if (companyError) {
@@ -338,61 +384,80 @@ export class ApplicationService {
       throw companyError;
     }
 
-    // Get applications
-    const applications = await this.getByCompanyId(companyId, undefined, {
-      field: 'created_at',
-      direction: 'desc',
-    });
+    // Get applications for this shared company
+    const applications = await this.getByCompanyId(
+      companyId,
+      'shared',
+      undefined,
+      {
+        field: 'created_at',
+        direction: 'desc',
+      }
+    );
 
     return {
-      ...company,
+      company: company as UnifiedCompany,
       applications,
-      latest_application: applications[0] || null,
-      total_applications: applications.length,
     };
   }
 
   /**
-   * Get all companies with their latest application (for list view)
+   * Get a private company with all its applications
+   * @since Feature 014
    */
-  async getAllCompaniesWithLatestApplication(): Promise<
-    CompanyWithApplications[]
-  > {
+  async getPrivateCompanyWithApplications(companyId: string): Promise<{
+    company: UnifiedCompany;
+    applications: JobApplication[];
+  } | null> {
     this.ensureInitialized();
 
-    // Get all companies
-    const { data: companies, error: companiesError } = await this.supabase
-      .from('companies')
+    // Get company from user_companies_unified view
+    const { data: company, error: companyError } = await this.supabase
+      .from('user_companies_unified')
       .select('*')
-      .order('name', { ascending: true });
+      .eq('private_company_id', companyId)
+      .single();
 
-    if (companiesError) throw companiesError;
-
-    // Get all applications grouped by company
-    const { data: applications, error: appsError } = await this.supabase
-      .from('job_applications')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (appsError) throw appsError;
-
-    // Build the CompanyWithApplications array
-    const appsByCompany = new Map<string, JobApplication[]>();
-    for (const app of applications as JobApplication[]) {
-      const existing = appsByCompany.get(app.company_id) || [];
-      existing.push(app);
-      appsByCompany.set(app.company_id, existing);
+    if (companyError) {
+      if (companyError.code === 'PGRST116') {
+        return null;
+      }
+      throw companyError;
     }
 
-    return (companies as Company[]).map((company) => {
-      const companyApps = appsByCompany.get(company.id) || [];
-      return {
-        ...company,
-        applications: companyApps,
-        latest_application: companyApps[0] || null,
-        total_applications: companyApps.length,
-      };
-    });
+    // Get applications for this private company
+    const applications = await this.getByCompanyId(
+      companyId,
+      'private',
+      undefined,
+      {
+        field: 'created_at',
+        direction: 'desc',
+      }
+    );
+
+    return {
+      company: company as UnifiedCompany,
+      applications,
+    };
+  }
+
+  /**
+   * Get applications for a unified company (handles both shared and private)
+   * @since Feature 014
+   */
+  async getApplicationsForUnifiedCompany(
+    company: UnifiedCompany
+  ): Promise<JobApplication[]> {
+    this.ensureInitialized();
+
+    if (company.source === 'shared' && company.company_id) {
+      return this.getByCompanyId(company.company_id, 'shared');
+    } else if (company.source === 'private' && company.private_company_id) {
+      return this.getByCompanyId(company.private_company_id, 'private');
+    }
+
+    return [];
   }
 
   /**
@@ -457,11 +522,20 @@ export class ApplicationService {
   // Helper Methods
   // =========================================================================
 
+  /**
+   * Apply filters to a job applications query
+   * @updated Feature 014: Uses shared_company_id/private_company_id instead of company_id
+   */
   private applyFilters(query: any, filters?: JobApplicationFilters) {
     if (!filters) return query;
 
-    if (filters.company_id) {
-      query = query.eq('company_id', filters.company_id);
+    // Feature 014: Multi-tenant company references
+    if (filters.shared_company_id) {
+      query = query.eq('shared_company_id', filters.shared_company_id);
+    }
+
+    if (filters.private_company_id) {
+      query = query.eq('private_company_id', filters.private_company_id);
     }
 
     if (filters.status) {

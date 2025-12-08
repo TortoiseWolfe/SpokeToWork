@@ -63,7 +63,8 @@ describe('ApplicationForm', () => {
       await waitFor(() => {
         expect(mockOnSubmit).toHaveBeenCalledWith(
           expect.objectContaining({
-            company_id: testCompanyId,
+            shared_company_id: testCompanyId,
+            private_company_id: null,
             position_title: 'Software Engineer',
             work_location_type: 'remote',
             status: 'applied',
@@ -76,7 +77,8 @@ describe('ApplicationForm', () => {
   describe('Edit Mode', () => {
     const existingApplication: JobApplication = {
       id: 'app-123',
-      company_id: testCompanyId,
+      shared_company_id: testCompanyId,
+      private_company_id: null,
       user_id: 'user-123',
       position_title: 'Senior Developer',
       job_link: 'https://example.com/jobs/123',

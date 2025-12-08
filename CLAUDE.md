@@ -400,3 +400,12 @@ ADD COLUMN IF NOT EXISTS encryption_salt TEXT;
 - E2E tests are local-only, not in CI pipeline
 - Docker-first development is mandatory
 - Use `min-h-11 min-w-11` for 44px touch targets (mobile-first)
+
+## Active Technologies
+
+- TypeScript 5.x with Next.js 15, React 19 + Supabase (Auth, Database), TanStack Query, DaisyUI (014-job-applications-fix)
+- Supabase PostgreSQL (cloud) with multi-tenant schema (014-job-applications-fix)
+
+## Recent Changes
+
+- 014-job-applications-fix: Added TypeScript 5.x with Next.js 15, React 19 + Supabase (Auth, Database), TanStack Query, DaisyUI
