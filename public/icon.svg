@@ -1,4 +1,177 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" fill="#2563eb"/>
-  <text x="16" y="20" font-family="Arial" font-size="14" fill="white" text-anchor="middle">000</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <!-- Wheel gradients -->
+    <linearGradient id="tireGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2a2a2a"/>
+      <stop offset="25%" stop-color="#1a1a1a"/>
+      <stop offset="50%" stop-color="#111"/>
+      <stop offset="75%" stop-color="#1a1a1a"/>
+      <stop offset="100%" stop-color="#252525"/>
+    </linearGradient>
+
+    <linearGradient id="rimGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#888"/>
+      <stop offset="30%" stop-color="#666"/>
+      <stop offset="50%" stop-color="#555"/>
+      <stop offset="70%" stop-color="#666"/>
+      <stop offset="100%" stop-color="#777"/>
+    </linearGradient>
+
+    <radialGradient id="hubGradient" cx="40%" cy="40%">
+      <stop offset="0%" stop-color="#777"/>
+      <stop offset="100%" stop-color="#444"/>
+    </radialGradient>
+
+    <!-- Job marker gradients -->
+    <radialGradient id="markerGradient" cx="30%" cy="30%">
+      <stop offset="0%" stop-color="#F5923A"/>
+      <stop offset="70%" stop-color="#E67E22"/>
+      <stop offset="100%" stop-color="#D35400"/>
+    </radialGradient>
+
+    <filter id="markerShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+
+    <!-- Home icon gradients -->
+    <radialGradient id="homeGlow" cx="50%" cy="50%">
+      <stop offset="0%" stop-color="#E67E22" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#E67E22" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="homeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F5923A"/>
+      <stop offset="100%" stop-color="#D35400"/>
+    </linearGradient>
+
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- LAYER 1: Wheel (tire, rim, spokes, hub) -->
+  <g id="wheel-layer">
+    <g transform="translate(200,200)">
+      <!-- Tire -->
+      <circle r="130" fill="none" stroke="#0a0a0a" stroke-width="3"/>
+      <circle r="120" fill="none" stroke="url(#tireGradient)" stroke-width="18"/>
+
+      <!-- Tread grooves -->
+      <g stroke="#080808" stroke-width="1.5" fill="none" opacity="0.8">
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(0)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(15)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(30)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(45)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(60)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(75)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(90)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(105)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(120)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(135)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(150)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(165)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(180)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(195)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(210)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(225)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(240)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(255)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(270)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(285)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(300)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(315)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(330)"/>
+        <path d="M0,-129 L-4,-118 M0,-129 L4,-118" transform="rotate(345)"/>
+      </g>
+
+      <circle r="111" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+
+      <!-- Rim -->
+      <circle r="108" fill="none" stroke="url(#rimGradient)" stroke-width="5"/>
+      <circle r="104" fill="none" stroke="#444" stroke-width="1"/>
+
+      <!-- Spokes -->
+      <g stroke="#888" stroke-width="1.5">
+        <line x1="0" y1="-22" x2="0" y2="-102" transform="rotate(0)"/>
+        <line x1="0" y1="-22" x2="0" y2="-102" transform="rotate(22.5)"/>
+        <line x1="0" y1="-22" x2="0" y2="-102" transform="rotate(45)"/>
+        <line x1="0" y1="-22" x2="0" y2="-102" transform="rotate(67.5)"/>
+        <line x1="0" y1="-22" x2="0" y2="-102" transform="rotate(90)"/>
+        <line x1="0" y1="-22" x2="0" y2="-102" transform="rotate(112.5)"/>
+        <line x1="0" y1="-22" x2="0" y2="-102" transform="rotate(135)"/>
+        <line x1="0" y1="-22" x2="0" y2="-102" transform="rotate(157.5)"/>
+        <line x1="0" y1="-22" x2="0" y2="-102" transform="rotate(180)"/>
+        <line x1="0" y1="-22" x2="0" y2="-102" transform="rotate(202.5)"/>
+        <line x1="0" y1="-22" x2="0" y2="-102" transform="rotate(225)"/>
+        <line x1="0" y1="-22" x2="0" y2="-102" transform="rotate(247.5)"/>
+        <line x1="0" y1="-22" x2="0" y2="-102" transform="rotate(270)"/>
+        <line x1="0" y1="-22" x2="0" y2="-102" transform="rotate(292.5)"/>
+        <line x1="0" y1="-22" x2="0" y2="-102" transform="rotate(315)"/>
+        <line x1="0" y1="-22" x2="0" y2="-102" transform="rotate(337.5)"/>
+      </g>
+
+      <!-- Hub -->
+      <circle r="22" fill="url(#hubGradient)"/>
+      <circle r="17" fill="none" stroke="#555" stroke-width="2"/>
+      <circle r="6" fill="#333"/>
+    </g>
+  </g>
+
+  <!-- LAYER 2: Job markers (127% scale) -->
+  <g id="markers-layer" transform="translate(200,200) scale(1.27) translate(-200,-200)" opacity="0.9">
+    <g transform="translate(200,200)">
+      <!-- Route 1: North cluster -->
+      <path d="M 0,0 Q -10,-40 -18,-75 Q 0,-85 15,-88 Q 25,-75 38,-65"
+            fill="none" stroke="#E67E22" stroke-width="2"
+            stroke-dasharray="5,3" stroke-linecap="round" opacity="0.5"/>
+      <g transform="translate(-18,-75)">
+        <circle r="10" fill="url(#markerGradient)" filter="url(#markerShadow)"/>
+        <rect x="-3" y="-4" width="6" height="8" rx="1" fill="#FAFAF8"/>
+      </g>
+      <g transform="translate(15,-88)">
+        <circle r="10" fill="url(#markerGradient)" filter="url(#markerShadow)"/>
+        <rect x="-3" y="-4" width="6" height="8" rx="1" fill="#FAFAF8"/>
+      </g>
+      <g transform="translate(38,-65)">
+        <circle r="10" fill="url(#markerGradient)" filter="url(#markerShadow)"/>
+        <rect x="-3" y="-4" width="6" height="8" rx="1" fill="#FAFAF8"/>
+      </g>
+
+      <!-- Route 2: East -->
+      <path d="M 0,0 Q 40,-15 72,-22 Q 82,0 85,25"
+            fill="none" stroke="#E67E22" stroke-width="2"
+            stroke-dasharray="5,3" stroke-linecap="round" opacity="0.5"/>
+      <g transform="translate(72,-22)">
+        <circle r="10" fill="url(#markerGradient)" filter="url(#markerShadow)"/>
+        <rect x="-3" y="-4" width="6" height="8" rx="1" fill="#FAFAF8"/>
+      </g>
+      <g transform="translate(85,25)">
+        <circle r="10" fill="url(#markerGradient)" filter="url(#markerShadow)"/>
+        <rect x="-3" y="-4" width="6" height="8" rx="1" fill="#FAFAF8"/>
+      </g>
+
+      <!-- Route 3: Southwest -->
+      <path d="M 0,0 Q -35,30 -65,58"
+            fill="none" stroke="#E67E22" stroke-width="2"
+            stroke-dasharray="5,3" stroke-linecap="round" opacity="0.5"/>
+      <g transform="translate(-65,58)">
+        <circle r="10" fill="url(#markerGradient)" filter="url(#markerShadow)"/>
+        <rect x="-3" y="-4" width="6" height="8" rx="1" fill="#FAFAF8"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- LAYER 3: Home icon (67% scale, front) - no text label -->
+  <g id="home-layer" transform="translate(200,200) scale(0.67) translate(-200,-200)">
+    <g transform="translate(200,200)">
+      <circle r="35" fill="url(#homeGlow)"/>
+      <circle r="18" fill="url(#homeGradient)" filter="url(#shadow)"/>
+      <circle r="15" fill="none" stroke="#D35400" stroke-width="1"/>
+      <g fill="#FAFAF8">
+        <path d="M 0,-10 L 9,0 L -9,0 Z"/>
+        <rect x="-6" y="0" width="12" height="9" rx="1"/>
+        <rect x="-2" y="3" width="4" height="6" fill="#D35400"/>
+      </g>
+    </g>
+  </g>
 </svg>
