@@ -5,7 +5,7 @@ import type {
   Company,
   CompanyWithApplications,
   UnifiedCompany,
-  ApplicationStatus,
+  CompanyStatus,
   CompanySource,
 } from '@/types/company';
 import {
@@ -30,7 +30,7 @@ export interface CompanyRowProps {
   /** Callback when delete is requested */
   onDelete?: (company: CompanyType) => void;
   /** Callback when status is changed (legacy - for companies without applications) */
-  onStatusChange?: (company: Company, status: ApplicationStatus) => void;
+  onStatusChange?: (company: Company, status: CompanyStatus) => void;
   /** Whether this row is selected */
   isSelected?: boolean;
   /** Additional CSS classes */
@@ -40,7 +40,7 @@ export interface CompanyRowProps {
 }
 
 // Legacy company status colors (for backward compatibility)
-const STATUS_COLORS: Record<ApplicationStatus, string> = {
+const STATUS_COLORS: Record<CompanyStatus, string> = {
   not_contacted: 'badge-ghost',
   contacted: 'badge-info',
   follow_up: 'badge-warning',
@@ -49,7 +49,7 @@ const STATUS_COLORS: Record<ApplicationStatus, string> = {
   outcome_negative: 'badge-error',
 };
 
-const STATUS_LABELS: Record<ApplicationStatus, string> = {
+const STATUS_LABELS: Record<CompanyStatus, string> = {
   not_contacted: 'Not Contacted',
   contacted: 'Contacted',
   follow_up: 'Follow Up',
@@ -138,7 +138,7 @@ export default function CompanyRow({
       !isUnifiedCompany(company) &&
       !hasApplications(company)
     ) {
-      onStatusChange(company as Company, e.target.value as ApplicationStatus);
+      onStatusChange(company as Company, e.target.value as CompanyStatus);
     }
   };
 

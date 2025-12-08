@@ -16,7 +16,7 @@ export {
 
 // Company Management types (Feature 011)
 export type {
-  ApplicationStatus,
+  CompanyStatus,
   Priority,
   Company,
   CompanyCreate,

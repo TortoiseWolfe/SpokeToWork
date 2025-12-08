@@ -3,7 +3,7 @@
 import React from 'react';
 import type {
   CompanyFilters as CompanyFiltersType,
-  ApplicationStatus,
+  CompanyStatus,
   Priority,
 } from '@/types/company';
 
@@ -18,7 +18,7 @@ export interface CompanyFiltersProps {
   testId?: string;
 }
 
-const STATUS_OPTIONS: { value: ApplicationStatus; label: string }[] = [
+const STATUS_OPTIONS: { value: CompanyStatus; label: string }[] = [
   { value: 'not_contacted', label: 'Not Contacted' },
   { value: 'contacted', label: 'Contacted' },
   { value: 'follow_up', label: 'Follow Up' },
@@ -61,7 +61,7 @@ export default function CompanyFilters({
     const value = e.target.value;
     onFiltersChange({
       ...filters,
-      status: value ? (value as ApplicationStatus) : undefined,
+      status: value ? (value as CompanyStatus) : undefined,
     });
   };
 

@@ -8,7 +8,7 @@ import type {
   Company,
   CompanyCreate,
   CompanyUpdate,
-  ApplicationStatus,
+  CompanyStatus,
   Priority,
   HomeLocation,
   MatchResult,
@@ -38,7 +38,7 @@ export interface CompanyFormProps {
   testId?: string;
 }
 
-const STATUS_OPTIONS: { value: ApplicationStatus; label: string }[] = [
+const STATUS_OPTIONS: { value: CompanyStatus; label: string }[] = [
   { value: 'not_contacted', label: 'Not Contacted' },
   { value: 'contacted', label: 'Contacted' },
   { value: 'follow_up', label: 'Follow Up' },
@@ -98,7 +98,7 @@ export default function CompanyForm({
   const [address, setAddress] = useState(company?.address || '');
   const [latitude, setLatitude] = useState(company?.latitude || 40.7128);
   const [longitude, setLongitude] = useState(company?.longitude || -74.006);
-  const [status, setStatus] = useState<ApplicationStatus>(
+  const [status, setStatus] = useState<CompanyStatus>(
     company?.status || 'not_contacted'
   );
   const [priority, setPriority] = useState<Priority>(company?.priority || 3);
@@ -639,7 +639,7 @@ export default function CompanyForm({
               id="status"
               className="select select-bordered"
               value={status}
-              onChange={(e) => setStatus(e.target.value as ApplicationStatus)}
+              onChange={(e) => setStatus(e.target.value as CompanyStatus)}
             >
               {STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>

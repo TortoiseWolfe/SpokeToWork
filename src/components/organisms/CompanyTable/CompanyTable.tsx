@@ -9,7 +9,7 @@ import type {
   UnifiedCompany,
   CompanyFilters as CompanyFiltersType,
   CompanySort,
-  ApplicationStatus,
+  CompanyStatus,
 } from '@/types/company';
 
 /** Type alias for all company types supported */
@@ -53,7 +53,7 @@ export interface CompanyTableProps {
   /** Callback when delete is requested */
   onDelete?: (company: CompanyType) => void;
   /** Callback when status is changed (legacy - for companies without applications) */
-  onStatusChange?: (company: Company, status: ApplicationStatus) => void;
+  onStatusChange?: (company: Company, status: CompanyStatus) => void;
   /** Additional CSS classes */
   className?: string;
   /** Test ID for testing */
