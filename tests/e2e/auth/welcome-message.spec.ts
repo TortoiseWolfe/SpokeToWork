@@ -1,0 +1,178 @@
+/**
+ * E2E Test: Welcome Message Flow
+ *
+ * Tests that signing in triggers a welcome message from admin:
+ * 1. Sign in with test user from .env
+ * 2. Keys get initialized with password
+ * 3. Welcome message is sent from admin
+ * 4. Verify conversation and message exist in database
+ */
+
+import { test, expect } from '@playwright/test';
+
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
+const ADMIN_USER_ID = 'a30ac480-9050-4853-b0ae-4e3d9e24259d';
+
+const PROJECT_REF = SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
+
+if (!PROJECT_REF) {
+  throw new Error('NEXT_PUBLIC_SUPABASE_URL required');
+}
+if (!ACCESS_TOKEN) {
+  throw new Error('SUPABASE_ACCESS_TOKEN required');
+}
+
+const TEST_EMAIL = process.env.TEST_USER_EMAIL;
+const TEST_PASSWORD = process.env.TEST_USER_PASSWORD;
+if (!TEST_EMAIL || !TEST_PASSWORD) {
+  throw new Error('TEST_USER_EMAIL and TEST_USER_PASSWORD required');
+}
+
+async function executeSQL(query: string): Promise<unknown[]> {
+  const response = await fetch(
+    `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query }),
+    }
+  );
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`SQL failed: ${response.status} - ${errorText}`);
+  }
+  return response.json();
+}
+
+test.describe('Welcome Message Flow', () => {
+  test.beforeEach(async () => {
+    // Get test user ID
+    const users = (await executeSQL(
+      `SELECT id FROM auth.users WHERE email = '${TEST_EMAIL}'`
+    )) as { id: string }[];
+
+    if (!users[0]?.id) {
+      throw new Error(`Test user ${TEST_EMAIL} not found`);
+    }
+
+    const testUserId = users[0].id;
+
+    // Reset test user state: delete any existing keys and messages
+    await executeSQL(
+      `DELETE FROM user_encryption_keys WHERE user_id = '${testUserId}'`
+    );
+    await executeSQL(`
+      DELETE FROM messages WHERE conversation_id IN (
+        SELECT id FROM conversations
+        WHERE participant_1_id = '${testUserId}' OR participant_2_id = '${testUserId}'
+      )
+    `);
+    await executeSQL(`
+      DELETE FROM conversations
+      WHERE participant_1_id = '${testUserId}' OR participant_2_id = '${testUserId}'
+    `);
+    await executeSQL(
+      `UPDATE user_profiles SET welcome_message_sent = false WHERE id = '${testUserId}'`
+    );
+
+    console.log(`Reset test user ${testUserId} state`);
+  });
+
+  test('Sign-in triggers welcome message from admin', async ({ page }) => {
+    // Capture console logs from the browser
+    const consoleLogs: string[] = [];
+    page.on('console', (msg) => {
+      const text = msg.text();
+      consoleLogs.push(`[${msg.type()}] ${text}`);
+      if (
+        text.includes('welcome') ||
+        text.includes('Welcome') ||
+        text.includes('error') ||
+        text.includes('Error')
+      ) {
+        console.log(`[browser:${msg.type()}] ${text}`);
+      }
+    });
+
+    // Step 1: Sign in with test user
+    console.log('Step 1: Signing in...');
+    await page.goto(`${BASE_URL}/sign-in`);
+    await page.waitForLoadState('networkidle');
+
+    await page.locator('#email').fill(TEST_EMAIL);
+    await page.locator('#password').fill(TEST_PASSWORD);
+    await page.getByRole('button', { name: /sign in/i }).click();
+
+    // Wait for redirect (keys are initialized and welcome message sent)
+    await page.waitForURL(/\/(profile|companies)/, { timeout: 20000 });
+    console.log(`Sign-in complete, URL: ${page.url()}`);
+
+    // Give the async welcome message time to complete
+    await page.waitForTimeout(5000);
+
+    // Step 2: Verify welcome message was sent
+    console.log('Step 2: Checking database...');
+
+    const users = (await executeSQL(
+      `SELECT id FROM auth.users WHERE email = '${TEST_EMAIL}'`
+    )) as { id: string }[];
+    const testUserId = users[0].id;
+
+    // Check welcome_message_sent flag
+    const profiles = (await executeSQL(
+      `SELECT welcome_message_sent FROM user_profiles WHERE id = '${testUserId}'`
+    )) as { welcome_message_sent: boolean }[];
+    console.log(`welcome_message_sent: ${profiles[0]?.welcome_message_sent}`);
+
+    // Check for conversation with admin
+    const conversations = (await executeSQL(`
+      SELECT id, participant_1_id, participant_2_id
+      FROM conversations
+      WHERE (participant_1_id = '${testUserId}' AND participant_2_id = '${ADMIN_USER_ID}')
+         OR (participant_1_id = '${ADMIN_USER_ID}' AND participant_2_id = '${testUserId}')
+    `)) as { id: string; participant_1_id: string; participant_2_id: string }[];
+    console.log(`Conversations with admin: ${conversations.length}`);
+
+    // Check for welcome message
+    let messages: { id: string; sender_id: string }[] = [];
+    if (conversations.length > 0) {
+      messages = (await executeSQL(`
+        SELECT id, sender_id
+        FROM messages
+        WHERE conversation_id = '${conversations[0].id}'
+        AND sender_id = '${ADMIN_USER_ID}'
+      `)) as { id: string; sender_id: string }[];
+      console.log(`Messages from admin: ${messages.length}`);
+    }
+
+    // Print all relevant console logs
+    console.log('\n--- Browser Console Logs (relevant) ---');
+    consoleLogs.forEach((log) => {
+      if (
+        log.includes('key') ||
+        log.includes('Key') ||
+        log.includes('welcome') ||
+        log.includes('Welcome') ||
+        log.includes('error') ||
+        log.includes('Error') ||
+        log.includes('messaging') ||
+        log.includes('encrypt')
+      ) {
+        console.log(log);
+      }
+    });
+    console.log('--- End Logs ---\n');
+
+    // Assertions
+    expect(profiles[0]?.welcome_message_sent).toBe(true);
+    expect(conversations.length).toBeGreaterThan(0);
+    expect(messages.length).toBeGreaterThan(0);
+
+    console.log('Welcome message verified!');
+  });
+});

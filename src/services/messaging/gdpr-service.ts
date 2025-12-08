@@ -360,21 +360,16 @@ export class GDPRService {
    * Task: T185
    *
    * Deletes ALL user data for GDPR Article 17 (Right to Erasure):
-   * - All messages (CASCADE from user_profiles)
-   * - All connections (CASCADE from user_profiles)
-   * - All conversations (CASCADE from user_profiles)
-   * - Encryption keys from IndexedDB
-   * - User profile (triggers auth.users deletion via ON DELETE CASCADE)
+   * - Calls Edge Function to delete auth.users (requires service role)
+   * - CASCADE handles: user_profiles → messages → conversations → connections
+   * - Clears local IndexedDB encryption keys
    *
    * This operation is IRREVERSIBLE.
    *
    * Database CASCADE relationships (configured in migrations):
-   * - messages.sender_id → auth.users(id) ON DELETE CASCADE
-   * - conversations.participant_1_id → auth.users(id) ON DELETE CASCADE
-   * - conversations.participant_2_id → auth.users(id) ON DELETE CASCADE
-   * - user_connections.requester_id → auth.users(id) ON DELETE CASCADE
-   * - user_connections.addressee_id → auth.users(id) ON DELETE CASCADE
-   * - user_profiles.id → auth.users(id) ON DELETE CASCADE
+   * - auth.users deletion → user_profiles (ON DELETE CASCADE)
+   * - user_profiles deletion → messages, conversations, connections (CASCADE)
+   * - auth.users deletion → user_encryption_keys (ON DELETE CASCADE)
    *
    * @returns Promise<void>
    * @throws AuthenticationError if user is not signed in
@@ -389,15 +384,25 @@ export class GDPRService {
    */
   async deleteUserAccount(): Promise<void> {
     const supabase = createClient();
-    const msgClient = createMessagingClient(supabase);
 
-    // Get authenticated user
+    // Get authenticated user and session
     const {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
+      throw new AuthenticationError(
+        'You must be signed in to delete your account'
+      );
+    }
+
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError || !session) {
       throw new AuthenticationError(
         'You must be signed in to delete your account'
       );
@@ -410,32 +415,44 @@ export class GDPRService {
         .equals(user.id)
         .delete();
 
-      // Delete queued messages
+      // Delete queued messages from IndexedDB
       await messagingDb.messaging_queued_messages
         .where('sender_id')
         .equals(user.id)
         .delete();
 
-      // Delete cached messages
+      // Delete cached messages from IndexedDB
       await messagingDb.messaging_cached_messages
         .where('sender_id')
         .equals(user.id)
         .delete();
 
-      // Step 2: Delete user profile (CASCADE handles related data)
-      // This will trigger:
-      // - messages deletion (ON DELETE CASCADE)
-      // - conversations deletion (ON DELETE CASCADE)
-      // - user_connections deletion (ON DELETE CASCADE)
-      // - auth.users deletion (ON DELETE CASCADE from user_profiles)
-      const { error: deleteError } = await msgClient
-        .from('user_profiles')
-        .delete()
-        .eq('id', user.id);
+      // Step 2: Call Edge Function to delete auth.users
+      // Edge Function uses auth.admin.deleteUser() which requires service role
+      // CASCADE handles all dependent data automatically
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/delete-user-account`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
 
-      if (deleteError) {
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
         throw new ConnectionError(
-          'Failed to delete account: ' + deleteError.message
+          `Failed to delete account: ${errorData.error || response.statusText}`
+        );
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new ConnectionError(
+          `Failed to delete account: ${result.error || 'Unknown error'}`
         );
       }
 
