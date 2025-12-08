@@ -26,11 +26,11 @@ export const LayeredSpokeToWorkLogo: React.FC<LayeredSpokeToWorkLogoProps> = ({
         aspectRatio: '1 / 1',
       }}
     >
-      {/* Rotating gear ring with hammer */}
+      {/* Rotating wheel only (tire, rim, spokes, hub) */}
       <SpinningLogo speed={speed} pauseOnHover={pauseOnHover}>
         <Image
-          src={`${detectedConfig.basePath}/spoketowork-logo.svg`}
-          alt="Gear Ring"
+          src={`${detectedConfig.basePath}/spoketowork-wheel.svg`}
+          alt="Spinning Wheel"
           width={400}
           height={400}
           className="absolute inset-0 h-full w-full"
@@ -43,6 +43,29 @@ export const LayeredSpokeToWorkLogo: React.FC<LayeredSpokeToWorkLogoProps> = ({
           priority
         />
       </SpinningLogo>
+
+      {/* Static text around the wheel (doesn't spin) */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          width: '100%',
+          height: '100%',
+        }}
+      >
+        <Image
+          src={`${detectedConfig.basePath}/spoketowork-text.svg`}
+          alt="Spoke To Work"
+          width={400}
+          height={400}
+          className="h-full w-full"
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+          }}
+          priority
+        />
+      </div>
 
       {/* Static job markers - centered around the wheel */}
       <div

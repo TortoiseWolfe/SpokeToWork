@@ -14,7 +14,7 @@ export const SpokeToWorkLogo: React.FC<SpokeToWorkLogoProps> = ({
 }) => {
   return (
     <Image
-      src="/spoketowork-logo.svg"
+      src="/spoketowork-logo-static.svg"
       alt="SpokeToWork Logo"
       width={width}
       height={height}

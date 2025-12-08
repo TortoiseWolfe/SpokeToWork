@@ -47,7 +47,7 @@ export default function Home() {
           <div className="flex flex-col items-center gap-8 lg:flex-row lg:gap-16">
             {/* Logo - responsive sizes */}
             <div className="flex-shrink-0">
-              <div className="h-48 w-48 sm:h-52 sm:w-52 md:h-56 md:w-56 lg:h-[350px] lg:w-[350px]">
+              <div className="h-64 w-64 sm:h-72 sm:w-72 md:h-80 md:w-80 lg:h-[450px] lg:w-[450px]">
                 <LayeredSpokeToWorkLogo speed="slow" pauseOnHover />
               </div>
             </div>
@@ -72,41 +72,35 @@ export default function Home() {
                 </span>
               </p>
 
-              {/* Tech Stack - hide on smallest screens */}
+              {/* Features - hide on smallest screens */}
               <div
                 className="mb-8 hidden flex-wrap justify-center gap-2 sm:mb-8 sm:flex md:mb-12 lg:justify-start"
                 role="list"
-                aria-label="Technology stack"
+                aria-label="Key features"
               >
                 <span
                   role="listitem"
                   className="badge badge-outline badge-sm sm:badge-md"
                 >
-                  Next.js 15.5
+                  Track Applications
                 </span>
                 <span
                   role="listitem"
                   className="badge badge-outline badge-sm sm:badge-md"
                 >
-                  React 19
+                  Route Planning
                 </span>
                 <span
                   role="listitem"
                   className="badge badge-outline badge-sm sm:badge-md"
                 >
-                  TypeScript
+                  Offline Ready
                 </span>
                 <span
                   role="listitem"
                   className="badge badge-outline badge-sm sm:badge-md"
                 >
-                  Tailwind CSS
-                </span>
-                <span
-                  role="listitem"
-                  className="badge badge-outline badge-sm sm:badge-md"
-                >
-                  PWA Ready
+                  Mobile First
                 </span>
               </div>
 
@@ -176,22 +170,6 @@ export default function Home() {
                   </svg>
                   Browse Themes
                 </Link>
-                <a
-                  href={detectedConfig.projectUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-outline btn-md group md:btn-lg min-h-11 w-full min-w-11 sm:w-auto"
-                >
-                  <svg
-                    className="mr-2 h-5 w-5 transition-transform group-hover:scale-110"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-                  </svg>
-                  View Source
-                </a>
               </nav>
 
               {/* Quick Links - vertical stack on mobile, horizontal on desktop */}
@@ -200,34 +178,10 @@ export default function Home() {
                 className="mt-8 flex flex-col gap-2 text-sm sm:mt-8 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-4 sm:text-sm md:mt-10 lg:justify-start"
               >
                 <Link
-                  href="/status"
+                  href="/companies"
                   className="link link-hover opacity-87 hover:opacity-100 focus:opacity-100"
                 >
-                  Status
-                </Link>
-                <span
-                  className="hidden opacity-30 sm:inline"
-                  aria-hidden="true"
-                >
-                  •
-                </span>
-                <Link
-                  href="/game"
-                  className="link link-hover opacity-87 hover:opacity-100 focus:opacity-100"
-                >
-                  Play Game
-                </Link>
-                <span
-                  className="hidden opacity-30 sm:inline"
-                  aria-hidden="true"
-                >
-                  •
-                </span>
-                <Link
-                  href="/payment-demo"
-                  className="link link-hover opacity-87 hover:opacity-100 focus:opacity-100"
-                >
-                  Payment Demo
+                  Companies
                 </Link>
                 <span
                   className="hidden opacity-30 sm:inline"
@@ -265,20 +219,6 @@ export default function Home() {
                 >
                   Contact
                 </Link>
-                <span
-                  className="hidden opacity-30 sm:inline"
-                  aria-hidden="true"
-                >
-                  •
-                </span>
-                <a
-                  href="https://github.com/TortoiseWolfe/SpokeToWork"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="link link-hover opacity-87 hover:opacity-100 focus:opacity-100"
-                >
-                  Source
-                </a>
               </nav>
             </div>
           </div>
@@ -294,77 +234,69 @@ export default function Home() {
           <h2 className="sr-only">Key Features</h2>
           <div className="grid grid-cols-1 gap-4 min-[500px]:grid-cols-2 lg:grid-cols-4">
             <Link
-              href="/themes"
+              href="/companies"
               className="card bg-base-100 focus-within:ring-primary cursor-pointer shadow-md transition-all focus-within:ring-2 hover:-translate-y-1 hover:shadow-lg"
             >
               <div className="card-body items-center p-4 text-center">
                 <div
                   className="mb-3 text-3xl"
                   role="img"
-                  aria-label="Artist palette"
+                  aria-label="Office building"
                 >
-                  🎨
+                  🏢
                 </div>
-                <h3 className="card-title text-base">32 Themes</h3>
+                <h3 className="card-title text-base">Track Companies</h3>
                 <p className="text-base-content/70 text-xs">
-                  Light & dark with live switching
+                  Log applications & follow-ups
                 </p>
               </div>
             </Link>
 
             <Link
-              href="/docs/pwa"
+              href="/map"
               className="card bg-base-100 focus-within:ring-primary cursor-pointer shadow-md transition-all focus-within:ring-2 hover:-translate-y-1 hover:shadow-lg"
             >
               <div className="card-body items-center p-4 text-center">
-                <div
-                  className="mb-3 text-3xl"
-                  role="img"
-                  aria-label="Mobile phone"
-                >
-                  📱
+                <div className="mb-3 text-3xl" role="img" aria-label="Bicycle">
+                  🚴
                 </div>
-                <h3 className="card-title text-base">PWA Ready</h3>
+                <h3 className="card-title text-base">Plan Routes</h3>
                 <p className="text-base-content/70 text-xs">
-                  Installable with offline support
+                  Optimize your job hunt by bike
                 </p>
               </div>
             </Link>
 
             <Link
-              href="/accessibility"
+              href="/schedule"
               className="card bg-base-100 focus-within:ring-primary cursor-pointer shadow-md transition-all focus-within:ring-2 hover:-translate-y-1 hover:shadow-lg"
             >
               <div className="card-body items-center p-4 text-center">
-                <div
-                  className="mb-3 text-3xl"
-                  role="img"
-                  aria-label="Wheelchair accessibility symbol"
-                >
-                  ♿
+                <div className="mb-3 text-3xl" role="img" aria-label="Calendar">
+                  📅
                 </div>
-                <h3 className="card-title text-base">Accessible</h3>
+                <h3 className="card-title text-base">Schedule Visits</h3>
                 <p className="text-base-content/70 text-xs">
-                  WCAG compliant & customizable
+                  Book interviews & follow-ups
                 </p>
               </div>
             </Link>
 
             <Link
-              href="/status"
+              href="/messages"
               className="card bg-base-100 focus-within:ring-primary cursor-pointer shadow-md transition-all focus-within:ring-2 hover:-translate-y-1 hover:shadow-lg"
             >
               <div className="card-body items-center p-4 text-center">
                 <div
                   className="mb-3 text-3xl"
                   role="img"
-                  aria-label="Rocket launch"
+                  aria-label="Speech bubble"
                 >
-                  🚀
+                  💬
                 </div>
-                <h3 className="card-title text-base">Production Ready</h3>
+                <h3 className="card-title text-base">Stay Connected</h3>
                 <p className="text-base-content/70 text-xs">
-                  CI/CD, testing & monitoring
+                  Message recruiters & contacts
                 </p>
               </div>
             </Link>

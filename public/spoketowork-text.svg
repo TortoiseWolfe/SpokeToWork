@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <!-- Circular text path (top arc) - unchanged -->
+    <path id="textPathTop" d="M 60,200 A 140,140 0 0,1 340,200" fill="none"/>
+
+    <!-- Circular text path (bottom arc) - FLIPPED for left-to-right reading, radius 155 for gap from tire -->
+    <path id="textPathBottom" d="M 45,200 A 155,155 0 0,0 355,200" fill="none"/>
+  </defs>
+
+  <!-- "SPOKE TO WORK" - top arc (unchanged) -->
+  <text font-family="Georgia, 'Times New Roman', serif" font-size="28" font-weight="bold" fill="#2D5A3D" letter-spacing="6">
+    <textPath href="#textPathTop" startOffset="50%" text-anchor="middle">
+      SPOKE TO WORK
+    </textPath>
+  </text>
+
+  <!-- "ROUTE YOUR JOB SEARCH" - bottom arc (now reads left-to-right) -->
+  <text font-family="Georgia, 'Times New Roman', serif" font-size="16" fill="#5A8A6A" letter-spacing="3">
+    <textPath href="#textPathBottom" startOffset="50%" text-anchor="middle">
+      ★  ROUTE YOUR JOB SEARCH  ★
+    </textPath>
+  </text>
+</svg>
