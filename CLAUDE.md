@@ -180,30 +180,60 @@ docs/specs/        # Feature specifications (SpecKit artifacts)
 tools/templates/   # Component generator templates
 ```
 
-## PRP/SpecKit Workflow
+## PRP/SpecKit Workflow (v0.0.90)
 
 For features taking >1 day:
 
 1. Write PRP: `docs/prp-docs/<feature>-prp.md`
-2. Create branch: `./scripts/prp-to-feature.sh <feature> <number>`
-3. Run SpecKit (full 7-step workflow):
-   ```
-   /specify → /clarify → /plan → /checklist → /tasks → /analyze → /implement
-   ```
+2. Run SpecKit workflow (branch created automatically by `/specify`):
+
+```
+/speckit.constitution (optional - establish project principles)
+        ↓
+/speckit.specify <feature-description> (creates branch + spec)
+        ↓
+/speckit.clarify (optional - up to 5 clarifying questions)
+        ↓
+/speckit.plan (technical implementation plan)
+        ↓
+/speckit.checklist (optional - validate requirements quality)
+        ↓
+/speckit.tasks (generate dependency-ordered tasks.md)
+        ↓
+/speckit.analyze (optional - cross-artifact consistency check)
+        ↓
+/speckit.taskstoissues (optional - create GitHub issues from tasks)
+        ↓
+/speckit.implement (execute the implementation)
+```
 
 ### SpecKit Commands
 
-| Command      | Purpose                                              |
-| ------------ | ---------------------------------------------------- |
-| `/specify`   | Create feature specification from PRP                |
-| `/clarify`   | Ask clarifying questions, encode answers into spec   |
-| `/plan`      | Generate implementation plan from spec               |
-| `/checklist` | Generate custom checklist for the feature            |
-| `/tasks`     | Generate dependency-ordered tasks.md                 |
-| `/analyze`   | Cross-artifact consistency check (spec, plan, tasks) |
-| `/implement` | Execute the implementation plan                      |
+| Command                  | Purpose                                                  |
+| ------------------------ | -------------------------------------------------------- |
+| `/speckit.constitution`  | Establish project principles (optional, one-time setup)  |
+| `/speckit.specify`       | Create feature branch + spec from description            |
+| `/speckit.clarify`       | Ask up to 5 clarifying questions, encode into spec       |
+| `/speckit.plan`          | Generate technical implementation plan                   |
+| `/speckit.checklist`     | Validate requirements quality ("unit tests for English") |
+| `/speckit.tasks`         | Generate dependency-ordered tasks.md                     |
+| `/speckit.analyze`       | Cross-artifact consistency check (spec, plan, tasks)     |
+| `/speckit.taskstoissues` | Convert tasks.md to GitHub Issues (requires GitHub MCP)  |
+| `/speckit.implement`     | Execute the implementation plan                          |
+
+**Note**: `/specify` auto-generates branch numbers by checking remote branches, local branches, and specs directories.
 
 See `docs/prp-docs/SPECKIT-PRP-GUIDE.md` for details.
+
+### Installing/Updating SpecKit
+
+```bash
+# Via Docker (no local Python needed)
+docker run --rm -v "$(pwd):/app" -w /app python:3.12-slim bash -c \
+  "apt-get update -qq && apt-get install -y -qq git > /dev/null && \
+   pip install -q git+https://github.com/github/spec-kit.git && \
+   echo 'y' | specify init . --ai claude --ignore-agent-tools"
+```
 
 ## Common Issues & Solutions
 
