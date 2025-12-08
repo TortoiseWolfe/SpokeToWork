@@ -78,7 +78,6 @@
     "gitleaks:staged": "gitleaks protect --staged --config .gitleaks.toml"
   },
   "dependencies": {
-    "@calcom/embed-react": "^1.5.3",
     "@emailjs/browser": "^4.4.1",
     "@hookform/resolvers": "^5.2.2",
     "@noble/curves": "^2.0.1",

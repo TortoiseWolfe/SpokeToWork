@@ -12,8 +12,7 @@
 // =============================================================================
 
 /**
- * Legacy company contact status (kept for backward compatibility)
- * @deprecated Use JobApplicationStatus for job tracking
+ * Company contact status for tracking relationship with companies
  */
 export type CompanyStatus =
   | 'not_contacted'
@@ -22,11 +21,6 @@ export type CompanyStatus =
   | 'meeting'
   | 'outcome_positive'
   | 'outcome_negative';
-
-/**
- * @deprecated Use CompanyStatus instead
- */
-export type ApplicationStatus = CompanyStatus;
 
 /**
  * Priority levels (1 = highest, 5 = lowest)
@@ -214,7 +208,7 @@ export interface Company {
   extended_range: boolean;
 
   // Tracking
-  status: ApplicationStatus;
+  status: CompanyStatus;
   priority: Priority;
   notes: string | null;
   follow_up_date: string | null; // ISO date string
@@ -244,7 +238,7 @@ export interface CompanyCreate {
   email?: string;
   website?: string;
   careers_url?: string;
-  status?: ApplicationStatus;
+  status?: CompanyStatus;
   priority?: Priority;
   notes?: string;
   follow_up_date?: string;
@@ -266,7 +260,7 @@ export interface CompanyUpdate {
   email?: string | null;
   website?: string | null;
   careers_url?: string | null;
-  status?: ApplicationStatus;
+  status?: CompanyStatus;
   priority?: Priority;
   notes?: string | null;
   follow_up_date?: string | null;
@@ -279,7 +273,7 @@ export interface CompanyUpdate {
  * Filter options for company list
  */
 export interface CompanyFilters {
-  status?: ApplicationStatus | ApplicationStatus[];
+  status?: CompanyStatus | CompanyStatus[];
   priority?: Priority | Priority[];
   route_id?: string | null;
   is_active?: boolean;

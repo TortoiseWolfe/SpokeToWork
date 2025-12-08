@@ -10,7 +10,6 @@
 // Re-export types from centralized location
 export type {
   // Legacy company types
-  ApplicationStatus,
   CompanyStatus,
   Priority,
   Company,

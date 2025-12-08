@@ -95,10 +95,11 @@ describe('CalendarEmbed', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders Cal.com provider when specified', () => {
+  it('shows warning when Cal.com provider is specified (not supported)', () => {
     render(<CalendarEmbed provider="calcom" url="test/meeting" />);
-    expect(screen.getByTestId('calcom-provider')).toBeInTheDocument();
-    expect(screen.getByText(/URL: test\/meeting/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Cal.com integration is not currently available/)
+    ).toBeInTheDocument();
   });
 
   it('shows consent component when functional consent is not granted', () => {

@@ -36,24 +36,6 @@ const CalendlyProvider = dynamic(
   }
 );
 
-const CalComProvider = dynamic(
-  () =>
-    import('../../calendar/providers/CalComProvider').then((mod) => ({
-      default: mod.CalComProvider,
-    })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-96 items-center justify-center">
-        <div className="text-center">
-          <span className="loading loading-spinner loading-lg"></span>
-          <p className="text-base-content/70 mt-4">Loading calendar...</p>
-        </div>
-      </div>
-    ),
-  }
-);
-
 const CalendarEmbed: FC<CalendarEmbedProps> = ({
   mode = 'inline',
   url = calendarConfig.url,
@@ -91,24 +73,26 @@ const CalendarEmbed: FC<CalendarEmbedProps> = ({
     ${className || ''}
   `.trim();
 
+  // Cal.com provider removed - only Calendly is currently supported
+  if (provider === 'calcom') {
+    return (
+      <div className="alert alert-warning">
+        <span>
+          Cal.com integration is not currently available. Please use Calendly.
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className={containerClasses}>
-      {provider === 'calendly' ? (
-        <CalendlyProvider
-          url={url}
-          mode={mode}
-          utm={calendarConfig.utm}
-          styles={calendarConfig.styles}
-          prefill={prefill}
-        />
-      ) : (
-        <CalComProvider
-          calLink={url}
-          mode={mode}
-          config={prefill}
-          styles={calendarConfig.styles}
-        />
-      )}
+      <CalendlyProvider
+        url={url}
+        mode={mode}
+        utm={calendarConfig.utm}
+        styles={calendarConfig.styles}
+        prefill={prefill}
+      />
     </div>
   );
 };
