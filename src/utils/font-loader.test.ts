@@ -88,7 +88,8 @@ describe('font-loader', () => {
           return (
             mockLinks.find(
               (link) =>
-                (link as Record<string, unknown>)['data-font-id'] === fontId
+                (link as unknown as Record<string, unknown>)['data-font-id'] ===
+                fontId
             ) || null
           );
         }
@@ -111,7 +112,7 @@ describe('font-loader', () => {
       appendChild: vi.fn((element: HTMLLinkElement) => {
         // Simulate async font loading
         setTimeout(() => {
-          if (element.onload) element.onload();
+          if (element.onload) element.onload(new Event('load'));
         }, 10);
         return element;
       }),
@@ -256,7 +257,7 @@ describe('font-loader', () => {
       expect(mockDocumentHead.appendChild).toHaveBeenCalledTimes(1);
 
       // Trigger onload to resolve
-      if (mockLinks[0]?.onload) mockLinks[0].onload();
+      if (mockLinks[0]?.onload) mockLinks[0].onload(new Event('load'));
       await Promise.all([promise1, promise2]);
     });
 
@@ -270,7 +271,8 @@ describe('font-loader', () => {
       mockDocumentHead.appendChild.mockImplementation(
         (element: HTMLLinkElement) => {
           setTimeout(() => {
-            if (element.onerror) element.onerror();
+            if (element.onerror)
+              element.onerror(new Event('error') as unknown as string);
           }, 10);
           return element;
         }
@@ -431,7 +433,7 @@ describe('font-loader', () => {
       expect(states.get('loading-font')?.status).toBe('loading');
 
       // Clean up - trigger load to resolve promise
-      if (mockLinks[0]?.onload) mockLinks[0].onload();
+      if (mockLinks[0]?.onload) mockLinks[0].onload(new Event('load'));
       await loadPromise;
     });
 

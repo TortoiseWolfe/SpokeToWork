@@ -459,8 +459,7 @@ describe('performance', () => {
     });
 
     it('logs metric in development mode', async () => {
-      const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'development';
+      vi.stubEnv('NODE_ENV', 'development');
 
       vi.resetModules();
       const { initWebVitals } = await import('./performance');
@@ -484,7 +483,7 @@ describe('performance', () => {
         })
       );
 
-      process.env.NODE_ENV = originalEnv;
+      vi.unstubAllEnvs();
     });
   });
 });
