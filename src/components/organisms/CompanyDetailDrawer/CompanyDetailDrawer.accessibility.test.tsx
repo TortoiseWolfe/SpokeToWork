@@ -36,6 +36,8 @@ const mockCompany: CompanyWithApplications = {
       user_id: 'user-456',
       position_title: 'Software Engineer',
       job_link: 'https://jobs.acme.com/123',
+      position_url: null,
+      status_url: null,
       work_location_type: 'hybrid',
       status: 'interviewing',
       outcome: 'pending',
@@ -56,6 +58,8 @@ const mockCompany: CompanyWithApplications = {
     user_id: 'user-456',
     position_title: 'Software Engineer',
     job_link: 'https://jobs.acme.com/123',
+    position_url: null,
+    status_url: null,
     work_location_type: 'hybrid',
     status: 'interviewing',
     outcome: 'pending',
@@ -260,8 +264,8 @@ describe('CompanyDetailDrawer Accessibility', () => {
       />
     );
 
-    const viewJobLink = screen.getByText('View Job');
-    expect(viewJobLink).toHaveAttribute('target', '_blank');
-    expect(viewJobLink).toHaveAttribute('rel', 'noopener noreferrer');
+    const careersLink = screen.getByText('Careers');
+    expect(careersLink).toHaveAttribute('target', '_blank');
+    expect(careersLink).toHaveAttribute('rel', 'noopener noreferrer');
   });
 });

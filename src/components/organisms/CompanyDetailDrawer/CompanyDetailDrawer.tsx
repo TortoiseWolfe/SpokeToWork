@@ -309,7 +309,10 @@ export default function CompanyDetailDrawer({
   const formatDate = (dateStr: string | null): string => {
     if (!dateStr) return '-';
     try {
-      return new Date(dateStr).toLocaleDateString();
+      // Parse YYYY-MM-DD as local date (not UTC) to avoid timezone shift
+      const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
+      const localDate = new Date(year, month - 1, day);
+      return localDate.toLocaleDateString();
     } catch {
       return '-';
     }
@@ -865,18 +868,52 @@ export default function CompanyDetailDrawer({
                           </h4>
                           <p className="text-base-content/70 text-sm">
                             {WORK_LOCATION_LABELS[app.work_location_type]}
-                            {app.job_link && (
-                              <>
-                                {' '}
-                                <a
-                                  href={app.job_link}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="link link-primary text-xs"
-                                >
-                                  View Job
-                                </a>
-                              </>
+                            {/* Job links: Careers | Apply | Status */}
+                            {(app.job_link ||
+                              app.position_url ||
+                              app.status_url) && (
+                              <span className="ml-2 text-xs">
+                                {app.job_link && (
+                                  <a
+                                    href={app.job_link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="link link-secondary"
+                                    title="Careers page"
+                                  >
+                                    Careers
+                                  </a>
+                                )}
+                                {app.position_url && (
+                                  <>
+                                    {app.job_link && ' | '}
+                                    <a
+                                      href={app.position_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="link link-primary"
+                                      title="Apply to position"
+                                    >
+                                      Apply
+                                    </a>
+                                  </>
+                                )}
+                                {app.status_url && (
+                                  <>
+                                    {(app.job_link || app.position_url) &&
+                                      ' | '}
+                                    <a
+                                      href={app.status_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="link link-accent"
+                                      title="Check application status"
+                                    >
+                                      Status
+                                    </a>
+                                  </>
+                                )}
+                              </span>
                             )}
                           </p>
                         </div>

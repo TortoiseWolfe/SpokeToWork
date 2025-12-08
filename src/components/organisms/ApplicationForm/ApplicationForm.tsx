@@ -104,6 +104,10 @@ export default function ApplicationForm({
     application?.position_title || ''
   );
   const [jobLink, setJobLink] = useState(application?.job_link || '');
+  const [positionUrl, setPositionUrl] = useState(
+    application?.position_url || ''
+  );
+  const [statusUrl, setStatusUrl] = useState(application?.status_url || '');
   const [workLocationType, setWorkLocationType] = useState<WorkLocationType>(
     application?.work_location_type || 'on_site'
   );
@@ -137,6 +141,8 @@ export default function ApplicationForm({
     if (application) {
       setPositionTitle(application.position_title || '');
       setJobLink(application.job_link || '');
+      setPositionUrl(application.position_url || '');
+      setStatusUrl(application.status_url || '');
       setWorkLocationType(application.work_location_type);
       setStatus(application.status);
       setOutcome(application.outcome);
@@ -165,7 +171,10 @@ export default function ApplicationForm({
   // Auto-set date_applied when status changes to 'applied'
   useEffect(() => {
     if (status === 'applied' && !dateApplied) {
-      setDateApplied(new Date().toISOString().split('T')[0]);
+      // Use local date format to avoid timezone shift
+      const today = new Date();
+      const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      setDateApplied(localDate);
     }
   }, [status, dateApplied]);
 
@@ -186,6 +195,8 @@ export default function ApplicationForm({
         const baseData = {
           position_title: positionTitle.trim() || undefined,
           job_link: jobLink.trim() || undefined,
+          position_url: positionUrl.trim() || undefined,
+          status_url: statusUrl.trim() || undefined,
           work_location_type: workLocationType,
           status,
           outcome,
@@ -268,15 +279,15 @@ export default function ApplicationForm({
           />
         </div>
 
-        {/* Job Link */}
+        {/* Job Links Section */}
         <div className="form-control">
           <label className="label" htmlFor="job-link">
-            <span className="label-text">Job Posting Link</span>
+            <span className="label-text">Careers Page URL</span>
           </label>
           <input
             id="job-link"
             type="url"
-            placeholder="https://careers.example.com/jobs/123"
+            placeholder="https://careers.example.com"
             className={`input input-bordered ${urlError ? 'input-error' : ''}`}
             value={jobLink}
             onChange={(e) => setJobLink(e.target.value)}
@@ -286,6 +297,44 @@ export default function ApplicationForm({
               <span className="label-text-alt text-error">{urlError}</span>
             </label>
           )}
+        </div>
+
+        <div className="form-control">
+          <label className="label" htmlFor="position-url">
+            <span className="label-text">Direct Position URL</span>
+          </label>
+          <input
+            id="position-url"
+            type="url"
+            placeholder="https://careers.example.com/jobs/12345"
+            className="input input-bordered"
+            value={positionUrl}
+            onChange={(e) => setPositionUrl(e.target.value)}
+          />
+          <label className="label">
+            <span className="label-text-alt">
+              Direct link to apply for this specific position
+            </span>
+          </label>
+        </div>
+
+        <div className="form-control">
+          <label className="label" htmlFor="status-url">
+            <span className="label-text">Application Status Portal</span>
+          </label>
+          <input
+            id="status-url"
+            type="url"
+            placeholder="https://workday.example.com/my-profile"
+            className="input input-bordered"
+            value={statusUrl}
+            onChange={(e) => setStatusUrl(e.target.value)}
+          />
+          <label className="label">
+            <span className="label-text-alt">
+              Candidate portal to check application status
+            </span>
+          </label>
         </div>
 
         {/* Work Location Type */}

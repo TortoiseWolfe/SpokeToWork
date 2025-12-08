@@ -38,6 +38,8 @@ const mockCompany: CompanyWithApplications = {
       user_id: 'user-456',
       position_title: 'Senior Engineer',
       job_link: 'https://jobs.acme.com/123',
+      position_url: null,
+      status_url: null,
       work_location_type: 'hybrid',
       status: 'interviewing',
       outcome: 'pending',
@@ -57,6 +59,8 @@ const mockCompany: CompanyWithApplications = {
       user_id: 'user-456',
       position_title: 'Tech Lead',
       job_link: null,
+      position_url: null,
+      status_url: null,
       work_location_type: 'remote',
       status: 'applied',
       outcome: 'pending',
@@ -77,6 +81,8 @@ const mockCompany: CompanyWithApplications = {
     user_id: 'user-456',
     position_title: 'Senior Engineer',
     job_link: 'https://jobs.acme.com/123',
+    position_url: null,
+    status_url: null,
     work_location_type: 'hybrid',
     status: 'interviewing',
     outcome: 'pending',
@@ -329,7 +335,7 @@ describe('CompanyDetailDrawer', () => {
     expect(screen.getByText('!!')).toBeInTheDocument();
   });
 
-  it('shows View Job link for applications with job_link', () => {
+  it('shows Careers link for applications with job_link', () => {
     render(
       <CompanyDetailDrawer
         company={mockCompany}
@@ -338,9 +344,9 @@ describe('CompanyDetailDrawer', () => {
       />
     );
 
-    const viewJobLinks = screen.getAllByText('View Job');
-    expect(viewJobLinks).toHaveLength(1);
-    expect(viewJobLinks[0]).toHaveAttribute(
+    const careersLinks = screen.getAllByText('Careers');
+    expect(careersLinks).toHaveLength(1);
+    expect(careersLinks[0]).toHaveAttribute(
       'href',
       'https://jobs.acme.com/123'
     );

@@ -108,7 +108,10 @@ export default function ApplicationRow({
   const formatDate = (dateStr: string | null): string => {
     if (!dateStr) return '-';
     try {
-      return new Date(dateStr).toLocaleDateString();
+      // Parse YYYY-MM-DD as local date (not UTC) to avoid timezone shift
+      const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
+      const localDate = new Date(year, month - 1, day);
+      return localDate.toLocaleDateString();
     } catch {
       return '-';
     }
@@ -142,16 +145,56 @@ export default function ApplicationRow({
               <span>
                 {WORK_LOCATION_LABELS[application.work_location_type]}
               </span>
-              {application.job_link && (
-                <a
-                  href={application.job_link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="link link-primary text-xs"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  View Job
-                </a>
+              {/* Job links: Careers | Apply | Status */}
+              {(application.job_link ||
+                application.position_url ||
+                application.status_url) && (
+                <span className="flex gap-1 text-xs">
+                  {application.job_link && (
+                    <a
+                      href={application.job_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="link link-secondary"
+                      onClick={(e) => e.stopPropagation()}
+                      title="Careers page"
+                    >
+                      Careers
+                    </a>
+                  )}
+                  {application.position_url && (
+                    <>
+                      {application.job_link && <span>|</span>}
+                      <a
+                        href={application.position_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="link link-primary"
+                        onClick={(e) => e.stopPropagation()}
+                        title="Apply to position"
+                      >
+                        Apply
+                      </a>
+                    </>
+                  )}
+                  {application.status_url && (
+                    <>
+                      {(application.job_link || application.position_url) && (
+                        <span>|</span>
+                      )}
+                      <a
+                        href={application.status_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="link link-accent"
+                        onClick={(e) => e.stopPropagation()}
+                        title="Check application status"
+                      >
+                        Status
+                      </a>
+                    </>
+                  )}
+                </span>
               )}
             </div>
           </div>

@@ -294,20 +294,17 @@ export default function CompanyRow({
 
       {/* Applications Count */}
       <td className="hidden text-center md:table-cell">
-        {hasApplications(company) ? (
-          (() => {
-            const appliedCount = company.applications.filter(
-              (a) => a.status !== 'not_applied'
-            ).length;
-            return appliedCount > 0 ? (
-              <span className="badge badge-info badge-sm">{appliedCount}</span>
-            ) : (
-              <span className="text-base-content/50">-</span>
-            );
-          })()
-        ) : (
-          <span className="text-base-content/50">-</span>
-        )}
+        {(() => {
+          // Use total_applications (pre-loaded count) or fall back to applications array
+          const totalCount =
+            (company as CompanyWithApplications).total_applications ??
+            (hasApplications(company) ? company.applications.length : 0);
+          return totalCount > 0 ? (
+            <span className="badge badge-info badge-sm">{totalCount}</span>
+          ) : (
+            <span className="text-base-content/50">-</span>
+          );
+        })()}
       </td>
 
       {/* Website */}

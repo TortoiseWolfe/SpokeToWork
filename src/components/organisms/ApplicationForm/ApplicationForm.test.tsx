@@ -26,14 +26,14 @@ describe('ApplicationForm', () => {
       expect(screen.getByText('Add Job Application')).toBeInTheDocument();
       expect(screen.getByText(`for ${testCompanyName}`)).toBeInTheDocument();
       expect(screen.getByLabelText(/position title/i)).toHaveValue('');
-      expect(screen.getByLabelText(/job posting link/i)).toHaveValue('');
+      expect(screen.getByLabelText(/careers page url/i)).toHaveValue('');
     });
 
     it('has default values for selects', () => {
       render(<ApplicationForm companyId={testCompanyId} />);
 
       expect(screen.getByLabelText(/work location/i)).toHaveValue('on_site');
-      expect(screen.getByLabelText(/status/i)).toHaveValue('not_applied');
+      expect(screen.getByLabelText(/^status$/i)).toHaveValue('not_applied');
       expect(screen.getByLabelText(/outcome/i)).toHaveValue('pending');
       expect(screen.getByLabelText(/priority/i)).toHaveValue('3');
     });
@@ -54,7 +54,7 @@ describe('ApplicationForm', () => {
         screen.getByLabelText(/work location/i),
         'remote'
       );
-      await user.selectOptions(screen.getByLabelText(/status/i), 'applied');
+      await user.selectOptions(screen.getByLabelText(/^status$/i), 'applied');
 
       await user.click(
         screen.getByRole('button', { name: /add application/i })
@@ -82,6 +82,8 @@ describe('ApplicationForm', () => {
       user_id: 'user-123',
       position_title: 'Senior Developer',
       job_link: 'https://example.com/jobs/123',
+      position_url: 'https://example.com/apply/123',
+      status_url: null,
       work_location_type: 'hybrid',
       status: 'interviewing',
       outcome: 'pending',
@@ -107,11 +109,11 @@ describe('ApplicationForm', () => {
       expect(screen.getByLabelText(/position title/i)).toHaveValue(
         'Senior Developer'
       );
-      expect(screen.getByLabelText(/job posting link/i)).toHaveValue(
+      expect(screen.getByLabelText(/careers page url/i)).toHaveValue(
         'https://example.com/jobs/123'
       );
       expect(screen.getByLabelText(/work location/i)).toHaveValue('hybrid');
-      expect(screen.getByLabelText(/status/i)).toHaveValue('interviewing');
+      expect(screen.getByLabelText(/^status$/i)).toHaveValue('interviewing');
       expect(screen.getByLabelText(/priority/i)).toHaveValue('2');
     });
 
@@ -151,7 +153,7 @@ describe('ApplicationForm', () => {
       const user = userEvent.setup();
       render(<ApplicationForm companyId={testCompanyId} />);
 
-      await user.type(screen.getByLabelText(/job posting link/i), 'not-a-url');
+      await user.type(screen.getByLabelText(/careers page url/i), 'not-a-url');
 
       expect(
         await screen.findByText(/please enter a valid url/i)
@@ -163,7 +165,7 @@ describe('ApplicationForm', () => {
       render(<ApplicationForm companyId={testCompanyId} />);
 
       await user.type(
-        screen.getByLabelText(/job posting link/i),
+        screen.getByLabelText(/careers page url/i),
         'https://example.com/job'
       );
 
