@@ -535,30 +535,43 @@ export class CompaniesPage extends BasePage {
         continue; // Skip if drawer doesn't open
       }
 
-      // Find test applications in this drawer
-      const appCards = this.page.locator('[data-testid^="application-card-"]');
-      const appCount = await appCards.count();
-
-      for (let j = appCount - 1; j >= 0; j--) {
-        const card = appCards.nth(j);
-        const cardText = await card.textContent();
-
-        // Check if this is a test application
-        const isTestApp = testPrefixes.some((prefix) =>
-          cardText?.includes(prefix)
+      // Find and delete test applications in this drawer
+      // Re-query on each iteration since DOM changes after deletion
+      let deleted = true;
+      while (deleted) {
+        deleted = false;
+        const appCards = this.page.locator(
+          '[data-testid^="application-card-"]'
         );
-        if (!isTestApp) continue;
+        const appCount = await appCards.count();
 
-        // Find and click delete button
-        const deleteBtn = card.locator('button[aria-label*="Delete"]');
-        if (await deleteBtn.isVisible().catch(() => false)) {
-          // Set up dialog handler
-          this.page.once('dialog', async (dialog) => {
-            await dialog.accept();
-          });
+        for (let j = 0; j < appCount; j++) {
+          const card = appCards.nth(j);
+          // Use a short timeout to avoid hanging on stale elements
+          const cardText = await card
+            .textContent({ timeout: 2000 })
+            .catch(() => null);
+          if (!cardText) continue;
 
-          await deleteBtn.click();
-          await this.page.waitForTimeout(500);
+          // Check if this is a test application
+          const isTestApp = testPrefixes.some((prefix) =>
+            cardText.includes(prefix)
+          );
+          if (!isTestApp) continue;
+
+          // Find and click delete button
+          const deleteBtn = card.locator('button[aria-label*="Delete"]');
+          if (await deleteBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+            // Set up dialog handler
+            this.page.once('dialog', async (dialog) => {
+              await dialog.accept();
+            });
+
+            await deleteBtn.click();
+            await this.page.waitForTimeout(500);
+            deleted = true; // Re-loop after deletion
+            break; // Exit inner loop to re-query cards
+          }
         }
       }
 

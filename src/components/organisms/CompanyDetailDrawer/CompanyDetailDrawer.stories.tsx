@@ -54,7 +54,8 @@ const baseCompany: CompanyWithApplications = {
   applications: [
     {
       id: 'app-1',
-      company_id: 'company-123',
+      shared_company_id: 'company-123',
+      private_company_id: null,
       user_id: 'user-456',
       position_title: 'Senior Software Engineer',
       job_link: 'https://jobs.acme.com/123',
@@ -72,7 +73,8 @@ const baseCompany: CompanyWithApplications = {
     },
     {
       id: 'app-2',
-      company_id: 'company-123',
+      shared_company_id: 'company-123',
+      private_company_id: null,
       user_id: 'user-456',
       position_title: 'Tech Lead',
       job_link: null,
@@ -91,7 +93,8 @@ const baseCompany: CompanyWithApplications = {
   ],
   latest_application: {
     id: 'app-1',
-    company_id: 'company-123',
+    shared_company_id: 'company-123',
+    private_company_id: null,
     user_id: 'user-456',
     position_title: 'Senior Software Engineer',
     job_link: 'https://jobs.acme.com/123',
@@ -157,7 +160,8 @@ export const ManyApplications: Story = {
         ...baseCompany.applications,
         {
           id: 'app-3',
-          company_id: 'company-123',
+          shared_company_id: 'company-123',
+          private_company_id: null,
           user_id: 'user-456',
           position_title: 'Frontend Developer',
           job_link: 'https://jobs.acme.com/456',
@@ -175,7 +179,8 @@ export const ManyApplications: Story = {
         },
         {
           id: 'app-4',
-          company_id: 'company-123',
+          shared_company_id: 'company-123',
+          private_company_id: null,
           user_id: 'user-456',
           position_title: 'DevOps Engineer',
           job_link: null,

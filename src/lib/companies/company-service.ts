@@ -543,9 +543,11 @@ export class CompanyService {
     // Group applications by company
     const appsByCompany = new Map<string, JobApplication[]>();
     for (const app of (applications || []) as JobApplication[]) {
-      const existing = appsByCompany.get(app.company_id) || [];
+      const companyId = app.shared_company_id || app.private_company_id;
+      if (!companyId) continue;
+      const existing = appsByCompany.get(companyId) || [];
       existing.push(app);
-      appsByCompany.set(app.company_id, existing);
+      appsByCompany.set(companyId, existing);
     }
 
     // Build the result

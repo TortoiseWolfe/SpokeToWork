@@ -884,8 +884,17 @@ export class OfflineSyncService {
     filters: JobApplicationFilters
   ): OfflineJobApplication[] {
     return applications.filter((app) => {
-      // Company filter
-      if (filters.company_id && app.company_id !== filters.company_id) {
+      // Company filter (Feature 014: support both shared and private)
+      if (
+        filters.shared_company_id &&
+        app.shared_company_id !== filters.shared_company_id
+      ) {
+        return false;
+      }
+      if (
+        filters.private_company_id &&
+        app.private_company_id !== filters.private_company_id
+      ) {
         return false;
       }
 

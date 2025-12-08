@@ -1744,6 +1744,7 @@ CREATE TABLE IF NOT EXISTS shared_companies (
   careers_url VARCHAR(500),
   is_verified BOOLEAN NOT NULL DEFAULT FALSE,
   is_seed BOOLEAN NOT NULL DEFAULT FALSE, -- T087: Whether this company is seed data for new users
+  default_priority INTEGER NOT NULL DEFAULT 3 CHECK (default_priority IN (1, 2, 3, 5)), -- T014: Default priority for new user seeding
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT unique_shared_company_per_metro UNIQUE (metro_area_id, name)
@@ -1753,6 +1754,14 @@ CREATE TABLE IF NOT EXISTS shared_companies (
 DO $$
 BEGIN
     ALTER TABLE shared_companies ADD COLUMN is_seed BOOLEAN NOT NULL DEFAULT FALSE;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+-- Add default_priority column if table existed without it (Feature 014)
+DO $$
+BEGIN
+    ALTER TABLE shared_companies ADD COLUMN default_priority INTEGER NOT NULL DEFAULT 3;
+    ALTER TABLE shared_companies ADD CONSTRAINT check_default_priority CHECK (default_priority IN (1, 2, 3, 5));
 EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 
@@ -2010,6 +2019,7 @@ COMMENT ON TABLE company_edit_suggestions IS 'Pending data corrections for share
 -- T022: Create user_companies_unified view
 DROP VIEW IF EXISTS user_companies_unified;
 -- View uses security_invoker to respect RLS on underlying tables
+-- Updated Feature 014: Pull contact info from company_locations (HQ), with user overrides
 CREATE OR REPLACE VIEW user_companies_unified
 WITH (security_invoker = true) AS
 SELECT
@@ -2020,13 +2030,14 @@ SELECT
   sc.name,
   sc.website,
   sc.careers_url,
-  COALESCE(cl.address, '') as address,
-  COALESCE(cl.latitude, 0) as latitude,
-  COALESCE(cl.longitude, 0) as longitude,
-  COALESCE(cl.phone, '') as phone,
-  COALESCE(cl.email, '') as email,
-  COALESCE(uct.contact_name, '') as contact_name,
-  COALESCE(uct.contact_title, '') as contact_title,
+  COALESCE(cl.address, hq.address, '') as address,
+  COALESCE(cl.latitude, hq.latitude, 0) as latitude,
+  COALESCE(cl.longitude, hq.longitude, 0) as longitude,
+  COALESCE(cl.phone, hq.phone, '') as phone,
+  COALESCE(cl.email, hq.email, '') as email,
+  -- Feature 014: Prefer company_locations contact, then user override, then HQ contact
+  COALESCE(uct.contact_name, cl.contact_name, hq.contact_name, '') as contact_name,
+  COALESCE(uct.contact_title, cl.contact_title, hq.contact_title, '') as contact_title,
   uct.notes,
   uct.status,
   uct.priority,
@@ -2039,6 +2050,8 @@ SELECT
 FROM user_company_tracking uct
 JOIN shared_companies sc ON uct.shared_company_id = sc.id
 LEFT JOIN company_locations cl ON uct.location_id = cl.id
+-- Feature 014: Also join headquarters location for fallback contact info
+LEFT JOIN company_locations hq ON hq.shared_company_id = sc.id AND hq.is_headquarters = true
 
 UNION ALL
 
@@ -2274,7 +2287,7 @@ BEGIN
       NEW.id,
       sc.id,
       'not_contacted',
-      3,
+      COALESCE(sc.default_priority, 3),  -- Use company's default priority (Feature 014)
       true
     FROM shared_companies sc
     WHERE sc.metro_area_id = NEW.metro_area_id
@@ -2324,6 +2337,70 @@ COMMENT ON FUNCTION get_metro_areas_with_seed_count() IS 'Get metro areas that h
 
 -- ============================================================================
 -- END FEATURE 012: Multi-Tenant Company Data Model
+-- ============================================================================
+
+-- ============================================================================
+-- FEATURE 014: Job Applications and Data Quality Fix
+-- Fixes broken FK from Feature 012 migration
+-- ============================================================================
+
+-- T003: Add contact columns to company_locations
+ALTER TABLE company_locations
+  ADD COLUMN IF NOT EXISTS contact_name TEXT,
+  ADD COLUMN IF NOT EXISTS contact_title TEXT;
+
+COMMENT ON COLUMN company_locations.contact_name IS 'Primary contact name at this location (Feature 014)';
+COMMENT ON COLUMN company_locations.contact_title IS 'Primary contact job title (Feature 014)';
+
+-- T004: Fix job_applications foreign keys
+-- Step 1: Drop broken FK constraint to deleted companies table
+ALTER TABLE job_applications
+  DROP CONSTRAINT IF EXISTS job_applications_company_id_fkey;
+
+-- Step 2: Drop broken column (was referencing deleted 'companies' table)
+ALTER TABLE job_applications
+  DROP COLUMN IF EXISTS company_id;
+
+-- Step 3: Add new columns for multi-tenant architecture
+ALTER TABLE job_applications
+  ADD COLUMN IF NOT EXISTS shared_company_id UUID REFERENCES shared_companies(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS private_company_id UUID REFERENCES private_companies(id) ON DELETE CASCADE;
+
+-- Step 4: Add CHECK constraint - exactly one company reference must be set
+-- Use DO block to make idempotent
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'job_applications_company_ref_check'
+  ) THEN
+    ALTER TABLE job_applications
+      ADD CONSTRAINT job_applications_company_ref_check
+      CHECK (
+        (shared_company_id IS NOT NULL AND private_company_id IS NULL) OR
+        (shared_company_id IS NULL AND private_company_id IS NOT NULL)
+      );
+  END IF;
+END $$;
+
+-- Step 5: Add partial indexes for efficient querying
+CREATE INDEX IF NOT EXISTS idx_job_applications_shared_company
+  ON job_applications(shared_company_id) WHERE shared_company_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_job_applications_private_company
+  ON job_applications(private_company_id) WHERE private_company_id IS NOT NULL;
+
+-- Step 6: Drop old index that referenced company_id
+DROP INDEX IF EXISTS idx_job_applications_company;
+
+COMMENT ON COLUMN job_applications.shared_company_id IS 'FK to shared_companies for community companies (Feature 014)';
+COMMENT ON COLUMN job_applications.private_company_id IS 'FK to private_companies for user-created companies (Feature 014)';
+
+-- T005: Update RLS policies for job_applications (ensure they work with new schema)
+-- Policies already exist from original table creation, just verify they use user_id correctly
+-- The existing policies use auth.uid() = user_id which is correct for multi-tenant isolation
+
+-- ============================================================================
+-- END FEATURE 014: Job Applications and Data Quality Fix
 -- ============================================================================
 
 -- Commit the transaction - everything succeeded

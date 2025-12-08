@@ -16,9 +16,17 @@ import {
   WORK_LOCATION_LABELS,
 } from '@/types/company';
 
+/**
+ * Company type for multi-tenant support
+ * @since Feature 014
+ */
+export type CompanyType = 'shared' | 'private';
+
 export interface ApplicationFormProps {
   /** Company ID for new applications */
   companyId: string;
+  /** Company type: 'shared' or 'private' (Feature 014) */
+  companyType?: CompanyType;
   /** Company name for display */
   companyName?: string;
   /** Existing application data for edit mode */
@@ -81,6 +89,7 @@ const PRIORITY_OPTIONS: { value: Priority; label: string }[] = [
  */
 export default function ApplicationForm({
   companyId,
+  companyType = 'shared',
   companyName,
   application,
   onSubmit,
@@ -189,9 +198,15 @@ export default function ApplicationForm({
           notes: notes.trim() || undefined,
         };
 
+        // Feature 014: Use correct company FK based on companyType
+        const companyRef =
+          companyType === 'shared'
+            ? { shared_company_id: companyId, private_company_id: null }
+            : { shared_company_id: null, private_company_id: companyId };
+
         const data: JobApplicationCreate | JobApplicationUpdate = isEditMode
           ? { id: application!.id, ...baseData }
-          : { company_id: companyId, ...baseData };
+          : { ...companyRef, ...baseData };
 
         if (onSubmit) {
           await onSubmit(data);
@@ -206,6 +221,7 @@ export default function ApplicationForm({
     },
     [
       companyId,
+      companyType,
       positionTitle,
       jobLink,
       workLocationType,

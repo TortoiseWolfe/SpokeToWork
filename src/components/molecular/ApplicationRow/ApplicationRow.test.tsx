@@ -6,7 +6,8 @@ import type { JobApplication } from '@/types/company';
 
 const mockApplication: JobApplication = {
   id: 'app-123',
-  company_id: 'company-456',
+  shared_company_id: 'company-456',
+  private_company_id: null,
   user_id: 'user-789',
   position_title: 'Senior Software Engineer',
   job_link: 'https://example.com/jobs/123',

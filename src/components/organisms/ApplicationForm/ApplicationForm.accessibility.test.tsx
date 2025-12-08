@@ -21,7 +21,8 @@ describe('ApplicationForm Accessibility', () => {
   it('has no accessibility violations in edit mode', async () => {
     const existingApplication: JobApplication = {
       id: 'app-123',
-      company_id: testCompanyId,
+      shared_company_id: testCompanyId,
+      private_company_id: null,
       user_id: 'user-123',
       position_title: 'Software Engineer',
       job_link: 'https://example.com/job',
