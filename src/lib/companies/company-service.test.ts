@@ -81,20 +81,35 @@ const mockOfflineStore = {
   resolveConflict: vi.fn().mockResolvedValue(undefined),
 };
 
-// Mock geocoding
-vi.mock('./geocoding', () => ({
-  geocode: vi.fn().mockResolvedValue({
+// Mock geocoding - use vi.hoisted to ensure mocks are defined before vi.mock
+const mockGeocode = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({
+    success: true,
+    address: '123 Main St, New York',
     latitude: 40.7128,
     longitude: -74.006,
-    displayName: '123 Main St, New York, NY',
-    confidence: 0.9,
-  }),
-  haversineDistance: vi.fn().mockReturnValue(5.0),
-  validateDistance: vi.fn().mockReturnValue({
-    distance: 5.0,
-    withinRange: true,
-    extended: false,
-  }),
+    display_name: '123 Main St, New York, NY',
+  })
+);
+const mockHaversineDistance = vi.hoisted(() => vi.fn().mockReturnValue(5.0));
+const mockValidateDistance = vi.hoisted(() =>
+  vi.fn().mockReturnValue({
+    distance_miles: 5.0,
+    within_radius: true,
+    extended_range: false,
+  })
+);
+
+vi.mock('./geocoding', () => ({
+  geocode: mockGeocode,
+  haversineDistance: mockHaversineDistance,
+  validateDistance: mockValidateDistance,
+}));
+
+vi.mock('@/lib/companies/geocoding', () => ({
+  geocode: mockGeocode,
+  haversineDistance: mockHaversineDistance,
+  validateDistance: mockValidateDistance,
 }));
 
 describe('CompanyService', () => {
@@ -154,19 +169,20 @@ describe('CompanyService', () => {
   });
 
   describe('geocodeAddress', () => {
-    it.skip('should geocode an address', async () => {
+    it.skip('should geocode an address (mocking issue)', async () => {
       const result = await service.geocodeAddress('123 Main St, New York');
       expect(result).toEqual({
+        success: true,
+        address: '123 Main St, New York',
         latitude: 40.7128,
         longitude: -74.006,
-        displayName: '123 Main St, New York, NY',
-        confidence: 0.9,
+        display_name: '123 Main St, New York, NY',
       });
     });
   });
 
   describe('validateCoordinates', () => {
-    it.skip('should validate coordinates against home location', () => {
+    it.skip('should validate coordinates against home location (mocking issue)', () => {
       const home: HomeLocation = {
         address: '100 Home St',
         latitude: 40.7,
@@ -176,15 +192,15 @@ describe('CompanyService', () => {
 
       const result = service.validateCoordinates(40.71, -74.01, home);
       expect(result).toEqual({
-        distance: 5.0,
-        withinRange: true,
-        extended: false,
+        distance_miles: 5.0,
+        within_radius: true,
+        extended_range: false,
       });
     });
   });
 
   describe('calculateDistance', () => {
-    it.skip('should calculate distance between two points', () => {
+    it.skip('should calculate distance between two points (mocking issue)', () => {
       const distance = service.calculateDistance(40.7, -74.0, 40.8, -74.1);
       expect(distance).toBe(5.0);
     });
@@ -680,7 +696,8 @@ describe('CompanyService', () => {
       expect(result).toEqual({ synced: 0, conflicts: 0, failed: 0 });
     });
 
-    it.skip('should process queued changes when online', async () => {
+    it('should process queued changes when online', async () => {
+      mockOfflineStore.isOnline.mockReturnValue(true);
       mockOfflineStore.getQueuedChanges.mockResolvedValue([]);
 
       const result = await service.syncOfflineChanges();
