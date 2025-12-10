@@ -156,9 +156,35 @@ vi.mock('react-leaflet', () => {
 // Extend Vitest matchers with jest-axe accessibility matchers
 expect.extend(toHaveNoViolations);
 
-// Clean up after each test
+// Clean up after each test - comprehensive cleanup for singleFork mode
 afterEach(() => {
   cleanup();
+
+  // Clear all mocks to prevent state leaking between tests
+  vi.clearAllMocks();
+
+  // Clear localStorage and sessionStorage
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (e) {
+      // Ignore errors in environments without storage
+    }
+  }
+
+  // Clear document cookies
+  if (typeof document !== 'undefined' && document.cookie) {
+    try {
+      document.cookie.split(';').forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, '')
+          .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
+      });
+    } catch (e) {
+      // Ignore errors
+    }
+  }
 });
 
 // Mock window.matchMedia (only in jsdom environment)
