@@ -24,6 +24,15 @@ export default defineConfig({
       ['**/useColorblindMode.test.ts', 'jsdom'],
       // Storage prototype mocking
       ['**/performance.test.ts', 'jsdom'],
+      // IndexedDB not available in happy-dom
+      ['**/offline-queue.browser.test.ts', 'jsdom'],
+      ['**/offline-sync.test.ts', 'jsdom'],
+      // SubtleCrypto/IndexedDB for encryption
+      ['**/encryption.test.ts', 'jsdom'],
+      // localStorage mocking
+      ['**/usePaymentConsent.test.ts', 'jsdom'],
+      ['**/rate-limiter.test.ts', 'jsdom'],
+      ['**/oauth-state.test.ts', 'jsdom'],
     ],
     globals: true,
     setupFiles: './tests/setup.ts',
