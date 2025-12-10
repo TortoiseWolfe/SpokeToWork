@@ -9,7 +9,7 @@ export default defineConfig({
     pool: 'forks',
     poolOptions: {
       forks: {
-        singleFork: true,
+        singleFork: false,
       },
     },
     // Fallback to jsdom for incompatible tests (add paths as needed)
