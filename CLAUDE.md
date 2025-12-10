@@ -403,6 +403,9 @@ ADD COLUMN IF NOT EXISTS encryption_salt TEXT;
 
 ## Active Technologies
 
+- TypeScript 5.9 with Node.js 22 + Vitest 3.2.3, happy-dom 20.0.11 (already installed), React 19 (042-test-memory-optimization)
+- N/A (test infrastructure change) (042-test-memory-optimization)
+
 - TypeScript 5.x with Next.js 15, React 19 + Supabase (Auth, Database), TanStack Query, DaisyUI (014-job-applications-fix)
 - Supabase PostgreSQL (cloud) with multi-tenant schema (014-job-applications-fix)
 

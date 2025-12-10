@@ -5,7 +5,17 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: 'jsdom',
+    environment: 'happy-dom',
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
+    // Fallback to jsdom for incompatible tests (add paths as needed)
+    environmentMatchGlobs: [
+      // Example: ['**/some-jsdom-dependent-test.ts', 'jsdom'],
+    ],
     globals: true,
     setupFiles: './tests/setup.ts',
     css: {
