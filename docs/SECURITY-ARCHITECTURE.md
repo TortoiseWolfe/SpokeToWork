@@ -222,8 +222,8 @@ This app deploys to GitHub Pages (static hosting):
 ### Short-term
 
 1. ~~Implement CSP headers~~ ✅ Added via metadata in `src/app/layout.tsx`
-2. Add rate limit monitoring dashboard
-3. Automate 90-day audit log purge
+2. ~~Add rate limit monitoring dashboard~~ ✅ Added to `/status` page
+3. ~~Automate 90-day audit log purge~~ ✅ `cleanup_old_audit_logs()` function deployed
 
 ### Long-term
 

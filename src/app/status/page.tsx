@@ -1930,6 +1930,49 @@ export default function StatusPage() {
               </div>
             </Card>
 
+            {/* Rate Limit Status */}
+            <Card
+              title={
+                <div className="flex items-center gap-2">
+                  <span className="status-card-title">Rate Limit Status</span>
+                  <InfoTooltip
+                    title="Rate Limiting"
+                    description="Protects against brute force attacks by limiting repeated failed attempts."
+                    whyItMatters="Prevents malicious actors from guessing passwords or overwhelming the system."
+                    howToImprove={[
+                      'Wait for cooldown period to expire',
+                      'Contact support if legitimately locked out',
+                    ]}
+                    position="end"
+                    size="compact"
+                  />
+                </div>
+              }
+              bordered
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-success h-2 w-2 rounded-full"></div>
+                    <span>Authentication</span>
+                  </div>
+                  <span className="badge badge-success badge-sm">Normal</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-success h-2 w-2 rounded-full"></div>
+                    <span>Contact Form</span>
+                  </div>
+                  <span className="badge badge-success badge-sm">Normal</span>
+                </div>
+                <div className="text-base-content/60 text-xs">
+                  <p>• Auth: 5 attempts per 15 min window</p>
+                  <p>• Contact: 5 submissions per 5 min window</p>
+                  <p>• Audit logs auto-purge after 90 days</p>
+                </div>
+              </div>
+            </Card>
+
             {/* Features Completed */}
             <Card
               title={
