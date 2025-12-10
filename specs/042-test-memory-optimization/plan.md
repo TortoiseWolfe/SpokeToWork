@@ -184,7 +184,63 @@ N/A - This is a configuration change with no API impact.
 
 ---
 
+## Phase 1: Complete ✅
+
+- Merged to main: `63bfeee feat(042): optimize test suite memory to prevent OOM crashes`
+- Tests complete without OOM (exit code 1, not 137)
+- Execution time: ~27 minutes (acceptable with sequential)
+
+---
+
+## Phase 2: Pre-Seeded Test Users
+
+### User Story 3 (from spec.md)
+
+Refactor tests to use 4 pre-seeded users instead of creating dynamic users per test.
+
+### Requirements (FR-005 to FR-009)
+
+- FR-005: Integration tests MUST use pre-seeded users from `.env`
+- FR-006: E2E tests MUST use pre-seeded users except for signup flow
+- FR-008: After test suite, database MUST contain only 4 test users
+- FR-009: Signup flow tests MUST clean up dynamic users in afterAll
+
+### Pre-Seeded Users (from spec Key Entities)
+
+| User      | Purpose                                 | Credential Keys                      |
+| --------- | --------------------------------------- | ------------------------------------ |
+| PRIMARY   | Main test account for single-user tests | `TEST_USER_PRIMARY_EMAIL/PASSWORD`   |
+| SECONDARY | Multi-user scenarios (messaging)        | `TEST_USER_SECONDARY_EMAIL/PASSWORD` |
+| TERTIARY  | Group interactions (3+ members)         | `TEST_USER_TERTIARY_EMAIL/PASSWORD`  |
+| ADMIN     | System user for automated messages      | Fixed UUID with ECDH public key      |
+
+### Research Findings ✅
+
+**Existing Infrastructure (already in place):**
+
+- `tests/fixtures/test-user.ts` - Pre-seeded user helpers (PRIMARY, SECONDARY, TERTIARY)
+- `tests/e2e/utils/test-user-factory.ts` - Dynamic E2E user creation with cleanup
+- `tests/setup.ts` - Global mocks for unit tests
+- `.env` - All 4 users configured (PRIMARY, SECONDARY, TERTIARY, ADMIN)
+
+**Files Requiring Refactoring:**
+
+1. `tests/contract/auth/sign-up.contract.test.ts` - Uses dynamic signUp()
+2. `tests/integration/auth/sign-up-flow.test.ts` - Creates users per test
+3. `tests/e2e/auth/complete-flows.spec.ts` - SQL-based createTestUserDirect()
+4. `tests/e2e/auth/new-user-complete-flow.spec.ts` - Duplicates SQL logic
+
+### Implementation Approach
+
+1. **Contract/Integration tests**: Refactor to use `fixtures/test-user.ts`
+2. **E2E tests**: Consolidate on `test-user-factory.ts` pattern
+3. **Signup flow tests**: Only these may create dynamic users (with cleanup)
+4. **Verify**: After suite runs, only 4 test users in database
+
+---
+
 ## Next Steps
 
-1. Run `/speckit.tasks` to generate dependency-ordered tasks.md
-2. Run `/speckit.implement` to execute the implementation
+1. Explore codebase for dynamic user creation patterns
+2. Update tasks.md with Phase 2 tasks
+3. Run `/speckit.implement` for Phase 2
