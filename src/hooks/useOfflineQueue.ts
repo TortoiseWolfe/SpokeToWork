@@ -11,7 +11,7 @@
  * - Manual retry for failed messages
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { offlineQueueService } from '@/services/messaging/offline-queue-service';
 import { createLogger } from '@/lib/logger';
 import type { QueuedMessage } from '@/types/messaging';
@@ -74,6 +74,7 @@ export function useOfflineQueue(): UseOfflineQueueReturn {
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
+  const hasInitialSyncRef = useRef(false);
 
   // Load queue data
   const loadQueue = useCallback(async () => {
@@ -170,21 +171,39 @@ export function useOfflineQueue(): UseOfflineQueueReturn {
 
   // Load queue on mount and set up polling
   useEffect(() => {
-    loadQueue();
+    // Initial load with sync trigger
+    const initialLoad = async () => {
+      const queuedMessages = await offlineQueueService.getQueue();
+      const failedMessages = await offlineQueueService.getFailedMessages();
+
+      setQueue(queuedMessages);
+      setQueueCount(queuedMessages.length);
+      setFailedCount(failedMessages.length);
+
+      // Trigger initial sync if online and queue has items
+      if (
+        !hasInitialSyncRef.current &&
+        navigator.onLine &&
+        queuedMessages.length > 0
+      ) {
+        hasInitialSyncRef.current = true;
+        logger.info('Initial sync - found queued messages', {
+          count: queuedMessages.length,
+        });
+        // Note: syncQueue will be called, which handles its own state
+        syncQueue();
+      }
+    };
+
+    initialLoad().catch((error) => {
+      logger.error('Failed to load offline queue on mount', { error });
+    });
 
     // Poll queue every 30 seconds to keep count updated
     const interval = setInterval(loadQueue, 30000);
 
     return () => clearInterval(interval);
-  }, [loadQueue]);
-
-  // Trigger sync on mount if online and queue has items
-  useEffect(() => {
-    if (isOnline && queueCount > 0 && !isSyncing) {
-      syncQueue();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount - intentionally omitting deps
+  }, [loadQueue, syncQueue]);
 
   return {
     queue,

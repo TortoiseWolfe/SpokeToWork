@@ -73,10 +73,11 @@ export default defineConfig({
       'tests/integration/auth/rate-limiting.integration.test.ts', // requires admin client with SUPABASE_SERVICE_ROLE_KEY
       'tests/integration/messaging/connections.test.ts', // requires real Supabase with service role key
       'src/tests/integration/payment-isolation.test.ts', // requires real Supabase connection
-      // Hook tests with complex Supabase module loading - require real connection
-      'src/hooks/__tests__/useConversationRealtime.test.ts', // module loading triggers client before mock
-      'src/hooks/__tests__/useTypingIndicator.test.ts', // module loading triggers client before mock
-      'src/services/messaging/__tests__/gdpr-service.test.ts', // module loading triggers client before mock
+      // UNBLOCKED: These tests now work with proper vi.mock() setup
+      // Previously excluded due to module loading triggering client before mock
+      // 'src/hooks/__tests__/useConversationRealtime.test.ts',
+      // 'src/hooks/__tests__/useTypingIndicator.test.ts',
+      // 'src/services/messaging/__tests__/gdpr-service.test.ts',
       // Exclude avatar integration tests requiring real browser Canvas API
       // These are covered by E2E tests in /e2e/avatar/upload.spec.ts
       'src/lib/avatar/__tests__/image-processing.test.ts', // 6 tests - requires real Canvas
