@@ -518,8 +518,10 @@ export class KeyManagementService {
       }
 
       // Remove private key from IndexedDB
-      // Note: We don't have a delete method in EncryptionService, so we just overwrite with null
-      // Future: Add deletePrivateKey method to EncryptionService
+      await encryptionService.deletePrivateKey(user.id);
+      logger.info('Revoked keys and deleted private key from IndexedDB', {
+        userId: user.id,
+      });
     } catch (error) {
       if (
         error instanceof AuthenticationError ||

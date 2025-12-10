@@ -1,0 +1,366 @@
+name: Create Issues from Code Review
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (show what would be created without creating)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  create-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create GroupService Issues
+        if: ${{ !inputs.dry_run }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issues = [
+              {
+                title: 'feat(messaging): implement GroupService.addMembers()',
+                labels: ['enhancement', 'messaging'],
+                body: `## Summary
+            Add new members to an existing group conversation.
+
+            ## File
+            \`src/services/messaging/group-service.ts:337\`
+
+            ## Requirements
+            - [ ] Validate user is group owner or has permission
+            - [ ] Check member count limits (MAX_MEMBERS constraint)
+            - [ ] Verify new members have accepted connections
+            - [ ] Distribute group encryption key to new members
+
+            ## Related
+            - Part of GroupService implementation
+            - See \`docs/CODE-REVIEW-ISSUES.md\` for full context`
+              },
+              {
+                title: 'feat(messaging): implement GroupService.removeMember()',
+                labels: ['enhancement', 'messaging'],
+                body: `## Summary
+            Remove a member from a group (owner only).
+
+            ## File
+            \`src/services/messaging/group-service.ts:347\`
+
+            ## Requirements
+            - [ ] Verify requester is group owner
+            - [ ] Update \`conversation_members\` with \`left_at\` timestamp
+            - [ ] Rotate group key after removal (security)
+
+            ## Related
+            - Part of GroupService implementation`
+              },
+              {
+                title: 'feat(messaging): implement GroupService.leaveGroup()',
+                labels: ['enhancement', 'messaging'],
+                body: `## Summary
+            Allow user to voluntarily leave a group.
+
+            ## File
+            \`src/services/messaging/group-service.ts:356\`
+
+            ## Requirements
+            - [ ] Prevent owner from leaving without transferring ownership
+            - [ ] Update \`conversation_members\` with \`left_at\` timestamp
+            - [ ] Rotate group key after departure
+
+            ## Related
+            - Part of GroupService implementation`
+              },
+              {
+                title: 'feat(messaging): implement GroupService.transferOwnership()',
+                labels: ['enhancement', 'messaging'],
+                body: `## Summary
+            Transfer group ownership to another member.
+
+            ## File
+            \`src/services/messaging/group-service.ts:365\`
+
+            ## Requirements
+            - [ ] Verify requester is current owner
+            - [ ] Verify target is active member
+            - [ ] Update roles in \`conversation_members\`
+
+            ## Related
+            - Part of GroupService implementation`
+              },
+              {
+                title: 'feat(messaging): implement GroupService.upgradeToGroup()',
+                labels: ['enhancement', 'messaging'],
+                body: `## Summary
+            Upgrade a 1-to-1 conversation to a group.
+
+            ## File
+            \`src/services/messaging/group-service.ts:374\`
+
+            ## Requirements
+            - [ ] Convert existing conversation to is_group=true
+            - [ ] Add new members
+            - [ ] Migrate encryption from ECDH to symmetric group key
+
+            ## Related
+            - Part of GroupService implementation`
+              },
+              {
+                title: 'feat(messaging): implement GroupService.deleteGroup()',
+                labels: ['enhancement', 'messaging'],
+                body: `## Summary
+            Delete a group conversation (owner only).
+
+            ## File
+            \`src/services/messaging/group-service.ts:383\`
+
+            ## Requirements
+            - [ ] Verify requester is group owner
+            - [ ] Cascade delete members, messages, keys
+            - [ ] Consider soft-delete for audit trail
+
+            ## Related
+            - Part of GroupService implementation`
+              },
+              {
+                title: 'feat(messaging): implement GroupService.renameGroup()',
+                labels: ['enhancement', 'messaging'],
+                body: `## Summary
+            Rename a group (owner only).
+
+            ## File
+            \`src/services/messaging/group-service.ts:393\`
+
+            ## Requirements
+            - [ ] Verify requester is group owner
+            - [ ] Validate name length (MAX_NAME_LENGTH constraint)
+            - [ ] Update \`conversations.group_name\`
+
+            ## Related
+            - Part of GroupService implementation`
+              },
+              {
+                title: 'feat(messaging): implement GroupService.getMembers()',
+                labels: ['enhancement', 'messaging'],
+                body: `## Summary
+            Get list of group members with profiles.
+
+            ## File
+            \`src/services/messaging/group-service.ts:402\`
+
+            ## Requirements
+            - [ ] Return active members (left_at IS NULL)
+            - [ ] Include user profiles (username, display_name, avatar_url)
+            - [ ] Return role and join date
+
+            ## Related
+            - Part of GroupService implementation`
+              }
+            ];
+
+            for (const issue of issues) {
+              console.log(`Creating: ${issue.title}`);
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issue.title,
+                labels: issue.labels,
+                body: issue.body
+              });
+              // Small delay to avoid rate limiting
+              await new Promise(r => setTimeout(r, 1000));
+            }
+
+      - name: Create Error Handler Issues
+        if: ${{ !inputs.dry_run }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issues = [
+              {
+                title: 'feat(errors): Integrate logging service',
+                labels: ['enhancement', 'observability'],
+                body: `## Summary
+            Implement additional integration with logging service.
+
+            ## File
+            \`src/utils/error-handler.ts:236\`
+
+            ## Context
+            TODO comment exists: "Implement additional integration with logging service"
+
+            ## Requirements
+            - [ ] Send errors to centralized logging (e.g., Supabase logs, external service)
+            - [ ] Include error context, stack traces, user info (anonymized)
+            - [ ] Configure log levels per environment`
+              },
+              {
+                title: 'feat(errors): Integrate notification system',
+                labels: ['enhancement', 'observability'],
+                body: `## Summary
+            Integrate with notification system for critical errors.
+
+            ## File
+            \`src/utils/error-handler.ts:255\`
+
+            ## Context
+            TODO comment exists: "Integrate with your notification system"
+
+            ## Requirements
+            - [ ] Trigger user notifications for critical errors
+            - [ ] Define severity thresholds
+            - [ ] Consider toast notifications vs email vs push`
+              }
+            ];
+
+            for (const issue of issues) {
+              console.log(`Creating: ${issue.title}`);
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issue.title,
+                labels: issue.labels,
+                body: issue.body
+              });
+              await new Promise(r => setTimeout(r, 1000));
+            }
+
+      - name: Create Test Coverage Issues
+        if: ${{ !inputs.dry_run }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issues = [
+              {
+                title: 'test(messaging): Add group-key-service unit tests',
+                labels: ['testing', 'messaging'],
+                body: `## Summary
+            Add unit tests for group-key-service.ts (818 LOC, zero tests).
+
+            ## File
+            \`src/services/messaging/group-key-service.ts\`
+
+            ## Priority Tests
+            - [ ] \`generateGroupKey()\` - symmetric key generation
+            - [ ] \`encryptGroupKey()\` - per-member encryption
+            - [ ] \`decryptGroupKey()\` - key retrieval
+            - [ ] \`rotateGroupKey()\` - key rotation on member changes
+
+            ## Notes
+            - May need Web Crypto API mocking
+            - Consider testing with real crypto in integration tests`
+              },
+              {
+                title: 'test(payments): Add payment-service unit tests',
+                labels: ['testing', 'payments'],
+                body: `## Summary
+            Add unit tests for payment-service.ts (312 LOC, zero tests).
+
+            ## File
+            \`src/lib/payments/payment-service.ts\`
+
+            ## Priority Tests
+            - [ ] \`createPaymentIntent()\` - metadata validation, offline queueing
+            - [ ] \`getPaymentHistory()\` - payment retrieval
+            - [ ] \`retryPayment()\` - retry logic
+
+            ## Notes
+            - Mock Supabase client
+            - Test offline queue integration`
+              }
+            ];
+
+            for (const issue of issues) {
+              console.log(`Creating: ${issue.title}`);
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issue.title,
+                labels: issue.labels,
+                body: issue.body
+              });
+              await new Promise(r => setTimeout(r, 1000));
+            }
+
+      - name: Create Performance Issues (Optional)
+        if: ${{ !inputs.dry_run }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issues = [
+              {
+                title: 'perf(components): Add React.memo to large components',
+                labels: ['performance'],
+                body: `## Summary
+            Add React.memo optimization to large components (>300 LOC).
+
+            ## Components to Review
+            - [ ] \`CompanyDetailDrawer.tsx\` (1,059 lines)
+            - [ ] \`CompanyForm.tsx\` (738 lines)
+            - [ ] \`ApplicationForm.tsx\` (516 lines)
+            - [ ] \`CompanyTable.tsx\` (360 lines)
+            - [ ] \`CreateGroupModal.tsx\` (346 lines)
+
+            ## Notes
+            - Profile first to confirm re-render issues
+            - Use React DevTools Profiler
+            - Consider useMemo/useCallback for expensive computations`
+              },
+              {
+                title: 'perf(hooks): Consolidate online/offline listeners',
+                labels: ['performance', 'refactor'],
+                body: `## Summary
+            Consolidate 5+ separate event listeners for network status into single NetworkStatusContext.
+
+            ## Current Duplicates
+            - \`src/hooks/useOfflineQueue.ts\`
+            - \`src/hooks/useOfflineStatus.ts\`
+            - \`src/lib/payments/connection-listener.ts\`
+            - \`src/app/status/page.tsx\`
+            - \`src/components/atomic/NetworkStatus/useNetworkStatus.ts\`
+
+            ## Proposed Solution
+            - [ ] Create \`NetworkStatusContext\` with single event listener
+            - [ ] Provide \`useNetworkStatus()\` hook from context
+            - [ ] Migrate all consumers to use context`
+              }
+            ];
+
+            for (const issue of issues) {
+              console.log(`Creating: ${issue.title}`);
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issue.title,
+                labels: issue.labels,
+                body: issue.body
+              });
+              await new Promise(r => setTimeout(r, 1000));
+            }
+
+      - name: Summary
+        run: |
+          echo "## Issues Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### GroupService (8 issues)" >> $GITHUB_STEP_SUMMARY
+          echo "- addMembers, removeMember, leaveGroup, transferOwnership" >> $GITHUB_STEP_SUMMARY
+          echo "- upgradeToGroup, deleteGroup, renameGroup, getMembers" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Error Handler (2 issues)" >> $GITHUB_STEP_SUMMARY
+          echo "- Logging service integration" >> $GITHUB_STEP_SUMMARY
+          echo "- Notification system integration" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Coverage (2 issues)" >> $GITHUB_STEP_SUMMARY
+          echo "- group-key-service tests" >> $GITHUB_STEP_SUMMARY
+          echo "- payment-service tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Performance (2 issues)" >> $GITHUB_STEP_SUMMARY
+          echo "- React.memo for large components" >> $GITHUB_STEP_SUMMARY
+          echo "- Consolidate network listeners" >> $GITHUB_STEP_SUMMARY
