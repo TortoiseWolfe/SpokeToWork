@@ -230,36 +230,8 @@ class ErrorHandler {
     // Create error message with category for better tracking
     const errorMessage = `[${error.category}] ${error.message}`;
 
-    // Track to analytics
+    // Track to analytics/external service
     trackError(errorMessage, isFatal);
-
-    // Log error based on severity (structured logging for production monitoring)
-    const logContext = {
-      message: error.message,
-      severity: error.severity,
-      category: error.category,
-      isFatal,
-      timestamp: error.timestamp.toISOString(),
-      ...(error.context && { context: error.context }),
-    };
-
-    // Use appropriate log level based on severity
-    switch (error.severity) {
-      case ErrorSeverity.CRITICAL:
-        logger.error('CRITICAL ERROR', logContext);
-        break;
-      case ErrorSeverity.HIGH:
-        logger.error('High severity error', logContext);
-        break;
-      case ErrorSeverity.MEDIUM:
-        logger.warn('Medium severity error', logContext);
-        break;
-      case ErrorSeverity.LOW:
-        logger.info('Low severity error', logContext);
-        break;
-      default:
-        logger.debug('Error tracked', logContext);
-    }
   }
 
   /**
@@ -271,13 +243,6 @@ class ErrorHandler {
     const userMessage = this.getUserMessage(error);
 
     if (typeof window !== 'undefined') {
-      // Log the notification
-      logger.info('User notification', {
-        message: userMessage,
-        severity: error.severity,
-        category: error.category,
-      });
-
       // Emit custom event for UI components to listen to (React-friendly approach)
       // Components can listen: window.addEventListener('app:error', (e) => showToast(e.detail))
       const errorId = error.timestamp.getTime().toString(36);

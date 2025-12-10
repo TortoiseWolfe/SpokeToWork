@@ -409,16 +409,32 @@ describe('error-handler', () => {
   // =========================================================================
 
   describe('User notifications', () => {
+    let capturedEvents: CustomEvent[] = [];
+    let originalDispatch: typeof window.dispatchEvent;
+
+    beforeEach(() => {
+      capturedEvents = [];
+      originalDispatch = window.dispatchEvent.bind(window);
+      window.dispatchEvent = (event: Event) => {
+        if (event instanceof CustomEvent && event.type === 'app:error') {
+          capturedEvents.push(event);
+        }
+        return originalDispatch(event);
+      };
+    });
+
+    afterEach(() => {
+      window.dispatchEvent = originalDispatch;
+    });
+
     it('notifies user for HIGH severity errors', () => {
       errorHandler.handle(
         new AppError('High error', { severity: ErrorSeverity.HIGH })
       );
 
-      // Notification logs info message
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        'User notification',
-        expect.any(Object)
-      );
+      // Notification dispatches custom event
+      expect(capturedEvents.length).toBe(1);
+      expect(capturedEvents[0].detail.severity).toBe('high');
     });
 
     it('notifies user for CRITICAL severity errors', () => {
@@ -426,10 +442,8 @@ describe('error-handler', () => {
         new AppError('Critical', { severity: ErrorSeverity.CRITICAL })
       );
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        'User notification',
-        expect.any(Object)
-      );
+      expect(capturedEvents.length).toBe(1);
+      expect(capturedEvents[0].detail.severity).toBe('critical');
     });
 
     it('does not notify for MEDIUM severity errors', () => {
@@ -437,19 +451,13 @@ describe('error-handler', () => {
         new AppError('Medium', { severity: ErrorSeverity.MEDIUM })
       );
 
-      expect(mockLogger.info).not.toHaveBeenCalledWith(
-        'User notification',
-        expect.any(Object)
-      );
+      expect(capturedEvents.length).toBe(0);
     });
 
     it('does not notify for LOW severity errors', () => {
       errorHandler.handle(new AppError('Low', { severity: ErrorSeverity.LOW }));
 
-      expect(mockLogger.info).not.toHaveBeenCalledWith(
-        'User notification',
-        expect.any(Object)
-      );
+      expect(capturedEvents.length).toBe(0);
     });
 
     it('respects showUserNotification config', () => {
@@ -459,10 +467,8 @@ describe('error-handler', () => {
         new AppError('High', { severity: ErrorSeverity.HIGH })
       );
 
-      expect(mockLogger.info).not.toHaveBeenCalledWith(
-        'User notification',
-        expect.any(Object)
-      );
+      // No custom event should be dispatched when notifications are disabled
+      expect(capturedEvents.length).toBe(0);
     });
   });
 
