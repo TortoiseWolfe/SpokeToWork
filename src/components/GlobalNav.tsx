@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { memo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayeredSpokeToWorkLogo } from '@/components/atomic/SpinningLogo';
@@ -17,7 +17,7 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-export function GlobalNav() {
+function GlobalNavComponent() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const { profile } = useUserProfile();
@@ -504,3 +504,5 @@ export function GlobalNav() {
     </nav>
   );
 }
+
+export const GlobalNav = memo(GlobalNavComponent);

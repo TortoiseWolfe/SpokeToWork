@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { memo, useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { validatePassword } from '@/lib/auth/password-validator';
@@ -27,9 +27,7 @@ export interface AccountSettingsProps {
  *
  * @category molecular
  */
-export default function AccountSettings({
-  className = '',
-}: AccountSettingsProps) {
+function AccountSettings({ className = '' }: AccountSettingsProps) {
   const supabase = createClient();
   const { user, refreshSession } = useAuth();
   const {
@@ -474,3 +472,5 @@ export default function AccountSettings({
     </div>
   );
 }
+
+export default memo(AccountSettings);
