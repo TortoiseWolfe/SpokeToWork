@@ -32,6 +32,7 @@ describe('GDPRService', () => {
     mockSupabase = {
       auth: {
         getUser: vi.fn(),
+        getSession: vi.fn(),
         signOut: vi.fn(),
       },
       from: vi.fn(),
@@ -380,6 +381,17 @@ describe('GDPRService', () => {
         error: null,
       });
 
+      // Mock session
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: {
+          session: {
+            user: { id: 'user-123' },
+            access_token: 'mock-token',
+          },
+        },
+        error: null,
+      });
+
       // Mock IndexedDB deletions
       const mockPrivateKeysDelete = vi.fn().mockResolvedValue(undefined);
       const mockQueuedMessagesDelete = vi.fn().mockResolvedValue(undefined);
@@ -418,6 +430,13 @@ describe('GDPRService', () => {
         }),
       });
 
+      // Mock fetch for Edge Function call
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ success: true }),
+      });
+      vi.stubGlobal('fetch', mockFetch);
+
       // Mock sign out
       mockSupabase.auth.signOut.mockResolvedValue({ error: null });
 
@@ -429,11 +448,22 @@ describe('GDPRService', () => {
       expect(mockQueuedMessagesDelete).toHaveBeenCalled();
       expect(mockCachedMessagesDelete).toHaveBeenCalled();
 
-      // Verify Supabase deletion
-      expect(mockSupabase.from).toHaveBeenCalledWith('user_profiles');
+      // Verify Edge Function was called
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/functions/v1/delete-user-account'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            Authorization: 'Bearer mock-token',
+          }),
+        })
+      );
 
       // Verify sign out
       expect(mockSupabase.auth.signOut).toHaveBeenCalled();
+
+      // Restore fetch
+      vi.unstubAllGlobals();
     });
 
     it('should throw AuthenticationError if user not signed in (T190)', async () => {
@@ -454,6 +484,17 @@ describe('GDPRService', () => {
           user: {
             id: 'user-123',
             email: 'test@example.com',
+          },
+        },
+        error: null,
+      });
+
+      // Mock session
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: {
+          session: {
+            user: { id: 'user-123' },
+            access_token: 'mock-token',
           },
         },
         error: null,
@@ -484,18 +525,20 @@ describe('GDPRService', () => {
         }),
       } as any;
 
-      // Mock user_profiles delete to fail
-      mockSupabase.from.mockReturnValue({
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({
-            error: new Error('Database error'),
-          }),
-        }),
+      // Mock fetch to return error response from Edge Function
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        statusText: 'Internal Server Error',
+        json: () => Promise.resolve({ error: 'Database error' }),
       });
+      vi.stubGlobal('fetch', mockFetch);
 
       await expect(gdprService.deleteUserAccount()).rejects.toThrow(
         'Failed to delete account: Database error'
       );
+
+      // Restore fetch
+      vi.unstubAllGlobals();
     });
   });
 });

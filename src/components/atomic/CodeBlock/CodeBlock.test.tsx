@@ -42,10 +42,10 @@ describe('CodeBlock', () => {
 
   it('copies code to clipboard when copy button is clicked', async () => {
     const mockWriteText = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: mockWriteText,
-      },
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: mockWriteText },
+      writable: true,
+      configurable: true,
     });
 
     const code = 'const x = 42;';
@@ -63,10 +63,10 @@ describe('CodeBlock', () => {
 
   it('shows success message after copying', async () => {
     const mockWriteText = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: mockWriteText,
-      },
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: mockWriteText },
+      writable: true,
+      configurable: true,
     });
 
     render(<CodeBlock>test code</CodeBlock>);
@@ -90,10 +90,10 @@ describe('CodeBlock', () => {
     );
 
     const mockWriteText = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: mockWriteText,
-      },
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: mockWriteText },
+      writable: true,
+      configurable: true,
     });
 
     render(<CodeBlock>{code}</CodeBlock>);
@@ -115,8 +115,11 @@ describe('CodeBlock', () => {
     document.execCommand = mockExecCommand;
 
     // Remove clipboard API
-    const originalClipboard = navigator.clipboard;
-    Object.assign(navigator, { clipboard: undefined });
+    Object.defineProperty(navigator, 'clipboard', {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    });
 
     render(<CodeBlock>fallback test</CodeBlock>);
 
@@ -128,9 +131,6 @@ describe('CodeBlock', () => {
     waitFor(() => {
       expect(mockExecCommand).toHaveBeenCalledWith('copy');
     });
-
-    // Restore clipboard API
-    Object.assign(navigator, { clipboard: originalClipboard });
   });
 
   it('sets data-language attribute when language prop is provided', () => {

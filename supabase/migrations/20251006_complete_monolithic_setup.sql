@@ -2406,5 +2406,280 @@ COMMENT ON COLUMN job_applications.private_company_id IS 'FK to private_companie
 -- END FEATURE 014: Job Applications and Data Quality Fix
 -- ============================================================================
 
+-- ============================================================================
+-- FEATURE 041: Bicycle Route Planning
+-- Created: 2025-12-08
+-- Purpose: Enable users to create, save, and manage cycling routes with
+--          company associations, next-ride planning, and map tile providers
+-- ============================================================================
+
+-- T001: Create map_tile_providers table
+CREATE TABLE IF NOT EXISTS map_tile_providers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(50) NOT NULL UNIQUE,
+  display_name VARCHAR(100) NOT NULL,
+  url_template TEXT NOT NULL,
+  attribution TEXT NOT NULL,
+  max_zoom INTEGER NOT NULL DEFAULT 18,
+  is_cycling_optimized BOOLEAN NOT NULL DEFAULT FALSE,
+  requires_api_key BOOLEAN NOT NULL DEFAULT FALSE,
+  is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  priority INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE map_tile_providers IS 'Configuration for available map tile sources (Feature 041)';
+
+-- RLS for map_tile_providers (public read, admin write)
+ALTER TABLE map_tile_providers ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'map_tile_providers' AND policyname = 'map_tile_providers_select'
+  ) THEN
+    CREATE POLICY map_tile_providers_select ON map_tile_providers FOR SELECT USING (true);
+  END IF;
+END $$;
+
+-- T001: Create bicycle_routes table
+CREATE TABLE IF NOT EXISTS bicycle_routes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  metro_area_id UUID REFERENCES metro_areas(id) ON DELETE SET NULL,
+  name VARCHAR(100) NOT NULL CHECK (char_length(name) >= 1),
+  description TEXT CHECK (description IS NULL OR char_length(description) <= 1000),
+  color VARCHAR(7) NOT NULL DEFAULT '#3B82F6' CHECK (color ~ '^#[0-9A-Fa-f]{6}$'),
+  start_address TEXT,
+  start_latitude DECIMAL(10,8) CHECK (start_latitude IS NULL OR (start_latitude >= -90 AND start_latitude <= 90)),
+  start_longitude DECIMAL(11,8) CHECK (start_longitude IS NULL OR (start_longitude >= -180 AND start_longitude <= 180)),
+  end_address TEXT,
+  end_latitude DECIMAL(10,8) CHECK (end_latitude IS NULL OR (end_latitude >= -90 AND end_latitude <= 90)),
+  end_longitude DECIMAL(11,8) CHECK (end_longitude IS NULL OR (end_longitude >= -180 AND end_longitude <= 180)),
+  route_geometry JSONB,
+  distance_miles DECIMAL(8,2),
+  estimated_time_minutes INTEGER,
+  is_system_route BOOLEAN NOT NULL DEFAULT FALSE,
+  source_name VARCHAR(100),
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE bicycle_routes IS 'User-defined and system bicycle routes with GeoJSON geometry (Feature 041)';
+
+-- Indexes for bicycle_routes
+CREATE INDEX IF NOT EXISTS idx_bicycle_routes_user ON bicycle_routes(user_id);
+CREATE INDEX IF NOT EXISTS idx_bicycle_routes_metro ON bicycle_routes(metro_area_id);
+CREATE INDEX IF NOT EXISTS idx_bicycle_routes_system ON bicycle_routes(is_system_route) WHERE is_system_route = TRUE;
+CREATE INDEX IF NOT EXISTS idx_bicycle_routes_active ON bicycle_routes(user_id, is_active);
+
+-- RLS for bicycle_routes
+ALTER TABLE bicycle_routes ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'bicycle_routes' AND policyname = 'bicycle_routes_select'
+  ) THEN
+    CREATE POLICY bicycle_routes_select ON bicycle_routes FOR SELECT
+      USING (auth.uid() = user_id OR is_system_route = TRUE);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'bicycle_routes' AND policyname = 'bicycle_routes_insert'
+  ) THEN
+    CREATE POLICY bicycle_routes_insert ON bicycle_routes FOR INSERT
+      WITH CHECK (auth.uid() = user_id AND is_system_route = FALSE);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'bicycle_routes' AND policyname = 'bicycle_routes_update'
+  ) THEN
+    CREATE POLICY bicycle_routes_update ON bicycle_routes FOR UPDATE
+      USING (auth.uid() = user_id AND is_system_route = FALSE);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'bicycle_routes' AND policyname = 'bicycle_routes_delete'
+  ) THEN
+    CREATE POLICY bicycle_routes_delete ON bicycle_routes FOR DELETE
+      USING (auth.uid() = user_id AND is_system_route = FALSE);
+  END IF;
+END $$;
+
+-- T001: Create route_companies junction table
+CREATE TABLE IF NOT EXISTS route_companies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  route_id UUID NOT NULL REFERENCES bicycle_routes(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  shared_company_id UUID REFERENCES shared_companies(id) ON DELETE CASCADE,
+  private_company_id UUID REFERENCES private_companies(id) ON DELETE CASCADE,
+  tracking_id UUID REFERENCES user_company_tracking(id) ON DELETE CASCADE,
+  sequence_order INTEGER NOT NULL DEFAULT 0,
+  visit_on_next_ride BOOLEAN NOT NULL DEFAULT FALSE,
+  distance_from_start_miles DECIMAL(8,2),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE route_companies IS 'Junction table linking routes to companies with ordering (Feature 041)';
+
+-- Constraint: exactly one company reference must be set
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'route_companies_company_ref_check'
+  ) THEN
+    ALTER TABLE route_companies
+      ADD CONSTRAINT route_companies_company_ref_check
+      CHECK (
+        (shared_company_id IS NOT NULL AND private_company_id IS NULL) OR
+        (shared_company_id IS NULL AND private_company_id IS NOT NULL)
+      );
+  END IF;
+END $$;
+
+-- Unique constraint for route-company combination
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'route_companies_unique_association'
+  ) THEN
+    ALTER TABLE route_companies
+      ADD CONSTRAINT route_companies_unique_association
+      UNIQUE (route_id, shared_company_id, private_company_id);
+  END IF;
+END $$;
+
+-- Indexes for route_companies
+CREATE INDEX IF NOT EXISTS idx_route_companies_route ON route_companies(route_id, sequence_order);
+CREATE INDEX IF NOT EXISTS idx_route_companies_user ON route_companies(user_id);
+CREATE INDEX IF NOT EXISTS idx_route_companies_shared ON route_companies(shared_company_id) WHERE shared_company_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_route_companies_private ON route_companies(private_company_id) WHERE private_company_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_route_companies_next_ride ON route_companies(user_id, visit_on_next_ride) WHERE visit_on_next_ride = TRUE;
+
+-- RLS for route_companies
+ALTER TABLE route_companies ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'route_companies' AND policyname = 'route_companies_all'
+  ) THEN
+    CREATE POLICY route_companies_all ON route_companies FOR ALL
+      USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+-- T001: Create active_route_planning table (one active route per user)
+CREATE TABLE IF NOT EXISTS active_route_planning (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  route_id UUID NOT NULL REFERENCES bicycle_routes(id) ON DELETE CASCADE,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_modified_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE active_route_planning IS 'Tracks users current route being planned - one per user (Feature 041)';
+
+-- RLS for active_route_planning
+ALTER TABLE active_route_planning ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'active_route_planning' AND policyname = 'active_route_planning_all'
+  ) THEN
+    CREATE POLICY active_route_planning_all ON active_route_planning FOR ALL
+      USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+-- T004: Seed map_tile_providers with default providers
+INSERT INTO map_tile_providers (name, display_name, url_template, attribution, max_zoom, is_cycling_optimized, requires_api_key, priority)
+VALUES
+  ('osm', 'OpenStreetMap', 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', '© OpenStreetMap contributors', 19, FALSE, FALSE, 0),
+  ('cyclosm', 'CyclOSM', 'https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', '© CyclOSM | Map data © OpenStreetMap contributors', 20, TRUE, FALSE, 15),
+  ('opencyclemap', 'OpenCycleMap', 'https://{s}.tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey={apikey}', '© Thunderforest, OpenStreetMap contributors', 22, TRUE, TRUE, 10),
+  ('thunderforest_outdoors', 'Outdoors', 'https://{s}.tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey={apikey}', '© Thunderforest, OpenStreetMap contributors', 22, TRUE, TRUE, 5)
+ON CONFLICT (name) DO NOTHING;
+
+-- T005: Seed Cleveland GreenWay system route
+-- Note: This is a system route visible to all users in the Cleveland/Bradley County area
+-- Coordinates trace the 4.2-mile paved trail from Mohawk Drive to Willow Street
+INSERT INTO bicycle_routes (
+  user_id,
+  metro_area_id,
+  name,
+  description,
+  color,
+  start_address,
+  start_latitude,
+  start_longitude,
+  end_address,
+  end_latitude,
+  end_longitude,
+  route_geometry,
+  distance_miles,
+  estimated_time_minutes,
+  is_system_route,
+  source_name
+)
+SELECT
+  (SELECT id FROM auth.users LIMIT 1), -- Will be updated to admin user or system user
+  (SELECT id FROM metro_areas WHERE name ILIKE '%cleveland%' OR name ILIKE '%bradley%' LIMIT 1),
+  'Cleveland GreenWay',
+  'A 4.2-mile paved multi-use trail connecting Mohawk Drive to Willow Street in Cleveland, TN. Features 9 access points, creek crossings, and connections to downtown Cleveland.',
+  '#10B981', -- Emerald green for trail
+  'Mohawk Drive Trailhead, Cleveland, TN',
+  35.1667,
+  -84.8667,
+  'Willow Street Trailhead, Cleveland, TN',
+  35.1333,
+  -84.8833,
+  '{"type": "LineString", "coordinates": [[-84.8667, 35.1667], [-84.8700, 35.1600], [-84.8750, 35.1500], [-84.8800, 35.1400], [-84.8833, 35.1333]]}'::jsonb,
+  4.2,
+  25,
+  TRUE,
+  'Cleveland GreenWay Coalition'
+WHERE NOT EXISTS (
+  SELECT 1 FROM bicycle_routes WHERE name = 'Cleveland GreenWay' AND is_system_route = TRUE
+);
+
+-- Function to update bicycle_routes.updated_at on changes
+CREATE OR REPLACE FUNCTION update_bicycle_routes_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger for bicycle_routes.updated_at
+DROP TRIGGER IF EXISTS bicycle_routes_updated_at ON bicycle_routes;
+CREATE TRIGGER bicycle_routes_updated_at
+  BEFORE UPDATE ON bicycle_routes
+  FOR EACH ROW
+  EXECUTE FUNCTION update_bicycle_routes_updated_at();
+
+-- Function to update active_route_planning.last_modified_at on changes
+CREATE OR REPLACE FUNCTION update_active_route_planning_modified()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.last_modified_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger for active_route_planning.last_modified_at
+DROP TRIGGER IF EXISTS active_route_planning_modified ON active_route_planning;
+CREATE TRIGGER active_route_planning_modified
+  BEFORE UPDATE ON active_route_planning
+  FOR EACH ROW
+  EXECUTE FUNCTION update_active_route_planning_modified();
+
+-- ============================================================================
+-- END FEATURE 041: Bicycle Route Planning
+-- ============================================================================
+
 -- Commit the transaction - everything succeeded
 COMMIT;

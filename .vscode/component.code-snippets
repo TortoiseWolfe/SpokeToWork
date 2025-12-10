@@ -62,7 +62,7 @@
   "Component Story File": {
     "prefix": "rcstory",
     "body": [
-      "import type { Meta, StoryObj } from '@storybook/react';",
+      "import type { Meta, StoryObj } from '@storybook/nextjs';",
       "import ${1:ComponentName} from './${1:ComponentName}';",
       "",
       "const meta: Meta<typeof ${1:ComponentName}> = {",

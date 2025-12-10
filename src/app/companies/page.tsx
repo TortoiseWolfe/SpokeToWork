@@ -15,6 +15,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useCompanies } from '@/hooks/useCompanies';
+import { useRoutes } from '@/hooks/useRoutes';
 import CompanyForm from '@/components/organisms/CompanyForm';
 import CompanyTable from '@/components/organisms/CompanyTable';
 import CompanyDetailDrawer from '@/components/organisms/CompanyDetailDrawer';
@@ -22,8 +23,17 @@ import HomeLocationSettings from '@/components/organisms/HomeLocationSettings';
 import CompanyImport from '@/components/organisms/CompanyImport';
 import ApplicationForm from '@/components/organisms/ApplicationForm';
 import CompanyExport from '@/components/molecular/CompanyExport';
+import RouteSidebar from '@/components/organisms/RouteSidebar';
+import RouteBuilder from '@/components/organisms/RouteBuilder';
+import RouteDetailDrawer from '@/components/organisms/RouteDetailDrawer';
 import type { ExportFormat } from '@/components/molecular/CompanyExport';
 import { supabase } from '@/lib/supabase/client';
+import type {
+  BicycleRoute,
+  BicycleRouteCreate,
+  BicycleRouteUpdate,
+  RouteCompanyWithDetails,
+} from '@/types/route';
 import type {
   UnifiedCompany,
   Company,
@@ -120,6 +130,25 @@ export default function CompaniesPage() {
     stopTracking,
   } = useCompanies();
 
+  // Feature 041: Route planning hooks (skip until authenticated)
+  const {
+    routes,
+    activeRouteId,
+    isLoading: isLoadingRoutes,
+    createRoute,
+    updateRoute,
+    deleteRoute,
+    setActiveRoute,
+    addCompanyToRoute,
+    getRouteCompanies,
+    removeCompanyFromRoute,
+    toggleNextRide,
+    reorderCompanies,
+    getNextRideCompanies,
+    generateRouteGeometry,
+    refetch: refetchRoutes,
+  } = useRoutes({ skip: !user || authLoading });
+
   // State
   const [showAddForm, setShowAddForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -135,6 +164,19 @@ export default function CompaniesPage() {
   const [homeLocation, setHomeLocation] = useState<HomeLocation | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Feature 041: Route planning state
+  const [showRouteBuilder, setShowRouteBuilder] = useState(false);
+  const [editingRoute, setEditingRoute] = useState<BicycleRoute | null>(null);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [routeCompaniesPreview, setRouteCompaniesPreview] = useState<
+    RouteCompanyWithDetails[]
+  >([]);
+  const [isLoadingRouteCompanies, setIsLoadingRouteCompanies] = useState(false);
+  const [showRouteDetailDrawer, setShowRouteDetailDrawer] = useState(false);
+  const [nextRideCompanyIds, setNextRideCompanyIds] = useState<Set<string>>(
+    new Set()
+  );
 
   // Feature 014: Application service and state
   const [applicationService] = useState(() => new ApplicationService(supabase));
@@ -215,6 +257,63 @@ export default function CompaniesPage() {
       setError(companiesError.message);
     }
   }, [companiesError]);
+
+  // Feature 041: Sync selectedRouteId with activeRouteId whenever it changes
+  useEffect(() => {
+    if (activeRouteId) {
+      setSelectedRouteId(activeRouteId);
+    }
+  }, [activeRouteId]);
+
+  // Feature 041: Fetch route companies when route is selected (for inline preview)
+  useEffect(() => {
+    async function loadRouteCompanies() {
+      if (!selectedRouteId) {
+        setRouteCompaniesPreview([]);
+        return;
+      }
+
+      setIsLoadingRouteCompanies(true);
+      try {
+        const companies = await getRouteCompanies(selectedRouteId);
+        setRouteCompaniesPreview(companies);
+      } catch (err) {
+        console.error('Error loading route companies:', err);
+        setRouteCompaniesPreview([]);
+      } finally {
+        setIsLoadingRouteCompanies(false);
+      }
+    }
+
+    loadRouteCompanies();
+  }, [selectedRouteId, getRouteCompanies]);
+
+  // Feature 041: Fetch next ride company IDs for filtering
+  useEffect(() => {
+    async function loadNextRideCompanies() {
+      if (!user) {
+        setNextRideCompanyIds(new Set());
+        return;
+      }
+
+      try {
+        const nextRideCompanies = await getNextRideCompanies();
+        // Build a Set of all company IDs (both shared and private)
+        const ids = new Set<string>();
+        nextRideCompanies.forEach((rc) => {
+          if (rc.company.id) {
+            ids.add(rc.company.id);
+          }
+        });
+        setNextRideCompanyIds(ids);
+      } catch (err) {
+        console.error('Error loading next ride companies:', err);
+        setNextRideCompanyIds(new Set());
+      }
+    }
+
+    loadNextRideCompanies();
+  }, [user, getNextRideCompanies, routeCompaniesPreview]); // Re-fetch when route companies change (toggling next ride)
 
   // Feature 014: Initialize application service with user
   useEffect(() => {
@@ -749,6 +848,129 @@ export default function CompaniesPage() {
     [unifiedCompanies]
   );
 
+  // Feature 041: Route handlers
+  const handleCreateRoute = useCallback(
+    async (data: BicycleRouteCreate) => {
+      try {
+        setError(null);
+        await createRoute(data);
+        setShowRouteBuilder(false);
+      } catch (err) {
+        console.error('Error creating route:', err);
+        setError(err instanceof Error ? err.message : 'Failed to create route');
+        throw err;
+      }
+    },
+    [createRoute]
+  );
+
+  const handleUpdateRoute = useCallback(
+    async (data: BicycleRouteUpdate) => {
+      try {
+        setError(null);
+        await updateRoute(data);
+        setEditingRoute(null);
+      } catch (err) {
+        console.error('Error updating route:', err);
+        setError(err instanceof Error ? err.message : 'Failed to update route');
+        throw err;
+      }
+    },
+    [updateRoute]
+  );
+
+  const handleDeleteRoute = useCallback(
+    async (route: BicycleRoute) => {
+      if (!window.confirm(`Are you sure you want to delete "${route.name}"?`)) {
+        return;
+      }
+
+      try {
+        setError(null);
+        await deleteRoute(route.id);
+        if (selectedRouteId === route.id) {
+          setSelectedRouteId(null);
+        }
+      } catch (err) {
+        console.error('Error deleting route:', err);
+        setError(err instanceof Error ? err.message : 'Failed to delete route');
+      }
+    },
+    [deleteRoute, selectedRouteId]
+  );
+
+  const handleSelectRoute = useCallback(
+    (route: BicycleRoute) => {
+      setSelectedRouteId(route.id);
+      setActiveRoute(route.id);
+    },
+    [setActiveRoute]
+  );
+
+  const handleEditRoute = useCallback((route: BicycleRoute) => {
+    setEditingRoute(route);
+    setShowRouteBuilder(true);
+  }, []);
+
+  const handleAddToRoute = useCallback(
+    async (company: CompanyType) => {
+      if (!activeRouteId) {
+        setError('No active route selected. Create or select a route first.');
+        return;
+      }
+
+      try {
+        setError(null);
+        const companyId = isUnifiedCompany(company)
+          ? getCompanyId(company)
+          : company.id;
+
+        // Find the unified company to determine type
+        const unified = unifiedCompanies.find(
+          (c) => getCompanyId(c) === companyId
+        );
+
+        if (!unified) {
+          throw new Error('Company not found');
+        }
+
+        await addCompanyToRoute({
+          route_id: activeRouteId,
+          shared_company_id:
+            unified.source === 'shared'
+              ? (unified.company_id ?? undefined)
+              : undefined,
+          private_company_id:
+            unified.source === 'private'
+              ? (unified.private_company_id ?? undefined)
+              : undefined,
+        });
+
+        // Auto-generate bicycle route geometry via OSRM
+        await generateRouteGeometry(activeRouteId);
+
+        // Refresh the inline preview to show the newly added company
+        if (selectedRouteId === activeRouteId) {
+          const companies = await getRouteCompanies(activeRouteId);
+          setRouteCompaniesPreview(companies);
+        }
+      } catch (err) {
+        console.error('Error adding company to route:', err);
+        setError(
+          err instanceof Error ? err.message : 'Failed to add company to route'
+        );
+      }
+    },
+    [
+      activeRouteId,
+      addCompanyToRoute,
+      unifiedCompanies,
+      selectedRouteId,
+      getRouteCompanies,
+      generateRouteGeometry,
+    ]
+  );
+
   const handleImport = useCallback(
     async (file: File): Promise<ImportResult> => {
       if (!user) throw new Error('Not authenticated');
@@ -912,262 +1134,496 @@ ${rows}
     : null;
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Companies</h1>
-          <p className="text-base-content/70">
-            Track companies for your job search
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            className="btn btn-outline btn-sm"
-            onClick={() => {
-              setShowSettings(!showSettings);
-              setShowAddForm(false);
-              setEditingCompany(null);
-              setShowImport(false);
+    <div className="flex min-h-screen">
+      {/* Feature 041: Route Sidebar - only render when authenticated */}
+      {user && (
+        <aside className="bg-base-200 sticky top-0 hidden h-screen w-72 flex-shrink-0 border-r lg:flex lg:flex-col">
+          <RouteSidebar
+            routes={routes}
+            activeRouteId={activeRouteId}
+            isLoading={isLoadingRoutes}
+            onCreateRoute={() => {
+              setEditingRoute(null);
+              setShowRouteBuilder(true);
             }}
-          >
-            {showSettings ? 'Hide Settings' : 'Home Location'}
-          </button>
-          <button
-            className="btn btn-outline btn-sm"
-            onClick={() => {
-              setShowImport(!showImport);
-              setShowAddForm(false);
-              setEditingCompany(null);
-              setShowSettings(false);
-            }}
-          >
-            {showImport ? 'Cancel Import' : 'Import CSV'}
-          </button>
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={() => {
-              setShowAddForm(!showAddForm);
-              setEditingCompany(null);
-              setShowSettings(false);
-              setShowImport(false);
-            }}
-          >
-            {showAddForm ? 'Cancel' : 'Add Company'}
-          </button>
-        </div>
-      </div>
-
-      {/* Error Message */}
-      {error && (
-        <div className="alert alert-error mb-6">
-          <span>{error}</span>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => setError(null)}
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {/* Home Location Prompt */}
-      {!homeLocation && !showSettings && !showingForm && (
-        <div className="alert alert-info mb-6">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            className="h-6 w-6 shrink-0 stroke-current"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <span>
-            Set your home location to enable distance calculations and extended
-            range warnings.
-          </span>
-          <button className="btn btn-sm" onClick={() => setShowSettings(true)}>
-            Set Location
-          </button>
-        </div>
-      )}
-
-      {/* Home Location Settings */}
-      {showSettings && (
-        <div className="mb-8">
-          <HomeLocationSettings
-            initialLocation={homeLocation}
-            onSave={handleSaveHomeLocation}
+            onRouteSelect={handleSelectRoute}
+            onEditRoute={handleEditRoute}
+            onDeleteRoute={handleDeleteRoute}
           />
-        </div>
+
+          {/* Inline Company Preview - shows when route is selected */}
+          {selectedRouteId && (
+            <div className="border-base-300 flex max-h-[35vh] flex-col border-t">
+              <div className="bg-base-300/50 flex items-center justify-between p-3">
+                <h3 className="text-sm font-semibold">
+                  Companies on Route
+                  {routeCompaniesPreview.length > 0 && (
+                    <span className="badge badge-ghost badge-sm ml-2">
+                      {routeCompaniesPreview.length}
+                    </span>
+                  )}
+                </h3>
+                {routeCompaniesPreview.length > 0 && (
+                  <button
+                    className="btn btn-ghost btn-xs"
+                    onClick={() => setShowRouteDetailDrawer(true)}
+                    aria-label="View all companies on route"
+                  >
+                    View All
+                  </button>
+                )}
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                {isLoadingRouteCompanies ? (
+                  <div className="flex justify-center p-4">
+                    <span
+                      className="loading loading-spinner loading-sm"
+                      aria-label="Loading companies"
+                    ></span>
+                  </div>
+                ) : routeCompaniesPreview.length === 0 ? (
+                  <div className="text-base-content/60 p-4 text-center text-sm">
+                    <p>No companies added yet</p>
+                    <p className="mt-1 text-xs">
+                      Click a marker to add companies
+                    </p>
+                  </div>
+                ) : (
+                  <ul className="menu menu-compact p-2">
+                    {routeCompaniesPreview.slice(0, 5).map((rc, index) => (
+                      <li key={rc.id}>
+                        <div className="flex items-center gap-2 py-1">
+                          <span className="text-base-content/50 w-4 text-xs">
+                            {index + 1}.
+                          </span>
+                          <span className="flex-1 truncate text-sm">
+                            {rc.company.name}
+                          </span>
+                          {rc.visit_on_next_ride && (
+                            <span
+                              className="badge badge-primary badge-xs"
+                              aria-label="On next ride"
+                            >
+                              Next
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                    {routeCompaniesPreview.length > 5 && (
+                      <li>
+                        <button
+                          className="text-primary justify-center text-xs"
+                          onClick={() => setShowRouteDetailDrawer(true)}
+                        >
+                          + {routeCompaniesPreview.length - 5} more
+                        </button>
+                      </li>
+                    )}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+        </aside>
       )}
 
-      {/* Add Company Form */}
-      {showAddForm && (
-        <div className="mb-8">
-          <CompanyForm
-            homeLocation={homeLocation}
-            onSubmit={handleAddCompany}
-            onCancel={() => setShowAddForm(false)}
-          />
-        </div>
-      )}
-
-      {/* Edit Company Form */}
-      {editingCompany && editingCompanyLegacy && (
-        <div className="mb-8">
-          <CompanyForm
-            company={editingCompanyLegacy}
-            homeLocation={homeLocation}
-            onSubmit={handleEditCompany}
-            onCancel={() => setEditingCompany(null)}
-          />
-        </div>
-      )}
-
-      {/* Import Companies */}
-      {showImport && (
-        <div className="mb-8">
-          <CompanyImport
-            onImport={handleImport}
-            onCancel={() => setShowImport(false)}
-            onComplete={() => {
-              // Keep the import dialog open to show results
-            }}
-          />
-        </div>
-      )}
-
-      {/* Company Table */}
-      {!showingForm && !showSettings && (
-        <>
-          {/* Export Options */}
-          <div className="mb-4 flex justify-end">
-            <CompanyExport
-              onExport={handleExport}
-              companyCount={companies.length}
-              disabled={isLoadingCompanies}
-            />
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto">
+        <div className="container mx-auto px-4 py-8">
+          {/* Header */}
+          <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold">Companies</h1>
+              <p className="text-base-content/70">
+                Track companies for your job search
+              </p>
+              {activeRouteId && (
+                <p className="text-primary text-sm">
+                  Active route:{' '}
+                  {routes.find((r) => r.id === activeRouteId)?.name ||
+                    'Loading...'}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {/* Mobile route toggle */}
+              <button
+                className="btn btn-outline btn-sm lg:hidden"
+                onClick={() => {
+                  // Toggle mobile route panel
+                  const sidebar = document.querySelector('aside');
+                  if (sidebar) {
+                    sidebar.classList.toggle('hidden');
+                    sidebar.classList.toggle('fixed');
+                    sidebar.classList.toggle('inset-0');
+                    sidebar.classList.toggle('z-50');
+                  }
+                }}
+              >
+                Routes
+              </button>
+              <a href="/map" className="btn btn-outline btn-sm gap-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M12 1.586l-4 4v12.828l4-4V1.586zM3.707 3.293A1 1 0 002 4v10a1 1 0 00.293.707L6 18.414V5.586L3.707 3.293zM17.707 5.293L14 1.586v12.828l2.293 2.293A1 1 0 0018 16V6a1 1 0 00-.293-.707z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                View Map
+              </a>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => {
+                  setShowSettings(!showSettings);
+                  setShowAddForm(false);
+                  setEditingCompany(null);
+                  setShowImport(false);
+                }}
+              >
+                {showSettings ? 'Hide Settings' : 'Home Location'}
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => {
+                  setShowImport(!showImport);
+                  setShowAddForm(false);
+                  setEditingCompany(null);
+                  setShowSettings(false);
+                }}
+              >
+                {showImport ? 'Cancel Import' : 'Import CSV'}
+              </button>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => {
+                  setShowAddForm(!showAddForm);
+                  setEditingCompany(null);
+                  setShowSettings(false);
+                  setShowImport(false);
+                }}
+              >
+                {showAddForm ? 'Cancel' : 'Add Company'}
+              </button>
+            </div>
           </div>
 
-          <CompanyTable
-            companies={companies}
-            isLoading={isLoadingCompanies}
-            onCompanyClick={handleCompanyClick}
-            onEdit={handleEditFromTable}
-            onDelete={handleDeleteCompany}
-            onStatusChange={handleStatusChange}
+          {/* Error Message */}
+          {error && (
+            <div className="alert alert-error mb-6">
+              <span>{error}</span>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setError(null)}
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {/* Home Location Prompt */}
+          {!homeLocation && !showSettings && !showingForm && (
+            <div className="alert alert-info mb-6">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                className="h-6 w-6 shrink-0 stroke-current"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span>
+                Set your home location to enable distance calculations and
+                extended range warnings.
+              </span>
+              <button
+                className="btn btn-sm"
+                onClick={() => setShowSettings(true)}
+              >
+                Set Location
+              </button>
+            </div>
+          )}
+
+          {/* Home Location Settings */}
+          {showSettings && (
+            <div className="mb-8">
+              <HomeLocationSettings
+                initialLocation={homeLocation}
+                onSave={handleSaveHomeLocation}
+              />
+            </div>
+          )}
+
+          {/* Add Company Form */}
+          {showAddForm && (
+            <div className="mb-8">
+              <CompanyForm
+                homeLocation={homeLocation}
+                onSubmit={handleAddCompany}
+                onCancel={() => setShowAddForm(false)}
+              />
+            </div>
+          )}
+
+          {/* Edit Company Form */}
+          {editingCompany && editingCompanyLegacy && (
+            <div className="mb-8">
+              <CompanyForm
+                company={editingCompanyLegacy}
+                homeLocation={homeLocation}
+                onSubmit={handleEditCompany}
+                onCancel={() => setEditingCompany(null)}
+              />
+            </div>
+          )}
+
+          {/* Import Companies */}
+          {showImport && (
+            <div className="mb-8">
+              <CompanyImport
+                onImport={handleImport}
+                onCancel={() => setShowImport(false)}
+                onComplete={() => {
+                  // Keep the import dialog open to show results
+                }}
+              />
+            </div>
+          )}
+
+          {/* Company Table */}
+          {!showingForm && !showSettings && (
+            <>
+              {/* Export Options */}
+              <div className="mb-4 flex justify-end">
+                <CompanyExport
+                  onExport={handleExport}
+                  companyCount={companies.length}
+                  disabled={isLoadingCompanies}
+                />
+              </div>
+
+              <CompanyTable
+                companies={companies}
+                isLoading={isLoadingCompanies}
+                onCompanyClick={handleCompanyClick}
+                onEdit={handleEditFromTable}
+                onDelete={handleDeleteCompany}
+                onStatusChange={handleStatusChange}
+                onAddToRoute={handleAddToRoute}
+                nextRideCompanyIds={nextRideCompanyIds}
+              />
+            </>
+          )}
+
+          {/* Company Detail Drawer - Feature 014: Added application handlers */}
+          <CompanyDetailDrawer
+            company={
+              selectedCompany
+                ? {
+                    ...selectedCompany,
+                    applications: companyApplications,
+                    latest_application: companyApplications[0] || null,
+                    total_applications: companyApplications.length,
+                  }
+                : null
+            }
+            isOpen={selectedCompany !== null}
+            onClose={() => {
+              setSelectedCompany(null);
+              setSelectedUnified(null);
+              setShowApplicationForm(false);
+            }}
+            onEditCompany={(company) => {
+              handleEditFromTable(company);
+            }}
+            onAddApplication={handleAddApplication}
+            onEditApplication={handleEditApplication}
+            onDeleteApplication={handleDeleteApplication}
+            onStatusChange={handleApplicationStatusChange}
+            onOutcomeChange={handleApplicationOutcomeChange}
           />
-        </>
-      )}
 
-      {/* Company Detail Drawer - Feature 014: Added application handlers */}
-      <CompanyDetailDrawer
-        company={
-          selectedCompany
-            ? {
-                ...selectedCompany,
-                applications: companyApplications,
-                latest_application: companyApplications[0] || null,
-                total_applications: companyApplications.length,
-              }
-            : null
-        }
-        isOpen={selectedCompany !== null}
-        onClose={() => {
-          setSelectedCompany(null);
-          setSelectedUnified(null);
-          setShowApplicationForm(false);
-        }}
-        onEditCompany={(company) => {
-          handleEditFromTable(company);
-        }}
-        onAddApplication={handleAddApplication}
-        onEditApplication={handleEditApplication}
-        onDeleteApplication={handleDeleteApplication}
-        onStatusChange={handleApplicationStatusChange}
-        onOutcomeChange={handleApplicationOutcomeChange}
-      />
-
-      {/* Feature 014: Application Form Modal */}
-      {showApplicationForm && selectedUnified && (
-        <div className="modal modal-open">
-          <div className="modal-box max-w-lg">
-            <h3 className="mb-4 text-lg font-bold">
-              {editingApplication ? 'Edit Application' : 'Add Application'}
-            </h3>
-            <ApplicationForm
-              companyId={
-                selectedUnified.source === 'shared'
-                  ? selectedUnified.company_id || ''
-                  : selectedUnified.private_company_id || ''
-              }
-              companyType={
-                selectedUnified.source === 'shared' ? 'shared' : 'private'
-              }
-              companyName={selectedUnified.name}
-              application={editingApplication}
-              onSubmit={async (data) => {
-                if (editingApplication) {
-                  // Update existing application
-                  await applicationService.update({
-                    id: editingApplication.id,
-                    ...data,
-                  });
-                  // Refresh applications
-                  let apps: JobApplication[] = [];
-                  if (
-                    selectedUnified.source === 'shared' &&
-                    selectedUnified.company_id
-                  ) {
-                    apps = await applicationService.getByCompanyId(
-                      selectedUnified.company_id,
-                      'shared'
-                    );
-                  } else if (
-                    selectedUnified.source === 'private' &&
-                    selectedUnified.private_company_id
-                  ) {
-                    apps = await applicationService.getByCompanyId(
-                      selectedUnified.private_company_id,
-                      'private'
-                    );
+          {/* Feature 014: Application Form Modal */}
+          {showApplicationForm && selectedUnified && (
+            <div className="modal modal-open">
+              <div className="modal-box max-w-lg">
+                <h3 className="mb-4 text-lg font-bold">
+                  {editingApplication ? 'Edit Application' : 'Add Application'}
+                </h3>
+                <ApplicationForm
+                  companyId={
+                    selectedUnified.source === 'shared'
+                      ? selectedUnified.company_id || ''
+                      : selectedUnified.private_company_id || ''
                   }
-                  setCompanyApplications(apps);
-                  if (selectedCompany) {
-                    setSelectedCompany({
-                      ...selectedCompany,
-                      applications: apps,
-                      latest_application: apps[0] || null,
-                      total_applications: apps.length,
-                    });
+                  companyType={
+                    selectedUnified.source === 'shared' ? 'shared' : 'private'
                   }
+                  companyName={selectedUnified.name}
+                  application={editingApplication}
+                  onSubmit={async (data) => {
+                    if (editingApplication) {
+                      // Update existing application
+                      await applicationService.update({
+                        id: editingApplication.id,
+                        ...data,
+                      });
+                      // Refresh applications
+                      let apps: JobApplication[] = [];
+                      if (
+                        selectedUnified.source === 'shared' &&
+                        selectedUnified.company_id
+                      ) {
+                        apps = await applicationService.getByCompanyId(
+                          selectedUnified.company_id,
+                          'shared'
+                        );
+                      } else if (
+                        selectedUnified.source === 'private' &&
+                        selectedUnified.private_company_id
+                      ) {
+                        apps = await applicationService.getByCompanyId(
+                          selectedUnified.private_company_id,
+                          'private'
+                        );
+                      }
+                      setCompanyApplications(apps);
+                      if (selectedCompany) {
+                        setSelectedCompany({
+                          ...selectedCompany,
+                          applications: apps,
+                          latest_application: apps[0] || null,
+                          total_applications: apps.length,
+                        });
+                      }
+                      setShowApplicationForm(false);
+                      setEditingApplication(null);
+                    } else {
+                      await handleSubmitApplication(
+                        data as JobApplicationCreate
+                      );
+                    }
+                  }}
+                  onCancel={() => {
+                    setShowApplicationForm(false);
+                    setEditingApplication(null);
+                  }}
+                />
+              </div>
+              <div
+                className="modal-backdrop"
+                onClick={() => {
                   setShowApplicationForm(false);
                   setEditingApplication(null);
-                } else {
-                  await handleSubmitApplication(data as JobApplicationCreate);
-                }
+                }}
+              />
+            </div>
+          )}
+
+          {/* Route Builder Modal */}
+          {showRouteBuilder && (
+            <RouteBuilder
+              route={editingRoute}
+              isOpen={showRouteBuilder}
+              onSave={async (route) => {
+                console.log('Route saved:', route);
+                setShowRouteBuilder(false);
+                setEditingRoute(null);
+                // Refresh routes list so sidebar shows the new route
+                await refetchRoutes();
               }}
-              onCancel={() => {
-                setShowApplicationForm(false);
-                setEditingApplication(null);
+              onClose={() => {
+                setShowRouteBuilder(false);
+                setEditingRoute(null);
               }}
             />
-          </div>
-          <div
-            className="modal-backdrop"
-            onClick={() => {
-              setShowApplicationForm(false);
-              setEditingApplication(null);
+          )}
+
+          {/* Feature 041: Route Detail Drawer */}
+          <RouteDetailDrawer
+            route={routes.find((r) => r.id === selectedRouteId) ?? null}
+            companies={routeCompaniesPreview}
+            isOpen={showRouteDetailDrawer}
+            isLoading={isLoadingRouteCompanies}
+            onClose={() => setShowRouteDetailDrawer(false)}
+            onEditRoute={(route) => {
+              setShowRouteDetailDrawer(false);
+              setEditingRoute(route);
+              setShowRouteBuilder(true);
+            }}
+            onDeleteRoute={async (route) => {
+              await handleDeleteRoute(route);
+              setShowRouteDetailDrawer(false);
+            }}
+            onRemoveCompany={async (routeCompanyId) => {
+              try {
+                await removeCompanyFromRoute(routeCompanyId);
+                // Regenerate route geometry after removal
+                if (selectedRouteId) {
+                  await generateRouteGeometry(selectedRouteId);
+                  const companies = await getRouteCompanies(selectedRouteId);
+                  setRouteCompaniesPreview(companies);
+                }
+              } catch (err) {
+                console.error('Error removing company from route:', err);
+                setError(
+                  err instanceof Error
+                    ? err.message
+                    : 'Failed to remove company'
+                );
+              }
+            }}
+            onToggleNextRide={async (routeCompanyId) => {
+              try {
+                await toggleNextRide(routeCompanyId);
+                // Refresh the preview
+                if (selectedRouteId) {
+                  const companies = await getRouteCompanies(selectedRouteId);
+                  setRouteCompaniesPreview(companies);
+                }
+              } catch (err) {
+                console.error('Error toggling next ride:', err);
+                setError(
+                  err instanceof Error
+                    ? err.message
+                    : 'Failed to toggle next ride'
+                );
+              }
+            }}
+            onReorder={async (data) => {
+              try {
+                await reorderCompanies(data);
+                // Regenerate route geometry with new order
+                if (selectedRouteId) {
+                  await generateRouteGeometry(selectedRouteId);
+                  const companies = await getRouteCompanies(selectedRouteId);
+                  setRouteCompaniesPreview(companies);
+                }
+              } catch (err) {
+                console.error('Error reordering companies:', err);
+                setError(
+                  err instanceof Error
+                    ? err.message
+                    : 'Failed to reorder companies'
+                );
+              }
             }}
           />
         </div>
-      )}
+      </main>
     </div>
   );
 }

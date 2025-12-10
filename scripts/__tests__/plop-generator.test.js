@@ -336,7 +336,7 @@ describe('{{name}}', () => {
     });
 
     it('should generate proper story file content', () => {
-      const storyTemplate = `import type { Meta, StoryObj } from '@storybook/react';
+      const storyTemplate = `import type { Meta, StoryObj } from '@storybook/nextjs';
 import {{name}} from './{{name}}';
 
 const meta: Meta<typeof {{name}}> = {

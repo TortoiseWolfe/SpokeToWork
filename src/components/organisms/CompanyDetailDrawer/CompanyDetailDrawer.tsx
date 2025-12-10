@@ -100,6 +100,8 @@ export interface CompanyDetailDrawerProps {
     oldValue: string | null,
     newValue: string
   ) => Promise<void>;
+  /** Callback when add to route is requested (Feature 041) */
+  onAddToRoute?: (company: CompanyWithApplications | UnifiedCompany) => void;
   /** Additional CSS classes */
   className?: string;
   /** Test ID for testing */
@@ -132,6 +134,7 @@ export default function CompanyDetailDrawer({
   onTrackingPriorityChange,
   onSubmitToCommunity,
   onSuggestEdit,
+  onAddToRoute,
   className = '',
   testId = 'company-detail-drawer',
 }: CompanyDetailDrawerProps) {
@@ -783,6 +786,38 @@ export default function CompanyDetailDrawer({
                 )}
               </div>
             )}
+
+          {/* Routes Section (Feature 041) */}
+          {onAddToRoute && (
+            <div className="mt-3 border-t pt-3">
+              <div className="flex items-center justify-between">
+                <span className="text-base-content/70 text-sm">Routes</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-xs text-primary"
+                  onClick={() => onAddToRoute(company)}
+                  aria-label={`Add ${company.name} to a route`}
+                  data-testid="add-to-route-btn"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="mr-1 h-3 w-3"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  Add to Route
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Applications Section */}

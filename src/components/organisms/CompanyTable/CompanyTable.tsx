@@ -54,6 +54,10 @@ export interface CompanyTableProps {
   onDelete?: (company: CompanyType) => void;
   /** Callback when status is changed (legacy - for companies without applications) */
   onStatusChange?: (company: Company, status: CompanyStatus) => void;
+  /** Callback when add to route is requested (Feature 041) */
+  onAddToRoute?: (company: CompanyType) => void;
+  /** Set of company IDs marked for "next ride" (Feature 041) */
+  nextRideCompanyIds?: Set<string>;
   /** Additional CSS classes */
   className?: string;
   /** Test ID for testing */
@@ -79,6 +83,8 @@ export default function CompanyTable({
   onEdit,
   onDelete,
   onStatusChange,
+  onAddToRoute,
+  nextRideCompanyIds,
   className = '',
   testId = 'company-table',
 }: CompanyTableProps) {
@@ -132,9 +138,27 @@ export default function CompanyTable({
           return false;
       }
 
+      // Next Ride filter (Feature 041)
+      if (filters.next_ride_only && nextRideCompanyIds) {
+        const companyId = getCompanyId(company);
+        // For unified companies, check both tracking_id/private_company_id and company_id
+        let isOnNextRide = nextRideCompanyIds.has(companyId);
+        if (!isOnNextRide && isUnifiedCompany(company)) {
+          // Also check against company_id for shared companies
+          if (company.company_id) {
+            isOnNextRide = nextRideCompanyIds.has(company.company_id);
+          }
+          // And private_company_id
+          if (!isOnNextRide && company.private_company_id) {
+            isOnNextRide = nextRideCompanyIds.has(company.private_company_id);
+          }
+        }
+        if (!isOnNextRide) return false;
+      }
+
       return true;
     });
-  }, [companies, filters]);
+  }, [companies, filters, nextRideCompanyIds]);
 
   // Apply sorting
   const sortedCompanies = useMemo(() => {
@@ -347,6 +371,7 @@ export default function CompanyTable({
                     onEdit={onEdit}
                     onDelete={onDelete}
                     onStatusChange={onStatusChange}
+                    onAddToRoute={onAddToRoute}
                     testId={`company-row-${companyId}`}
                   />
                 );

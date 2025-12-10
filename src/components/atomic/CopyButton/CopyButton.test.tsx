@@ -8,8 +8,10 @@ const mockClipboard = {
   writeText: vi.fn(),
 };
 
-Object.assign(navigator, {
-  clipboard: mockClipboard,
+Object.defineProperty(navigator, 'clipboard', {
+  value: mockClipboard,
+  writable: true,
+  configurable: true,
 });
 
 describe('CopyButton', () => {
@@ -109,8 +111,11 @@ describe('CopyButton', () => {
   });
 
   it('handles missing clipboard API gracefully', async () => {
-    const originalClipboard = navigator.clipboard;
-    Object.assign(navigator, { clipboard: undefined });
+    Object.defineProperty(navigator, 'clipboard', {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    });
 
     const onCopyError = vi.fn();
     render(<CopyButton content="test content" onCopyError={onCopyError} />);
@@ -126,7 +131,11 @@ describe('CopyButton', () => {
       );
     });
 
-    // Restore clipboard
-    Object.assign(navigator, { clipboard: originalClipboard });
+    // Restore clipboard mock
+    Object.defineProperty(navigator, 'clipboard', {
+      value: mockClipboard,
+      writable: true,
+      configurable: true,
+    });
   });
 });

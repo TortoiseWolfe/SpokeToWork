@@ -403,6 +403,9 @@ ADD COLUMN IF NOT EXISTS encryption_salt TEXT;
 
 ## Active Technologies
 
+- TypeScript 5.x with React 19, Next.js 15 + react-leaflet 5.x, Leaflet 1.9.x, @tanstack/react-query, Supabase JS client, DaisyUI (041-bicycle-route-planning)
+- Supabase PostgreSQL (cloud) with Row-Level Security (041-bicycle-route-planning)
+
 - TypeScript 5.x with Next.js 15, React 19 + Supabase (Auth, Database), TanStack Query, DaisyUI (014-job-applications-fix)
 - Supabase PostgreSQL (cloud) with multi-tenant schema (014-job-applications-fix)
 

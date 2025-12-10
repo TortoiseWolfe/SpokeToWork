@@ -1,0 +1,481 @@
+'use client';
+
+/**
+ * useRoutes Hook - Feature 041: Bicycle Route Planning
+ *
+ * React hook for managing bicycle routes with caching and optimistic updates.
+ *
+ * @see src/lib/routes/route-service.ts
+ */
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { RouteService, createRouteService } from '@/lib/routes/route-service';
+import { getBicycleRoute } from '@/lib/routing/osrm-service';
+import { createLogger } from '@/lib/logger';
+import type {
+  BicycleRoute,
+  BicycleRouteCreate,
+  BicycleRouteUpdate,
+  RouteCompany,
+  RouteCompanyCreate,
+  RouteCompanyReorder,
+  RouteCompanyWithDetails,
+  RouteWithCompanies,
+  RouteSummary,
+  RouteFilters,
+  RouteSort,
+  LimitCheckResult,
+  ActiveRoutePlanning,
+} from '@/types/route';
+
+const logger = createLogger('hooks:useRoutes');
+
+// Cache configuration
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const STALE_TTL_MS = 30 * 1000; // 30 seconds before background refresh
+
+// Module-level cache
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  key: string;
+}
+
+let routesCache: CacheEntry<BicycleRoute[]> | null = null;
+let activeRouteCache: CacheEntry<ActiveRoutePlanning | null> | null = null;
+
+function isCacheValid<T>(cache: CacheEntry<T> | null, key: string): boolean {
+  if (!cache) return false;
+  if (cache.key !== key) return false;
+  return Date.now() - cache.timestamp < CACHE_TTL_MS;
+}
+
+function isCacheStale<T>(cache: CacheEntry<T> | null, key: string): boolean {
+  if (!cache) return true;
+  if (cache.key !== key) return true;
+  return Date.now() - cache.timestamp > STALE_TTL_MS;
+}
+
+export interface UseRoutesOptions {
+  filters?: RouteFilters;
+  sort?: RouteSort;
+  skip?: boolean;
+  refetchOnFocus?: boolean;
+}
+
+export interface UseRoutesReturn {
+  // Data
+  routes: BicycleRoute[];
+  activeRouteId: string | null;
+  isLoading: boolean;
+  error: Error | null;
+
+  // Route CRUD
+  createRoute: (data: BicycleRouteCreate) => Promise<BicycleRoute>;
+  updateRoute: (data: BicycleRouteUpdate) => Promise<BicycleRoute>;
+  deleteRoute: (id: string) => Promise<void>;
+  getRouteById: (id: string) => Promise<BicycleRoute | null>;
+  getRouteWithCompanies: (id: string) => Promise<RouteWithCompanies | null>;
+  getSystemRoutes: (metroAreaId?: string) => Promise<BicycleRoute[]>;
+
+  // Route-Company associations
+  addCompanyToRoute: (data: RouteCompanyCreate) => Promise<RouteCompany>;
+  removeCompanyFromRoute: (routeCompanyId: string) => Promise<void>;
+  reorderCompanies: (data: RouteCompanyReorder) => Promise<void>;
+  getRouteCompanies: (routeId: string) => Promise<RouteCompanyWithDetails[]>;
+
+  // Next Ride
+  toggleNextRide: (routeCompanyId: string) => Promise<RouteCompany>;
+  getNextRideCompanies: () => Promise<RouteCompanyWithDetails[]>;
+  clearAllNextRide: () => Promise<void>;
+
+  // Active Route Planning
+  setActiveRoute: (routeId: string) => Promise<void>;
+  clearActiveRoute: () => Promise<void>;
+
+  // Limits
+  checkRouteLimits: () => Promise<LimitCheckResult>;
+  checkRouteCompanyLimits: (routeId: string) => Promise<LimitCheckResult>;
+
+  // Summaries
+  getRouteSummaries: () => Promise<RouteSummary[]>;
+
+  // Route Geometry
+  generateRouteGeometry: (routeId: string) => Promise<void>;
+
+  // Utilities
+  refetch: () => Promise<void>;
+  invalidateCache: () => void;
+}
+
+export function useRoutes(options: UseRoutesOptions = {}): UseRoutesReturn {
+  const { filters, sort, skip = false, refetchOnFocus = true } = options;
+
+  const [routes, setRoutes] = useState<BicycleRoute[]>([]);
+  const [activeRouteId, setActiveRouteId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(!skip);
+  const [error, setError] = useState<Error | null>(null);
+
+  const serviceRef = useRef<RouteService | null>(null);
+  const fetchingRef = useRef(false);
+
+  // Cache key based on filters and sort
+  const cacheKey = JSON.stringify({ filters, sort });
+
+  // Get or create service
+  const getService = useCallback(() => {
+    if (!serviceRef.current) {
+      const supabase = createClient();
+      serviceRef.current = createRouteService(supabase);
+    }
+    return serviceRef.current;
+  }, []);
+
+  // Fetch routes
+  const fetchRoutes = useCallback(
+    async (force = false) => {
+      if (fetchingRef.current && !force) return;
+      if (!force && isCacheValid(routesCache, cacheKey)) {
+        setRoutes(routesCache!.data);
+        return;
+      }
+
+      fetchingRef.current = true;
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const service = getService();
+        const data = await service.getRoutes(filters, sort);
+
+        routesCache = {
+          data,
+          timestamp: Date.now(),
+          key: cacheKey,
+        };
+
+        setRoutes(data);
+        setError(null); // Clear any previous error on success
+      } catch (err) {
+        console.error('useRoutes: Failed to fetch routes:', err);
+        setError(
+          err instanceof Error ? err : new Error('Failed to fetch routes')
+        );
+        setRoutes([]); // Safe fallback - never leave stale data on error
+      } finally {
+        setIsLoading(false);
+        fetchingRef.current = false;
+      }
+    },
+    [cacheKey, filters, sort, getService]
+  );
+
+  // Fetch active route
+  const fetchActiveRoute = useCallback(async () => {
+    try {
+      const service = getService();
+      const active = await service.getActiveRoute();
+
+      activeRouteCache = {
+        data: active,
+        timestamp: Date.now(),
+        key: 'active',
+      };
+
+      setActiveRouteId(active?.route_id ?? null);
+    } catch (err) {
+      console.error('Failed to fetch active route:', err);
+    }
+  }, [getService]);
+
+  // Initial fetch
+  useEffect(() => {
+    if (skip) return;
+    fetchRoutes();
+    fetchActiveRoute();
+  }, [skip, fetchRoutes, fetchActiveRoute]);
+
+  // Refetch on window focus
+  useEffect(() => {
+    if (!refetchOnFocus || skip) return;
+
+    const handleFocus = () => {
+      if (isCacheStale(routesCache, cacheKey)) {
+        fetchRoutes();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [refetchOnFocus, skip, cacheKey, fetchRoutes]);
+
+  // Invalidate cache
+  const invalidateCache = useCallback(() => {
+    routesCache = null;
+    activeRouteCache = null;
+  }, []);
+
+  // Refetch
+  const refetch = useCallback(async () => {
+    invalidateCache();
+    await fetchRoutes(true);
+    await fetchActiveRoute();
+  }, [invalidateCache, fetchRoutes, fetchActiveRoute]);
+
+  // Route CRUD operations
+  const createRoute = useCallback(
+    async (data: BicycleRouteCreate): Promise<BicycleRoute> => {
+      const service = getService();
+      const route = await service.createRoute(data);
+      invalidateCache();
+      await fetchRoutes(true);
+      return route;
+    },
+    [getService, invalidateCache, fetchRoutes]
+  );
+
+  const updateRoute = useCallback(
+    async (data: BicycleRouteUpdate): Promise<BicycleRoute> => {
+      const service = getService();
+      const route = await service.updateRoute(data);
+      invalidateCache();
+      await fetchRoutes(true);
+      return route;
+    },
+    [getService, invalidateCache, fetchRoutes]
+  );
+
+  const deleteRoute = useCallback(
+    async (id: string): Promise<void> => {
+      const service = getService();
+      await service.deleteRoute(id);
+      invalidateCache();
+      await fetchRoutes(true);
+    },
+    [getService, invalidateCache, fetchRoutes]
+  );
+
+  const getRouteById = useCallback(
+    async (id: string): Promise<BicycleRoute | null> => {
+      const service = getService();
+      return service.getRouteById(id);
+    },
+    [getService]
+  );
+
+  const getRouteWithCompanies = useCallback(
+    async (id: string): Promise<RouteWithCompanies | null> => {
+      const service = getService();
+      return service.getRouteWithCompanies(id);
+    },
+    [getService]
+  );
+
+  const getSystemRoutes = useCallback(
+    async (metroAreaId?: string): Promise<BicycleRoute[]> => {
+      const service = getService();
+      return service.getSystemRoutes(metroAreaId);
+    },
+    [getService]
+  );
+
+  // Route-Company operations
+  const addCompanyToRoute = useCallback(
+    async (data: RouteCompanyCreate): Promise<RouteCompany> => {
+      const service = getService();
+      const result = await service.addCompanyToRoute(data);
+      invalidateCache(); // Refresh sidebar counts after adding company
+      return result;
+    },
+    [getService, invalidateCache]
+  );
+
+  const removeCompanyFromRoute = useCallback(
+    async (routeCompanyId: string): Promise<void> => {
+      const service = getService();
+      await service.removeCompanyFromRoute(routeCompanyId);
+      invalidateCache(); // Refresh sidebar counts after removing company
+    },
+    [getService, invalidateCache]
+  );
+
+  const reorderCompanies = useCallback(
+    async (data: RouteCompanyReorder): Promise<void> => {
+      const service = getService();
+      await service.reorderCompanies(data);
+      invalidateCache(); // Refresh after reordering
+    },
+    [getService, invalidateCache]
+  );
+
+  const getRouteCompanies = useCallback(
+    async (routeId: string): Promise<RouteCompanyWithDetails[]> => {
+      const service = getService();
+      return service.getRouteCompanies(routeId);
+    },
+    [getService]
+  );
+
+  // Next Ride operations
+  const toggleNextRide = useCallback(
+    async (routeCompanyId: string): Promise<RouteCompany> => {
+      const service = getService();
+      const result = await service.toggleNextRide(routeCompanyId);
+      invalidateCache(); // Refresh sidebar counts after toggling next ride
+      return result;
+    },
+    [getService, invalidateCache]
+  );
+
+  const getNextRideCompanies = useCallback(async (): Promise<
+    RouteCompanyWithDetails[]
+  > => {
+    const service = getService();
+    return service.getNextRideCompanies();
+  }, [getService]);
+
+  const clearAllNextRide = useCallback(async (): Promise<void> => {
+    const service = getService();
+    await service.clearAllNextRide();
+  }, [getService]);
+
+  // Active Route operations
+  const setActiveRoute = useCallback(
+    async (routeId: string): Promise<void> => {
+      const service = getService();
+      await service.setActiveRoute(routeId);
+      setActiveRouteId(routeId);
+      activeRouteCache = null;
+    },
+    [getService]
+  );
+
+  const clearActiveRoute = useCallback(async (): Promise<void> => {
+    const service = getService();
+    await service.clearActiveRoute();
+    setActiveRouteId(null);
+    activeRouteCache = null;
+  }, [getService]);
+
+  // Limits
+  const checkRouteLimits = useCallback(async (): Promise<LimitCheckResult> => {
+    const service = getService();
+    return service.checkRouteLimits();
+  }, [getService]);
+
+  const checkRouteCompanyLimits = useCallback(
+    async (routeId: string): Promise<LimitCheckResult> => {
+      const service = getService();
+      return service.checkRouteCompanyLimits(routeId);
+    },
+    [getService]
+  );
+
+  // Summaries
+  const getRouteSummaries = useCallback(async (): Promise<RouteSummary[]> => {
+    const service = getService();
+    return service.getRouteSummaries();
+  }, [getService]);
+
+  // Generate route geometry using OSRM
+  const generateRouteGeometry = useCallback(
+    async (routeId: string): Promise<void> => {
+      try {
+        const service = getService();
+        const companies = await service.getRouteCompanies(routeId);
+
+        // Need at least 2 companies to generate a route
+        if (companies.length < 2) {
+          logger.info('Not enough companies to generate route', {
+            routeId,
+            count: companies.length,
+          });
+          return;
+        }
+
+        // Get coordinates in sequence order
+        const waypoints = companies
+          .sort((a, b) => a.sequence_order - b.sequence_order)
+          .filter((c) => c.company.latitude && c.company.longitude)
+          .map(
+            (c) =>
+              [c.company.latitude!, c.company.longitude!] as [number, number]
+          );
+
+        if (waypoints.length < 2) {
+          logger.warn('Not enough companies with coordinates', {
+            routeId,
+            waypointsCount: waypoints.length,
+          });
+          return;
+        }
+
+        logger.info('Generating bicycle route', {
+          routeId,
+          waypointCount: waypoints.length,
+        });
+
+        // Call OSRM to get bicycle route
+        const result = await getBicycleRoute(waypoints);
+
+        if (!result) {
+          logger.error('Failed to get bicycle route from OSRM', { routeId });
+          return;
+        }
+
+        // Update route with new geometry
+        await service.updateRoute({
+          id: routeId,
+          route_geometry: result.geometry,
+          distance_miles: result.distanceMiles,
+          estimated_time_minutes: result.durationMinutes,
+        });
+
+        logger.info('Route geometry updated', {
+          routeId,
+          distanceMiles: result.distanceMiles.toFixed(2),
+          durationMinutes: result.durationMinutes,
+        });
+
+        // Refresh routes to get updated data
+        invalidateCache();
+        await fetchRoutes(true);
+      } catch (err) {
+        logger.error('Failed to generate route geometry', {
+          routeId,
+          error: err instanceof Error ? err.message : 'Unknown error',
+        });
+      }
+    },
+    [getService, invalidateCache, fetchRoutes]
+  );
+
+  return {
+    routes,
+    activeRouteId,
+    isLoading,
+    error,
+    createRoute,
+    updateRoute,
+    deleteRoute,
+    getRouteById,
+    getRouteWithCompanies,
+    getSystemRoutes,
+    addCompanyToRoute,
+    removeCompanyFromRoute,
+    reorderCompanies,
+    getRouteCompanies,
+    toggleNextRide,
+    getNextRideCompanies,
+    clearAllNextRide,
+    setActiveRoute,
+    clearActiveRoute,
+    checkRouteLimits,
+    checkRouteCompanyLimits,
+    getRouteSummaries,
+    generateRouteGeometry,
+    refetch,
+    invalidateCache,
+  };
+}

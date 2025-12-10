@@ -6,7 +6,7 @@ const path = require('path');
 function fixStoriesFile(filePath) {
   const componentName = path.basename(path.dirname(filePath));
 
-  const content = `import type { Meta, StoryObj } from '@storybook/react';
+  const content = `import type { Meta, StoryObj } from '@storybook/nextjs';
 import ${componentName} from './${componentName}';
 
 const meta: Meta<typeof ${componentName}> = {

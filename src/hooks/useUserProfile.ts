@@ -18,6 +18,11 @@ export interface UserProfile {
   display_name: string | null;
   avatar_url: string | null;
   bio: string | null;
+  // Home location fields (Feature 041 - Route Planning)
+  home_address: string | null;
+  home_latitude: number | null;
+  home_longitude: number | null;
+  distance_radius_miles: number | null;
   created_at: string;
   updated_at: string;
 }

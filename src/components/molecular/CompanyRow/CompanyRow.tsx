@@ -31,6 +31,8 @@ export interface CompanyRowProps {
   onDelete?: (company: CompanyType) => void;
   /** Callback when status is changed (legacy - for companies without applications) */
   onStatusChange?: (company: Company, status: CompanyStatus) => void;
+  /** Callback when add to route is requested (Feature 041) */
+  onAddToRoute?: (company: CompanyType) => void;
   /** Whether this row is selected */
   isSelected?: boolean;
   /** Additional CSS classes */
@@ -112,6 +114,7 @@ export default function CompanyRow({
   onEdit,
   onDelete,
   onStatusChange,
+  onAddToRoute,
   isSelected = false,
   className = '',
   testId = 'company-row',
@@ -128,6 +131,11 @@ export default function CompanyRow({
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onDelete) onDelete(company);
+  };
+
+  const handleAddToRoute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onAddToRoute) onAddToRoute(company);
   };
 
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -332,6 +340,30 @@ export default function CompanyRow({
       {/* Actions */}
       <td>
         <div className="flex gap-1">
+          {onAddToRoute && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs text-primary"
+              onClick={handleAddToRoute}
+              aria-label={`Add ${company.name} to route`}
+              title="Add to route"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+                />
+              </svg>
+            </button>
+          )}
           {onEdit && (
             <button
               type="button"

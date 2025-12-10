@@ -13,7 +13,7 @@ export const DEFAULT_MAP_CONFIG = {
   showUserLocation: false,
   allowZoom: true,
   allowPan: true,
-  scrollWheelZoom: false, // Better accessibility
+  scrollWheelZoom: true, // Standard map behavior - users expect scroll to zoom
   keyboardNavigation: true,
   zoomControl: true,
 };
@@ -135,6 +135,19 @@ export const OSM_TILE_URL =
  */
 export const OSM_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
+/**
+ * CyclOSM tile URL - Cycling-optimized tiles with larger street fonts
+ * Free to use, no API key required
+ */
+export const CYCLOSM_TILE_URL =
+  'https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png';
+
+/**
+ * CyclOSM attribution
+ */
+export const CYCLOSM_ATTRIBUTION =
+  '&copy; <a href="https://www.cyclosm.org">CyclOSM</a> | Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 /**
  * Map error codes

@@ -310,7 +310,7 @@ describe('${componentName}', () => {
  * Template for story file
  */
 function getStoryTemplate(componentName, category) {
-  return `import type { Meta, StoryObj } from '@storybook/react';
+  return `import type { Meta, StoryObj } from '@storybook/nextjs';
 import ${componentName} from './${componentName}';
 
 const meta: Meta<typeof ${componentName}> = {

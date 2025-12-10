@@ -234,6 +234,8 @@ export default function ApplicationForm({
       companyId,
       companyType,
       positionTitle,
+      positionUrl,
+      statusUrl,
       jobLink,
       workLocationType,
       status,

@@ -22,7 +22,8 @@ export class CompaniesPage extends BasePage {
     // Drawer selectors
     drawer: '[data-testid="company-detail-drawer"]',
     drawerBackdrop: '[data-testid="company-detail-drawer-backdrop"]',
-    closeDrawerButton: '[aria-label="Close drawer"]',
+    closeDrawerButton:
+      '[data-testid="company-detail-drawer"] [aria-label="Close drawer"]',
     editCompanyButton: '[aria-label="Edit company"]',
     addAppButton: '[aria-label="Add application"]',
 

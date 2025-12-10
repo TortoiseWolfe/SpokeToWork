@@ -241,12 +241,23 @@ export function CreateGroupModal({
         {/* Search Results */}
         <div
           className="border-base-300 mb-4 max-h-48 overflow-y-auto rounded-lg border"
-          role="listbox"
-          aria-label="Available connections"
+          {...(searchResults.filter(
+            (user) => !selectedMembers.includes(user.id)
+          ).length > 0 && !isLoading
+            ? { role: 'listbox', 'aria-label': 'Available connections' }
+            : {})}
         >
           {isLoading ? (
-            <div className="flex justify-center p-4">
-              <span className="loading loading-spinner loading-md" />
+            <div
+              className="flex justify-center p-4"
+              role="status"
+              aria-live="polite"
+            >
+              <span
+                className="loading loading-spinner loading-md"
+                aria-hidden="true"
+              />
+              <span className="sr-only">Loading connections...</span>
             </div>
           ) : searchResults.length === 0 ? (
             <p className="text-base-content/60 p-4 text-center">
@@ -293,7 +304,7 @@ export function CreateGroupModal({
 
         {/* Error Messages */}
         {(searchError || createError) && (
-          <div className="alert alert-error mb-4">
+          <div className="alert alert-error mb-4" role="alert">
             <span>{searchError || createError}</span>
           </div>
         )}
@@ -316,7 +327,10 @@ export function CreateGroupModal({
           >
             {isCreating ? (
               <>
-                <span className="loading loading-spinner loading-sm" />
+                <span
+                  className="loading loading-spinner loading-sm"
+                  aria-hidden="true"
+                />
                 Creating...
               </>
             ) : (

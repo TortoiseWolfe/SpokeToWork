@@ -24,6 +24,10 @@ export interface MapContainerProps {
   className?: string;
   testId?: string;
   style?: React.CSSProperties;
+  /** Custom tile URL - overrides config.tileUrl */
+  tileUrl?: string;
+  /** Custom attribution - overrides config.attribution */
+  attribution?: string;
   config?: {
     center?: LatLngTuple;
     zoom?: number;
@@ -62,6 +66,8 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   className = '',
   testId = 'map-container',
   style,
+  tileUrl,
+  attribution,
   config,
   children,
 }) => {
@@ -150,8 +156,8 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         onLocationFound={onLocationFound}
         onLocationError={onLocationError}
         onMapReady={handleMapReady}
-        tileUrl={config?.tileUrl}
-        attribution={config?.attribution}
+        tileUrl={tileUrl || config?.tileUrl}
+        attribution={attribution || config?.attribution}
         scrollWheelZoom={config?.scrollWheelZoom}
         zoomControl={config?.zoomControl}
         keyboardNavigation={config?.keyboardNavigation}

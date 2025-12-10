@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import dynamicImport from 'next/dynamic';
 import { useGeolocation } from '@/hooks/useGeolocation';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRoutes } from '@/hooks/useRoutes';
 import { LocationButton } from '@/components/map/LocationButton';
 import {
   GeolocationConsent,
@@ -10,8 +12,30 @@ import {
 } from '@/components/map/GeolocationConsent';
 import type { LatLngTuple } from 'leaflet';
 import { createLogger } from '@/lib/logger';
+import { CYCLOSM_TILE_URL, CYCLOSM_ATTRIBUTION } from '@/utils/map-utils';
+import type { RouteCompanyWithDetails } from '@/types/route';
+import type { MapMarker } from '@/components/map/MapContainer/MapContainerInner';
 
 const logger = createLogger('app:map:page');
+
+// Dynamic import for RoutePolylines to avoid SSR issues (Leaflet dependency)
+// With error handling to prevent crashes if component fails to load
+const RoutePolylines = dynamicImport(
+  () =>
+    import('@/components/map/RoutePolyline')
+      .then((mod) => ({
+        default: mod.RoutePolylines,
+      }))
+      .catch((err) => {
+        console.error('Failed to load RoutePolylines:', err);
+        // Return a no-op component on error
+        return { default: () => null };
+      }),
+  {
+    ssr: false,
+    loading: () => null, // Loading handled by parent
+  }
+);
 
 // Dynamic import for MapContainer to avoid SSR issues
 const MapContainer = dynamicImport(
@@ -32,9 +56,91 @@ const MapContainer = dynamicImport(
 export default function MapPage() {
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [hasConsent, setHasConsent] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   const [userLocation, setUserLocation] = useState<LatLngTuple | null>(null);
-  const [mapCenter, setMapCenter] = useState<LatLngTuple>([51.505, -0.09]); // Default to London
+  const [mapCenter, setMapCenter] = useState<LatLngTuple>([35.159, -84.876]); // Default to Cleveland, TN
+
+  // Fix hydration mismatch - only show client-side content after mount
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Feature 041: Auth and routes for displaying route polylines
+  const { user, isLoading: authLoading } = useAuth();
+  const {
+    routes,
+    activeRouteId,
+    isLoading: routesLoading,
+    error: routesError,
+    getRouteCompanies,
+  } = useRoutes({ skip: !user || authLoading });
+
+  // State for companies on routes (for displaying markers)
+  const [routeCompanies, setRouteCompanies] = useState<
+    RouteCompanyWithDetails[]
+  >([]);
+
+  // Log any route errors for debugging
+  if (routesError) {
+    logger.error('Route loading error', { error: routesError.message });
+  }
+
+  // Debug: Log routes being fetched
+  useEffect(() => {
+    if (!routesLoading && routes.length > 0) {
+      logger.info('Routes loaded', {
+        count: routes.length,
+        routesWithGeometry: routes.filter((r) => r.route_geometry).length,
+        routeDetails: routes.map((r) => ({
+          name: r.name,
+          is_system_route: r.is_system_route,
+          has_geometry: !!r.route_geometry,
+          color: r.color,
+        })),
+      });
+    }
+  }, [routes, routesLoading]);
+
+  // Fetch companies for all routes with geometry
+  useEffect(() => {
+    async function fetchAllRouteCompanies() {
+      if (routesLoading || routes.length === 0) return;
+
+      const routesWithGeometry = routes.filter(
+        (r) => r.route_geometry && !r.is_system_route
+      );
+      if (routesWithGeometry.length === 0) return;
+
+      try {
+        const allCompanies: RouteCompanyWithDetails[] = [];
+        for (const route of routesWithGeometry) {
+          const companies = await getRouteCompanies(route.id);
+          allCompanies.push(...companies);
+        }
+        setRouteCompanies(allCompanies);
+        logger.info('Route companies loaded', { count: allCompanies.length });
+      } catch (err) {
+        logger.error('Failed to fetch route companies', { error: err });
+      }
+    }
+
+    fetchAllRouteCompanies();
+  }, [routes, routesLoading, getRouteCompanies]);
+
+  // Convert route companies to map markers
+  const companyMarkers: MapMarker[] = useMemo(() => {
+    return routeCompanies
+      .filter((rc) => rc.company.latitude && rc.company.longitude)
+      .map((rc) => ({
+        id: `company-${rc.id}`,
+        position: [rc.company.latitude!, rc.company.longitude!] as LatLngTuple,
+        popup: `${rc.company.name}${rc.visit_on_next_ride ? ' 🚴 Next Ride' : ''}`,
+        variant: rc.visit_on_next_ride
+          ? ('next-ride' as const)
+          : ('active-route' as const),
+      }));
+  }, [routeCompanies]);
 
   const {
     position,
@@ -142,35 +248,73 @@ export default function MapPage() {
     }
   }, [position]);
 
-  // Example markers for demo purposes
-  const demoMarkers = [
-    {
-      id: 'marker1',
-      position: [51.51, -0.1] as LatLngTuple,
-      popup: 'Test Marker 1',
-    },
-    {
-      id: 'marker2',
-      position: [51.5, -0.08] as LatLngTuple,
-      popup: 'Test Marker 2',
-    },
-  ];
+  // Demo markers disabled due to Leaflet icon cleanup issue
+  // TODO: Re-enable once Leaflet initialization issue is fixed
+  const demoMarkers: Array<{
+    id: string;
+    position: LatLngTuple;
+    popup: string;
+  }> = [];
 
   return (
     <main className="container mx-auto p-4">
       <header className="prose mb-6 max-w-none">
-        <h1 className="!text-2xl font-bold sm:!text-4xl md:!text-5xl">
-          Interactive Map
-        </h1>
+        <div className="not-prose mb-2 flex flex-wrap items-center justify-between gap-4">
+          <h1 className="text-2xl font-bold sm:text-4xl md:text-5xl">
+            Interactive Map
+          </h1>
+          <a href="/companies" className="btn btn-sm btn-outline gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1.581.814L10 14.647l-4.419 2.167A1 1 0 014 16V4z"
+                clipRule="evenodd"
+              />
+            </svg>
+            Manage Companies
+          </a>
+        </div>
         <p>
           Explore the map and enable location services to see your current
           position.
-          {!isSupported && (
+          {isMounted && !isSupported && (
             <span className="text-error ml-2">
               (Geolocation is not supported by your browser)
             </span>
           )}
         </p>
+        {/* Feature 041: Route status indicator */}
+        {user && !routesLoading && routes.length > 0 && (
+          <p className="text-primary text-sm">
+            Showing {routes.filter((r) => r.route_geometry).length} route(s)
+            with geometry
+            {companyMarkers.length > 0 &&
+              ` • ${companyMarkers.length} company marker(s)`}
+            {activeRouteId && ' • Active route highlighted'}
+          </p>
+        )}
+        {user && !routesLoading && routes.length === 0 && (
+          <p className="text-base-content/60 text-sm">
+            No routes created yet.{' '}
+            <a href="/companies" className="link link-primary">
+              Create routes
+            </a>{' '}
+            on the Companies page.
+          </p>
+        )}
+        {!user && (
+          <p className="text-base-content/60 text-sm">
+            <a href="/sign-in" className="link link-primary">
+              Sign in
+            </a>{' '}
+            to view your bicycle routes on the map.
+          </p>
+        )}
       </header>
 
       <section className="card bg-base-100 shadow-xl">
@@ -179,7 +323,7 @@ export default function MapPage() {
             <LocationButton
               onClick={handleLocationRequest}
               loading={loading}
-              disabled={!isSupported || permission === 'denied'}
+              disabled={!isMounted || !isSupported || permission === 'denied'}
               hasLocation={!!userLocation}
               permissionState={permission}
             />
@@ -213,9 +357,12 @@ export default function MapPage() {
               zoom={13}
               height="600px"
               width="100%"
+              tileUrl={CYCLOSM_TILE_URL}
+              attribution={CYCLOSM_ATTRIBUTION}
               showUserLocation={false} // We'll manage location manually
               markers={[
                 ...demoMarkers,
+                ...companyMarkers, // Companies on routes
                 ...(userLocation
                   ? [
                       {
@@ -229,7 +376,17 @@ export default function MapPage() {
               onLocationFound={handleLocationFound}
               onLocationError={handleLocationError}
               testId="map-container"
-            />
+            >
+              {/* Feature 041: Render route polylines if user is authenticated and no errors */}
+              {user && !routesError && routes.length > 0 && (
+                <RoutePolylines
+                  routes={routes}
+                  activeRouteId={activeRouteId}
+                  showSystemRoutes={true}
+                  showUserRoutes={true}
+                />
+              )}
+            </MapContainer>
           </div>
         </div>
       </section>

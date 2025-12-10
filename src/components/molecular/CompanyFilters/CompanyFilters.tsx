@@ -109,6 +109,13 @@ export default function CompanyFilters({
     });
   };
 
+  const handleNextRideOnlyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onFiltersChange({
+      ...filters,
+      next_ride_only: e.target.checked || undefined,
+    });
+  };
+
   const handleClearFilters = () => {
     onFiltersChange({});
   };
@@ -118,7 +125,8 @@ export default function CompanyFilters({
     filters.status ||
     filters.priority ||
     filters.is_active !== undefined ||
-    filters.extended_range
+    filters.extended_range ||
+    filters.next_ride_only
   );
 
   return (
@@ -218,6 +226,20 @@ export default function CompanyFilters({
             checked={filters.extended_range || false}
             onChange={handleExtendedRangeChange}
             aria-label="Show only extended range companies"
+          />
+        </label>
+      </div>
+
+      {/* Next Ride Filter */}
+      <div className="form-control">
+        <label className="label cursor-pointer gap-2">
+          <span className="label-text text-sm">Next Ride</span>
+          <input
+            type="checkbox"
+            className="checkbox checkbox-sm checkbox-primary"
+            checked={filters.next_ride_only || false}
+            onChange={handleNextRideOnlyChange}
+            aria-label="Show only companies marked for next ride"
           />
         </label>
       </div>

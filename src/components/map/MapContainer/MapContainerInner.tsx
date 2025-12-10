@@ -14,15 +14,23 @@ import {
   DEFAULT_MAP_CONFIG,
 } from '@/utils/map-utils';
 
+/**
+ * Marker variant for different display styles
+ */
+export type MarkerVariant = 'default' | 'next-ride' | 'active-route';
+
+export interface MapMarker {
+  position: LatLngTuple;
+  popup?: string;
+  id: string;
+  variant?: MarkerVariant;
+}
+
 interface MapContainerInnerProps {
   center: LatLngTuple;
   zoom: number;
   showUserLocation?: boolean;
-  markers?: Array<{
-    position: LatLngTuple;
-    popup?: string;
-    id: string;
-  }>;
+  markers?: MapMarker[];
   onLocationFound?: (position: GeolocationPosition) => void;
   onLocationError?: (error: GeolocationPositionError) => void;
   onMapReady?: (map: LeafletMap) => void;
@@ -33,6 +41,50 @@ interface MapContainerInnerProps {
   keyboardNavigation?: boolean;
   children?: React.ReactNode;
 }
+
+// Custom marker icons for different variants
+const createMarkerIcon = (
+  variant: MarkerVariant
+): L.Icon | L.DivIcon | undefined => {
+  if (typeof window === 'undefined') return undefined;
+
+  switch (variant) {
+    case 'next-ride':
+      // Highlighted marker for next-ride companies - larger, primary color with pulse
+      return L.divIcon({
+        className: 'next-ride-marker',
+        html: `
+          <div class="relative">
+            <div class="absolute inset-0 bg-primary rounded-full animate-ping opacity-50"></div>
+            <div class="relative bg-primary rounded-full w-6 h-6 border-2 border-white shadow-lg flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+              </svg>
+            </div>
+          </div>
+        `,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+      });
+
+    case 'active-route':
+      // Marker for companies on active route - secondary color
+      return L.divIcon({
+        className: 'active-route-marker',
+        html: `
+          <div class="relative bg-secondary rounded-full w-5 h-5 border-2 border-white shadow-lg"></div>
+        `,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+      });
+
+    case 'default':
+    default:
+      // Default marker - use Leaflet's default
+      return undefined;
+  }
+};
 
 // Component to handle center updates - only when coordinates actually change
 const MapCenterUpdater: React.FC<{ center: LatLngTuple }> = ({ center }) => {
@@ -201,11 +253,16 @@ const MapContainerInner: React.FC<MapContainerInnerProps> = ({
 
       <MapCenterUpdater center={center} />
 
-      {markers.map((marker) => (
-        <Marker key={marker.id} position={marker.position}>
-          {marker.popup && <Popup>{marker.popup}</Popup>}
-        </Marker>
-      ))}
+      {markers.map((marker) => {
+        const icon = marker.variant
+          ? createMarkerIcon(marker.variant)
+          : undefined;
+        return (
+          <Marker key={marker.id} position={marker.position} icon={icon}>
+            {marker.popup && <Popup>{marker.popup}</Popup>}
+          </Marker>
+        );
+      })}
 
       {children}
     </LeafletMapContainer>
