@@ -33,11 +33,13 @@ describe('BlogContent', () => {
     // Reset mocks
     vi.clearAllMocks();
 
-    // Mock clipboard API
-    Object.assign(navigator, {
-      clipboard: {
+    // Mock clipboard API (use defineProperty for happy-dom compatibility)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: {
         writeText: vi.fn().mockResolvedValue(undefined),
       },
+      writable: true,
+      configurable: true,
     });
   });
 

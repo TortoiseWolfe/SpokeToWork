@@ -263,7 +263,7 @@ describe('useGeolocation', () => {
     // Save original geolocation
     const originalGeolocation = global.navigator.geolocation;
 
-    // Completely remove geolocation from navigator
+    // Completely remove geolocation from navigator (requires jsdom)
     delete (global.navigator as any).geolocation;
 
     const { result } = renderHook(() => useGeolocation());
