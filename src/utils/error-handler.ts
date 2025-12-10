@@ -233,29 +233,76 @@ class ErrorHandler {
     // Track to analytics
     trackError(errorMessage, isFatal);
 
-    // TODO: Implement additional integration with logging service
-    // Example: Sentry, LogRocket, DataDog, etc.
-    if (this.config.isDevelopment) {
-      logger.debug('Error tracked to analytics', {
-        message: error.message,
-        severity: error.severity,
-        category: error.category,
-        isFatal,
-      });
+    // Log error based on severity (structured logging for production monitoring)
+    const logContext = {
+      message: error.message,
+      severity: error.severity,
+      category: error.category,
+      isFatal,
+      timestamp: error.timestamp.toISOString(),
+      ...(error.context && { context: error.context }),
+    };
+
+    // Use appropriate log level based on severity
+    switch (error.severity) {
+      case ErrorSeverity.CRITICAL:
+        logger.error('CRITICAL ERROR', logContext);
+        break;
+      case ErrorSeverity.HIGH:
+        logger.error('High severity error', logContext);
+        break;
+      case ErrorSeverity.MEDIUM:
+        logger.warn('Medium severity error', logContext);
+        break;
+      case ErrorSeverity.LOW:
+        logger.info('Low severity error', logContext);
+        break;
+      default:
+        logger.debug('Error tracked', logContext);
     }
   }
 
   /**
    * Show user-friendly notification
+   * Uses browser-native approaches and emits custom event for UI integration
    */
   private notifyUser(error: AppError): void {
     // Get user-friendly message
     const userMessage = this.getUserMessage(error);
 
-    // TODO: Integrate with your notification system
-    // For now, just log to logger
     if (typeof window !== 'undefined') {
-      logger.info('User notification', { message: userMessage });
+      // Log the notification
+      logger.info('User notification', {
+        message: userMessage,
+        severity: error.severity,
+        category: error.category,
+      });
+
+      // Emit custom event for UI components to listen to (React-friendly approach)
+      // Components can listen: window.addEventListener('app:error', (e) => showToast(e.detail))
+      const errorId = error.timestamp.getTime().toString(36);
+      const event = new CustomEvent('app:error', {
+        detail: {
+          message: userMessage,
+          severity: error.severity,
+          category: error.category,
+          id: errorId,
+        },
+      });
+      window.dispatchEvent(event);
+
+      // For critical errors, also use browser notification if permitted
+      if (
+        error.severity === ErrorSeverity.CRITICAL &&
+        'Notification' in window &&
+        Notification.permission === 'granted'
+      ) {
+        new Notification('Application Error', {
+          body: userMessage,
+          icon: '/icons/icon-192x192.png',
+          tag: `error-${errorId}`,
+        });
+      }
     }
   }
 
