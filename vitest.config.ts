@@ -14,7 +14,16 @@ export default defineConfig({
     },
     // Fallback to jsdom for incompatible tests (add paths as needed)
     environmentMatchGlobs: [
-      // Example: ['**/some-jsdom-dependent-test.ts', 'jsdom'],
+      // Cookie/Storage tests need jsdom's more complete browser API emulation
+      ['**/privacy.test.ts', 'jsdom'],
+      ['**/consent-history.test.ts', 'jsdom'],
+      // Browser API mocking tests (geolocation delete, etc.)
+      ['**/useGeolocation.test.ts', 'jsdom'],
+      // CSS getPropertyValue not available in happy-dom
+      ['**/useFontFamily.test.ts', 'jsdom'],
+      ['**/useColorblindMode.test.ts', 'jsdom'],
+      // Storage prototype mocking
+      ['**/performance.test.ts', 'jsdom'],
     ],
     globals: true,
     setupFiles: './tests/setup.ts',
