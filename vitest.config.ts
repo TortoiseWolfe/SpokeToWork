@@ -27,6 +27,8 @@ export default defineConfig({
       // IndexedDB not available in happy-dom
       ['**/offline-queue.browser.test.ts', 'jsdom'],
       ['**/offline-sync.test.ts', 'jsdom'],
+      ['**/useOfflineQueue.test.ts', 'jsdom'],
+      ['**/offline-integration.test.tsx', 'jsdom'],
       // SubtleCrypto/IndexedDB for encryption
       ['**/encryption.test.ts', 'jsdom'],
       // localStorage mocking
