@@ -144,12 +144,30 @@ vi.mock('react-leaflet', () => {
       React.createElement('div', { 'data-testid': 'mock-marker' }, children),
     Popup: ({ children }: { children?: React.ReactNode }) =>
       React.createElement('div', null, children),
-    Circle: () => null,
+    Polyline: ({ children }: { children?: React.ReactNode }) =>
+      React.createElement('div', { 'data-testid': 'mock-polyline' }, children),
+    Circle: () => React.createElement('div', { 'data-testid': 'mock-circle' }),
+    CircleMarker: ({ children }: { children?: React.ReactNode }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': 'mock-circle-marker' },
+        children
+      ),
     useMap: () => ({
       setView: vi.fn(),
       invalidateSize: vi.fn(),
       getContainer: vi.fn(() => document.createElement('div')),
+      on: vi.fn(),
+      off: vi.fn(),
     }),
+    useMapEvents: (handlers: Record<string, unknown>) => {
+      // Return mock map instance
+      return {
+        setView: vi.fn(),
+        invalidateSize: vi.fn(),
+        getContainer: vi.fn(() => document.createElement('div')),
+      };
+    },
   };
 });
 
