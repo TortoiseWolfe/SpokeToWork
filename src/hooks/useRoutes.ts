@@ -138,6 +138,7 @@ export function useRoutes(options: UseRoutesOptions = {}): UseRoutesReturn {
       if (fetchingRef.current && !force) return;
       if (!force && isCacheValid(routesCache, cacheKey)) {
         setRoutes(routesCache!.data);
+        setIsLoading(false);
         return;
       }
 
