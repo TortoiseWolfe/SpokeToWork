@@ -10,8 +10,10 @@ export default defineConfig({
     poolOptions: {
       forks: {
         singleFork: true,
+        isolate: true,
       },
     },
+    fileParallelism: false,
     // Fallback to jsdom for incompatible tests (add paths as needed)
     environmentMatchGlobs: [
       // Cookie/Storage tests need jsdom's more complete browser API emulation
