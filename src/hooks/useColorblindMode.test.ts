@@ -24,6 +24,7 @@ describe('useColorblindMode', () => {
         }),
       },
       writable: true,
+      configurable: true,
     });
 
     // Mock document.documentElement.style
@@ -33,6 +34,7 @@ describe('useColorblindMode', () => {
         removeProperty: vi.fn(),
       },
       writable: true,
+      configurable: true,
     });
 
     // Mock document.body.style
@@ -41,6 +43,7 @@ describe('useColorblindMode', () => {
         filter: '',
       },
       writable: true,
+      configurable: true,
     });
 
     // Mock classList

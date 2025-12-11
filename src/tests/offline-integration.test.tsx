@@ -163,6 +163,7 @@ describe('Offline Queue Integration', () => {
       Object.defineProperty(navigator, 'onLine', {
         value: false,
         writable: true,
+        configurable: true,
       });
 
       // Mock the hook to return offline state
@@ -187,6 +188,7 @@ describe('Offline Queue Integration', () => {
       Object.defineProperty(navigator, 'onLine', {
         value: false,
         writable: true,
+        configurable: true,
       });
 
       // Mock the hook to return offline state
@@ -274,6 +276,7 @@ describe('Offline Queue Integration', () => {
       Object.defineProperty(navigator, 'onLine', {
         value: false,
         writable: true,
+        configurable: true,
       });
 
       // Mock the hook for offline state
@@ -348,6 +351,7 @@ describe('Offline Queue Integration', () => {
       Object.defineProperty(navigator, 'onLine', {
         value: false,
         writable: true,
+        configurable: true,
       });
 
       // Mock the hook to return offline state (messaging queue empty)
@@ -373,6 +377,7 @@ describe('Offline Queue Integration', () => {
       Object.defineProperty(navigator, 'onLine', {
         value: false,
         writable: true,
+        configurable: true,
       });
 
       // Initial setup with 2 forms queued
@@ -455,6 +460,7 @@ describe('Offline Queue Integration', () => {
       Object.defineProperty(navigator, 'onLine', {
         value: false,
         writable: true,
+        configurable: true,
       });
 
       // Initial mock for offline state
@@ -476,6 +482,7 @@ describe('Offline Queue Integration', () => {
       Object.defineProperty(navigator, 'onLine', {
         value: true,
         writable: true,
+        configurable: true,
       });
 
       // Update mock for online state
@@ -500,6 +507,7 @@ describe('Offline Queue Integration', () => {
       Object.defineProperty(navigator, 'onLine', {
         value: false,
         writable: true,
+        configurable: true,
       });
 
       const mockRefreshQueueSize = vi.fn();
@@ -519,6 +527,7 @@ describe('Offline Queue Integration', () => {
       Object.defineProperty(navigator, 'onLine', {
         value: true,
         writable: true,
+        configurable: true,
       });
 
       // Update mock for online state
@@ -605,6 +614,7 @@ describe('Offline Queue Integration', () => {
       Object.defineProperty(navigator, 'onLine', {
         value: false,
         writable: true,
+        configurable: true,
       });
 
       // Setup mock for offline state
@@ -681,6 +691,7 @@ describe('Offline Queue Integration', () => {
       Object.defineProperty(navigator, 'onLine', {
         value: false,
         writable: true,
+        configurable: true,
       });
 
       // Setup mock for offline state

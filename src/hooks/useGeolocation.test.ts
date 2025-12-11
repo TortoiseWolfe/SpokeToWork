@@ -260,14 +260,11 @@ describe('useGeolocation', () => {
   });
 
   it('should handle missing geolocation API', () => {
-    // Create a fresh navigator-like object without geolocation
-    const navigatorWithoutGeo = {
-      permissions: mockPermissions,
-    };
+    // Save original geolocation
+    const originalGeolocation = global.navigator.geolocation;
 
-    // Replace the entire navigator temporarily
-    const originalNavigator = global.navigator;
-    vi.stubGlobal('navigator', navigatorWithoutGeo);
+    // Completely remove geolocation from navigator (requires jsdom)
+    delete (global.navigator as any).geolocation;
 
     const { result } = renderHook(() => useGeolocation());
 
@@ -280,8 +277,12 @@ describe('useGeolocation', () => {
     expect(result.current.error).toBeDefined();
     expect(result.current.error?.message).toContain('not supported');
 
-    // Restore the original navigator
-    vi.stubGlobal('navigator', originalNavigator);
+    // Restore original geolocation
+    Object.defineProperty(global.navigator, 'geolocation', {
+      value: originalGeolocation,
+      writable: true,
+      configurable: true,
+    });
   });
 
   it('should handle missing permissions API gracefully', async () => {

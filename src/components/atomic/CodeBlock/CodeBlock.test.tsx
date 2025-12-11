@@ -114,7 +114,8 @@ describe('CodeBlock', () => {
     const mockExecCommand = vi.fn().mockReturnValue(true);
     document.execCommand = mockExecCommand;
 
-    // Remove clipboard API
+    // Remove clipboard API (use defineProperty for happy-dom compatibility)
+    const originalClipboard = navigator.clipboard;
     Object.defineProperty(navigator, 'clipboard', {
       value: undefined,
       writable: true,
@@ -130,6 +131,13 @@ describe('CodeBlock', () => {
 
     waitFor(() => {
       expect(mockExecCommand).toHaveBeenCalledWith('copy');
+    });
+
+    // Restore clipboard API
+    Object.defineProperty(navigator, 'clipboard', {
+      value: originalClipboard,
+      writable: true,
+      configurable: true,
     });
   });
 

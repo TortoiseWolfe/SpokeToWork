@@ -64,6 +64,7 @@ describe('useOfflineQueue', () => {
     // Mock navigator.onLine
     Object.defineProperty(navigator, 'onLine', {
       writable: true,
+      configurable: true,
       value: true,
     });
   });
@@ -72,6 +73,7 @@ describe('useOfflineQueue', () => {
     // Restore original navigator.onLine
     Object.defineProperty(navigator, 'onLine', {
       writable: true,
+      configurable: true,
       value: originalOnLine,
     });
 
@@ -97,6 +99,7 @@ describe('useOfflineQueue', () => {
     it('should detect online status', async () => {
       Object.defineProperty(navigator, 'onLine', {
         writable: true,
+        configurable: true,
         value: true,
       });
 
@@ -110,6 +113,7 @@ describe('useOfflineQueue', () => {
     it('should detect offline status', async () => {
       Object.defineProperty(navigator, 'onLine', {
         writable: true,
+        configurable: true,
         value: false,
       });
 
@@ -212,6 +216,7 @@ describe('useOfflineQueue', () => {
     it('should not sync when offline', async () => {
       Object.defineProperty(navigator, 'onLine', {
         writable: true,
+        configurable: true,
         value: false,
       });
 
@@ -384,6 +389,7 @@ describe('useOfflineQueue', () => {
     it('should update isOnline when going online', async () => {
       Object.defineProperty(navigator, 'onLine', {
         writable: true,
+        configurable: true,
         value: false,
       });
 
@@ -396,6 +402,7 @@ describe('useOfflineQueue', () => {
       // Simulate going online
       Object.defineProperty(navigator, 'onLine', {
         writable: true,
+        configurable: true,
         value: true,
       });
 
@@ -420,6 +427,7 @@ describe('useOfflineQueue', () => {
       // Simulate going offline
       Object.defineProperty(navigator, 'onLine', {
         writable: true,
+        configurable: true,
         value: false,
       });
 

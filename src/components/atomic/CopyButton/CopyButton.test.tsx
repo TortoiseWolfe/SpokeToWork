@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CopyButton } from './CopyButton';
 import '@testing-library/jest-dom';
 
-// Mock clipboard API
+// Mock clipboard API (use defineProperty for happy-dom compatibility)
 const mockClipboard = {
   writeText: vi.fn(),
 };
@@ -111,6 +111,7 @@ describe('CopyButton', () => {
   });
 
   it('handles missing clipboard API gracefully', async () => {
+    const originalClipboard = navigator.clipboard;
     Object.defineProperty(navigator, 'clipboard', {
       value: undefined,
       writable: true,
@@ -131,9 +132,9 @@ describe('CopyButton', () => {
       );
     });
 
-    // Restore clipboard mock
+    // Restore clipboard
     Object.defineProperty(navigator, 'clipboard', {
-      value: mockClipboard,
+      value: originalClipboard,
       writable: true,
       configurable: true,
     });

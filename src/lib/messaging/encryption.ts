@@ -110,6 +110,25 @@ export class EncryptionService {
   }
 
   /**
+   * Delete private key from IndexedDB (for key revocation/logout)
+   *
+   * Security: Called during key revocation to ensure private key
+   * is removed from client-side storage, not just marked as revoked
+   * in the database.
+   *
+   * @param userId - User ID whose key should be deleted
+   * @throws EncryptionError if deletion fails
+   */
+  async deletePrivateKey(userId: string): Promise<void> {
+    try {
+      await db.messaging_private_keys.delete(userId);
+      logger.debug('Deleted private key from IndexedDB', { userId });
+    } catch (error) {
+      throw new EncryptionError('Failed to delete private key', error);
+    }
+  }
+
+  /**
    * Derive AES-GCM shared secret from ECDH key exchange
    * Task: T050
    *

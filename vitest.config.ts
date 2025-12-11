@@ -5,7 +5,37 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: 'jsdom',
+    environment: 'happy-dom',
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: false,
+      },
+    },
+    // Fallback to jsdom for incompatible tests (add paths as needed)
+    environmentMatchGlobs: [
+      // Cookie/Storage tests need jsdom's more complete browser API emulation
+      ['**/privacy.test.ts', 'jsdom'],
+      ['**/consent-history.test.ts', 'jsdom'],
+      // Browser API mocking tests (geolocation delete, etc.)
+      ['**/useGeolocation.test.ts', 'jsdom'],
+      // CSS getPropertyValue not available in happy-dom
+      ['**/useFontFamily.test.ts', 'jsdom'],
+      ['**/useColorblindMode.test.ts', 'jsdom'],
+      // Storage prototype mocking
+      ['**/performance.test.ts', 'jsdom'],
+      // IndexedDB not available in happy-dom
+      ['**/offline-queue.browser.test.ts', 'jsdom'],
+      ['**/offline-sync.test.ts', 'jsdom'],
+      ['**/useOfflineQueue.test.ts', 'jsdom'],
+      ['**/offline-integration.test.tsx', 'jsdom'],
+      // SubtleCrypto/IndexedDB for encryption
+      ['**/encryption.test.ts', 'jsdom'],
+      // localStorage mocking
+      ['**/usePaymentConsent.test.ts', 'jsdom'],
+      ['**/rate-limiter.test.ts', 'jsdom'],
+      ['**/oauth-state.test.ts', 'jsdom'],
+    ],
     globals: true,
     setupFiles: './tests/setup.ts',
     css: {
@@ -43,10 +73,11 @@ export default defineConfig({
       'tests/integration/auth/rate-limiting.integration.test.ts', // requires admin client with SUPABASE_SERVICE_ROLE_KEY
       'tests/integration/messaging/connections.test.ts', // requires real Supabase with service role key
       'src/tests/integration/payment-isolation.test.ts', // requires real Supabase connection
-      // Hook tests with complex Supabase module loading - require real connection
-      'src/hooks/__tests__/useConversationRealtime.test.ts', // module loading triggers client before mock
-      'src/hooks/__tests__/useTypingIndicator.test.ts', // module loading triggers client before mock
-      'src/services/messaging/__tests__/gdpr-service.test.ts', // module loading triggers client before mock
+      // UNBLOCKED: These tests now work with proper vi.mock() setup
+      // Previously excluded due to module loading triggering client before mock
+      // 'src/hooks/__tests__/useConversationRealtime.test.ts',
+      // 'src/hooks/__tests__/useTypingIndicator.test.ts',
+      // 'src/services/messaging/__tests__/gdpr-service.test.ts',
       // Exclude avatar integration tests requiring real browser Canvas API
       // These are covered by E2E tests in /e2e/avatar/upload.spec.ts
       'src/lib/avatar/__tests__/image-processing.test.ts', // 6 tests - requires real Canvas

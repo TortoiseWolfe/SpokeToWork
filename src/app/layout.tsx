@@ -94,7 +94,7 @@ export const metadata: Metadata = {
       "style-src 'self' 'unsafe-inline' https://unpkg.com",
       "img-src 'self' data: https: blob:",
       "font-src 'self' data:",
-      "connect-src 'self' https://www.googleapis.com https://*.google-analytics.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org",
+      "connect-src 'self' https://www.googleapis.com https://*.google-analytics.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.supabase.co wss://*.supabase.co",
       "frame-src 'self' https://www.google.com",
       "object-src 'none'",
       "base-uri 'self'",

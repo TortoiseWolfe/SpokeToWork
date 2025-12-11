@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { memo, useState, useCallback, useEffect, useRef } from 'react';
 import CoordinateMap from '@/components/molecular/CoordinateMap';
 import CompanyMatchSuggestion from '@/components/molecular/CompanyMatchSuggestion';
 import { geocode, validateDistance } from '@/lib/companies/geocoding';
@@ -66,7 +66,7 @@ const PRIORITY_OPTIONS: { value: Priority; label: string }[] = [
  *
  * @category organisms
  */
-export default function CompanyForm({
+function CompanyForm({
   company,
   homeLocation,
   onSubmit,
@@ -736,3 +736,5 @@ export default function CompanyForm({
     </form>
   );
 }
+
+export default memo(CompanyForm);
