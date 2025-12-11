@@ -116,27 +116,39 @@ const MapEventHandler: React.FC<{
 
   // Handle container resize - fixes zoom glitches and tile redraw issues
   useEffect(() => {
+    let isMounted = true;
     const container = map.getContainer();
     if (!container) return;
 
+    // Safe wrapper to prevent calling invalidateSize on destroyed container
+    const safeInvalidateSize = () => {
+      if (isMounted && map.getContainer()) {
+        try {
+          map.invalidateSize();
+        } catch {
+          // Container may have been destroyed during unmount
+        }
+      }
+    };
+
     const resizeObserver = new ResizeObserver(() => {
       // Delay to ensure DOM has settled after resize
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 100);
+      setTimeout(safeInvalidateSize, 100);
     });
 
     resizeObserver.observe(container);
 
     // Also handle window resize as backup
     const handleWindowResize = () => {
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 100);
+      setTimeout(safeInvalidateSize, 100);
     };
     window.addEventListener('resize', handleWindowResize);
 
+    // Initial invalidateSize after mount to ensure proper sizing
+    setTimeout(safeInvalidateSize, 200);
+
     return () => {
+      isMounted = false;
       resizeObserver.disconnect();
       window.removeEventListener('resize', handleWindowResize);
     };
