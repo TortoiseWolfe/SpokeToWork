@@ -61,8 +61,8 @@ run_check "ESLint" "pnpm lint"
 # 2. Type check
 run_check "TypeScript type check" "pnpm type-check"
 
-# 3. Unit tests
-run_check "Unit tests" "pnpm test --run"
+# 3. Unit tests (batched to avoid OOM)
+run_check "Unit tests" "./scripts/test-batched-full.sh"
 
 # 4. Test coverage (optional - can be slow)
 if [ "$1" != "--quick" ]; then
