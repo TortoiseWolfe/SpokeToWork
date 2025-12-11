@@ -2681,5 +2681,41 @@ CREATE TRIGGER active_route_planning_modified
 -- END FEATURE 041: Bicycle Route Planning
 -- ============================================================================
 
+-- ============================================================================
+-- SECURITY: Audit Log Cleanup (90-day retention)
+-- ============================================================================
+-- Automatically delete audit logs older than 90 days to:
+-- 1. Comply with data retention policies
+-- 2. Prevent unbounded table growth
+-- 3. Reduce storage costs
+--
+-- Usage: Call manually or schedule via pg_cron:
+--   SELECT cleanup_old_audit_logs();
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION cleanup_old_audit_logs()
+RETURNS TABLE(deleted_count bigint) AS $$
+DECLARE
+  rows_deleted bigint;
+BEGIN
+  DELETE FROM auth_audit_logs
+  WHERE created_at < NOW() - INTERVAL '90 days';
+
+  GET DIAGNOSTICS rows_deleted = ROW_COUNT;
+
+  RETURN QUERY SELECT rows_deleted;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+COMMENT ON FUNCTION cleanup_old_audit_logs() IS 'Deletes auth_audit_logs older than 90 days. Returns count of deleted rows. Call daily via pg_cron or GitHub Action.';
+
+-- Note: To schedule automatic cleanup with pg_cron (requires extension enabled in Supabase dashboard):
+-- SELECT cron.schedule('cleanup-audit-logs', '0 3 * * *', 'SELECT cleanup_old_audit_logs()');
+-- This runs daily at 3 AM UTC
+
+-- ============================================================================
+-- END SECURITY: Audit Log Cleanup
+-- ============================================================================
+
 -- Commit the transaction - everything succeeded
 COMMIT;

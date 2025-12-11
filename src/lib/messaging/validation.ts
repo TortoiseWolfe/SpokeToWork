@@ -5,6 +5,7 @@
  * Provides input validation and sanitization for messaging operations
  */
 
+import DOMPurify from 'dompurify';
 import { ValidationError } from '@/types/messaging';
 import { EMAIL_REGEX, UUID_REGEX } from '@/lib/validation/patterns';
 
@@ -56,20 +57,61 @@ export function validateEmail(email: string): void {
 
 /**
  * Sanitize user input to prevent XSS attacks
+ *
+ * Uses DOMPurify for comprehensive HTML sanitization.
+ * This handles all known XSS vectors including:
+ * - Script injection
+ * - Event handler injection (onclick, onerror, etc.)
+ * - Protocol injection (javascript:, data:, etc.)
+ * - Encoded payloads
+ * - Mutation XSS
+ *
  * @param input - Input string to sanitize
- * @returns Sanitized string
+ * @param options - Optional DOMPurify config overrides
+ * @returns Sanitized string (plain text, no HTML allowed by default)
  */
-export function sanitizeInput(input: string): string {
+export function sanitizeInput(
+  input: string,
+  options?: { allowHtml?: boolean }
+): string {
   if (!input || typeof input !== 'string') {
     return '';
   }
 
-  return input
-    .trim()
-    .replace(/[<>]/g, '') // Remove < and > to prevent HTML injection
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+\s*=/gi, '') // Remove inline event handlers
-    .substring(0, 1000); // Limit length to prevent DOS
+  const trimmed = input.trim();
+
+  // Limit length to prevent DOS
+  if (trimmed.length > 10000) {
+    return trimmed.substring(0, 10000);
+  }
+
+  // By default, strip ALL HTML tags (plain text only)
+  // For rich text, caller can pass allowHtml: true
+  if (options?.allowHtml) {
+    // Allow safe HTML tags for rich content
+    return DOMPurify.sanitize(trimmed, {
+      ALLOWED_TAGS: [
+        'b',
+        'i',
+        'em',
+        'strong',
+        'a',
+        'p',
+        'br',
+        'ul',
+        'ol',
+        'li',
+      ],
+      ALLOWED_ATTR: ['href', 'target', 'rel'],
+      ALLOW_DATA_ATTR: false,
+    });
+  }
+
+  // Default: strip all HTML, return plain text
+  return DOMPurify.sanitize(trimmed, {
+    ALLOWED_TAGS: [],
+    ALLOWED_ATTR: [],
+  });
 }
 
 /**

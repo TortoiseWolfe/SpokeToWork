@@ -252,23 +252,56 @@ describe('Validation Service - Existing Functions', () => {
   });
 
   describe('sanitizeInput', () => {
-    it('should remove HTML tags', () => {
-      expect(sanitizeInput('<script>alert("xss")</script>')).toBe(
-        'scriptalert("xss")/script'
+    it('should remove HTML tags completely', () => {
+      // DOMPurify strips script tags entirely (more secure than regex)
+      expect(sanitizeInput('<script>alert("xss")</script>')).toBe('');
+      // Regular tags also stripped
+      expect(sanitizeInput('<div>content</div>')).toBe('content');
+      expect(sanitizeInput('<b>bold</b>')).toBe('bold');
+    });
+
+    it('should handle javascript: protocol in HTML', () => {
+      // Plain text 'javascript:' is not dangerous, DOMPurify passes it through
+      expect(sanitizeInput('javascript:alert("xss")')).toBe(
+        'javascript:alert("xss")'
+      );
+      // But in an anchor href, it gets sanitized (link removed, text preserved)
+      expect(sanitizeInput('<a href="javascript:alert()">click me</a>')).toBe(
+        'click me'
       );
     });
 
-    it('should remove javascript: protocol', () => {
-      expect(sanitizeInput('javascript:alert("xss")')).toBe('alert("xss")');
-    });
-
     it('should remove inline event handlers', () => {
-      expect(sanitizeInput('onclick=alert("xss")')).toBe('alert("xss")');
+      // Standalone event handler text is kept as plain text
+      expect(sanitizeInput('onclick=alert("xss")')).toBe(
+        'onclick=alert("xss")'
+      );
+      // But when in an HTML tag, the entire tag is stripped
+      expect(sanitizeInput('<div onclick="alert()">test</div>')).toBe('test');
     });
 
-    it('should limit string length to 1000 characters', () => {
-      const longString = 'A'.repeat(1500);
-      expect(sanitizeInput(longString).length).toBe(1000);
+    it('should preserve normal text', () => {
+      expect(sanitizeInput('Hello, world!')).toBe('Hello, world!');
+      // DOMPurify preserves & in plain text (no encoding when no HTML)
+      expect(sanitizeInput('User & Admin')).toBe('User & Admin');
+    });
+
+    it('should limit string length to 10000 characters', () => {
+      const longString = 'A'.repeat(15000);
+      expect(sanitizeInput(longString).length).toBe(10000);
+    });
+
+    it('should allow safe HTML when allowHtml option is true', () => {
+      expect(sanitizeInput('<b>bold</b>', { allowHtml: true })).toBe(
+        '<b>bold</b>'
+      );
+      expect(sanitizeInput('<i>italic</i>', { allowHtml: true })).toBe(
+        '<i>italic</i>'
+      );
+      // But still strip dangerous tags
+      expect(sanitizeInput('<script>evil</script>', { allowHtml: true })).toBe(
+        ''
+      );
     });
   });
 });

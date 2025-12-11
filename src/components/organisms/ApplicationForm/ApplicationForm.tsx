@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { memo, useState, useCallback, useEffect } from 'react';
 import type {
   JobApplication,
   JobApplicationCreate,
@@ -87,7 +87,7 @@ const PRIORITY_OPTIONS: { value: Priority; label: string }[] = [
  *
  * @category organisms
  */
-export default function ApplicationForm({
+function ApplicationForm({
   companyId,
   companyType = 'shared',
   companyName,
@@ -516,3 +516,5 @@ export default function ApplicationForm({
     </form>
   );
 }
+
+export default memo(ApplicationForm);

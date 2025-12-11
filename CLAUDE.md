@@ -405,6 +405,8 @@ ADD COLUMN IF NOT EXISTS encryption_salt TEXT;
 
 - TypeScript 5.x with React 19, Next.js 15 + react-leaflet 5.x, Leaflet 1.9.x, @tanstack/react-query, Supabase JS client, DaisyUI (041-bicycle-route-planning)
 - Supabase PostgreSQL (cloud) with Row-Level Security (041-bicycle-route-planning)
+- TypeScript 5.9 with Node.js 22 + Vitest 3.2.3, happy-dom 20.0.11 (already installed), React 19 (042-test-memory-optimization)
+- N/A (test infrastructure change) (042-test-memory-optimization)
 
 - TypeScript 5.x with Next.js 15, React 19 + Supabase (Auth, Database), TanStack Query, DaisyUI (014-job-applications-fix)
 - Supabase PostgreSQL (cloud) with multi-tenant schema (014-job-applications-fix)

@@ -381,12 +381,11 @@ describe('GDPRService', () => {
         error: null,
       });
 
-      // Mock session
+      // Mock session for access_token
       mockSupabase.auth.getSession.mockResolvedValue({
         data: {
           session: {
-            user: { id: 'user-123' },
-            access_token: 'mock-token',
+            access_token: 'mock-access-token',
           },
         },
         error: null,
@@ -421,21 +420,11 @@ describe('GDPRService', () => {
         }),
       } as any;
 
-      // Mock user_profiles delete
-      mockSupabase.from.mockReturnValue({
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({
-            error: null,
-          }),
-        }),
-      });
-
-      // Mock fetch for Edge Function call
-      const mockFetch = vi.fn().mockResolvedValue({
+      // Mock fetch call to Edge Function
+      global.fetch = vi.fn().mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ success: true }),
+        json: vi.fn().mockResolvedValue({ success: true }),
       });
-      vi.stubGlobal('fetch', mockFetch);
 
       // Mock sign out
       mockSupabase.auth.signOut.mockResolvedValue({ error: null });
@@ -449,21 +438,18 @@ describe('GDPRService', () => {
       expect(mockCachedMessagesDelete).toHaveBeenCalled();
 
       // Verify Edge Function was called
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/functions/v1/delete-user-account'),
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
-            Authorization: 'Bearer mock-token',
+            Authorization: 'Bearer mock-access-token',
           }),
         })
       );
 
       // Verify sign out
       expect(mockSupabase.auth.signOut).toHaveBeenCalled();
-
-      // Restore fetch
-      vi.unstubAllGlobals();
     });
 
     it('should throw AuthenticationError if user not signed in (T190)', async () => {
@@ -489,12 +475,11 @@ describe('GDPRService', () => {
         error: null,
       });
 
-      // Mock session
+      // Mock session for access_token
       mockSupabase.auth.getSession.mockResolvedValue({
         data: {
           session: {
-            user: { id: 'user-123' },
-            access_token: 'mock-token',
+            access_token: 'mock-access-token',
           },
         },
         error: null,
@@ -525,20 +510,16 @@ describe('GDPRService', () => {
         }),
       } as any;
 
-      // Mock fetch to return error response from Edge Function
-      const mockFetch = vi.fn().mockResolvedValue({
+      // Mock fetch call to Edge Function to fail
+      global.fetch = vi.fn().mockResolvedValue({
         ok: false,
         statusText: 'Internal Server Error',
-        json: () => Promise.resolve({ error: 'Database error' }),
+        json: vi.fn().mockResolvedValue({ error: 'Database error' }),
       });
-      vi.stubGlobal('fetch', mockFetch);
 
       await expect(gdprService.deleteUserAccount()).rejects.toThrow(
         'Failed to delete account: Database error'
       );
-
-      // Restore fetch
-      vi.unstubAllGlobals();
     });
   });
 });

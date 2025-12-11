@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { memo, useEffect, useRef, useState } from 'react';
 import type {
   CompanyWithApplications,
   UnifiedCompany,
@@ -120,7 +120,7 @@ export interface CompanyDetailDrawerProps {
  *
  * @category organisms
  */
-export default function CompanyDetailDrawer({
+function CompanyDetailDrawer({
   company,
   isOpen,
   onClose,
@@ -1092,3 +1092,5 @@ export default function CompanyDetailDrawer({
     </>
   );
 }
+
+export default memo(CompanyDetailDrawer);
