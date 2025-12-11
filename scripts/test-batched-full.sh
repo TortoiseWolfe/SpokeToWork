@@ -44,8 +44,15 @@ run_batch "Atomic Components" "src/components/atomic"
 # Batch 2: Molecular components
 run_batch "Molecular Components" "src/components/molecular"
 
-# Batch 3: Organism components (heavier)
-run_batch "Organism Components" "src/components/organisms"
+# Batch 3: Organism components - split into smaller batches to avoid OOM
+run_batch "Organisms (Auth/Avatar)" "src/components/organisms/Auth* src/components/organisms/Avatar*"
+run_batch "Organisms (Blog/Chat)" "src/components/organisms/Blog* src/components/organisms/Chat*"
+run_batch "Organisms (Company/Connection)" "src/components/organisms/Company* src/components/organisms/Connection*"
+run_batch "Organisms (Consent/Cookie)" "src/components/organisms/Consent* src/components/organisms/Cookie*"
+run_batch "Organisms (Dashboard-Home)" "src/components/organisms/Dashboard* src/components/organisms/Home*"
+run_batch "Organisms (Message-Payment)" "src/components/organisms/Message* src/components/organisms/Payment*"
+run_batch "Organisms (Privacy-Route)" "src/components/organisms/Privacy* src/components/organisms/Route*"
+run_batch "Organisms (Settings-Unified)" "src/components/organisms/Settings* src/components/organisms/Unified*"
 
 # Batch 4: Hooks
 run_batch "Hooks" "src/hooks"
