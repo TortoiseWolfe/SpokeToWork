@@ -186,27 +186,28 @@ export default function CompaniesPage() {
   const [showApplicationForm, setShowApplicationForm] = useState(false);
   const [editingApplication, setEditingApplication] =
     useState<JobApplication | null>(null);
-  // Application counts per company (company_id -> count)
-  const [applicationCounts, setApplicationCounts] = useState<
-    Record<string, number>
+  // Application data per company (company_id -> { count, latest })
+  const [applicationData, setApplicationData] = useState<
+    Record<string, { count: number; latest: JobApplication | null }>
   >({});
 
-  // Convert to legacy format for existing components, merging application counts
+  // Convert to legacy format for existing components, merging application data
   const companies = useMemo(() => {
     return unifiedCompanies.map((company) => {
       const base = toCompanyWithApplications(company);
-      // Get the count for this company based on its source
+      // Get the application data for this company based on its source
       const companyId =
         company.source === 'shared'
           ? company.company_id
           : company.private_company_id;
-      const count = companyId ? applicationCounts[companyId] || 0 : 0;
+      const data = companyId ? applicationData[companyId] : null;
       return {
         ...base,
-        total_applications: count,
+        total_applications: data?.count || 0,
+        latest_application: data?.latest || null,
       };
     });
-  }, [unifiedCompanies, applicationCounts]);
+  }, [unifiedCompanies, applicationData]);
 
   // Redirect to sign-in if not authenticated
   useEffect(() => {
@@ -322,38 +323,46 @@ export default function CompaniesPage() {
     }
   }, [user, applicationService]);
 
-  // Feature 014: Load application counts for all companies
+  // Feature 014: Load application data (counts + latest) for all companies
   useEffect(() => {
-    async function loadApplicationCounts() {
+    async function loadApplicationData() {
       if (!user) {
-        setApplicationCounts({});
+        setApplicationData({});
         return;
       }
 
       try {
         // Use applicationService to get all applications (respects RLS)
+        // Applications are sorted by created_at DESC, so first one is latest
         const allApps = await applicationService.getAll();
 
-        // Build counts map from applications
-        const counts: Record<string, number> = {};
+        // Build data map from applications (count + latest per company)
+        const data: Record<
+          string,
+          { count: number; latest: JobApplication | null }
+        > = {};
 
         allApps.forEach((app) => {
-          if (app.shared_company_id) {
-            counts[app.shared_company_id] =
-              (counts[app.shared_company_id] || 0) + 1;
-          } else if (app.private_company_id) {
-            counts[app.private_company_id] =
-              (counts[app.private_company_id] || 0) + 1;
+          const companyId = app.shared_company_id || app.private_company_id;
+          if (companyId) {
+            if (!data[companyId]) {
+              data[companyId] = { count: 0, latest: null };
+            }
+            data[companyId].count++;
+            // First app encountered is the latest (sorted desc by created_at)
+            if (!data[companyId].latest) {
+              data[companyId].latest = app;
+            }
           }
         });
 
-        setApplicationCounts(counts);
+        setApplicationData(data);
       } catch (err) {
-        console.error('Error loading application counts:', err);
+        console.error('Error loading application data:', err);
       }
     }
 
-    loadApplicationCounts();
+    loadApplicationData();
   }, [user, applicationService]);
 
   // Feature 014: Fetch applications when a company is selected
