@@ -38,6 +38,9 @@ export default defineConfig({
       ['**/oauth-state.test.ts', 'jsdom'],
       // Card tests with images need jsdom for URL handling
       ['**/Card.accessibility.test.tsx', 'jsdom'],
+      ['**/Card.test.tsx', 'jsdom'],
+      // CodeBlock fallback test needs execCommand support
+      ['**/CodeBlock.test.tsx', 'jsdom'],
     ],
     globals: true,
     setupFiles: './tests/setup.ts',

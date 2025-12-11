@@ -81,7 +81,7 @@ describe('CodeBlock', () => {
     });
   });
 
-  it('handles complex nested React elements', () => {
+  it('handles complex nested React elements', async () => {
     const code = (
       <code>
         <span>function</span> <span>test</span>() {'{'} <span>return</span> 42;{' '}
@@ -103,17 +103,14 @@ describe('CodeBlock', () => {
     });
     fireEvent.click(copyButton);
 
-    waitFor(() => {
+    await waitFor(() => {
       expect(mockWriteText).toHaveBeenCalledWith(
         'function test() { return 42; }'
       );
     });
   });
 
-  it('falls back to execCommand if clipboard API is not available', () => {
-    const mockExecCommand = vi.fn().mockReturnValue(true);
-    document.execCommand = mockExecCommand;
-
+  it('shows error when clipboard API is not available', async () => {
     // Remove clipboard API (use defineProperty for happy-dom compatibility)
     const originalClipboard = navigator.clipboard;
     Object.defineProperty(navigator, 'clipboard', {
@@ -122,23 +119,26 @@ describe('CodeBlock', () => {
       configurable: true,
     });
 
-    render(<CodeBlock>fallback test</CodeBlock>);
+    try {
+      render(<CodeBlock>fallback test</CodeBlock>);
 
-    const copyButton = screen.getByRole('button', {
-      name: /copy code to clipboard/i,
-    });
-    fireEvent.click(copyButton);
+      const copyButton = screen.getByRole('button', {
+        name: /copy code to clipboard/i,
+      });
+      fireEvent.click(copyButton);
 
-    waitFor(() => {
-      expect(mockExecCommand).toHaveBeenCalledWith('copy');
-    });
-
-    // Restore clipboard API
-    Object.defineProperty(navigator, 'clipboard', {
-      value: originalClipboard,
-      writable: true,
-      configurable: true,
-    });
+      // Should show error state when clipboard API unavailable
+      await waitFor(() => {
+        expect(screen.getByLabelText('Copy failed')).toBeInTheDocument();
+      });
+    } finally {
+      // Restore clipboard API
+      Object.defineProperty(navigator, 'clipboard', {
+        value: originalClipboard,
+        writable: true,
+        configurable: true,
+      });
+    }
   });
 
   it('sets data-language attribute when language prop is provided', () => {
