@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import tailwindcss from '@tailwindcss/postcss';
 
 // Tests that require jsdom environment
 const jsdomTests = [
@@ -84,6 +85,13 @@ const sharedConfig = {
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@tests': path.resolve(__dirname, './tests'),
+    },
+  },
+  // Override postcss config for Vite 7 (requires function import, not string)
+  // Next.js uses postcss.config.mjs with string format
+  css: {
+    postcss: {
+      plugins: [tailwindcss],
     },
   },
 };
