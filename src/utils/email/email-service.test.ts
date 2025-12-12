@@ -55,12 +55,12 @@ describe('EmailService', () => {
     });
     vi.mocked(mockEmailJS.validateConfig).mockResolvedValue(true);
 
-    // Create service with mocked providers and short delays for testing
+    // Create service with mocked providers and minimal delays for testing
     emailService = new EmailService({
       providers: [mockWeb3Forms, mockEmailJS],
       config: {
         maxRetries: 2,
-        baseDelay: 10, // Short delay for tests
+        baseDelay: 1, // 1ms delay (0 would default to 1000 due to || operator)
         maxFailures: 3,
       },
     });
