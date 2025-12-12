@@ -24,7 +24,7 @@ run_batch() {
 
     echo -e "${YELLOW}=== $name ===${NC}"
 
-    if pnpm exec vitest run "$pattern" --reporter=basic --pool=forks --poolOptions.forks.singleFork 2>&1 | tee /tmp/batch-output.txt | tail -5; then
+    if pnpm exec vitest run "$pattern" --reporter=default 2>&1 | tee /tmp/batch-output.txt | tail -5; then
         # Extract pass/fail counts
         PASSED=$(grep -oP '\d+(?= passed)' /tmp/batch-output.txt | tail -1 || echo "0")
         FAILED_COUNT=$(grep -oP '\d+(?= failed)' /tmp/batch-output.txt | tail -1 || echo "0")
@@ -45,7 +45,7 @@ run_batch_threads() {
 
     echo -e "${YELLOW}=== $name ===${NC}"
 
-    if pnpm exec vitest run "$pattern" --reporter=basic --pool=threads 2>&1 | tee /tmp/batch-output.txt | tail -5; then
+    if pnpm exec vitest run "$pattern" --reporter=default --pool=threads 2>&1 | tee /tmp/batch-output.txt | tail -5; then
         PASSED=$(grep -oP '\d+(?= passed)' /tmp/batch-output.txt | tail -1 || echo "0")
         FAILED_COUNT=$(grep -oP '\d+(?= failed)' /tmp/batch-output.txt | tail -1 || echo "0")
         TOTAL_PASSED=$((TOTAL_PASSED + ${PASSED:-0}))
@@ -65,7 +65,7 @@ run_batch_vm() {
 
     echo -e "${YELLOW}=== $name ===${NC}"
 
-    if pnpm exec vitest run "$pattern" --reporter=basic --pool=vmThreads 2>&1 | tee /tmp/batch-output.txt | tail -5; then
+    if pnpm exec vitest run "$pattern" --reporter=default --pool=vmThreads 2>&1 | tee /tmp/batch-output.txt | tail -5; then
         PASSED=$(grep -oP '\d+(?= passed)' /tmp/batch-output.txt | tail -1 || echo "0")
         FAILED_COUNT=$(grep -oP '\d+(?= failed)' /tmp/batch-output.txt | tail -1 || echo "0")
         TOTAL_PASSED=$((TOTAL_PASSED + ${PASSED:-0}))
@@ -132,7 +132,7 @@ run_batch "Utils (web3forms)" "src/utils/web3forms.test.ts"
 run_batch "Utils (background-sync)" "src/utils/background-sync.test.ts"
 run_batch "Utils (performance)" "src/utils/performance.test.ts"
 run_batch "Utils (consent)" "src/utils/consent.test.ts"
-run_batch_vm "Utils (email)" "src/utils/email/email-service.test.ts"  # vmThreads = no IPC crash
+run_batch "Utils (email)" "src/utils/email/email-service.test.ts"  # vitest 4.0 fixed tinypool IPC crash
 run_batch "Utils (consent-types)" "src/utils/consent-types.test.ts"
 run_batch "Utils (map-utils)" "src/utils/__tests__/map-utils.test.ts"
 run_batch "Utils (analytics)" "src/utils/analytics.test.ts"
