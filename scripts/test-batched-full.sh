@@ -112,7 +112,7 @@ run_batch "Utils (web3forms)" "src/utils/web3forms.test.ts"
 run_batch "Utils (background-sync)" "src/utils/background-sync.test.ts"
 run_batch "Utils (performance)" "src/utils/performance.test.ts"
 run_batch "Utils (consent)" "src/utils/consent.test.ts"
-run_batch_threads "Utils (email)" "src/utils/email/email-service.test.ts"  # Uses threads - forks crashes on IPC cleanup
+run_batch "Utils (email)" "src/utils/email/email-service.test.ts"  # isolate:false in workspace prevents IPC crash
 run_batch "Utils (consent-types)" "src/utils/consent-types.test.ts"
 run_batch "Utils (map-utils)" "src/utils/__tests__/map-utils.test.ts"
 run_batch "Utils (analytics)" "src/utils/analytics.test.ts"

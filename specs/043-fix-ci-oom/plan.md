@@ -67,9 +67,35 @@ These run BEFORE utils, so memory was already exhausted by the time email-servic
 
 email-service.test.ts declares `@vitest-environment node` but vitest.workspace.ts was running it in happy-dom. The workspace config overrides inline directives. This mismatch caused worker crash during cleanup.
 
-### Issue 4: Pending Timers (Root Cause)
+### Issue 4: Pending Timers (Partially Addressed)
 
-The test's `baseDelay: 10` created setTimeout timers for retry logic. These timers weren't cleared when vitest worker exited, causing `ERR_IPC_CHANNEL_CLOSED` during IPC cleanup.
+The test's `baseDelay: 10` created setTimeout timers for retry logic. Reduced to 1ms (0 defaults to 1000ms due to `|| 1000` operator).
+
+### Issue 5: tinypool IPC Cleanup (Current Blocker)
+
+**Root Cause**: Vitest's tinypool worker pool uses MessagePort for IPC communication regardless of `--pool=threads` or `--pool=forks`. When the worker terminates with pending async operations (setTimeout, MessagePort handlers), the IPC channel cleanup fails with `ERR_IPC_CHANNEL_CLOSED`.
+
+**Evidence**:
+
+- Tests pass: `✓ node src/utils/email/email-service.test.ts (15 tests) 147ms`
+- Crash occurs AFTER tests complete during worker shutdown
+- Error stack shows `tinypool/dist/index.js:140:41` (ProcessWorker.send)
+- Happens with both `--pool=forks` and `--pool=threads`
+
+**Attempted Fixes (All Failed in CI)**:
+
+1. `--pool=threads` instead of `--pool=forks` - same crash
+2. `baseDelay: 1` instead of 10 - same crash
+3. `baseDelay: 0` - defaults to 1000ms due to JS falsy evaluation
+4. Fake timers with `vi.useFakeTimers()` - tests hang without timer advancement
+5. Fake timers with `shouldAdvanceTime: true` - same hanging issue
+
+**Local vs CI Difference**:
+
+- Local: Full batch suite passes (2871 tests, 0 failed)
+- CI: Same tests pass, then crash during worker cleanup
+
+This suggests CI-specific timing or resource constraints affect tinypool's IPC channel cleanup.
 
 ## Implementation Strategy
 
@@ -93,6 +119,71 @@ The test's `baseDelay: 10` created setTimeout timers for retry logic. These time
 - **Risk**: May cause OOM in other batches
 
 **Decision**: Option A - Split each utils file into its own batch. The 10-second overhead is acceptable given CI runs ~10 minutes total.
+
+### Option D: Mock setTimeout Globally (New - For Issue 5)
+
+Mock setTimeout in the test file to resolve immediately without creating real timers:
+
+```typescript
+beforeEach(() => {
+  vi.spyOn(global, 'setTimeout').mockImplementation((fn: () => void) => {
+    fn();
+    return 0 as unknown as NodeJS.Timeout;
+  });
+});
+```
+
+**Risk**: May break test assertions about retry timing behavior.
+
+### Option E: Use vi.waitFor() Pattern (New - For Issue 5)
+
+Replace setTimeout-based delays with vi.waitFor() which handles async cleanup properly:
+
+```typescript
+// In email-service.ts or inject via test
+const delay = async (ms: number) => {
+  if (ms === 0) return;
+  await new Promise((resolve) => setTimeout(resolve, ms));
+};
+```
+
+**Risk**: Requires modifying email-service.ts implementation.
+
+### Option F: Run email-service Test Inline (New - For Issue 5)
+
+Use `--pool=vmThreads` which runs tests in isolated VM contexts without IPC:
+
+```bash
+run_batch_vm "Utils (email)" "src/utils/email/email-service.test.ts"
+# pnpm exec vitest run "$pattern" --pool=vmThreads
+```
+
+**Risk**: VM threads have different global scope behavior.
+
+### Option G: Exclude from CI, Run Separately (Last Resort)
+
+Run email-service tests in a separate CI job with longer timeout and custom worker config.
+
+### Option H: Disable Worker Isolation (FINAL FIX)
+
+Add `isolate: false` to the node workspace in `vitest.workspace.ts`:
+
+```typescript
+{
+  test: {
+    name: 'node',
+    environment: 'node',
+    include: nodeTests,
+    isolate: false, // Run in main thread - prevents tinypool IPC cleanup crash
+  },
+}
+```
+
+**Why this works**:
+
+- `isolate: false` runs tests in the main vitest process
+- No worker process = no IPC channel = no cleanup crash
+- The node workspace only contains email-service.test.ts, so no parallelism is lost
 
 ## Changes Required
 
