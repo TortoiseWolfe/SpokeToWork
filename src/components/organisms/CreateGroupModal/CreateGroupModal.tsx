@@ -260,12 +260,7 @@ export function CreateGroupModal({
               <span className="sr-only">Loading connections...</span>
             </div>
           ) : searchResults.length === 0 ? (
-            <div
-              role="option"
-              aria-selected={false}
-              aria-disabled={true}
-              className="text-base-content/60 p-4 text-center"
-            >
+            <div className="text-base-content/60 p-4 text-center">
               {searchQuery
                 ? 'No connections found'
                 : 'No connections available'}

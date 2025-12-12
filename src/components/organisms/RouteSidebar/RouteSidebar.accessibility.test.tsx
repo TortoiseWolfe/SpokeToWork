@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
@@ -6,45 +6,62 @@ import RouteSidebar from './RouteSidebar';
 
 expect.extend(toHaveNoViolations);
 
-// Mock the useRoutes hook
-vi.mock('@/hooks/useRoutes', () => ({
-  useRoutes: vi.fn(() => ({
-    routes: [
-      {
-        id: '1',
-        name: 'Morning Loop',
-        color: '#3B82F6',
-        distance_miles: 5.2,
-        is_system_route: false,
-        is_active: true,
-        description: 'My daily commute route',
-        updated_at: '2025-01-01T10:00:00Z',
-      },
-      {
-        id: '2',
-        name: 'Cleveland GreenWay',
-        color: '#10B981',
-        distance_miles: 4.2,
-        is_system_route: true,
-        is_active: true,
-        description: 'Paved multi-use trail',
-        updated_at: '2025-01-01T09:00:00Z',
-      },
-    ],
-    activeRouteId: '1',
-    isLoading: false,
-    error: null,
-    checkRouteLimits: vi.fn().mockResolvedValue({
-      withinSoftLimit: true,
-      withinHardLimit: true,
-      current: 2,
-      softLimit: 20,
-      hardLimit: 50,
-    }),
-  })),
+// Use vi.hoisted to create a configurable mock (vitest 4.0 pattern)
+const { mockUseRoutes } = vi.hoisted(() => ({
+  mockUseRoutes: vi.fn(),
 }));
 
+// Mock the useRoutes hook
+vi.mock('@/hooks/useRoutes', () => ({
+  useRoutes: mockUseRoutes,
+}));
+
+// Default mock data
+const defaultMockData = {
+  routes: [
+    {
+      id: '1',
+      name: 'Morning Loop',
+      color: '#3B82F6',
+      distance_miles: 5.2,
+      is_system_route: false,
+      is_active: true,
+      description: 'My daily commute route',
+      updated_at: '2025-01-01T10:00:00Z',
+    },
+    {
+      id: '2',
+      name: 'Cleveland GreenWay',
+      color: '#10B981',
+      distance_miles: 4.2,
+      is_system_route: true,
+      is_active: true,
+      description: 'Paved multi-use trail',
+      updated_at: '2025-01-01T09:00:00Z',
+    },
+  ],
+  activeRouteId: '1',
+  isLoading: false,
+  error: null,
+  checkRouteLimits: vi.fn().mockResolvedValue({
+    withinSoftLimit: true,
+    withinHardLimit: true,
+    current: 2,
+    softLimit: 20,
+    hardLimit: 50,
+  }),
+  getRouteSummaries: vi.fn().mockResolvedValue([
+    { id: '1', company_count: 3 },
+    { id: '2', company_count: 5 },
+  ]),
+};
+
 describe('RouteSidebar Accessibility', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseRoutes.mockReturnValue(defaultMockData);
+  });
+
   it('should not have any accessibility violations', async () => {
     const { container } = render(<RouteSidebar />);
     const results = await axe(container);
@@ -68,7 +85,15 @@ describe('RouteSidebar Accessibility', () => {
     expect(
       screen.getByRole('list', { name: /route list/i })
     ).toBeInTheDocument();
-    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    // Query for route listitems specifically (not dropdown menu items)
+    const routeItems = screen
+      .getAllByRole('listitem')
+      .filter((item) =>
+        item
+          .getAttribute('aria-label')
+          ?.match(/morning loop|cleveland greenway/i)
+      );
+    expect(routeItems).toHaveLength(2);
   });
 
   it('route items have descriptive aria-labels', () => {
@@ -96,7 +121,15 @@ describe('RouteSidebar Accessibility', () => {
 
   it('route items are focusable with tabindex', () => {
     render(<RouteSidebar />);
-    const routeItems = screen.getAllByRole('listitem');
+    // Query for route listitems specifically (not dropdown menu items)
+    const routeItems = screen
+      .getAllByRole('listitem')
+      .filter((item) =>
+        item
+          .getAttribute('aria-label')
+          ?.match(/morning loop|cleveland greenway/i)
+      );
+    expect(routeItems).toHaveLength(2);
     routeItems.forEach((item) => {
       expect(item).toHaveAttribute('tabindex', '0');
     });
@@ -142,8 +175,7 @@ describe('RouteSidebar Accessibility', () => {
   });
 
   it('loading state has accessible label', () => {
-    const { useRoutes } = require('@/hooks/useRoutes');
-    useRoutes.mockReturnValue({
+    mockUseRoutes.mockReturnValue({
       routes: [],
       activeRouteId: null,
       isLoading: true,
@@ -155,6 +187,7 @@ describe('RouteSidebar Accessibility', () => {
         softLimit: 20,
         hardLimit: 50,
       }),
+      getRouteSummaries: vi.fn().mockResolvedValue([]),
     });
 
     render(<RouteSidebar />);
@@ -162,8 +195,7 @@ describe('RouteSidebar Accessibility', () => {
   });
 
   it('error state uses alert role', () => {
-    const { useRoutes } = require('@/hooks/useRoutes');
-    useRoutes.mockReturnValue({
+    mockUseRoutes.mockReturnValue({
       routes: [],
       activeRouteId: null,
       isLoading: false,
@@ -175,6 +207,7 @@ describe('RouteSidebar Accessibility', () => {
         softLimit: 20,
         hardLimit: 50,
       }),
+      getRouteSummaries: vi.fn().mockResolvedValue([]),
     });
 
     render(<RouteSidebar />);
@@ -182,8 +215,7 @@ describe('RouteSidebar Accessibility', () => {
   });
 
   it('status messages use status role', () => {
-    const { useRoutes } = require('@/hooks/useRoutes');
-    useRoutes.mockReturnValue({
+    mockUseRoutes.mockReturnValue({
       routes: [],
       activeRouteId: null,
       isLoading: false,
@@ -196,6 +228,7 @@ describe('RouteSidebar Accessibility', () => {
         hardLimit: 50,
         message: 'You have 18 routes.',
       }),
+      getRouteSummaries: vi.fn().mockResolvedValue([]),
     });
 
     render(<RouteSidebar />);

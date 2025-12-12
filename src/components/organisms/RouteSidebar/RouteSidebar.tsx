@@ -407,7 +407,7 @@ function RouteListItem({
               className="dropdown-content menu bg-base-100 rounded-box z-[1] w-32 p-2 shadow"
               role="menu"
             >
-              <li>
+              <li role="none">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -418,7 +418,7 @@ function RouteListItem({
                   Edit
                 </button>
               </li>
-              <li>
+              <li role="none">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

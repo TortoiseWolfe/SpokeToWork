@@ -3,43 +3,55 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import RouteSidebar from './RouteSidebar';
 
+// Use vi.hoisted to create a configurable mock (vitest 4.0 pattern)
+const { mockUseRoutes } = vi.hoisted(() => ({
+  mockUseRoutes: vi.fn(),
+}));
+
 // Mock the useRoutes hook
 vi.mock('@/hooks/useRoutes', () => ({
-  useRoutes: vi.fn(() => ({
-    routes: [
-      {
-        id: '1',
-        name: 'Morning Loop',
-        color: '#3B82F6',
-        distance_miles: 5.2,
-        is_system_route: false,
-        is_active: true,
-        description: 'My daily commute route',
-        updated_at: '2025-01-01T10:00:00Z',
-      },
-      {
-        id: '2',
-        name: 'Cleveland GreenWay',
-        color: '#10B981',
-        distance_miles: 4.2,
-        is_system_route: true,
-        is_active: true,
-        description: 'Paved multi-use trail',
-        updated_at: '2025-01-01T09:00:00Z',
-      },
-    ],
-    activeRouteId: '1',
-    isLoading: false,
-    error: null,
-    checkRouteLimits: vi.fn().mockResolvedValue({
-      withinSoftLimit: true,
-      withinHardLimit: true,
-      current: 2,
-      softLimit: 20,
-      hardLimit: 50,
-    }),
-  })),
+  useRoutes: mockUseRoutes,
 }));
+
+// Default mock data
+const defaultMockData = {
+  routes: [
+    {
+      id: '1',
+      name: 'Morning Loop',
+      color: '#3B82F6',
+      distance_miles: 5.2,
+      is_system_route: false,
+      is_active: true,
+      description: 'My daily commute route',
+      updated_at: '2025-01-01T10:00:00Z',
+    },
+    {
+      id: '2',
+      name: 'Cleveland GreenWay',
+      color: '#10B981',
+      distance_miles: 4.2,
+      is_system_route: true,
+      is_active: true,
+      description: 'Paved multi-use trail',
+      updated_at: '2025-01-01T09:00:00Z',
+    },
+  ],
+  activeRouteId: '1',
+  isLoading: false,
+  error: null,
+  checkRouteLimits: vi.fn().mockResolvedValue({
+    withinSoftLimit: true,
+    withinHardLimit: true,
+    current: 2,
+    softLimit: 20,
+    hardLimit: 50,
+  }),
+  getRouteSummaries: vi.fn().mockResolvedValue([
+    { id: '1', company_count: 3 },
+    { id: '2', company_count: 5 },
+  ]),
+};
 
 describe('RouteSidebar', () => {
   const mockOnRouteSelect = vi.fn();
@@ -49,6 +61,8 @@ describe('RouteSidebar', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset to default mock data
+    mockUseRoutes.mockReturnValue(defaultMockData);
   });
 
   it('renders route list', () => {
@@ -159,27 +173,8 @@ describe('RouteSidebar', () => {
 });
 
 describe('RouteSidebar loading state', () => {
-  beforeEach(() => {
-    vi.mock('@/hooks/useRoutes', () => ({
-      useRoutes: vi.fn(() => ({
-        routes: [],
-        activeRouteId: null,
-        isLoading: true,
-        error: null,
-        checkRouteLimits: vi.fn().mockResolvedValue({
-          withinSoftLimit: true,
-          withinHardLimit: true,
-          current: 0,
-          softLimit: 20,
-          hardLimit: 50,
-        }),
-      })),
-    }));
-  });
-
   it('shows loading spinner when loading', () => {
-    const { useRoutes } = require('@/hooks/useRoutes');
-    useRoutes.mockReturnValue({
+    mockUseRoutes.mockReturnValue({
       routes: [],
       activeRouteId: null,
       isLoading: true,
@@ -191,6 +186,7 @@ describe('RouteSidebar loading state', () => {
         softLimit: 20,
         hardLimit: 50,
       }),
+      getRouteSummaries: vi.fn().mockResolvedValue([]),
     });
 
     render(<RouteSidebar />);
@@ -201,8 +197,7 @@ describe('RouteSidebar loading state', () => {
 
 describe('RouteSidebar empty state', () => {
   it('shows empty message when no routes', () => {
-    const { useRoutes } = require('@/hooks/useRoutes');
-    useRoutes.mockReturnValue({
+    mockUseRoutes.mockReturnValue({
       routes: [],
       activeRouteId: null,
       isLoading: false,
@@ -214,6 +209,7 @@ describe('RouteSidebar empty state', () => {
         softLimit: 20,
         hardLimit: 50,
       }),
+      getRouteSummaries: vi.fn().mockResolvedValue([]),
     });
 
     render(<RouteSidebar />);
@@ -224,8 +220,7 @@ describe('RouteSidebar empty state', () => {
 
 describe('RouteSidebar error state', () => {
   it('shows error message when error occurs', () => {
-    const { useRoutes } = require('@/hooks/useRoutes');
-    useRoutes.mockReturnValue({
+    mockUseRoutes.mockReturnValue({
       routes: [],
       activeRouteId: null,
       isLoading: false,
@@ -237,6 +232,7 @@ describe('RouteSidebar error state', () => {
         softLimit: 20,
         hardLimit: 50,
       }),
+      getRouteSummaries: vi.fn().mockResolvedValue([]),
     });
 
     render(<RouteSidebar />);

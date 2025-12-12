@@ -24,9 +24,13 @@ describe('Project Configuration', () => {
 
   describe('getProjectConfig', () => {
     it('should return default configuration when no environment variables are set', () => {
+      // Clear all relevant env vars before stubbing
+      delete process.env.NEXT_PUBLIC_DEPLOY_URL;
+      delete process.env.NEXT_PUBLIC_PROJECT_NAME;
+      delete process.env.NEXT_PUBLIC_PROJECT_OWNER;
+      delete process.env.NEXT_PUBLIC_BASE_PATH;
       vi.stubEnv('NODE_ENV', 'development');
       vi.stubEnv('GITHUB_ACTIONS', undefined);
-      delete process.env.NEXT_PUBLIC_DEPLOY_URL;
 
       const config = getProjectConfig();
 
