@@ -38,7 +38,9 @@ jobs:
         run: pnpm run test:a11y:ci
 
       - name: Run component accessibility tests
-        run: pnpm test -- --run Button.accessibility Card.accessibility Text.accessibility
+        run: pnpm exec vitest run Button.accessibility Card.accessibility Text.accessibility --no-file-parallelism --pool vmThreads
+        env:
+          NODE_OPTIONS: '--max-old-space-size=2048'
 
       - name: Upload Pa11y screenshots
         if: failure()
