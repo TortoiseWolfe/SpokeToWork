@@ -22,6 +22,8 @@ export default defineConfig({
       // CSS getPropertyValue not available in happy-dom
       ['**/useFontFamily.test.ts', 'jsdom'],
       ['**/useColorblindMode.test.ts', 'jsdom'],
+      // Navigator API mocking (maxTouchPoints)
+      ['**/useDeviceType.test.ts', 'jsdom'],
       // Storage prototype mocking and performance API
       ['**/performance.test.ts', 'jsdom'],
       ['**/privacy-utils.test.ts', 'jsdom'],
