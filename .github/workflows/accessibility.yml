@@ -37,11 +37,22 @@ jobs:
       - name: Run accessibility tests
         run: pnpm run test:a11y:ci
 
-      - name: Run component accessibility tests
+      - name: Run component accessibility tests (happy-dom)
         run: |
-          FILES=$(find src/components -name "*.accessibility.test.tsx" -type f | tr '\n' ' ')
-          echo "Running $(echo $FILES | wc -w) accessibility test files"
+          # Run all accessibility tests except Card (jsdom) and RouteBuilder (OOMs, tested in main CI)
+          FILES=$(find src/components -name "*.accessibility.test.tsx" -type f \
+            ! -name "Card.accessibility.test.tsx" \
+            ! -name "RouteBuilder.accessibility.test.tsx" \
+            | tr '\n' ' ')
+          echo "Running $(echo $FILES | wc -w) happy-dom accessibility test files"
           pnpm exec vitest run $FILES --no-file-parallelism --pool vmThreads
+        env:
+          NODE_OPTIONS: '--max-old-space-size=2048'
+
+      - name: Run Card accessibility tests (jsdom)
+        run: |
+          echo "Running Card accessibility tests with jsdom"
+          pnpm exec vitest run src/components/atomic/Card/Card.accessibility.test.tsx --project jsdom
         env:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
