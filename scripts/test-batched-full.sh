@@ -9,7 +9,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-export NODE_OPTIONS="--max-old-space-size=4096"
+export NODE_OPTIONS="--max-old-space-size=2048"
 
 echo -e "${YELLOW}Running tests in batches to avoid OOM...${NC}"
 echo ""
@@ -24,7 +24,10 @@ run_batch() {
 
     echo -e "${YELLOW}=== $name ===${NC}"
 
-    if pnpm exec vitest run "$pattern" --reporter=default 2>&1 | tee /tmp/batch-output.txt | tail -5; then
+    # Memory-efficient flags:
+    # --no-file-parallelism: Run test files sequentially to reduce memory
+    # --pool forks --poolOptions.forks.singleFork: Use single fork to prevent multiple workers
+    if pnpm exec vitest run "$pattern" --reporter=default --no-file-parallelism --pool forks --poolOptions.forks.singleFork 2>&1 | tee /tmp/batch-output.txt | tail -5; then
         # Extract pass/fail counts
         PASSED=$(grep -oP '\d+(?= passed)' /tmp/batch-output.txt | tail -1 || echo "0")
         FAILED_COUNT=$(grep -oP '\d+(?= failed)' /tmp/batch-output.txt | tail -1 || echo "0")
@@ -45,7 +48,7 @@ run_batch_threads() {
 
     echo -e "${YELLOW}=== $name ===${NC}"
 
-    if pnpm exec vitest run "$pattern" --reporter=default --pool=threads 2>&1 | tee /tmp/batch-output.txt | tail -5; then
+    if pnpm exec vitest run "$pattern" --reporter=default --no-file-parallelism --pool=threads 2>&1 | tee /tmp/batch-output.txt | tail -5; then
         PASSED=$(grep -oP '\d+(?= passed)' /tmp/batch-output.txt | tail -1 || echo "0")
         FAILED_COUNT=$(grep -oP '\d+(?= failed)' /tmp/batch-output.txt | tail -1 || echo "0")
         TOTAL_PASSED=$((TOTAL_PASSED + ${PASSED:-0}))
@@ -65,7 +68,7 @@ run_batch_vm() {
 
     echo -e "${YELLOW}=== $name ===${NC}"
 
-    if pnpm exec vitest run "$pattern" --reporter=default --pool=vmThreads 2>&1 | tee /tmp/batch-output.txt | tail -5; then
+    if pnpm exec vitest run "$pattern" --reporter=default --no-file-parallelism --pool=vmThreads 2>&1 | tee /tmp/batch-output.txt | tail -5; then
         PASSED=$(grep -oP '\d+(?= passed)' /tmp/batch-output.txt | tail -1 || echo "0")
         FAILED_COUNT=$(grep -oP '\d+(?= failed)' /tmp/batch-output.txt | tail -1 || echo "0")
         TOTAL_PASSED=$((TOTAL_PASSED + ${PASSED:-0}))
