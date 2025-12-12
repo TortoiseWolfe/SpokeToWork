@@ -66,7 +66,12 @@ run_batch "Hooks" "src/hooks"
 run_batch "Lib" "src/lib"
 run_batch "Services" "src/services"
 run_batch "Schemas" "src/schemas"
-run_batch "Utils" "src/utils"
+
+# Utils split - jsdom-sensitive tests run individually to avoid pollution
+run_batch "Utils (consent)" "src/utils/consent-history.test.ts"
+run_batch "Utils (privacy)" "src/utils/privacy.test.ts"
+run_batch "Utils (privacy-utils)" "src/utils/privacy-utils.test.ts"
+run_batch "Utils (rest)" "src/utils"
 
 # Batch 6: Contexts
 run_batch "Contexts" "src/contexts"

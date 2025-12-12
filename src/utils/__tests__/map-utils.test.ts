@@ -27,7 +27,8 @@ describe('map-utils', () => {
     });
 
     it('should have accessibility-friendly defaults', () => {
-      expect(DEFAULT_MAP_CONFIG.scrollWheelZoom).toBe(false);
+      // scrollWheelZoom is true for standard map UX (users expect scroll to zoom)
+      expect(DEFAULT_MAP_CONFIG.scrollWheelZoom).toBe(true);
       expect(DEFAULT_MAP_CONFIG.keyboardNavigation).toBe(true);
     });
   });
