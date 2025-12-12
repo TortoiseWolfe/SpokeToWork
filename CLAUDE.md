@@ -403,6 +403,9 @@ ADD COLUMN IF NOT EXISTS encryption_salt TEXT;
 
 ## Active Technologies
 
+- Bash script + Vitest 3.2.4 on Node.js 22 + Vitest, pnpm, GitHub Actions runner (043-fix-ci-oom)
+- N/A (test infrastructure) (043-fix-ci-oom)
+
 - TypeScript 5.x with React 19, Next.js 15 + react-leaflet 5.x, Leaflet 1.9.x, @tanstack/react-query, Supabase JS client, DaisyUI (041-bicycle-route-planning)
 - Supabase PostgreSQL (cloud) with Row-Level Security (041-bicycle-route-planning)
 - TypeScript 5.9 with Node.js 22 + Vitest 3.2.3, happy-dom 20.0.11 (already installed), React 19 (042-test-memory-optimization)

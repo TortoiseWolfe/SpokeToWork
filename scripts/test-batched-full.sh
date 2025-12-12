@@ -70,20 +70,18 @@ run_batch "Utils (privacy)" "src/utils/privacy.test.ts"
 run_batch "Utils (privacy-utils)" "src/utils/privacy-utils.test.ts"
 run_batch "Utils (offline-queue)" "src/utils/offline-queue.browser.test.ts"
 
-# Run remaining utils (exclude files run individually above)
-echo "Running utils (excluding isolated tests)..."
-pnpm exec vitest run src/utils \
-  --exclude "**/consent-history.test.ts" \
-  --exclude "**/privacy.test.ts" \
-  --exclude "**/privacy-utils.test.ts" \
-  --exclude "**/offline-queue.browser.test.ts" \
-  --reporter=basic --pool=forks --poolOptions.forks.singleFork 2>&1 | tee /tmp/batch-output.txt | tail -5
-PASSED=$(grep -oP '\d+(?= passed)' /tmp/batch-output.txt | tail -1 || echo "0")
-FAILED_COUNT=$(grep -oP '\d+(?= failed)' /tmp/batch-output.txt | tail -1 || echo "0")
-TOTAL_PASSED=$((TOTAL_PASSED + ${PASSED:-0}))
-TOTAL_FAILED=$((TOTAL_FAILED + ${FAILED_COUNT:-0}))
-echo -e "${GREEN}✓ Utils (rest) complete${NC}"
-echo ""
+# Run remaining utils - each file as individual batch to prevent OOM
+run_batch "Utils (error-handler)" "src/utils/error-handler.test.ts"
+run_batch "Utils (font-loader)" "src/utils/font-loader.test.ts"
+run_batch "Utils (web3forms)" "src/utils/web3forms.test.ts"
+run_batch "Utils (background-sync)" "src/utils/background-sync.test.ts"
+run_batch "Utils (performance)" "src/utils/performance.test.ts"
+run_batch "Utils (consent)" "src/utils/consent.test.ts"
+run_batch "Utils (email)" "src/utils/email/email-service.test.ts"
+run_batch "Utils (consent-types)" "src/utils/consent-types.test.ts"
+run_batch "Utils (map-utils)" "src/utils/__tests__/map-utils.test.ts"
+run_batch "Utils (analytics)" "src/utils/analytics.test.ts"
+run_batch "Utils (colorblind)" "src/utils/__tests__/colorblind.test.ts"
 
 # Batch 6: Contexts
 run_batch "Contexts" "src/contexts"
