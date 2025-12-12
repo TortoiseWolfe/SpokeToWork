@@ -38,7 +38,10 @@ jobs:
         run: pnpm run test:a11y:ci
 
       - name: Run component accessibility tests
-        run: pnpm exec vitest run "**/*.accessibility.test.tsx" --no-file-parallelism --pool vmThreads
+        run: |
+          FILES=$(find src/components -name "*.accessibility.test.tsx" -type f | tr '\n' ' ')
+          echo "Running $(echo $FILES | wc -w) accessibility test files"
+          pnpm exec vitest run $FILES --no-file-parallelism --pool vmThreads
         env:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
