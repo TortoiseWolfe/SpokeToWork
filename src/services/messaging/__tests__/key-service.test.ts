@@ -32,11 +32,26 @@ import {
   ConnectionError,
 } from '@/types/messaging';
 
+// Use vi.hoisted to create mock that can be referenced in vi.mock (vitest 4.0 pattern)
+const { mockKeyDerivationInstance } = vi.hoisted(() => ({
+  mockKeyDerivationInstance: {
+    generateSalt: vi.fn(),
+    deriveKeyPair: vi.fn(),
+    verifyPublicKey: vi.fn(),
+  },
+}));
+
 // Mock all dependencies
 vi.mock('@/lib/supabase/client');
 vi.mock('@/lib/supabase/messaging-client');
 vi.mock('@/lib/messaging/encryption');
-vi.mock('@/lib/messaging/key-derivation');
+vi.mock('@/lib/messaging/key-derivation', () => ({
+  KeyDerivationService: class MockKeyDerivationService {
+    generateSalt = mockKeyDerivationInstance.generateSalt;
+    deriveKeyPair = mockKeyDerivationInstance.deriveKeyPair;
+    verifyPublicKey = mockKeyDerivationInstance.verifyPublicKey;
+  },
+}));
 
 describe('KeyManagementService', () => {
   let keyService: KeyManagementService;
@@ -72,21 +87,15 @@ describe('KeyManagementService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Mock KeyDerivationService BEFORE creating keyService (order matters!)
-    const mockKeyDerivationService = {
-      generateSalt: vi.fn().mockReturnValue(mockSalt),
-      deriveKeyPair: vi.fn().mockResolvedValue({
-        publicKey: realKeyPair.publicKey,
-        privateKey: realKeyPair.privateKey,
-        publicKeyJwk: realPublicKeyJwk,
-        salt: mockSalt,
-      }),
-      verifyPublicKey: vi.fn().mockReturnValue(true), // Default: keys match
-    };
-
-    vi.mocked(KeyDerivationService).mockImplementation(
-      () => mockKeyDerivationService as any
-    );
+    // Configure the hoisted mock with test values (using real keys generated in beforeAll)
+    mockKeyDerivationInstance.generateSalt.mockReturnValue(mockSalt);
+    mockKeyDerivationInstance.deriveKeyPair.mockResolvedValue({
+      publicKey: realKeyPair.publicKey,
+      privateKey: realKeyPair.privateKey,
+      publicKeyJwk: realPublicKeyJwk,
+      salt: mockSalt,
+    });
+    mockKeyDerivationInstance.verifyPublicKey.mockReturnValue(true); // Default: keys match
 
     // Now create keyService - it will use the mocked KeyDerivationService
     keyService = new KeyManagementService();
@@ -334,20 +343,8 @@ describe('KeyManagementService', () => {
     });
 
     it('should throw KeyMismatchError if derived key does not match stored key', async () => {
-      // Re-mock KeyDerivationService with verifyPublicKey returning false
-      const mockKeyDerivationService = {
-        generateSalt: vi.fn().mockReturnValue(mockSalt),
-        deriveKeyPair: vi.fn().mockResolvedValue({
-          publicKey: realKeyPair.publicKey,
-          privateKey: realKeyPair.privateKey,
-          publicKeyJwk: realPublicKeyJwk,
-          salt: mockSalt,
-        }),
-        verifyPublicKey: vi.fn().mockReturnValue(false), // Keys DON'T match!
-      };
-      vi.mocked(KeyDerivationService).mockImplementation(
-        () => mockKeyDerivationService as any
-      );
+      // Override verifyPublicKey to return false for this test
+      mockKeyDerivationInstance.verifyPublicKey.mockReturnValue(false); // Keys DON'T match!
       // Create new service instance with mismatch mock
       const mismatchService = new KeyManagementService();
 
