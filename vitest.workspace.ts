@@ -85,6 +85,9 @@ const jsdomTests = [
   '**/CodeBlock.test.tsx',
 ];
 
+// Tests that require pure node environment (no DOM - crashes in happy-dom)
+const nodeTests = ['**/email-service.test.ts'];
+
 export default defineWorkspace([
   {
     ...sharedConfig,
@@ -102,7 +105,16 @@ export default defineWorkspace([
       name: 'happy-dom',
       environment: 'happy-dom',
       include: ['**/*.test.{ts,tsx}'],
-      exclude: [...sharedTestConfig.exclude, ...jsdomTests],
+      exclude: [...sharedTestConfig.exclude, ...jsdomTests, ...nodeTests],
+    },
+  },
+  {
+    ...sharedConfig,
+    test: {
+      ...sharedTestConfig,
+      name: 'node',
+      environment: 'node',
+      include: nodeTests,
     },
   },
 ]);
