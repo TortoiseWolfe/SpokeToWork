@@ -31,21 +31,21 @@ vi.mock('@/lib/supabase/messaging-client', () => ({
 }));
 
 vi.mock('@/services/messaging/group-key-service', () => ({
-  GroupKeyService: vi.fn().mockImplementation(() => ({
-    generateGroupKey: vi.fn(() =>
+  GroupKeyService: class MockGroupKeyService {
+    generateGroupKey = vi.fn(() =>
       crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, [
         'encrypt',
         'decrypt',
       ])
-    ),
-    distributeGroupKey: vi.fn(() =>
+    );
+    distributeGroupKey = vi.fn(() =>
       Promise.resolve({
         successful: ['current-user-id', 'member-1'],
         pending: [],
       })
-    ),
-    clearCache: vi.fn(),
-  })),
+    );
+    clearCache = vi.fn();
+  },
 }));
 
 // Mock keyManagementService for encryption key validation
