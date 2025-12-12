@@ -59,9 +59,24 @@ run_batch "Payment Components" "src/components/payment"
 run_batch "Privacy Components" "src/components/privacy"
 run_batch "Subatomic Components" "src/components/subatomic"
 
-# Batch 5: Lib/Services - split by directory
-run_batch "Lib" "src/lib"
-run_batch "Services" "src/services"
+# Batch 5: Lib - split by subdirectory to prevent OOM
+run_batch "Lib (messaging)" "src/lib/messaging"
+run_batch "Lib (companies)" "src/lib/companies"
+run_batch "Lib (logger)" "src/lib/logger"
+run_batch "Lib (auth)" "src/lib/auth"
+run_batch "Lib (payments)" "src/lib/payments"
+run_batch "Lib (validation)" "src/lib/validation"
+run_batch "Lib (avatar)" "src/lib/avatar"
+
+# Batch 6: Services - split by file to prevent OOM
+run_batch "Services (welcome)" "src/services/messaging/welcome-service.test.ts"
+run_batch "Services (connection)" "src/services/messaging/__tests__/connection-service.test.ts"
+run_batch "Services (message)" "src/services/messaging/__tests__/message-service.test.ts"
+run_batch "Services (offline-queue)" "src/services/messaging/__tests__/offline-queue-service.test.ts"
+run_batch "Services (group-key)" "src/services/messaging/__tests__/group-key-service.test.ts"
+run_batch "Services (key)" "src/services/messaging/__tests__/key-service.test.ts"
+run_batch "Services (gdpr)" "src/services/messaging/__tests__/gdpr-service.test.ts"
+
 run_batch "Schemas" "src/schemas"
 
 # Utils split - jsdom-sensitive tests run individually to avoid pollution
