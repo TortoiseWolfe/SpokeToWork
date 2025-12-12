@@ -31,6 +31,11 @@ describe('EmailService', () => {
   };
 
   beforeEach(() => {
+    // Mock setTimeout to resolve immediately - prevents pending timers during worker cleanup
+    vi.spyOn(global, 'setTimeout').mockImplementation((fn: TimerHandler) => {
+      if (typeof fn === 'function') fn();
+      return 0 as unknown as NodeJS.Timeout;
+    });
     vi.clearAllMocks();
 
     // Setup mock providers

@@ -115,6 +115,7 @@ export default defineWorkspace([
       name: 'node',
       environment: 'node',
       include: nodeTests,
+      isolate: false, // Run in main thread - prevents tinypool IPC cleanup crash in CI
     },
   },
 ]);
