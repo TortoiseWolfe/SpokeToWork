@@ -50,21 +50,26 @@ scripts/
 
 ## Root Cause Analysis
 
-The "Utils (rest)" batch runs these files in a single vitest process:
+### Issue 1: Large Test Batches (Original)
 
-1. error-handler.test.ts (649 lines)
-2. font-loader.test.ts (565 lines)
-3. web3forms.test.ts (520 lines)
-4. background-sync.test.ts (518 lines)
-5. performance.test.ts (489 lines)
-6. consent.test.ts (365 lines)
-7. email-service.test.ts (321 lines) ← **CRASH POINT**
-8. consent-types.test.ts (224 lines)
-9. map-utils.test.ts (207 lines)
-10. analytics.test.ts (179 lines)
-11. colorblind.test.ts (148 lines)
+The "Utils (rest)" batch runs ~4200 lines in a single vitest process.
 
-**Total**: ~4200 lines in one process. Memory accumulates until crash at email-service.test.ts.
+### Issue 2: Additional Large Batches (Discovered)
+
+After fixing utils, CI still crashed because:
+
+- **Lib batch**: 18 test files, 4940 lines in one process
+- **Services batch**: 7 test files, 3543 lines in one process
+
+These run BEFORE utils, so memory was already exhausted by the time email-service.test.ts ran.
+
+### Issue 3: Environment Mismatch (Discovered)
+
+email-service.test.ts declares `@vitest-environment node` but vitest.workspace.ts was running it in happy-dom. The workspace config overrides inline directives. This mismatch caused worker crash during cleanup.
+
+### Issue 4: Pending Timers (Root Cause)
+
+The test's `baseDelay: 10` created setTimeout timers for retry logic. These timers weren't cleared when vitest worker exited, causing `ERR_IPC_CHANNEL_CLOSED` during IPC cleanup.
 
 ## Implementation Strategy
 
@@ -91,29 +96,53 @@ The "Utils (rest)" batch runs these files in a single vitest process:
 
 ## Changes Required
 
-### File: `scripts/test-batched-full.sh`
+### Fix 1: `scripts/test-batched-full.sh` - Split Utils Batch
 
-**Lines 67-86 (Utils section)** - Replace the "Utils (rest)" inline command with individual `run_batch` calls:
+Replace inline utils command with individual `run_batch` calls for each file.
+
+### Fix 2: `scripts/test-batched-full.sh` - Split Lib and Services Batches
 
 ```bash
-# Current (BROKEN):
-# Lines 73-86 run all remaining utils in one process
+# Lib - split by subdirectory
+run_batch "Lib (messaging)" "src/lib/messaging"
+run_batch "Lib (companies)" "src/lib/companies"
+run_batch "Lib (logger)" "src/lib/logger"
+run_batch "Lib (auth)" "src/lib/auth"
+run_batch "Lib (payments)" "src/lib/payments"
+run_batch "Lib (validation)" "src/lib/validation"
+run_batch "Lib (avatar)" "src/lib/avatar"
 
-# New (FIXED):
-run_batch "Utils (error-handler)" "src/utils/error-handler.test.ts"
-run_batch "Utils (font-loader)" "src/utils/font-loader.test.ts"
-run_batch "Utils (web3forms)" "src/utils/web3forms.test.ts"
-run_batch "Utils (background-sync)" "src/utils/background-sync.test.ts"
-run_batch "Utils (performance)" "src/utils/performance.test.ts"
-run_batch "Utils (consent)" "src/utils/consent.test.ts"
-run_batch "Utils (email)" "src/utils/email/email-service.test.ts"
-run_batch "Utils (consent-types)" "src/utils/consent-types.test.ts"
-run_batch "Utils (map-utils)" "src/utils/__tests__/map-utils.test.ts"
-run_batch "Utils (analytics)" "src/utils/analytics.test.ts"
-run_batch "Utils (colorblind)" "src/utils/__tests__/colorblind.test.ts"
+# Services - split by file
+run_batch "Services (welcome)" "src/services/messaging/welcome-service.test.ts"
+run_batch "Services (connection)" "src/services/messaging/__tests__/connection-service.test.ts"
+# ... (7 total)
 ```
 
-Note: consent-history, privacy, privacy-utils, and offline-queue already run as individual batches (lines 68-71).
+### Fix 3: `vitest.workspace.ts` - Add Node Environment
+
+```typescript
+const nodeTests = ['**/email-service.test.ts'];
+
+// Add third workspace project
+{
+  test: {
+    name: 'node',
+    environment: 'node',
+    include: nodeTests,
+  },
+}
+```
+
+### Fix 4: `src/utils/email/email-service.test.ts` - Reduce Timer Delay
+
+```typescript
+// Change baseDelay from 10 to 1 to avoid pending timers
+config: {
+  maxRetries: 2,
+  baseDelay: 1, // Was 10 - caused pending timers
+  maxFailures: 3,
+}
+```
 
 ## Complexity Tracking
 
