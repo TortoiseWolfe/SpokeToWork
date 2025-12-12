@@ -47,12 +47,9 @@ run_batch "Atomic Components" "src/components/atomic"
 # Batch 3: Molecular components
 run_batch "Molecular Components" "src/components/molecular"
 
-# Batch 4: Organism components - split to avoid OOM
-run_batch "Organisms (A-B)" "src/components/organisms/A* src/components/organisms/B*"
-run_batch "Organisms (C)" "src/components/organisms/C*"
-run_batch "Organisms (D-H)" "src/components/organisms/D* src/components/organisms/H*"
-run_batch "Organisms (M-P)" "src/components/organisms/M* src/components/organisms/P*"
-run_batch "Organisms (R-U)" "src/components/organisms/R* src/components/organisms/S* src/components/organisms/U*"
+# Batch 4: Organism components - explicit directories (vitest doesn't expand globs)
+run_batch "Organisms (A-C)" "src/components/organisms/AdminModerationQueue src/components/organisms/ApplicationForm src/components/organisms/ChatWindow src/components/organisms/CompanyDetailDrawer src/components/organisms/CompanyForm src/components/organisms/CompanyImport src/components/organisms/CompanyTable src/components/organisms/ConnectionManager src/components/organisms/ConversationList src/components/organisms/CreateGroupModal"
+run_batch "Organisms (H-U)" "src/components/organisms/HomeLocationSettings src/components/organisms/NextRidePanel src/components/organisms/RouteBuilder src/components/organisms/RouteCompanyList src/components/organisms/RouteDetailDrawer src/components/organisms/RouteSidebar src/components/organisms/UnifiedSidebar"
 
 # Batch 5: Other component directories
 run_batch "Auth Components" "src/components/auth"
