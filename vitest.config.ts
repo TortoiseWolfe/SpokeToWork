@@ -34,6 +34,8 @@ export default defineConfig({
       ['**/encryption.test.ts', 'jsdom'],
       // Group key service uses crypto.subtle directly
       ['**/group-key-service.test.ts', 'jsdom'],
+      // Key derivation uses crypto.getRandomValues
+      ['**/key-derivation.test.ts', 'jsdom'],
       // localStorage mocking
       ['**/usePaymentConsent.test.ts', 'jsdom'],
       ['**/rate-limiter.test.ts', 'jsdom'],

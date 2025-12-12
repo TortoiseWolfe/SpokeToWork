@@ -195,11 +195,8 @@ describe('RouteCompanyList', () => {
     await user.click(checkboxes[0]); // Toggle first company
 
     await waitFor(() => {
-      expect(mockToggleNextRide).toHaveBeenCalledWith(
-        'route-1',
-        'company-1',
-        true
-      );
+      // Hook's toggleNextRide takes just the routeCompanyId
+      expect(mockToggleNextRide).toHaveBeenCalledWith('rc-1');
     });
   });
 
@@ -248,7 +245,8 @@ describe('RouteCompanyList', () => {
     await user.click(removeButtons[0]);
 
     await waitFor(() => {
-      expect(mockRemoveCompany).toHaveBeenCalledWith('route-1', 'company-1');
+      // Hook's removeCompanyFromRoute takes just the routeCompanyId
+      expect(mockRemoveCompany).toHaveBeenCalledWith('rc-1');
     });
   });
 

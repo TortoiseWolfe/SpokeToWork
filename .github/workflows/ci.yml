@@ -63,11 +63,8 @@ jobs:
       - name: Type check
         run: pnpm type-check
 
-      - name: Run tests
-        run: pnpm test --run
-
-      - name: Check test coverage
-        run: pnpm test:coverage
+      - name: Run tests (batched to avoid OOM)
+        run: ./scripts/test-batched-full.sh
 
       - name: Build application
         run: pnpm build
