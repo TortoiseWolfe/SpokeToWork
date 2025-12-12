@@ -38,29 +38,29 @@ run_batch() {
     echo ""
 }
 
-# Batch 1: Atomic components
+# Batch 1: Hooks (run early - useFontFamily needs jsdom, sensitive to env pollution)
+run_batch "Hooks" "src/hooks"
+
+# Batch 2: Atomic components
 run_batch "Atomic Components" "src/components/atomic"
 
-# Batch 2: Molecular components
+# Batch 3: Molecular components
 run_batch "Molecular Components" "src/components/molecular"
 
-# Batch 3: Organism components - split to avoid OOM
+# Batch 4: Organism components - split to avoid OOM
 run_batch "Organisms (A-B)" "src/components/organisms/A* src/components/organisms/B*"
 run_batch "Organisms (C)" "src/components/organisms/C*"
 run_batch "Organisms (D-H)" "src/components/organisms/D* src/components/organisms/H*"
 run_batch "Organisms (M-P)" "src/components/organisms/M* src/components/organisms/P*"
 run_batch "Organisms (R-U)" "src/components/organisms/R* src/components/organisms/S* src/components/organisms/U*"
 
-# Batch 4: Other component directories
+# Batch 5: Other component directories
 run_batch "Auth Components" "src/components/auth"
 run_batch "Form Components" "src/components/forms"
 run_batch "Map Components" "src/components/map"
 run_batch "Payment Components" "src/components/payment"
 run_batch "Privacy Components" "src/components/privacy"
 run_batch "Subatomic Components" "src/components/subatomic"
-
-# Batch 4: Hooks
-run_batch "Hooks" "src/hooks"
 
 # Batch 5: Lib/Services - split by directory
 run_batch "Lib" "src/lib"

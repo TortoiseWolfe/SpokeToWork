@@ -150,7 +150,7 @@ vi.mock('react-leaflet', () => {
     MapContainer: ({ children }: { children: React.ReactNode }) =>
       React.createElement(
         'div',
-        { 'data-testid': 'mock-leaflet-map' },
+        { 'data-testid': 'mock-leaflet-map', className: 'leaflet-container' },
         children
       ),
     TileLayer: () => null,
