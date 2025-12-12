@@ -24,7 +24,7 @@ run_batch() {
 
     echo -e "${YELLOW}=== $name ===${NC}"
 
-    if pnpm exec vitest run "$pattern" --reporter=basic 2>&1 | tee /tmp/batch-output.txt | tail -5; then
+    if pnpm exec vitest run "$pattern" --reporter=basic --pool=forks --poolOptions.forks.singleFork 2>&1 | tee /tmp/batch-output.txt | tail -5; then
         # Extract pass/fail counts
         PASSED=$(grep -oP '\d+(?= passed)' /tmp/batch-output.txt | tail -1 || echo "0")
         FAILED_COUNT=$(grep -oP '\d+(?= failed)' /tmp/batch-output.txt | tail -1 || echo "0")
@@ -77,7 +77,7 @@ pnpm exec vitest run src/utils \
   --exclude "**/privacy.test.ts" \
   --exclude "**/privacy-utils.test.ts" \
   --exclude "**/offline-queue.browser.test.ts" \
-  --reporter=basic 2>&1 | tee /tmp/batch-output.txt | tail -5
+  --reporter=basic --pool=forks --poolOptions.forks.singleFork 2>&1 | tee /tmp/batch-output.txt | tail -5
 PASSED=$(grep -oP '\d+(?= passed)' /tmp/batch-output.txt | tail -1 || echo "0")
 FAILED_COUNT=$(grep -oP '\d+(?= failed)' /tmp/batch-output.txt | tail -1 || echo "0")
 TOTAL_PASSED=$((TOTAL_PASSED + ${PASSED:-0}))
