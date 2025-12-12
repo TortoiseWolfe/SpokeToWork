@@ -38,32 +38,52 @@ run_batch() {
     echo ""
 }
 
-# Batch 1: Atomic components (fast, small)
+# Batch 1: Atomic components
 run_batch "Atomic Components" "src/components/atomic"
 
 # Batch 2: Molecular components
 run_batch "Molecular Components" "src/components/molecular"
 
-# Batch 3: Organism components - split into smaller batches to avoid OOM
-run_batch "Organisms (Auth/Avatar)" "src/components/organisms/Auth* src/components/organisms/Avatar*"
-run_batch "Organisms (Blog/Chat)" "src/components/organisms/Blog* src/components/organisms/Chat*"
-run_batch "Organisms (Company/Connection)" "src/components/organisms/Company* src/components/organisms/Connection*"
-run_batch "Organisms (Consent/Cookie)" "src/components/organisms/Consent* src/components/organisms/Cookie*"
-run_batch "Organisms (Dashboard-Home)" "src/components/organisms/Dashboard* src/components/organisms/Home*"
-run_batch "Organisms (Message-Payment)" "src/components/organisms/Message* src/components/organisms/Payment*"
-run_batch "Organisms (Privacy-Route)" "src/components/organisms/Privacy* src/components/organisms/Route*"
-run_batch "Organisms (Settings-Unified)" "src/components/organisms/Settings* src/components/organisms/Unified*"
+# Batch 3: Organism components - split to avoid OOM
+run_batch "Organisms (A-B)" "src/components/organisms/A* src/components/organisms/B*"
+run_batch "Organisms (C)" "src/components/organisms/C*"
+run_batch "Organisms (D-H)" "src/components/organisms/D* src/components/organisms/H*"
+run_batch "Organisms (M-P)" "src/components/organisms/M* src/components/organisms/P*"
+run_batch "Organisms (R-U)" "src/components/organisms/R* src/components/organisms/S* src/components/organisms/U*"
+
+# Batch 4: Other component directories
+run_batch "Auth Components" "src/components/auth"
+run_batch "Form Components" "src/components/forms"
+run_batch "Map Components" "src/components/map"
+run_batch "Payment Components" "src/components/payment"
+run_batch "Privacy Components" "src/components/privacy"
+run_batch "Subatomic Components" "src/components/subatomic"
 
 # Batch 4: Hooks
 run_batch "Hooks" "src/hooks"
 
-# Batch 5: Lib/Services
-run_batch "Lib & Services" "src/lib src/services src/schemas src/utils"
+# Batch 5: Lib/Services - split by directory
+run_batch "Lib" "src/lib"
+run_batch "Services" "src/services"
+run_batch "Schemas" "src/schemas"
+run_batch "Utils" "src/utils"
 
-# Batch 6: Unit tests in tests/
+# Batch 6: Contexts
+run_batch "Contexts" "src/contexts"
+
+# Batch 7: Config
+run_batch "Config" "src/config"
+
+# Batch 8: Unit tests in tests/
 run_batch "Unit Tests" "tests/unit"
 
-# Batch 7: Remaining tests
+# Batch 9: Integration tests
+run_batch "Integration Tests" "tests/integration"
+
+# Batch 10: Contract tests
+run_batch "Contract Tests" "tests/contract"
+
+# Batch 11: Remaining tests
 run_batch "Other Tests" "src/tests"
 
 echo "================================"
