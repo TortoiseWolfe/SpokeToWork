@@ -84,7 +84,8 @@
 
 **Purpose**: Commit changes and trigger CI
 
-- [ ] T021 Commit changes to `scripts/test-batched-full.sh` with message: "fix: split utils batch to prevent CI OOM crashes"
+- [x] T021 Commit changes to `scripts/test-batched-full.sh` with message: "fix: split utils batch to prevent CI OOM crashes"
+  - ✓ Commit ec37851 includes script fix and SpecKit artifacts
 - [ ] T022 Push to remote and trigger CI: `git push origin 043-fix-ci-oom`
 - [ ] T023 Monitor CI run for ERR_IPC_CHANNEL_CLOSED errors (should be 0)
 - [ ] T024 Verify CI completes under 15 minutes
