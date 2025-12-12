@@ -114,6 +114,7 @@ vi.mock('leaflet', () => {
     default: {
       Icon,
       icon: vi.fn().mockReturnValue({}),
+      divIcon: vi.fn().mockReturnValue({}),
       marker: vi.fn().mockReturnValue({
         addTo: vi.fn(),
         setLatLng: vi.fn(),
@@ -125,8 +126,21 @@ vi.mock('leaflet', () => {
         getContainer: vi.fn(),
         remove: vi.fn(),
       }),
+      polyline: vi.fn().mockReturnValue({
+        addTo: vi.fn(),
+        setLatLngs: vi.fn(),
+        getBounds: vi.fn().mockReturnValue({ isValid: () => false }),
+      }),
+      latLng: vi.fn().mockImplementation((lat, lng) => ({ lat, lng })),
+      latLngBounds: vi.fn().mockReturnValue({
+        extend: vi.fn(),
+        isValid: vi.fn().mockReturnValue(false),
+      }),
     },
     Icon,
+    divIcon: vi.fn().mockReturnValue({}),
+    polyline: vi.fn().mockReturnValue({}),
+    latLng: vi.fn().mockImplementation((lat, lng) => ({ lat, lng })),
   };
 });
 
