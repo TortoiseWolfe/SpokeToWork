@@ -217,6 +217,16 @@ afterEach(() => {
       // Ignore errors
     }
   }
+
+  // Clear IndexedDB databases (fake-indexeddb persists in singleFork mode)
+  if (typeof indexedDB !== 'undefined') {
+    try {
+      // Delete known database names used by the app
+      indexedDB.deleteDatabase('OfflineFormSubmissions');
+    } catch (e) {
+      // Ignore errors in environments without IndexedDB
+    }
+  }
 });
 
 // Mock window.matchMedia (only in jsdom environment)

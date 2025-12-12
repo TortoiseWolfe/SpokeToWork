@@ -107,8 +107,10 @@ describe('GroupKeyService', () => {
       const key = await service.generateGroupKey();
       const bytes = await service.exportKeyBytes(key);
 
-      expect(bytes).toBeInstanceOf(ArrayBuffer);
+      // Check ArrayBuffer-like properties (instanceof can fail across realms)
+      expect(bytes).toBeDefined();
       expect(bytes.byteLength).toBe(32); // 256 bits = 32 bytes
+      expect(typeof bytes.slice).toBe('function');
     });
 
     it('imports ArrayBuffer back to CryptoKey', async () => {

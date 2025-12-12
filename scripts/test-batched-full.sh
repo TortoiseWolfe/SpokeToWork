@@ -71,7 +71,22 @@ run_batch "Schemas" "src/schemas"
 run_batch "Utils (consent)" "src/utils/consent-history.test.ts"
 run_batch "Utils (privacy)" "src/utils/privacy.test.ts"
 run_batch "Utils (privacy-utils)" "src/utils/privacy-utils.test.ts"
-run_batch "Utils (rest)" "src/utils"
+run_batch "Utils (offline-queue)" "src/utils/offline-queue.browser.test.ts"
+
+# Run remaining utils (exclude files run individually above)
+echo "Running utils (excluding isolated tests)..."
+pnpm exec vitest run src/utils \
+  --exclude "**/consent-history.test.ts" \
+  --exclude "**/privacy.test.ts" \
+  --exclude "**/privacy-utils.test.ts" \
+  --exclude "**/offline-queue.browser.test.ts" \
+  --reporter=basic 2>&1 | tee /tmp/batch-output.txt | tail -5
+PASSED=$(grep -oP '\d+(?= passed)' /tmp/batch-output.txt | tail -1 || echo "0")
+FAILED_COUNT=$(grep -oP '\d+(?= failed)' /tmp/batch-output.txt | tail -1 || echo "0")
+TOTAL_PASSED=$((TOTAL_PASSED + ${PASSED:-0}))
+TOTAL_FAILED=$((TOTAL_FAILED + ${FAILED_COUNT:-0}))
+echo -e "${GREEN}✓ Utils (rest) complete${NC}"
+echo ""
 
 # Batch 6: Contexts
 run_batch "Contexts" "src/contexts"

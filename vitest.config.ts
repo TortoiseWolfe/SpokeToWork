@@ -32,6 +32,8 @@ export default defineConfig({
       ['**/offline-integration.test.tsx', 'jsdom'],
       // SubtleCrypto/IndexedDB for encryption
       ['**/encryption.test.ts', 'jsdom'],
+      // Group key service uses crypto.subtle directly
+      ['**/group-key-service.test.ts', 'jsdom'],
       // localStorage mocking
       ['**/usePaymentConsent.test.ts', 'jsdom'],
       ['**/rate-limiter.test.ts', 'jsdom'],
