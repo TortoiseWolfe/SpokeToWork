@@ -205,20 +205,20 @@ All are legitimate and properly documented:
 
 ## SpecKit Specs Created
 
-| Spec Number | Title                             | Priority | Status       |
-| ----------- | --------------------------------- | -------- | ------------ |
-| 045         | IndexedDB Encryption              | P1       | Open         |
-| 046         | Test Security Hardening           | P1       | Open         |
-| 047         | Performance Memoization           | P1       | Open         |
-| 048         | Code Consolidation                | P2       | Open         |
-| 049         | Dead Code Cleanup                 | P2       | Open         |
-| 050         | Test Coverage Expansion           | P2       | Open         |
-| 051         | CI Test Memory Optimization       | P1       | **Complete** |
-| 052         | Dependency Infrastructure Updates | P2       | Open         |
+| Spec Number | Title                             | Priority | Status                            |
+| ----------- | --------------------------------- | -------- | --------------------------------- |
+| 045         | IndexedDB Encryption              | P1       | Open                              |
+| 046         | Test Security Hardening           | P1       | Open                              |
+| 047         | Performance Memoization           | P1       | Open                              |
+| 048         | Code Consolidation                | P2       | Open                              |
+| 049         | Dead Code Cleanup                 | P2       | Open                              |
+| 050         | Test Coverage Expansion           | P2       | Open                              |
+| 051         | CI Test Memory Optimization       | P1       | **92/93** (RouteBuilder OOM open) |
+| 052         | Dependency Infrastructure Updates | P2       | Open                              |
 
-### Spec 051 Progress (2025-12-13) - COMPLETE
+### Spec 051 Progress (2025-12-13) - PARTIAL
 
-**Node.js Version Alignment**
+**Node.js Version Alignment** ✅ COMPLETE
 
 All GitHub Actions workflows now use Node 22 to match Docker:
 
@@ -232,17 +232,150 @@ All GitHub Actions workflows now use Node 22 to match Docker:
 | accessibility.yml       | 22     | 22 (no change) |
 | deploy.yml              | 22     | 22 (no change) |
 
-**RouteBuilder OOM Fix**
+**AuthorProfile Test Isolation Fix** ✅ COMPLETE
 
-Root cause: Module-level cache in `useRoutes` hook accumulated across tests.
+Root cause: happy-dom URL context corrupted in batch mode; next/image URL validation fails.
 
-| File                                  | Change                                  |
-| ------------------------------------- | --------------------------------------- |
-| `src/hooks/useRoutes.ts`              | Added `__resetCacheForTesting()` export |
-| `RouteBuilder.accessibility.test.tsx` | Added `afterEach` cleanup               |
-| `accessibility.yml`                   | Removed RouteBuilder exclusion          |
+| File             | Change                                                           |
+| ---------------- | ---------------------------------------------------------------- |
+| `tests/setup.ts` | Added global `next/image` mock to bypass URL validation in tests |
 
-**Result**: All 93 accessibility tests now run together in CI
+**Result**: 91 happy-dom + 1 jsdom (Card) = 92 accessibility tests pass in CI
+
+---
+
+## P1: RouteBuilder OOM Issue - OPEN (Component #93)
+
+**Severity**: HIGH
+**Impact**: 1 of 93 accessibility tests cannot run
+**Files**: `src/components/organisms/RouteBuilder/RouteBuilder.tsx`
+
+### Symptoms
+
+- Both `RouteBuilder.test.tsx` and `RouteBuilder.accessibility.test.tsx` fail with OOM
+- Memory consumption reaches 4GB during Vitest module loading phase
+- OOM occurs BEFORE any test code executes
+- Issue persists regardless of test environment, pool configuration, or heap size
+
+### Reproduction
+
+```bash
+# All of these fail with OOM at ~4GB before tests run:
+docker compose exec spoketowork pnpm exec vitest run \
+  src/components/organisms/RouteBuilder/RouteBuilder.accessibility.test.tsx
+
+# With 4GB heap - still fails:
+docker compose exec -e NODE_OPTIONS='--max-old-space-size=4096' spoketowork \
+  pnpm exec vitest run src/components/organisms/RouteBuilder/RouteBuilder.accessibility.test.tsx
+
+# With jsdom instead of happy-dom - still fails:
+# (After adding to jsdomTests array in vitest.config.ts)
+docker compose exec spoketowork pnpm exec vitest run \
+  src/components/organisms/RouteBuilder/RouteBuilder.accessibility.test.tsx --project jsdom
+
+# With main thread execution - still fails:
+docker compose exec spoketowork pnpm exec vitest run \
+  src/components/organisms/RouteBuilder/RouteBuilder.accessibility.test.tsx --isolate=false
+```
+
+### Attempted Fixes (All Failed)
+
+1. **Cache reset in useRoutes** - Added `__resetCacheForTesting()` - No effect
+2. **afterEach cleanup** - Added cleanup to test file - No effect
+3. **jsdom environment** - Routed tests to jsdom - Still OOM at 4GB
+4. **isolate=false** - Ran in main thread - Still OOM at 4GB
+5. **4GB heap** - Increased NODE_OPTIONS - Still OOM
+6. **vmThreads pool** - Changed pool type - Still OOM
+
+### Root Cause Analysis
+
+The OOM happens during Vitest/Vite module transformation, NOT during test execution. This suggests:
+
+1. **Circular imports** in the dependency chain causing infinite resolution
+2. **Heavy transitive dependencies** being fully loaded instead of tree-shaken
+3. **Vite HMR/module graph** memory leak during transformation
+
+### Dependency Chain to Investigate
+
+```
+RouteBuilder.tsx
+├── useRoutes (hooks/useRoutes.ts)
+│   ├── createClient (lib/supabase/client.ts)
+│   ├── RouteService (lib/routes/route-service.ts)
+│   │   └── types from @supabase/supabase-js
+│   ├── getBicycleRoute (lib/routing/osrm-service.ts)
+│   └── createLogger (lib/logger.ts)
+├── useUserProfile (hooks/useUserProfile.ts)
+│   ├── useAuth (contexts/AuthContext.tsx)
+│   └── createClient (lib/supabase/client.ts)
+└── types/route.ts
+```
+
+### Debugging Steps (Next Actions)
+
+1. **Check for circular imports**:
+
+   ```bash
+   npx madge --circular src/components/organisms/RouteBuilder/RouteBuilder.tsx
+   ```
+
+2. **Profile module loading**:
+
+   ```bash
+   docker compose exec spoketowork pnpm exec vitest run \
+     src/components/organisms/RouteBuilder/RouteBuilder.accessibility.test.tsx \
+     --reporter=verbose 2>&1 | head -100
+   ```
+
+3. **Isolate the problematic import** by creating a minimal test:
+
+   ```typescript
+   // test-minimal.ts
+   import { vi } from 'vitest';
+
+   // Mock everything BEFORE importing
+   vi.mock('@/hooks/useRoutes');
+   vi.mock('@/hooks/useUserProfile');
+
+   // Then import component
+   import RouteBuilder from './RouteBuilder';
+
+   console.log('Import successful');
+   ```
+
+4. **Check if types are the issue**:
+
+   ```bash
+   # Comment out type imports one by one and test
+   ```
+
+5. **Try dynamic import in component**:
+
+   ```typescript
+   // Instead of static import:
+   // import { useRoutes } from '@/hooks/useRoutes';
+
+   // Try dynamic:
+   const { useRoutes } = await import('@/hooks/useRoutes');
+   ```
+
+### Current Workaround
+
+RouteBuilder tests are excluded from CI accessibility workflow:
+
+```yaml
+# .github/workflows/accessibility.yml
+FILES=$(find src/components -name "*.accessibility.test.tsx" -type f \
+  ! -name "Card.accessibility.test.tsx" \
+  ! -name "RouteBuilder.accessibility.test.tsx" \  # <-- excluded here
+  | tr '\n' ' ')
+```
+
+### Files to Modify When Fixed
+
+1. `.github/workflows/accessibility.yml` - Remove RouteBuilder exclusion
+2. `docs/TECHNICAL-DEBT.md` - Update this section
+3. `docs/specs/051-ci-test-memory/spec.md` - Mark FR-003 as complete
 
 ### Using These Specs with SpecKit
 
