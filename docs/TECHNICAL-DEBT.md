@@ -210,7 +210,7 @@ Specs are numbered in recommended execution order based on dependency analysis.
 | Spec Number | Title                             | Priority | Status       |
 | ----------- | --------------------------------- | -------- | ------------ |
 | 045         | Dead Code Cleanup                 | P2       | **COMPLETE** |
-| 046         | Dependency Infrastructure Updates | P2       | **COMPLETE** |
+| 046         | Dependency Infrastructure Updates | P2       | Open         |
 | 047         | Test Security Hardening           | P1       | Open         |
 | 048         | IndexedDB Encryption              | P1       | Open         |
 | 049         | Performance Optimization          | P1       | Open         |
