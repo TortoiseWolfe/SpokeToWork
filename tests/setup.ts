@@ -95,6 +95,45 @@ vi.mock('next/navigation', () => ({
 // Tests that need it should mock it themselves (see PaymentConsentModal.test.tsx)
 // This allows unit tests to test the real implementation
 
+// Mock next/image to avoid happy-dom URL parsing issues
+// happy-dom's URL parser fails when window.location context is corrupted by other tests
+vi.mock('next/image', () => {
+  const React = require('react');
+  return {
+    default: React.forwardRef(function MockImage(
+      {
+        src,
+        alt,
+        width,
+        height,
+        fill,
+        className,
+        ...props
+      }: {
+        src: string;
+        alt: string;
+        width?: number;
+        height?: number;
+        fill?: boolean;
+        className?: string;
+        [key: string]: unknown;
+      },
+      ref: React.Ref<HTMLImageElement>
+    ) {
+      return React.createElement('img', {
+        ref,
+        src: typeof src === 'object' ? (src as { src: string }).src : src,
+        alt,
+        width: fill ? undefined : width,
+        height: fill ? undefined : height,
+        className,
+        'data-testid': 'next-image',
+        ...props,
+      });
+    }),
+  };
+});
+
 // Mock CSS imports
 vi.mock('leaflet/dist/leaflet.css', () => ({}));
 vi.mock('prismjs/themes/prism-tomorrow.css', () => ({}));
