@@ -2,6 +2,260 @@
 
 This document tracks known technical issues, workarounds, and future concerns that need to be addressed.
 
+---
+
+## Code Review Findings (2025-12-13)
+
+Comprehensive code review conducted with 16 parallel analysis agents covering security, performance, code quality, and test coverage.
+
+### Priority Matrix
+
+| Priority | Category          | Issue Count | Status                                            |
+| -------- | ----------------- | ----------- | ------------------------------------------------- |
+| P0       | Security          | 2           | Fixed                                             |
+| P1       | CI/Infrastructure | 1           | **Partial** (Node 22 done, RouteBuilder OOM open) |
+| P1       | Security          | 6           | Open                                              |
+| P1       | Performance       | 4           | Open                                              |
+| P2       | Code Quality      | 15          | Open                                              |
+| P2       | Test Coverage     | 55 files    | Open                                              |
+
+---
+
+## P0: Critical Security Issues (FIXED)
+
+### 1. Edge Function Auth Bypass Vulnerability (FIXED)
+
+**Date Fixed**: 2025-12-13
+**File**: `supabase/functions/send-payment-email/index.ts:15`
+**Issue**: Used `authHeader.includes(serviceRoleKey)` allowing substring attacks
+**Fix Applied**: Changed to strict equality `authHeader !== 'Bearer ${serviceRoleKey}'`
+
+### 2. SQL Injection in E2E Tests (FIXED)
+
+**Date Fixed**: 2025-12-13
+**File**: `tests/e2e/auth/welcome-message.spec.ts:70,136`
+**Issue**: `TEST_EMAIL` interpolated directly into SQL without escaping
+**Fix Applied**: Added `escapeSQL()` function and applied to queries
+
+---
+
+## P1: High Priority Issues
+
+### Security: Private Keys Stored Unencrypted in IndexedDB
+
+**Severity**: MEDIUM
+**Files**: `src/lib/messaging/encryption.ts:73-93`
+**Issue**: Private keys stored as plaintext JWK in IndexedDB, vulnerable to physical device access
+**Mitigations in Place**: HTTPS, browser same-origin policy, CSP headers
+**Recommended Fix**: Implement passphrase-based encryption of IndexedDB entries
+**SpecKit Spec**: `docs/specs/045-indexeddb-encryption/spec.md`
+
+### Security: Test Credential Fallbacks
+
+**Severity**: LOW
+**Files**: 67 test files with hardcoded fallback passwords
+**Issue**: Default `TestPassword123!` used if env vars missing
+**Recommended Fix**: Make env vars required, fail fast if missing
+**SpecKit Spec**: `docs/specs/046-test-security/spec.md`
+
+### Security: OAuth State Inconsistency
+
+**Severity**: MEDIUM
+**Files**: `src/components/auth/OAuthButtons/OAuthButtons.tsx`, `src/lib/auth/oauth-state.ts`
+**Issue**: Custom CSRF tokens exist but aren't used; relies on Supabase PKCE instead
+**Recommended Fix**: Either use custom tokens consistently or remove dead code
+
+### Performance: Missing Memoization in List Components
+
+**Severity**: HIGH
+**Files**:
+
+- `src/components/organisms/ConversationList/ConversationList.tsx`
+- `src/components/organisms/ConnectionManager/ConnectionManager.tsx`
+  **Issue**: Event handlers not wrapped in `useCallback`, causing child re-renders
+  **Recommended Fix**: Add `useCallback` to handlers passed to child components
+  **SpecKit Spec**: `docs/specs/047-performance-memoization/spec.md`
+
+### Performance: Polling Instead of Realtime
+
+**Severity**: MEDIUM
+**Files**:
+
+- `src/hooks/useOfflineQueue.ts:203` (30s interval)
+- `src/hooks/usePaymentButton.ts:82` (5s interval)
+- `src/lib/supabase/client.ts:131` (30s connection check)
+  **Issue**: Timer-based polling when Supabase realtime could be used
+  **Recommended Fix**: Replace with Supabase realtime subscriptions
+  **SpecKit Spec**: `docs/specs/047-performance-memoization/spec.md`
+
+### Performance: Duplicate Event Listeners
+
+**Severity**: MEDIUM
+**Files**: 4 files with online/offline listeners, 5+ with click-outside patterns
+**Issue**: Same global events listened to in multiple places
+**Recommended Fix**: Create unified hooks: `useOnlineStatus`, `useClickOutside`, `useVisibilityChange`
+**SpecKit Spec**: `docs/specs/047-performance-memoization/spec.md`
+
+---
+
+## P2: Medium Priority Issues
+
+### Code Quality: Duplicate Implementations
+
+#### Offline Queue (3 implementations)
+
+- `src/utils/offline-queue.ts` (IndexedDB for forms)
+- `src/services/messaging/offline-queue-service.ts` (Dexie for messages)
+- `src/lib/payments/offline-queue.ts` (Dexie for payments)
+  **Recommended Fix**: Create unified abstraction in `src/lib/offline-queue/`
+  **SpecKit Spec**: `docs/specs/048-code-consolidation/spec.md`
+
+#### Audit Logger (2 implementations)
+
+- `src/lib/auth/audit-logger.ts` (functional)
+- `src/services/auth/audit-logger.ts` (OOP class)
+  **Recommended Fix**: Consolidate into single OOP pattern
+  **SpecKit Spec**: `docs/specs/048-code-consolidation/spec.md`
+
+#### Email Validation (3 implementations)
+
+- `src/lib/auth/email-validator.ts` (most comprehensive)
+- `src/lib/messaging/validation.ts`
+- `src/lib/validation/patterns.ts`
+  **Recommended Fix**: Use auth version everywhere
+  **SpecKit Spec**: `docs/specs/048-code-consolidation/spec.md`
+
+#### Rate Limiting (2 implementations)
+
+- `src/lib/auth/rate-limiter.ts` (client-side localStorage)
+- `src/lib/auth/rate-limit-check.ts` (server-side RPC)
+  **Recommended Fix**: Document use cases or remove client version
+  **SpecKit Spec**: `docs/specs/048-code-consolidation/spec.md`
+
+### Code Quality: Dead Code & Stubs
+
+- 5 placeholder tests with `expect(true).toBe(true)`
+- 1 unused function `_handleRejectAll` in CookieConsent
+- 1 deprecated method `hasValidKeys()` in key-service
+- Commented code in oauth-state tests and middleware
+  **SpecKit Spec**: `docs/specs/049-dead-code-cleanup/spec.md`
+
+### Code Quality: Linter Disables (26 total - ALL LEGITIMATE)
+
+- 6 `@next/next/no-img-element` for Supabase avatars
+- 3 `react-hooks/exhaustive-deps` with documented reasons
+- 12 `@ts-expect-error` for valid test patterns
+- No action needed - all properly justified
+
+---
+
+## P2: Test Coverage Gaps
+
+### Critical Untested Files (Need Tests Immediately)
+
+1. `src/lib/payments/stripe.ts` - Stripe checkout
+2. `src/lib/payments/paypal.ts` - PayPal integration
+3. `src/lib/auth/retry-utils.ts` - Retry logic
+4. `src/lib/auth/protected-route.tsx` - Route protection
+5. `src/lib/payments/connection-listener.ts` - Connection sync
+
+### High Priority Untested Files
+
+1. `src/lib/routing/osrm-service.ts` - Route calculation
+2. `src/lib/routes/route-service.ts` - Route CRUD
+3. `src/lib/routes/route-export.ts` - Route export
+4. `src/lib/messaging/database.ts` - Message DB ops
+5. `src/services/messaging/group-service.ts` - Group messaging
+6. `src/contexts/AuthContext.tsx` - Auth state
+7. `src/lib/supabase/client.ts` - Supabase client
+8. `src/lib/supabase/server.ts` - Server operations
+9. `src/lib/supabase/middleware.ts` - Middleware
+
+### Medium Priority Untested Hooks (17 total)
+
+- useOfflineStatus, useReadReceipts, useKeyboardShortcuts
+- useIdleTimeout, useMetroAreas, useCompanies
+- useConnections, useGroupMembers, useUnreadCount
+- useUserProfile, useTileProviders, useRoutes
+- And 5 more...
+
+**Overall Coverage**: ~54% of lib/services/hooks files have tests
+**SpecKit Spec**: `docs/specs/050-test-coverage/spec.md`
+
+---
+
+## P3: Low Priority / Future Improvements
+
+### Documentation Passwords
+
+- `docs/messaging/QUICKSTART.md:463` - hardcoded test password
+- `public/blog/authentication-supabase-oauth.md:824` - password in example
+  **Recommended Fix**: Replace with placeholder text
+
+### Skipped Tests (42 in E2E)
+
+All are legitimate and properly documented:
+
+- Data-dependent (companies must exist)
+- Viewport-dependent (desktop-only features)
+- Config-dependent (service role key required)
+  No action needed.
+
+---
+
+## SpecKit Specs Created
+
+| Spec Number | Title                             | Priority | Status       |
+| ----------- | --------------------------------- | -------- | ------------ |
+| 045         | IndexedDB Encryption              | P1       | Open         |
+| 046         | Test Security Hardening           | P1       | Open         |
+| 047         | Performance Memoization           | P1       | Open         |
+| 048         | Code Consolidation                | P2       | Open         |
+| 049         | Dead Code Cleanup                 | P2       | Open         |
+| 050         | Test Coverage Expansion           | P2       | Open         |
+| 051         | CI Test Memory Optimization       | P1       | **Complete** |
+| 052         | Dependency Infrastructure Updates | P2       | Open         |
+
+### Spec 051 Progress (2025-12-13) - COMPLETE
+
+**Node.js Version Alignment**
+
+All GitHub Actions workflows now use Node 22 to match Docker:
+
+| Workflow                | Before | After          |
+| ----------------------- | ------ | -------------- |
+| ci.yml                  | 20.x   | 22             |
+| e2e.yml                 | 20.x   | 22             |
+| component-structure.yml | 20     | 22             |
+| monitor.yml             | 20     | 22             |
+| supabase-keepalive.yml  | 20     | 22             |
+| accessibility.yml       | 22     | 22 (no change) |
+| deploy.yml              | 22     | 22 (no change) |
+
+**RouteBuilder OOM Fix**
+
+Root cause: Module-level cache in `useRoutes` hook accumulated across tests.
+
+| File                                  | Change                                  |
+| ------------------------------------- | --------------------------------------- |
+| `src/hooks/useRoutes.ts`              | Added `__resetCacheForTesting()` export |
+| `RouteBuilder.accessibility.test.tsx` | Added `afterEach` cleanup               |
+| `accessibility.yml`                   | Removed RouteBuilder exclusion          |
+
+**Result**: All 93 accessibility tests now run together in CI
+
+### Using These Specs with SpecKit
+
+To process any spec through the complete workflow:
+
+```bash
+/speckit.workflow docs/specs/047-performance-optimization
+```
+
+This runs all phases (plan → checklist → tasks → analyze → implement) with user checkpoints between each phase.
+
+---
+
 ## TODO Summary (2025-09-19)
 
 **Total TODOs in codebase**: 13

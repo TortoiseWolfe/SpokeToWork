@@ -245,4 +245,62 @@ MIT - See [LICENSE](./LICENSE) for details
 
 ---
 
+## 🔧 Technical Debt Specs (2025-12-13)
+
+Run these SpecKit workflows to address code review findings:
+
+### P1: IndexedDB Encryption
+
+```
+/speckit.workflow docs/specs/045-indexeddb-encryption
+```
+
+### P1: Test Security Hardening
+
+```
+/speckit.workflow docs/specs/046-test-security
+```
+
+### P1: Performance Optimization
+
+```
+/speckit.workflow docs/specs/047-performance-optimization
+```
+
+### P2: Code Consolidation
+
+```
+/speckit.workflow docs/specs/048-code-consolidation
+```
+
+### P2: Dead Code Cleanup
+
+```
+/speckit.workflow docs/specs/049-dead-code-cleanup
+```
+
+### P2: Test Coverage Expansion
+
+```
+/speckit.workflow docs/specs/050-test-coverage
+```
+
+### P1: CI Test Memory Optimization - PARTIAL
+
+Node.js aligned to 22 across all environments. RouteBuilder OOM remains open (fundamental module loading issue).
+
+```
+/speckit.workflow docs/specs/051-ci-test-memory
+```
+
+### P2: Dependency Infrastructure Updates
+
+```
+/speckit.workflow docs/specs/052-dependency-updates
+```
+
+See [docs/TECHNICAL-DEBT.md](./docs/TECHNICAL-DEBT.md) for full details.
+
+---
+
 **For Template Users**: Your project name is automatically detected from your new repository! No manual configuration needed. See [docs/TEMPLATE-GUIDE.md](./docs/TEMPLATE-GUIDE.md) for details.

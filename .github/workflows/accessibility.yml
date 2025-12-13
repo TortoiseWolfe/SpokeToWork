@@ -39,7 +39,9 @@ jobs:
 
       - name: Run component accessibility tests (happy-dom)
         run: |
-          # Run all accessibility tests except Card (jsdom) and RouteBuilder (OOMs, tested in main CI)
+          # Run all accessibility tests except:
+          # - Card (requires jsdom for canvas API)
+          # - RouteBuilder (OOM during module loading - see TECHNICAL-DEBT.md)
           FILES=$(find src/components -name "*.accessibility.test.tsx" -type f \
             ! -name "Card.accessibility.test.tsx" \
             ! -name "RouteBuilder.accessibility.test.tsx" \

@@ -17,6 +17,9 @@
     "component-library"
   ],
   "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "node scripts/detect-project.js && next dev",
     "dev:clean": "rm -rf .next && node scripts/detect-project.js && next dev",

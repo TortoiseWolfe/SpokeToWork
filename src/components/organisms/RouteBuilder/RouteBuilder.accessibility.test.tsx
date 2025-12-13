@@ -1,18 +1,26 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import RouteBuilder from './RouteBuilder';
 
 expect.extend(toHaveNoViolations);
 
-// Mock hooks
+// Clean up after each test to prevent memory accumulation
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
+
+// Mock hooks - don't use importOriginal to avoid loading heavy dependencies
+// (Supabase client, route-service, osrm-service cause OOM when loaded in tests)
 vi.mock('@/hooks/useRoutes', () => ({
   useRoutes: vi.fn(() => ({
     createRoute: vi.fn().mockResolvedValue({ id: 'new', name: 'Test' }),
     updateRoute: vi.fn().mockResolvedValue({ id: 'existing', name: 'Updated' }),
     deleteRoute: vi.fn().mockResolvedValue(undefined),
   })),
+  __resetCacheForTesting: vi.fn(), // Mock for any imports that need it
 }));
 
 vi.mock('@/hooks/useUserProfile', () => ({

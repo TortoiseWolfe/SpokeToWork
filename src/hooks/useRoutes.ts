@@ -45,6 +45,16 @@ interface CacheEntry<T> {
 let routesCache: CacheEntry<BicycleRoute[]> | null = null;
 let activeRouteCache: CacheEntry<ActiveRoutePlanning | null> | null = null;
 
+/**
+ * Reset module-level cache for testing purposes.
+ * This prevents memory accumulation when running multiple tests.
+ * @internal Only use in test files
+ */
+export function __resetCacheForTesting(): void {
+  routesCache = null;
+  activeRouteCache = null;
+}
+
 function isCacheValid<T>(cache: CacheEntry<T> | null, key: string): boolean {
   if (!cache) return false;
   if (cache.key !== key) return false;

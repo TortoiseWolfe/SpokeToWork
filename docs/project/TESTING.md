@@ -235,6 +235,44 @@ The CI pipeline (`/.github/workflows/ci.yml`) runs:
 4. Coverage check
 5. Build verification
 
+### Node.js Version Requirement
+
+**All environments must use Node.js 22** to ensure consistent behavior:
+
+- Docker: `node:22-slim` base image
+- GitHub Actions: `node-version: '22'` in all workflows
+- package.json: `"engines": { "node": ">=22.0.0" }`
+
+This alignment prevents memory behavior differences between local development and CI.
+
+### CI Batched Test Architecture
+
+Due to GitHub Actions' ~7GB RAM limit, tests run in batched processes to prevent OOM:
+
+**Script**: `scripts/test-batched-full.sh`
+
+| Batch                | Contents                                  | Memory Budget |
+| -------------------- | ----------------------------------------- | ------------- |
+| Hooks                | All hook tests                            | 500MB         |
+| Atomic               | Atomic components                         | 1GB           |
+| Molecular            | Molecular components                      | 1GB           |
+| Organisms A-C        | ConversationList, ConnectionManager, etc. | 1.5GB         |
+| Organisms H-U        | Header, RouteViewer, etc.                 | 1.5GB         |
+| Lib (7 batches)      | messaging, auth, payments, etc.           | 1GB each      |
+| Services (7 batches) | Individual service files                  | 500MB each    |
+| Utils (14 batches)   | Individual util files                     | 500MB each    |
+
+**Pool Configuration**:
+
+- `--pool forks --poolOptions.forks.singleFork` - Default for most tests
+- `--pool vmThreads` - Accessibility tests (prevents IPC crashes)
+- `isolate: false` - Node environment tests (prevents IPC cleanup issues)
+
+**Memory Settings**:
+
+- Local: `NODE_OPTIONS='--max-old-space-size=4096'` (4GB)
+- CI: `NODE_OPTIONS='--max-old-space-size=2048'` (2GB per batch)
+
 ## Pre-commit Hooks
 
 Husky runs tests on staged files before commit. Note that git hooks run on your host machine, but all testing commands are executed inside Docker:

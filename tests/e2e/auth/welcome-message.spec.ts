@@ -29,6 +29,13 @@ if (!TEST_EMAIL || !TEST_PASSWORD) {
   throw new Error('TEST_USER_EMAIL and TEST_USER_PASSWORD required');
 }
 
+/**
+ * Escape single quotes for SQL strings to prevent injection
+ */
+function escapeSQL(str: string): string {
+  return str.replace(/'/g, "''");
+}
+
 async function executeSQL(query: string): Promise<unknown[]> {
   const response = await fetch(
     `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
@@ -67,7 +74,7 @@ test.describe('Welcome Message Flow', () => {
   test.beforeEach(async () => {
     // Get test user ID (use ILIKE for case-insensitive match - Supabase stores lowercase)
     const users = (await executeSQL(
-      `SELECT id FROM auth.users WHERE email ILIKE '${TEST_EMAIL}'`
+      `SELECT id FROM auth.users WHERE email ILIKE '${escapeSQL(TEST_EMAIL)}'`
     )) as { id: string }[];
 
     if (!users[0]?.id) {
@@ -133,7 +140,7 @@ test.describe('Welcome Message Flow', () => {
     console.log('Step 2: Checking database...');
 
     const users = (await executeSQL(
-      `SELECT id FROM auth.users WHERE email ILIKE '${TEST_EMAIL}'`
+      `SELECT id FROM auth.users WHERE email ILIKE '${escapeSQL(TEST_EMAIL)}'`
     )) as { id: string }[];
     const testUserId = users[0].id;
 
