@@ -78,11 +78,29 @@ const sharedTestConfig = {
   ],
 };
 
+// Test-specific module aliases to prevent OOM during heavy component tests
+// These redirect heavy hooks to lightweight mocks during Vite transformation
+// See: docs/specs/051-ci-test-memory/spec.md
+const testAliases = {
+  '@/hooks/useRoutes': path.resolve(
+    __dirname,
+    './src/hooks/__mocks__/useRoutes.ts'
+  ),
+  '@/hooks/useUserProfile': path.resolve(
+    __dirname,
+    './src/hooks/__mocks__/useUserProfile.ts'
+  ),
+};
+
 // Shared configuration for plugins and resolve
 const sharedConfig = {
   plugins: [react()],
   resolve: {
     alias: {
+      // IMPORTANT: Specific aliases MUST come before general ones
+      // Vite checks aliases in definition order, not specificity
+      // See: docs/specs/051-ci-test-memory/spec.md
+      ...testAliases,
       '@': path.resolve(__dirname, './src'),
       '@tests': path.resolve(__dirname, './tests'),
     },

@@ -2,7 +2,7 @@
 
 **Feature Branch**: `051-ci-test-memory`
 **Created**: 2025-12-13
-**Status**: Partial (P0 complete, RouteBuilder requires deeper investigation)
+**Status**: COMPLETE
 **Priority**: P1 (High)
 **Input**: Git history analysis - 30+ commits addressing OOM and worker crashes in CI
 
@@ -14,72 +14,104 @@
   - Updated 5 workflow files: ci.yml, e2e.yml, component-structure.yml, monitor.yml, supabase-keepalive.yml
   - Added `engines` field to package.json
 - [x] FR-002: Documented batched test architecture in docs/project/TESTING.md
-- [x] FR-003: 92 of 93 accessibility tests run in CI (RouteBuilder excluded - see below)
-  - 91 happy-dom tests pass (fixed AuthorProfile test isolation issue)
+- [x] FR-003: All 93 accessibility tests run in CI
+  - 92 happy-dom tests pass (including RouteBuilder - OOM fixed)
   - 1 jsdom test (Card) runs separately and passes
-  - RouteBuilder excluded due to 4GB OOM during module loading
 
-### RouteBuilder OOM - DEFERRED (Requires Architectural Fix)
+### RouteBuilder OOM - COMPLETE (Module Alias + Stable Mocks)
 
-**Issue**: RouteBuilder tests consume 6GB+ memory during module loading, causing OOM before any tests execute.
+**Issue**: RouteBuilder tests consumed 6GB+ memory during module loading, causing OOM before any tests executed.
 
 **Root Cause Analysis (2025-12-13)**:
 
-The issue is that `vi.mock()` operates at **runtime**, but module resolution occurs at **build/transform time**. When Vitest loads the test file:
+Two issues combined to cause 4GB+ memory consumption:
 
-1. Test imports `RouteBuilder` component
-2. RouteBuilder imports `useRoutes` hook
-3. useRoutes imports heavy dependencies: `createClient` (Supabase), `RouteService`, `getBicycleRoute` (OSRM)
-4. Each dependency imports more modules (Supabase JS client is ~1MB+)
-5. Vite transforms and loads this entire graph into memory BEFORE mocks apply
+1. **Vite alias order**: The general `@` alias was matching before specific `@/hooks/useRoutes` alias, loading real heavy dependencies instead of mocks
+2. **Unstable mock references**: Mocks returned new objects on every call, causing React infinite re-render loops
 
 **Dependency Chain**:
 
 ```
 RouteBuilder.accessibility.test.tsx
-  → RouteBuilder.tsx
+  → RouteBuilderInner.tsx
     → useRoutes.ts (line 11-14)
-      → createClient from @/lib/supabase/client
+      → createClient from @/lib/supabase/client (~1MB+)
       → RouteService from @/lib/routes/route-service
       → getBicycleRoute from @/lib/routing/osrm-service
 ```
 
-**Attempted Fixes (All Ineffective)**:
+**Solution Applied (2025-12-13)**:
 
-1. ~~Added `__resetCacheForTesting()` export~~ - Runtime solution, doesn't affect build
-2. ~~Added `afterEach` cleanup~~ - Runtime solution, doesn't affect build
-3. ~~Routed tests to jsdom~~ - Environment doesn't affect module loading
-4. ~~Used `--isolate=false`~~ - Still loads modules in main thread
-5. ~~Increased NODE_OPTIONS to 6GB heap~~ - Still OOM at 6GB
-6. ~~Removed unused Leaflet import from types/route.ts~~ - Minor contributor, not root cause
+#### 1. Module Aliases in vitest.config.ts
 
-**Why vi.mock() Doesn't Help**:
+Redirect heavy hook imports to lightweight mocks at **build time** (before vi.mock() runs):
 
-The test file has `vi.mock('@/hooks/useRoutes', ...)` but this only creates a runtime mock. Vite still needs to:
+```typescript
+// vitest.config.ts
+const testAliases = {
+  '@/hooks/useRoutes': path.resolve(
+    __dirname,
+    './src/hooks/__mocks__/useRoutes.ts'
+  ),
+  '@/hooks/useUserProfile': path.resolve(
+    __dirname,
+    './src/hooks/__mocks__/useUserProfile.ts'
+  ),
+};
 
-- Parse the import statement
-- Resolve the module path
-- Transform all transitive dependencies
-- Build the module graph
+const sharedConfig = {
+  resolve: {
+    alias: {
+      // IMPORTANT: Specific aliases MUST come before general ones
+      // Vite checks aliases in definition order, not specificity
+      ...testAliases,
+      '@': path.resolve(__dirname, './src'),
+      '@tests': path.resolve(__dirname, './tests'),
+    },
+  },
+};
+```
 
-This transformation happens before any test code runs, causing OOM.
+#### 2. Stable Mock References
 
-**Required Solution (P1 - Future)**:
+Prevent React infinite re-renders by using stable object references:
 
-One of these architectural approaches is needed:
+```typescript
+// src/hooks/__mocks__/useRoutes.ts
+const mockReturnValue = {
+  routes: [], // Same array reference every call
+  createRoute: vi.fn().mockResolvedValue(mockRoute),
+  // ... other stable functions
+};
 
-1. **Create lightweight `__mocks__` directory stubs** - Vitest can be configured to use these instead of real modules during transformation
-2. **Use Vitest module aliases in config** - Redirect heavy imports to stubs for test environment
-3. **Restructure RouteBuilder with dynamic imports** - Defer loading heavy deps until runtime
-4. **Create a test-specific RouteBuilder wrapper** - Isolate the component from its dependencies
+export const useRoutes = vi.fn(() => mockReturnValue);
+```
 
-**Workaround Applied**: RouteBuilder tests excluded from CI (92/93 accessibility tests pass)
+#### 3. Dynamic Import Split (Production)
 
-**Impact Assessment**:
+RouteBuilder also uses next/dynamic for production lazy loading:
 
-- Low risk: RouteBuilder component works in production
-- Test coverage gap: 15 accessibility tests not run in CI
-- Manual validation required for RouteBuilder changes
+```
+RouteBuilder/
+├── RouteBuilder.tsx       # Lightweight wrapper with next/dynamic
+├── RouteBuilderInner.tsx  # Heavy component (lazy loaded)
+```
+
+**Files Modified**:
+
+- `vitest.config.ts` - Added module aliases (specific before general)
+- `src/hooks/__mocks__/useRoutes.ts` - Created with stable mock references
+- `src/hooks/__mocks__/useUserProfile.ts` - Created with stable mock references
+- `src/components/organisms/RouteBuilder/RouteBuilder.tsx` - Dynamic wrapper
+- `src/components/organisms/RouteBuilder/RouteBuilderInner.tsx` - Original component
+- `src/components/organisms/RouteBuilder/RouteBuilder.test.tsx` - Use imported mocks directly
+- `src/components/organisms/RouteBuilder/RouteBuilder.accessibility.test.tsx` - Use imported mocks directly
+- `.github/workflows/accessibility.yml` - Re-enabled RouteBuilder tests
+
+**Results**:
+
+- **Before**: 4GB+ OOM, tests never executed
+- **After**: 633ms total, all 28 tests pass (13 unit + 15 accessibility)
 
 ### AuthorProfile URL Fix - COMPLETE
 

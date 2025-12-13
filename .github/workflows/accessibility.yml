@@ -41,10 +41,9 @@ jobs:
         run: |
           # Run all accessibility tests except:
           # - Card (requires jsdom for canvas API)
-          # - RouteBuilder (OOM during module loading - see TECHNICAL-DEBT.md)
+          # RouteBuilder now included - OOM fixed via module aliases (see docs/specs/051-ci-test-memory)
           FILES=$(find src/components -name "*.accessibility.test.tsx" -type f \
             ! -name "Card.accessibility.test.tsx" \
-            ! -name "RouteBuilder.accessibility.test.tsx" \
             | tr '\n' ' ')
           echo "Running $(echo $FILES | wc -w) happy-dom accessibility test files"
           pnpm exec vitest run $FILES --no-file-parallelism --pool vmThreads
