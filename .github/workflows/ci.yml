@@ -54,10 +54,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Security audit
-        run: pnpm audit --audit-level=high
-        continue-on-error: true  # Don't fail build, but report issues
-
       - name: Generate project configuration
         run: node scripts/detect-project.js
 
