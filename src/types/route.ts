@@ -5,8 +5,6 @@
  * These types define the contract between components, services, and database.
  */
 
-import type { LatLngTuple } from 'leaflet';
-
 // =============================================================================
 // ROUTE GEOMETRY
 // =============================================================================
