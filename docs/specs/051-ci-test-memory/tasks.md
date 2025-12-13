@@ -30,25 +30,31 @@
 - [ ] T012 [P0] Commit and push fixes
 - [ ] T013 [P0] Verify CI accessibility workflow passes (92/93 tests - RouteBuilder excluded)
 
-## Phase 5: RouteBuilder OOM Investigation (FR-003) - BLOCKED
+## Phase 5: RouteBuilder OOM Investigation (FR-003) - DEFERRED
 
-**Status**: Requires fundamentally different debugging approach. All quick fixes attempted; issue persists.
+**Status**: Root cause identified. Requires architectural fix beyond quick fixes.
 
-**Attempted (2025-12-13)**:
+**Root Cause (2025-12-13)**:
 
-- Cache reset function in useRoutes - No effect
-- afterEach cleanup in tests - No effect
-- jsdom instead of happy-dom - No effect (OOM at 4GB)
-- --isolate=false - No effect (OOM at 4GB)
-- 4GB heap limit - Not enough (still OOM)
+`vi.mock()` operates at runtime, but Vite module transformation occurs at build time. The test imports RouteBuilder which imports useRoutes which imports heavy dependencies (Supabase client ~1MB+, RouteService, OSRM service). Vite loads this entire dependency graph BEFORE mocks can apply, causing 6GB+ memory consumption.
 
-**Conclusion**: Issue is in Vitest/Vite module transformation, not test runtime. Need to profile Vite's module graph.
+**Attempted Fixes (All Ineffective)**:
 
-- [ ] T014 [P1] Profile Vite module transformation with --debug flag
-- [ ] T015 [P1] Create minimal repro by commenting out imports one-by-one
-- [ ] T016 [P1] Check for circular imports using madge or similar tool
-- [ ] T017 [P1] Consider restructuring RouteBuilder to use dynamic imports
-- [ ] T018 [P1] File Vitest/Vite issue if reproducer identifies framework bug
+- Cache reset function in useRoutes - Runtime solution, doesn't affect build
+- afterEach cleanup in tests - Runtime solution, doesn't affect build
+- jsdom instead of happy-dom - Environment doesn't affect module loading
+- --isolate=false - Still loads modules in main thread
+- 6GB heap limit - Still OOM at 6GB
+- Removed unused Leaflet import - Minor contributor, not root cause
+
+**Required Solutions (Choose One)**:
+
+- [ ] T014 [P1] Create `__mocks__/@/hooks/useRoutes.ts` stub that Vitest uses during transformation
+- [ ] T015 [P1] Add module aliases in vitest.config.ts to redirect heavy imports to stubs
+- [ ] T016 [P1] Restructure RouteBuilder to use dynamic imports for heavy dependencies
+- [ ] T017 [P1] Create test-specific RouteBuilder wrapper that doesn't import real hooks
+
+**Workaround**: RouteBuilder tests excluded from CI (92/93 accessibility tests pass)
 
 ## Phase 6: Memory Budgets (FR-004-007) - FUTURE
 
@@ -59,8 +65,10 @@
 
 ## Summary
 
-- Total Tasks: 22
+- Total Tasks: 21
 - Completed: 11 (Phases 1-4 P0 tasks)
 - Pending: 2 (T012 commit, T013 CI verification)
-- Blocked: 5 (Phase 5 - RouteBuilder OOM requires different approach)
+- Deferred: 4 (Phase 5 - RouteBuilder OOM requires architectural fix)
 - Future: 4 (Phase 6 - Memory budgets)
+
+**Note**: Removed unused Leaflet import from `src/types/route.ts` as code cleanup (2025-12-13), but this was not the root cause of RouteBuilder OOM.

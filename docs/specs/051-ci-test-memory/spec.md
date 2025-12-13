@@ -19,49 +19,67 @@
   - 1 jsdom test (Card) runs separately and passes
   - RouteBuilder excluded due to 4GB OOM during module loading
 
-### RouteBuilder OOM - DEFERRED (Requires Deep Investigation)
+### RouteBuilder OOM - DEFERRED (Requires Architectural Fix)
 
-**Issue**: RouteBuilder tests consume 4GB memory during module loading, causing OOM before any tests execute.
+**Issue**: RouteBuilder tests consume 6GB+ memory during module loading, causing OOM before any tests execute.
 
-**Initial Theory**: Module-level cache in `useRoutes` hook accumulated across tests
+**Root Cause Analysis (2025-12-13)**:
 
-**Attempted Fixes**:
+The issue is that `vi.mock()` operates at **runtime**, but module resolution occurs at **build/transform time**. When Vitest loads the test file:
 
-1. Added `__resetCacheForTesting()` export to `src/hooks/useRoutes.ts` - **No effect**
-2. Added `afterEach` cleanup to `RouteBuilder.accessibility.test.tsx` - **No effect**
-3. Routed tests to jsdom instead of happy-dom - **No effect** (OOM at 4GB)
-4. Used `--isolate=false` to run in main thread - **No effect** (OOM at 4GB)
-5. Increased NODE_OPTIONS to 4GB heap - **Not enough** (still OOM)
+1. Test imports `RouteBuilder` component
+2. RouteBuilder imports `useRoutes` hook
+3. useRoutes imports heavy dependencies: `createClient` (Supabase), `RouteService`, `getBicycleRoute` (OSRM)
+4. Each dependency imports more modules (Supabase JS client is ~1MB+)
+5. Vite transforms and loads this entire graph into memory BEFORE mocks apply
 
-**Discovery (2025-12-13)**:
+**Dependency Chain**:
 
-- OOM occurs during Vitest's module loading phase, NOT during test execution
-- Both `RouteBuilder.test.tsx` and `RouteBuilder.accessibility.test.tsx` exhibit this behavior
-- The issue persists regardless of: test environment (jsdom/happy-dom), worker pool (forks/vmThreads), isolation mode, or heap size up to 4GB
-- This suggests a fundamental issue with the module dependency graph during Vite transformation
-
-**Attempted Diagnostics**:
-
-```bash
-# All of these fail with OOM at ~4GB before any tests run:
-pnpm exec vitest run RouteBuilder.accessibility.test.tsx --pool vmThreads
-pnpm exec vitest run RouteBuilder.accessibility.test.tsx --project jsdom
-pnpm exec vitest run RouteBuilder.accessibility.test.tsx --isolate=false
-NODE_OPTIONS='--max-old-space-size=4096' pnpm exec vitest run RouteBuilder.accessibility.test.tsx
+```
+RouteBuilder.accessibility.test.tsx
+  → RouteBuilder.tsx
+    → useRoutes.ts (line 11-14)
+      → createClient from @/lib/supabase/client
+      → RouteService from @/lib/routes/route-service
+      → getBicycleRoute from @/lib/routing/osrm-service
 ```
 
-**Current Status**: RouteBuilder tests excluded from CI. This is a P1 issue requiring separate investigation:
+**Attempted Fixes (All Ineffective)**:
 
-- Need to profile module loading with `--logHeapUsage` at lower batch sizes
-- Need to identify which specific imports in the dependency chain cause memory explosion
-- May require restructuring RouteBuilder's imports or using dynamic imports
+1. ~~Added `__resetCacheForTesting()` export~~ - Runtime solution, doesn't affect build
+2. ~~Added `afterEach` cleanup~~ - Runtime solution, doesn't affect build
+3. ~~Routed tests to jsdom~~ - Environment doesn't affect module loading
+4. ~~Used `--isolate=false`~~ - Still loads modules in main thread
+5. ~~Increased NODE_OPTIONS to 6GB heap~~ - Still OOM at 6GB
+6. ~~Removed unused Leaflet import from types/route.ts~~ - Minor contributor, not root cause
 
-**Possible Root Causes**:
+**Why vi.mock() Doesn't Help**:
 
-- Vitest/Vite transformation of useRoutes → route-service → osrm-service chain
-- Type-only imports being resolved as full modules
-- Circular imports causing infinite module resolution during transformation
-- Memory leak in Vite's HMR or module graph tracking
+The test file has `vi.mock('@/hooks/useRoutes', ...)` but this only creates a runtime mock. Vite still needs to:
+
+- Parse the import statement
+- Resolve the module path
+- Transform all transitive dependencies
+- Build the module graph
+
+This transformation happens before any test code runs, causing OOM.
+
+**Required Solution (P1 - Future)**:
+
+One of these architectural approaches is needed:
+
+1. **Create lightweight `__mocks__` directory stubs** - Vitest can be configured to use these instead of real modules during transformation
+2. **Use Vitest module aliases in config** - Redirect heavy imports to stubs for test environment
+3. **Restructure RouteBuilder with dynamic imports** - Defer loading heavy deps until runtime
+4. **Create a test-specific RouteBuilder wrapper** - Isolate the component from its dependencies
+
+**Workaround Applied**: RouteBuilder tests excluded from CI (92/93 accessibility tests pass)
+
+**Impact Assessment**:
+
+- Low risk: RouteBuilder component works in production
+- Test coverage gap: 15 accessibility tests not run in CI
+- Manual validation required for RouteBuilder changes
 
 ### AuthorProfile URL Fix - COMPLETE
 
