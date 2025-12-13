@@ -1,35 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import RouteBuilder from './RouteBuilder';
 
-// Mock hooks
-vi.mock('@/hooks/useRoutes', () => ({
-  useRoutes: vi.fn(() => ({
-    createRoute: vi.fn().mockResolvedValue({
-      id: 'new-route',
-      name: 'Test Route',
-      color: '#3B82F6',
-    }),
-    updateRoute: vi.fn().mockResolvedValue({
-      id: 'existing-route',
-      name: 'Updated Route',
-      color: '#3B82F6',
-    }),
-    deleteRoute: vi.fn().mockResolvedValue(undefined),
-  })),
-}));
+// Mocks are provided via vitest.config.ts resolve.alias
+// @/hooks/useRoutes -> src/hooks/__mocks__/useRoutes.ts
+// @/hooks/useUserProfile -> src/hooks/__mocks__/useUserProfile.ts
+// See: docs/specs/051-ci-test-memory/spec.md for OOM investigation
 
-vi.mock('@/hooks/useUserProfile', () => ({
-  useUserProfile: vi.fn(() => ({
-    profile: {
-      home_address: '123 Test St',
-      home_latitude: 35.1667,
-      home_longitude: -84.8667,
-    },
-    isLoading: false,
-  })),
-}));
+// Import mocks to enable per-test customization
+import { useRoutes } from '@/hooks/useRoutes';
+import { useUserProfile } from '@/hooks/useUserProfile';
+
+// Import RouteBuilderInner (uses aliased mocks, not heavy deps)
+import RouteBuilder from './RouteBuilderInner';
 
 describe('RouteBuilder', () => {
   const mockOnSave = vi.fn();
@@ -43,17 +26,19 @@ describe('RouteBuilder', () => {
     it('renders create mode with empty form', () => {
       render(<RouteBuilder onSave={mockOnSave} onClose={mockOnClose} />);
 
-      expect(screen.getByText('Create Route')).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: /create route/i })
+      ).toBeInTheDocument();
       expect(screen.getByLabelText(/route name/i)).toHaveValue('');
     });
 
     it('pre-fills start/end with home address', () => {
       render(<RouteBuilder onSave={mockOnSave} onClose={mockOnClose} />);
 
-      expect(screen.getByPlaceholderText('Latitude *')).toHaveValue('35.1667');
-      expect(screen.getByPlaceholderText('Longitude *')).toHaveValue(
-        '-84.8667'
-      );
+      const latInputs = screen.getAllByPlaceholderText('Latitude *');
+      const lngInputs = screen.getAllByPlaceholderText('Longitude *');
+      expect(latInputs[0]).toHaveValue('35.1667');
+      expect(lngInputs[0]).toHaveValue('-84.8667');
     });
 
     it('validates required fields', async () => {
@@ -71,11 +56,11 @@ describe('RouteBuilder', () => {
 
     it('submits form with valid data', async () => {
       const user = userEvent.setup();
-      const { useRoutes } = require('@/hooks/useRoutes');
+      // Use imported mock directly (not require - aliases don't work with CommonJS)
       const mockCreateRoute = vi
         .fn()
         .mockResolvedValue({ id: 'new', name: 'Test' });
-      useRoutes.mockReturnValue({
+      (useRoutes as ReturnType<typeof vi.fn>).mockReturnValue({
         createRoute: mockCreateRoute,
         updateRoute: vi.fn(),
         deleteRoute: vi.fn(),
@@ -176,9 +161,9 @@ describe('RouteBuilder', () => {
 
     it('calls deleteRoute on confirm', async () => {
       const user = userEvent.setup();
-      const { useRoutes } = require('@/hooks/useRoutes');
+      // Use imported mock directly (not require - aliases don't work with CommonJS)
       const mockDeleteRoute = vi.fn().mockResolvedValue(undefined);
-      useRoutes.mockReturnValue({
+      (useRoutes as ReturnType<typeof vi.fn>).mockReturnValue({
         createRoute: vi.fn(),
         updateRoute: vi.fn(),
         deleteRoute: mockDeleteRoute,
@@ -247,13 +232,14 @@ describe('RouteBuilder', () => {
 
   describe('Home Location Prompt', () => {
     it('shows prompt when no home location', () => {
-      const { useUserProfile } = require('@/hooks/useUserProfile');
-      useUserProfile.mockReturnValue({
+      // Use imported mock directly (not require - aliases don't work with CommonJS)
+      (useUserProfile as ReturnType<typeof vi.fn>).mockReturnValue({
         profile: {
           home_address: null,
           home_latitude: null,
           home_longitude: null,
         },
+        loading: false,
         isLoading: false,
       });
 

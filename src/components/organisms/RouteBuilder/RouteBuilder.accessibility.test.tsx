@@ -2,7 +2,14 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
-import RouteBuilder from './RouteBuilder';
+
+// Mocks are provided via vitest.config.ts resolve.alias
+// @/hooks/useRoutes -> src/hooks/__mocks__/useRoutes.ts
+// @/hooks/useUserProfile -> src/hooks/__mocks__/useUserProfile.ts
+// See: docs/specs/051-ci-test-memory/spec.md for OOM investigation
+
+// Import RouteBuilderInner (uses aliased mocks, not heavy deps)
+import RouteBuilder from './RouteBuilderInner';
 
 expect.extend(toHaveNoViolations);
 
@@ -11,28 +18,6 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
-
-// Mock hooks - don't use importOriginal to avoid loading heavy dependencies
-// (Supabase client, route-service, osrm-service cause OOM when loaded in tests)
-vi.mock('@/hooks/useRoutes', () => ({
-  useRoutes: vi.fn(() => ({
-    createRoute: vi.fn().mockResolvedValue({ id: 'new', name: 'Test' }),
-    updateRoute: vi.fn().mockResolvedValue({ id: 'existing', name: 'Updated' }),
-    deleteRoute: vi.fn().mockResolvedValue(undefined),
-  })),
-  __resetCacheForTesting: vi.fn(), // Mock for any imports that need it
-}));
-
-vi.mock('@/hooks/useUserProfile', () => ({
-  useUserProfile: vi.fn(() => ({
-    profile: {
-      home_address: '123 Test St',
-      home_latitude: 35.1667,
-      home_longitude: -84.8667,
-    },
-    isLoading: false,
-  })),
-}));
 
 describe('RouteBuilder Accessibility', () => {
   it('should not have any accessibility violations', async () => {
