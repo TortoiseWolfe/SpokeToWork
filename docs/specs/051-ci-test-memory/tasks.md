@@ -30,23 +30,37 @@
 - [ ] T012 [P0] Commit and push fixes
 - [ ] T013 [P0] Verify CI accessibility workflow passes (92/93 tests - RouteBuilder excluded)
 
-## Phase 5: RouteBuilder OOM Investigation (FR-003) - DEFERRED
+## Phase 5: RouteBuilder OOM Investigation (FR-003) - BLOCKED
 
-- [ ] T014 [P1] Profile RouteBuilder test module loading with `--logHeapUsage`
-- [ ] T015 [P1] Identify heavy dependencies in useRoutes chain
-- [ ] T016 [P1] Create minimal repro of RouteBuilder OOM
-- [ ] T017 [P1] Either fix RouteBuilder or document permanent exclusion
+**Status**: Requires fundamentally different debugging approach. All quick fixes attempted; issue persists.
+
+**Attempted (2025-12-13)**:
+
+- Cache reset function in useRoutes - No effect
+- afterEach cleanup in tests - No effect
+- jsdom instead of happy-dom - No effect (OOM at 4GB)
+- --isolate=false - No effect (OOM at 4GB)
+- 4GB heap limit - Not enough (still OOM)
+
+**Conclusion**: Issue is in Vitest/Vite module transformation, not test runtime. Need to profile Vite's module graph.
+
+- [ ] T014 [P1] Profile Vite module transformation with --debug flag
+- [ ] T015 [P1] Create minimal repro by commenting out imports one-by-one
+- [ ] T016 [P1] Check for circular imports using madge or similar tool
+- [ ] T017 [P1] Consider restructuring RouteBuilder to use dynamic imports
+- [ ] T018 [P1] File Vitest/Vite issue if reproducer identifies framework bug
 
 ## Phase 6: Memory Budgets (FR-004-007) - FUTURE
 
-- [ ] T018 [P2] Document memory budget per test batch type
-- [ ] T019 [P2] Create batch splitting guidelines
-- [ ] T020 [P2] Document pool configuration rationale (vmThreads vs forks)
-- [ ] T021 [P2] Add `--logHeapUsage` option to test scripts
+- [ ] T019 [P2] Document memory budget per test batch type
+- [ ] T020 [P2] Create batch splitting guidelines
+- [ ] T021 [P2] Document pool configuration rationale (vmThreads vs forks)
+- [ ] T022 [P2] Add `--logHeapUsage` option to test scripts
 
 ## Summary
 
-- Total Tasks: 21
+- Total Tasks: 22
 - Completed: 11 (Phases 1-4 P0 tasks)
 - Pending: 2 (T012 commit, T013 CI verification)
-- Deferred: 8 (Phases 5-6 - RouteBuilder investigation, memory budgets)
+- Blocked: 5 (Phase 5 - RouteBuilder OOM requires different approach)
+- Future: 4 (Phase 6 - Memory budgets)

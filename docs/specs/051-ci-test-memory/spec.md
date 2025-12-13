@@ -19,29 +19,49 @@
   - 1 jsdom test (Card) runs separately and passes
   - RouteBuilder excluded due to 4GB OOM during module loading
 
-### RouteBuilder OOM Fix - PARTIAL
+### RouteBuilder OOM - DEFERRED (Requires Deep Investigation)
+
+**Issue**: RouteBuilder tests consume 4GB memory during module loading, causing OOM before any tests execute.
 
 **Initial Theory**: Module-level cache in `useRoutes` hook accumulated across tests
 
-**Attempted Fix**:
+**Attempted Fixes**:
 
-1. Added `__resetCacheForTesting()` export to `src/hooks/useRoutes.ts`
-2. Added `afterEach` cleanup to `RouteBuilder.accessibility.test.tsx`
+1. Added `__resetCacheForTesting()` export to `src/hooks/useRoutes.ts` - **No effect**
+2. Added `afterEach` cleanup to `RouteBuilder.accessibility.test.tsx` - **No effect**
+3. Routed tests to jsdom instead of happy-dom - **No effect** (OOM at 4GB)
+4. Used `--isolate=false` to run in main thread - **No effect** (OOM at 4GB)
+5. Increased NODE_OPTIONS to 4GB heap - **Not enough** (still OOM)
 
-**Discovery (2025-12-13)**: The RouteBuilder component has a fundamental OOM issue during module loading - it consumes 4GB before any tests run. Both `RouteBuilder.test.tsx` and `RouteBuilder.accessibility.test.tsx` exhibit this behavior. The issue is NOT test accumulation but something in the component's dependency chain.
+**Discovery (2025-12-13)**:
 
-**Current Status**:
+- OOM occurs during Vitest's module loading phase, NOT during test execution
+- Both `RouteBuilder.test.tsx` and `RouteBuilder.accessibility.test.tsx` exhibit this behavior
+- The issue persists regardless of: test environment (jsdom/happy-dom), worker pool (forks/vmThreads), isolation mode, or heap size up to 4GB
+- This suggests a fundamental issue with the module dependency graph during Vite transformation
 
-- RouteBuilder tests remain excluded from CI accessibility workflow
-- 92 of 93 accessibility tests run in CI
-- RouteBuilder OOM requires separate deep investigation (dependency profiling)
+**Attempted Diagnostics**:
 
-**Possible Root Causes to Investigate**:
+```bash
+# All of these fail with OOM at ~4GB before any tests run:
+pnpm exec vitest run RouteBuilder.accessibility.test.tsx --pool vmThreads
+pnpm exec vitest run RouteBuilder.accessibility.test.tsx --project jsdom
+pnpm exec vitest run RouteBuilder.accessibility.test.tsx --isolate=false
+NODE_OPTIONS='--max-old-space-size=4096' pnpm exec vitest run RouteBuilder.accessibility.test.tsx
+```
 
-- Heavy dependency chain (useRoutes → route-service → osrm-service → Supabase client)
-- Leaflet type imports triggering full library load
-- Circular imports causing infinite module resolution
-- happy-dom environment compatibility issue
+**Current Status**: RouteBuilder tests excluded from CI. This is a P1 issue requiring separate investigation:
+
+- Need to profile module loading with `--logHeapUsage` at lower batch sizes
+- Need to identify which specific imports in the dependency chain cause memory explosion
+- May require restructuring RouteBuilder's imports or using dynamic imports
+
+**Possible Root Causes**:
+
+- Vitest/Vite transformation of useRoutes → route-service → osrm-service chain
+- Type-only imports being resolved as full modules
+- Circular imports causing infinite module resolution during transformation
+- Memory leak in Vite's HMR or module graph tracking
 
 ### AuthorProfile URL Fix - COMPLETE
 
