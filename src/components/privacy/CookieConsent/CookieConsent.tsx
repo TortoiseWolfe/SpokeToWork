@@ -41,15 +41,6 @@ export function CookieConsent({
     onAcceptAll?.();
   };
 
-  // handleRejectAll is defined but not currently used in the UI
-  // Keeping it for potential future use
-  const _handleRejectAll = () => {
-    rejectAll();
-    onRejectAll?.();
-  };
-  // Suppress unused variable warning
-  void _handleRejectAll;
-
   const handleCustomize = () => {
     openModal();
     onCustomize?.();

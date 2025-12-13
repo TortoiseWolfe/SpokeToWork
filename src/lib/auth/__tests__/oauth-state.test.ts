@@ -195,18 +195,10 @@ describe('OAuth State Management - CSRF Protection', () => {
     });
 
     it('should reject an expired state token', async () => {
-      // Generate state and artificially expire it
+      // TODO: Implement when database expiration testing is available
+      // Requires ability to set expires_at in the past via test helper
       const stateToken = await generateOAuthState('github');
-
-      // In actual implementation, would update database to set expires_at in the past
-      // For now, test the concept
-
-      // Attempt to validate expired token
-      // const result = await validateOAuthState(stateToken);
-      // expect(result.valid).toBe(false);
-      // expect(result.error).toBe('state_expired');
-
-      expect(stateToken).toBeDefined(); // Placeholder until implementation
+      expect(stateToken).toBeDefined();
     });
 
     it('should reject a non-existent state token', async () => {
@@ -219,16 +211,10 @@ describe('OAuth State Management - CSRF Protection', () => {
     });
 
     it('should reject if session ID mismatch', async () => {
+      // TODO: Implement when sessionStorage mocking is available
+      // Requires mocking sessionStorage to test session ID validation
       const stateToken = await generateOAuthState('github');
-
-      // Simulate session ID mismatch (attacker trying to use victim's state)
-      // This would require mocking sessionStorage in tests
-
-      // const result = await validateOAuthState(stateToken, 'different-session-id');
-      // expect(result.valid).toBe(false);
-      // expect(result.error).toBe('session_mismatch');
-
-      expect(stateToken).toBeDefined(); // Placeholder
+      expect(stateToken).toBeDefined();
     });
 
     it('should mark state as used after successful validation', async () => {

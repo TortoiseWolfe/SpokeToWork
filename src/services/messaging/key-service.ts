@@ -347,52 +347,6 @@ export class KeyManagementService {
   }
 
   /**
-   * Legacy method - check if user has valid encryption keys
-   * Task: T057 (kept for backwards compatibility during migration)
-   *
-   * @deprecated Use getCurrentKeys() !== null for in-memory check
-   * @returns Promise<boolean> - true if user has valid keys
-   * @throws AuthenticationError if not authenticated
-   */
-  async hasValidKeys(): Promise<boolean> {
-    logger.debug('hasValidKeys: Checking for valid encryption keys');
-
-    // First check in-memory keys
-    if (this.derivedKeys !== null) {
-      logger.debug('hasValidKeys: FOUND in-memory keys');
-      return true;
-    }
-
-    // Fall back to IndexedDB check for legacy support
-    const supabase = createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      logger.error('hasValidKeys: Not authenticated');
-      throw new AuthenticationError(
-        'You must be signed in to check encryption keys'
-      );
-    }
-
-    try {
-      const privateKey = await encryptionService.getPrivateKey(user.id);
-      const hasKeys = privateKey !== null;
-      logger.debug('hasValidKeys result', {
-        status: hasKeys ? 'FOUND (IndexedDB)' : 'MISSING',
-        userId: user.id,
-      });
-      return hasKeys;
-    } catch (error) {
-      logger.error('hasValidKeys: Error checking keys', { error });
-      return false;
-    }
-  }
-
-  /**
    * Rotate user's encryption keys (generate new pair, revoke old)
    * Task: T058
    *
