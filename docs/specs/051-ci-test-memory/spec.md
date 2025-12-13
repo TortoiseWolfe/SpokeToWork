@@ -40,6 +40,30 @@
 - Circular imports causing infinite module resolution
 - happy-dom environment compatibility issue
 
+### AuthorProfile URL Fix - OPEN
+
+**Issue Discovered (2025-12-13)**: AuthorProfile accessibility tests fail with `TypeError: Invalid URL`
+
+**Root Cause**: happy-dom's URL parser is stricter than jsdom and fails on relative paths like `/avatar.jpg` when next/image internally calls `new URL()`.
+
+**Error Stack**:
+
+```
+TypeError: Invalid URL
+ ❯ new URL node_modules/.pnpm/happy-dom@20.0.11/node_modules/happy-dom/lib/url/URL.js:22:23
+ ❯ getImgProps next/dist/shared/lib/get-img-props.js:518:27
+```
+
+**Fix Required**:
+
+1. Change `avatar: '/avatar.jpg'` to `avatar: 'https://example.com/avatar.jpg'` in test mocks
+2. Apply to both `AuthorProfile.test.tsx` and `AuthorProfile.accessibility.test.tsx`
+
+**Files Affected**:
+
+- `src/components/molecular/AuthorProfile/AuthorProfile.test.tsx`
+- `src/components/molecular/AuthorProfile/AuthorProfile.accessibility.test.tsx`
+
 ### P1 Requirements - FUTURE
 
 - [ ] FR-004-007: Memory budgets and profiling (optional future iteration)
