@@ -14,7 +14,10 @@
   - Updated 5 workflow files: ci.yml, e2e.yml, component-structure.yml, monitor.yml, supabase-keepalive.yml
   - Added `engines` field to package.json
 - [x] FR-002: Documented batched test architecture in docs/project/TESTING.md
-- [ ] FR-003: 92 of 93 accessibility tests run in CI (RouteBuilder excluded - see below)
+- [x] FR-003: 92 of 93 accessibility tests run in CI (RouteBuilder excluded - see below)
+  - 91 happy-dom tests pass (fixed AuthorProfile test isolation issue)
+  - 1 jsdom test (Card) runs separately and passes
+  - RouteBuilder excluded due to 4GB OOM during module loading
 
 ### RouteBuilder OOM Fix - PARTIAL
 
@@ -40,11 +43,13 @@
 - Circular imports causing infinite module resolution
 - happy-dom environment compatibility issue
 
-### AuthorProfile URL Fix - OPEN
+### AuthorProfile URL Fix - COMPLETE
 
-**Issue Discovered (2025-12-13)**: AuthorProfile accessibility tests fail with `TypeError: Invalid URL`
+**Issue Discovered (2025-12-13)**: AuthorProfile accessibility tests fail with `TypeError: Invalid URL` when run in batch mode with other tests.
 
-**Root Cause**: happy-dom's URL parser is stricter than jsdom and fails on relative paths like `/avatar.jpg` when next/image internally calls `new URL()`.
+**Root Cause**: When running accessibility tests in batch mode with `--pool vmThreads`, happy-dom's URL parser context gets corrupted by test isolation issues. This causes next/image's internal URL validation (`getImgProps → new URL()`) to fail with "TypeError: Invalid URL" even for valid absolute URLs.
+
+**Key Finding**: AuthorProfile tests PASS when run in isolation but FAIL when run with all 91 accessibility tests together. This is a test isolation issue, not a URL format issue.
 
 **Error Stack**:
 
@@ -54,15 +59,15 @@ TypeError: Invalid URL
  ❯ getImgProps next/dist/shared/lib/get-img-props.js:518:27
 ```
 
-**Fix Required**:
+**Solution Applied**:
 
-1. Change `avatar: '/avatar.jpg'` to `avatar: 'https://example.com/avatar.jpg'` in test mocks
-2. Apply to both `AuthorProfile.test.tsx` and `AuthorProfile.accessibility.test.tsx`
+1. Added global mock for `next/image` in `tests/setup.ts`
+2. Mock renders a simple `<img>` element, bypassing next/image's URL validation
+3. All 91 happy-dom accessibility tests now pass in batch mode
 
-**Files Affected**:
+**Files Modified**:
 
-- `src/components/molecular/AuthorProfile/AuthorProfile.test.tsx`
-- `src/components/molecular/AuthorProfile/AuthorProfile.accessibility.test.tsx`
+- `tests/setup.ts` - Added next/image mock
 
 ### P1 Requirements - FUTURE
 

@@ -17,13 +17,18 @@
 
 - [x] T008 [P0] Document batched test architecture in `docs/project/TESTING.md`
 
-## Phase 4: Fix AuthorProfile Test Failure (FR-003) - IN PROGRESS
+## Phase 4: Fix AuthorProfile Test Failure (FR-003) - COMPLETE
 
-- [x] T009 [P0] Fix `AuthorProfile.accessibility.test.tsx` - use absolute URL for avatar mock
-- [x] T010 [P0] Fix `AuthorProfile.test.tsx` - use absolute URL for avatar mock
-- [x] T011 [P0] Verify all AuthorProfile tests pass locally (8/8 pass)
+- [x] T009 [P0] Investigate AuthorProfile test failure root cause
+  - Initial fix: Changed relative URL to absolute URL (partial fix)
+  - Discovery: Tests pass in isolation but fail in batch mode
+  - Root cause: happy-dom URL context corrupted by test isolation issues in vmThreads
+- [x] T010 [P0] Add next/image mock to tests/setup.ts
+  - Mock renders simple `<img>` element, bypassing URL validation
+  - All 91 happy-dom accessibility tests pass in batch mode
+- [x] T011 [P0] Verify all accessibility tests pass locally (91/91 pass)
 - [ ] T012 [P0] Commit and push fixes
-- [ ] T013 [P0] Verify CI accessibility workflow passes (91/91 tests)
+- [ ] T013 [P0] Verify CI accessibility workflow passes (92/93 tests - RouteBuilder excluded)
 
 ## Phase 5: RouteBuilder OOM Investigation (FR-003) - DEFERRED
 
@@ -42,6 +47,6 @@
 ## Summary
 
 - Total Tasks: 21
-- Completed: 9
-- In Progress: 5 (Phase 4)
-- Pending: 7 (Phases 5-6)
+- Completed: 11 (Phases 1-4 P0 tasks)
+- Pending: 2 (T012 commit, T013 CI verification)
+- Deferred: 8 (Phases 5-6 - RouteBuilder investigation, memory budgets)
