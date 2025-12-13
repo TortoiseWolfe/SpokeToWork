@@ -1,6 +1,6 @@
 # Feature Specification: Test Coverage Expansion
 
-**Feature Branch**: `050-test-coverage`
+**Feature Branch**: `052-test-coverage`
 **Created**: 2025-12-13
 **Status**: Draft
 **Priority**: P2 (Medium)

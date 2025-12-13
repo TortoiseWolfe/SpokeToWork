@@ -1,6 +1,6 @@
 # Feature Specification: IndexedDB Private Key Encryption
 
-**Feature Branch**: `045-indexeddb-encryption`
+**Feature Branch**: `048-indexeddb-encryption`
 **Created**: 2025-12-13
 **Status**: Draft
 **Priority**: P1 (High)

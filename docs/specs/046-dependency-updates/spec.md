@@ -1,6 +1,6 @@
 # Feature Specification: Dependency Infrastructure Updates
 
-**Feature Branch**: `052-dependency-updates`
+**Feature Branch**: `046-dependency-updates`
 **Created**: 2025-12-13
 **Status**: Draft
 **Priority**: P2 (Medium)

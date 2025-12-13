@@ -1,6 +1,6 @@
 # Feature Specification: Code Consolidation
 
-**Feature Branch**: `048-code-consolidation`
+**Feature Branch**: `050-code-consolidation`
 **Created**: 2025-12-13
 **Status**: Draft
 **Priority**: P2 (Medium)
