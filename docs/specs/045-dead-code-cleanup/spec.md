@@ -1,6 +1,6 @@
 # Feature Specification: Dead Code Cleanup
 
-**Feature Branch**: `049-dead-code-cleanup`
+**Feature Branch**: `045-dead-code-cleanup`
 **Created**: 2025-12-13
 **Status**: Draft
 **Priority**: P2 (Medium)

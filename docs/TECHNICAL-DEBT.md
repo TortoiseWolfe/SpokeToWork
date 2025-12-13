@@ -10,14 +10,14 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 
 ### Priority Matrix
 
-| Priority | Category          | Issue Count | Status                                            |
-| -------- | ----------------- | ----------- | ------------------------------------------------- |
-| P0       | Security          | 2           | Fixed                                             |
-| P1       | CI/Infrastructure | 1           | **Partial** (Node 22 done, RouteBuilder OOM open) |
-| P1       | Security          | 6           | Open                                              |
-| P1       | Performance       | 4           | Open                                              |
-| P2       | Code Quality      | 15          | Open                                              |
-| P2       | Test Coverage     | 55 files    | Open                                              |
+| Priority | Category          | Issue Count | Status    |
+| -------- | ----------------- | ----------- | --------- |
+| P0       | Security          | 2           | Fixed     |
+| P1       | CI/Infrastructure | 1           | **Fixed** |
+| P1       | Security          | 6           | Open      |
+| P1       | Performance       | 4           | Open      |
+| P2       | Code Quality      | 15          | Open      |
+| P2       | Test Coverage     | 55 files    | Open      |
 
 ---
 
@@ -48,7 +48,7 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 **Issue**: Private keys stored as plaintext JWK in IndexedDB, vulnerable to physical device access
 **Mitigations in Place**: HTTPS, browser same-origin policy, CSP headers
 **Recommended Fix**: Implement passphrase-based encryption of IndexedDB entries
-**SpecKit Spec**: `docs/specs/045-indexeddb-encryption/spec.md`
+**SpecKit Spec**: `docs/specs/048-indexeddb-encryption/spec.md`
 
 ### Security: Test Credential Fallbacks
 
@@ -56,7 +56,7 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 **Files**: 67 test files with hardcoded fallback passwords
 **Issue**: Default `TestPassword123!` used if env vars missing
 **Recommended Fix**: Make env vars required, fail fast if missing
-**SpecKit Spec**: `docs/specs/046-test-security/spec.md`
+**SpecKit Spec**: `docs/specs/047-test-security/spec.md`
 
 ### Security: OAuth State Inconsistency
 
@@ -74,7 +74,7 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 - `src/components/organisms/ConnectionManager/ConnectionManager.tsx`
   **Issue**: Event handlers not wrapped in `useCallback`, causing child re-renders
   **Recommended Fix**: Add `useCallback` to handlers passed to child components
-  **SpecKit Spec**: `docs/specs/047-performance-memoization/spec.md`
+  **SpecKit Spec**: `docs/specs/049-performance-optimization/spec.md`
 
 ### Performance: Polling Instead of Realtime
 
@@ -86,7 +86,7 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 - `src/lib/supabase/client.ts:131` (30s connection check)
   **Issue**: Timer-based polling when Supabase realtime could be used
   **Recommended Fix**: Replace with Supabase realtime subscriptions
-  **SpecKit Spec**: `docs/specs/047-performance-memoization/spec.md`
+  **SpecKit Spec**: `docs/specs/049-performance-optimization/spec.md`
 
 ### Performance: Duplicate Event Listeners
 
@@ -94,7 +94,7 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 **Files**: 4 files with online/offline listeners, 5+ with click-outside patterns
 **Issue**: Same global events listened to in multiple places
 **Recommended Fix**: Create unified hooks: `useOnlineStatus`, `useClickOutside`, `useVisibilityChange`
-**SpecKit Spec**: `docs/specs/047-performance-memoization/spec.md`
+**SpecKit Spec**: `docs/specs/049-performance-optimization/spec.md`
 
 ---
 
@@ -108,14 +108,14 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 - `src/services/messaging/offline-queue-service.ts` (Dexie for messages)
 - `src/lib/payments/offline-queue.ts` (Dexie for payments)
   **Recommended Fix**: Create unified abstraction in `src/lib/offline-queue/`
-  **SpecKit Spec**: `docs/specs/048-code-consolidation/spec.md`
+  **SpecKit Spec**: `docs/specs/050-code-consolidation/spec.md`
 
 #### Audit Logger (2 implementations)
 
 - `src/lib/auth/audit-logger.ts` (functional)
 - `src/services/auth/audit-logger.ts` (OOP class)
   **Recommended Fix**: Consolidate into single OOP pattern
-  **SpecKit Spec**: `docs/specs/048-code-consolidation/spec.md`
+  **SpecKit Spec**: `docs/specs/050-code-consolidation/spec.md`
 
 #### Email Validation (3 implementations)
 
@@ -123,14 +123,14 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 - `src/lib/messaging/validation.ts`
 - `src/lib/validation/patterns.ts`
   **Recommended Fix**: Use auth version everywhere
-  **SpecKit Spec**: `docs/specs/048-code-consolidation/spec.md`
+  **SpecKit Spec**: `docs/specs/050-code-consolidation/spec.md`
 
 #### Rate Limiting (2 implementations)
 
 - `src/lib/auth/rate-limiter.ts` (client-side localStorage)
 - `src/lib/auth/rate-limit-check.ts` (server-side RPC)
   **Recommended Fix**: Document use cases or remove client version
-  **SpecKit Spec**: `docs/specs/048-code-consolidation/spec.md`
+  **SpecKit Spec**: `docs/specs/050-code-consolidation/spec.md`
 
 ### Code Quality: Dead Code & Stubs
 
@@ -138,7 +138,7 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 - 1 unused function `_handleRejectAll` in CookieConsent
 - 1 deprecated method `hasValidKeys()` in key-service
 - Commented code in oauth-state tests and middleware
-  **SpecKit Spec**: `docs/specs/049-dead-code-cleanup/spec.md`
+  **SpecKit Spec**: `docs/specs/045-dead-code-cleanup/spec.md`
 
 ### Code Quality: Linter Disables (26 total - ALL LEGITIMATE)
 
@@ -180,7 +180,7 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 - And 5 more...
 
 **Overall Coverage**: ~54% of lib/services/hooks files have tests
-**SpecKit Spec**: `docs/specs/050-test-coverage/spec.md`
+**SpecKit Spec**: `docs/specs/052-test-coverage/spec.md`
 
 ---
 
@@ -205,184 +205,49 @@ All are legitimate and properly documented:
 
 ## SpecKit Specs Created
 
-| Spec Number | Title                             | Priority | Status                            |
-| ----------- | --------------------------------- | -------- | --------------------------------- |
-| 045         | IndexedDB Encryption              | P1       | Open                              |
-| 046         | Test Security Hardening           | P1       | Open                              |
-| 047         | Performance Memoization           | P1       | Open                              |
-| 048         | Code Consolidation                | P2       | Open                              |
-| 049         | Dead Code Cleanup                 | P2       | Open                              |
-| 050         | Test Coverage Expansion           | P2       | Open                              |
-| 051         | CI Test Memory Optimization       | P1       | **92/93** (RouteBuilder OOM open) |
-| 052         | Dependency Infrastructure Updates | P2       | Open                              |
+Specs are numbered in recommended execution order based on dependency analysis.
 
-### Spec 051 Progress (2025-12-13) - PARTIAL
+| Spec Number | Title                             | Priority | Status       |
+| ----------- | --------------------------------- | -------- | ------------ |
+| 045         | Dead Code Cleanup                 | P2       | Open         |
+| 046         | Dependency Infrastructure Updates | P2       | Open         |
+| 047         | Test Security Hardening           | P1       | Open         |
+| 048         | IndexedDB Encryption              | P1       | Open         |
+| 049         | Performance Optimization          | P1       | Open         |
+| 050         | Code Consolidation                | P2       | Open         |
+| 051         | CI Test Memory Optimization       | P1       | **COMPLETE** |
+| 052         | Test Coverage Expansion           | P2       | Open         |
+
+### Spec 051 Progress (2025-12-13) - COMPLETE
+
+All P0 and P1 requirements complete. 93/93 accessibility tests pass in CI.
 
 **Node.js Version Alignment** ✅ COMPLETE
 
-All GitHub Actions workflows now use Node 22 to match Docker:
-
-| Workflow                | Before | After          |
-| ----------------------- | ------ | -------------- |
-| ci.yml                  | 20.x   | 22             |
-| e2e.yml                 | 20.x   | 22             |
-| component-structure.yml | 20     | 22             |
-| monitor.yml             | 20     | 22             |
-| supabase-keepalive.yml  | 20     | 22             |
-| accessibility.yml       | 22     | 22 (no change) |
-| deploy.yml              | 22     | 22 (no change) |
+All GitHub Actions workflows now use Node 22 to match Docker.
 
 **AuthorProfile Test Isolation Fix** ✅ COMPLETE
 
-Root cause: happy-dom URL context corrupted in batch mode; next/image URL validation fails.
+Added global `next/image` mock in `tests/setup.ts` to bypass URL validation in tests.
 
-| File             | Change                                                           |
-| ---------------- | ---------------------------------------------------------------- |
-| `tests/setup.ts` | Added global `next/image` mock to bypass URL validation in tests |
+**RouteBuilder OOM Fix** ✅ COMPLETE
 
-**Result**: 91 happy-dom + 1 jsdom (Card) = 92 accessibility tests pass in CI
+Root cause: Vite alias order + unstable mock references caused 4GB+ memory consumption.
 
----
+| File                                    | Change                                             |
+| --------------------------------------- | -------------------------------------------------- |
+| `vitest.config.ts`                      | Specific aliases before general `@` alias          |
+| `src/hooks/__mocks__/useRoutes.ts`      | Stable mock references prevent infinite re-renders |
+| `src/hooks/__mocks__/useUserProfile.ts` | Stable mock references                             |
 
-## P1: RouteBuilder OOM Issue - OPEN (Component #93)
-
-**Severity**: HIGH
-**Impact**: 1 of 93 accessibility tests cannot run
-**Files**: `src/components/organisms/RouteBuilder/RouteBuilder.tsx`
-
-### Symptoms
-
-- Both `RouteBuilder.test.tsx` and `RouteBuilder.accessibility.test.tsx` fail with OOM
-- Memory consumption reaches 4GB during Vitest module loading phase
-- OOM occurs BEFORE any test code executes
-- Issue persists regardless of test environment, pool configuration, or heap size
-
-### Reproduction
-
-```bash
-# All of these fail with OOM at ~4GB before tests run:
-docker compose exec spoketowork pnpm exec vitest run \
-  src/components/organisms/RouteBuilder/RouteBuilder.accessibility.test.tsx
-
-# With 4GB heap - still fails:
-docker compose exec -e NODE_OPTIONS='--max-old-space-size=4096' spoketowork \
-  pnpm exec vitest run src/components/organisms/RouteBuilder/RouteBuilder.accessibility.test.tsx
-
-# With jsdom instead of happy-dom - still fails:
-# (After adding to jsdomTests array in vitest.config.ts)
-docker compose exec spoketowork pnpm exec vitest run \
-  src/components/organisms/RouteBuilder/RouteBuilder.accessibility.test.tsx --project jsdom
-
-# With main thread execution - still fails:
-docker compose exec spoketowork pnpm exec vitest run \
-  src/components/organisms/RouteBuilder/RouteBuilder.accessibility.test.tsx --isolate=false
-```
-
-### Attempted Fixes (All Failed)
-
-1. **Cache reset in useRoutes** - Added `__resetCacheForTesting()` - No effect
-2. **afterEach cleanup** - Added cleanup to test file - No effect
-3. **jsdom environment** - Routed tests to jsdom - Still OOM at 4GB
-4. **isolate=false** - Ran in main thread - Still OOM at 4GB
-5. **4GB heap** - Increased NODE_OPTIONS - Still OOM
-6. **vmThreads pool** - Changed pool type - Still OOM
-
-### Root Cause Analysis
-
-The OOM happens during Vitest/Vite module transformation, NOT during test execution. This suggests:
-
-1. **Circular imports** in the dependency chain causing infinite resolution
-2. **Heavy transitive dependencies** being fully loaded instead of tree-shaken
-3. **Vite HMR/module graph** memory leak during transformation
-
-### Dependency Chain to Investigate
-
-```
-RouteBuilder.tsx
-├── useRoutes (hooks/useRoutes.ts)
-│   ├── createClient (lib/supabase/client.ts)
-│   ├── RouteService (lib/routes/route-service.ts)
-│   │   └── types from @supabase/supabase-js
-│   ├── getBicycleRoute (lib/routing/osrm-service.ts)
-│   └── createLogger (lib/logger.ts)
-├── useUserProfile (hooks/useUserProfile.ts)
-│   ├── useAuth (contexts/AuthContext.tsx)
-│   └── createClient (lib/supabase/client.ts)
-└── types/route.ts
-```
-
-### Debugging Steps (Next Actions)
-
-1. **Check for circular imports**:
-
-   ```bash
-   npx madge --circular src/components/organisms/RouteBuilder/RouteBuilder.tsx
-   ```
-
-2. **Profile module loading**:
-
-   ```bash
-   docker compose exec spoketowork pnpm exec vitest run \
-     src/components/organisms/RouteBuilder/RouteBuilder.accessibility.test.tsx \
-     --reporter=verbose 2>&1 | head -100
-   ```
-
-3. **Isolate the problematic import** by creating a minimal test:
-
-   ```typescript
-   // test-minimal.ts
-   import { vi } from 'vitest';
-
-   // Mock everything BEFORE importing
-   vi.mock('@/hooks/useRoutes');
-   vi.mock('@/hooks/useUserProfile');
-
-   // Then import component
-   import RouteBuilder from './RouteBuilder';
-
-   console.log('Import successful');
-   ```
-
-4. **Check if types are the issue**:
-
-   ```bash
-   # Comment out type imports one by one and test
-   ```
-
-5. **Try dynamic import in component**:
-
-   ```typescript
-   // Instead of static import:
-   // import { useRoutes } from '@/hooks/useRoutes';
-
-   // Try dynamic:
-   const { useRoutes } = await import('@/hooks/useRoutes');
-   ```
-
-### Current Workaround
-
-RouteBuilder tests are excluded from CI accessibility workflow:
-
-```yaml
-# .github/workflows/accessibility.yml
-FILES=$(find src/components -name "*.accessibility.test.tsx" -type f \
-  ! -name "Card.accessibility.test.tsx" \
-  ! -name "RouteBuilder.accessibility.test.tsx" \  # <-- excluded here
-  | tr '\n' ' ')
-```
-
-### Files to Modify When Fixed
-
-1. `.github/workflows/accessibility.yml` - Remove RouteBuilder exclusion
-2. `docs/TECHNICAL-DEBT.md` - Update this section
-3. `docs/specs/051-ci-test-memory/spec.md` - Mark FR-003 as complete
+**Result**: All 93 accessibility tests pass (92 happy-dom + 1 jsdom)
 
 ### Using These Specs with SpecKit
 
 To process any spec through the complete workflow:
 
 ```bash
-/speckit.workflow docs/specs/047-performance-optimization
+/speckit.workflow docs/specs/049-performance-optimization
 ```
 
 This runs all phases (plan → checklist → tasks → analyze → implement) with user checkpoints between each phase.

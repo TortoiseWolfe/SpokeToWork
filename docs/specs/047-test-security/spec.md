@@ -1,6 +1,6 @@
 # Feature Specification: Test Security Hardening
 
-**Feature Branch**: `046-test-security`
+**Feature Branch**: `047-test-security`
 **Created**: 2025-12-13
 **Status**: Draft
 **Priority**: P1 (High)
