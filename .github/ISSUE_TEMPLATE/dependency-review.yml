@@ -1,0 +1,73 @@
+name: Quarterly Dependency Review
+description: Track quarterly dependency maintenance and security review
+title: "chore(deps): Q[X] [YEAR] Dependency Review"
+labels: ["dependencies", "maintenance"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Quarterly Dependency Review
+
+        This issue tracks the quarterly dependency maintenance for this project.
+        Complete all checklist items and close when done.
+
+  - type: checkboxes
+    id: security
+    attributes:
+      label: Security Audit
+      description: Address all security vulnerabilities
+      options:
+        - label: Run `pnpm audit` - no vulnerabilities
+        - label: Update any packages with security advisories
+        - label: Review and apply pnpm overrides if needed
+
+  - type: checkboxes
+    id: updates
+    attributes:
+      label: Dependency Updates
+      description: Review and apply available updates
+      options:
+        - label: Run `pnpm outdated` - review available updates
+        - label: Apply patch updates
+        - label: Review and apply minor updates
+        - label: Evaluate major updates (create separate PRs)
+
+  - type: checkboxes
+    id: tooling
+    attributes:
+      label: Tooling Updates
+      description: Keep build tools current
+      options:
+        - label: Update Node.js to latest LTS if available
+        - label: Update pnpm to latest stable
+        - label: Review GitHub Actions versions
+
+  - type: checkboxes
+    id: verification
+    attributes:
+      label: Verification
+      description: Ensure updates don't break anything
+      options:
+        - label: Full test suite passes (`pnpm test`)
+        - label: Build succeeds (`pnpm build`)
+        - label: Storybook builds (`pnpm build-storybook`)
+        - label: CI pipeline passes
+
+  - type: checkboxes
+    id: documentation
+    attributes:
+      label: Documentation
+      description: Keep docs current
+      options:
+        - label: Update DEPENDENCY-UPDATES.md if process changed
+        - label: Document any major version decisions
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Any additional notes about this review
+      placeholder: |
+        - Deferred updates:
+        - Known issues:
+        - Decisions made:

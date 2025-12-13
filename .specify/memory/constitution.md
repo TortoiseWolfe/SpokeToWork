@@ -1,73 +1,75 @@
-# [PROJECT_NAME] Constitution
-
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# SpokeToWork Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
+### I. Proper Solutions Over Quick Fixes
 
-<!-- Example: I. Library-First -->
+Implement correctly the first time. No shortcuts, no "we'll fix it later" approaches. Every implementation should be production-ready from the start.
 
-[PRINCIPLE_1_DESCRIPTION]
+### II. Root Cause Analysis
 
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+Fix underlying issues, not symptoms. When a bug appears, investigate and fix the root cause rather than applying band-aid patches that mask the problem.
 
-### [PRINCIPLE_2_NAME]
+### III. Stability Over Speed
 
-<!-- Example: II. CLI Interface -->
+This is a production template. Reliability and correctness take precedence over rapid feature delivery. Take the time to do things right.
 
-[PRINCIPLE_2_DESCRIPTION]
+### IV. Clean Architecture
 
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+Follow established patterns consistently. Components follow the 5-file structure. Code organization follows atomic design principles. Patterns once established are followed everywhere.
 
-### [PRINCIPLE_3_NAME]
+### V. No Technical Debt
 
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
+Never commit TODOs or workarounds. If something needs to be done, do it now. If it can't be done now, document it in a spec and track it properly.
 
-[PRINCIPLE_3_DESCRIPTION]
+## Mandatory Constraints
 
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### Docker-First Development
 
-### [PRINCIPLE_4_NAME]
+All development happens through Docker. Never install packages locally. Never use sudo to fix permissions. The container runs as your user with correct permissions.
 
-<!-- Example: IV. Integration Testing -->
+### Static Hosting Constraint
 
-[PRINCIPLE_4_DESCRIPTION]
+The app deploys to GitHub Pages (static hosting). No server-side API routes. All server-side logic must be in Supabase (database, Edge Functions, or triggers).
 
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### Component Structure
 
-### [PRINCIPLE_5_NAME]
+Components must follow the 5-file pattern or CI/CD will fail:
 
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
+- `index.tsx` - Barrel export
+- `ComponentName.tsx` - Main component
+- `ComponentName.test.tsx` - Unit tests (REQUIRED)
+- `ComponentName.stories.tsx` - Storybook (REQUIRED)
+- `ComponentName.accessibility.test.tsx` - A11y tests (REQUIRED)
 
-[PRINCIPLE_5_DESCRIPTION]
+### Database Migrations
 
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+Never create separate migration files. Use the monolithic migration file. All CREATE statements must be idempotent with IF NOT EXISTS.
 
-## [SECTION_2_NAME]
+## Quality Gates
 
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### Testing Requirements
 
-[SECTION_2_CONTENT]
+- Unit tests for all components
+- Accessibility tests for all interactive components
+- E2E tests for critical user flows
+- All tests must pass before merge
 
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### Code Review Standards
 
-## [SECTION_3_NAME]
-
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
-
-[SECTION_3_CONTENT]
-
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+- TypeScript strict mode compliance
+- ESLint clean (no warnings)
+- Type-check passes
+- Build succeeds
 
 ## Governance
 
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
+This constitution supersedes all other practices. When in doubt, refer to these principles. Amendments require:
 
-[GOVERNANCE_RULES]
+1. Documentation of the change
+2. Rationale for the amendment
+3. Update to this file and CLAUDE.md
 
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+All PRs and reviews must verify compliance with these principles.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2025-12-13 | **Last Amended**: 2025-12-13

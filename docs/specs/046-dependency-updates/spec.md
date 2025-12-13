@@ -125,16 +125,16 @@ As a project maintainer, I need a documented dependency update process so that I
 | ------ | ----------------------------------------------- | ------------------------------------------------ |
 | FR-001 | Align Node.js to version 22 in all environments | CI, Docker, and package.json all specify Node 22 |
 | FR-002 | Add `engines` field to package.json             | `"engines": { "node": ">=22.0.0" }`              |
-| FR-003 | Run `pnpm audit` in CI pipeline                 | Workflow fails on high/critical vulnerabilities  |
+| FR-003 | Run `pnpm audit` in CI pipeline                 | Workflow fails on ANY vulnerability              |
 
 ### P2 - Medium Priority
 
-| ID     | Requirement                              | Acceptance Criteria                         |
-| ------ | ---------------------------------------- | ------------------------------------------- |
-| FR-004 | Create dependency update documentation   | `docs/project/DEPENDENCY-UPDATES.md` exists |
-| FR-005 | Document major dependency decisions      | Why Next.js 15, React 19, Vitest 4, etc.    |
-| FR-006 | Establish quarterly update cadence       | Calendar reminder, documented process       |
-| FR-007 | Add Renovate or Dependabot configuration | Automated PR creation for updates           |
+| ID     | Requirement                            | Acceptance Criteria                                                            |
+| ------ | -------------------------------------- | ------------------------------------------------------------------------------ |
+| FR-004 | Create dependency update documentation | `docs/project/DEPENDENCY-UPDATES.md` exists with required sections (see below) |
+| FR-005 | Document major dependency decisions    | Why Next.js 15, React 19, Vitest 4, etc.                                       |
+| FR-006 | Establish quarterly update cadence     | Calendar reminder, documented process                                          |
+| FR-007 | Add Renovate configuration             | Automated PR creation for updates                                              |
 
 ### P3 - Low Priority
 
@@ -171,9 +171,56 @@ As a project maintainer, I need a documented dependency update process so that I
 - `docs/TECHNICAL-DEBT.md` - Reference this spec
 - `CLAUDE.md` - Add dependency update guidance
 
-### Optional (Automated Updates)
+### Automated Updates
 
-- `.github/renovate.json` OR `.github/dependabot.yml` - Automated PRs
+- `.github/renovate.json` - Renovate configuration for automated PRs
+
+### Quarterly Review
+
+- `.github/ISSUE_TEMPLATE/dependency-review.yml` - Quarterly review issue template
+
+---
+
+## FR-004 Documentation Structure
+
+The `docs/project/DEPENDENCY-UPDATES.md` file MUST contain these sections:
+
+| Section                  | Purpose                                             |
+| ------------------------ | --------------------------------------------------- |
+| Quick Reference          | Common commands (`pnpm audit`, `pnpm update`, etc.) |
+| Update Process           | Step-by-step: audit → update → test → commit        |
+| Decision Framework       | When to update patch/minor/major versions           |
+| Quarterly Review         | Checklist for quarterly dependency review           |
+| Current Stack            | Version rationale table (from this spec)            |
+| Troubleshooting          | Common issues and solutions                         |
+| Dev vs Prod Dependencies | How to handle dev-only vulnerabilities              |
+
+---
+
+## FR-006 Quarterly Cadence Enforcement
+
+The quarterly review process includes:
+
+1. **GitHub Issue Template**: Creates standardized review checklist
+2. **Renovate Dashboard**: Shows pending updates grouped by priority
+3. **Process Documentation**: Steps in DEPENDENCY-UPDATES.md
+4. **Audit Trail**: Closed issues document completed reviews
+
+**Enforcement Mechanism**: While not automated, the Issue template creates a searchable audit trail. If no quarterly review issue is closed in 90 days, the project is considered non-compliant.
+
+---
+
+## Dev Dependency Handling
+
+Security vulnerabilities in dev-only dependencies (`devDependencies`):
+
+| Severity      | Action                                                     |
+| ------------- | ---------------------------------------------------------- |
+| Critical/High | Update immediately - attackers can compromise dev machines |
+| Moderate      | Include in next update cycle                               |
+| Low           | Optional - address during quarterly review                 |
+
+**Rationale**: Dev dependencies run on developer machines and CI. A compromised dev dependency can inject malicious code during build.
 
 ---
 
@@ -204,7 +251,30 @@ As a project maintainer, I need a documented dependency update process so that I
 ## Success Metrics
 
 1. **Alignment**: All environments use identical Node.js version
-2. **Security**: Zero high/critical vulnerabilities in `pnpm audit`
+2. **Security**: Zero vulnerabilities in `pnpm audit` (any severity fails CI)
 3. **Documentation**: Update process documented and followed
-4. **Automation**: Dependabot/Renovate creates update PRs
+4. **Automation**: Renovate creates update PRs
 5. **Stability**: Updates don't introduce regressions
+
+---
+
+## Clarifications
+
+### Session 2025-12-13
+
+| #   | Question                         | Decision                  | Rationale                                        |
+| --- | -------------------------------- | ------------------------- | ------------------------------------------------ |
+| 1   | pnpm audit failure threshold     | Fail on ANY vulnerability | Strictest security posture chosen                |
+| 2   | Automated update tool            | Renovate                  | More powerful and customizable than Dependabot   |
+| 3   | Quarterly cadence implementation | GitHub Issue template     | Creates accountability for major version reviews |
+
+### Spec Updates from Clarifications
+
+- **FR-003**: Updated to fail on any vulnerability (not just high/critical)
+- **FR-007**: Confirmed as Renovate (not Dependabot)
+- **FR-006**: Will use GitHub Issue template for quarterly reminders
+
+### Already Completed (Spec 051)
+
+- **FR-001**: Node.js aligned to v22 in all CI workflows ✅
+- **FR-002**: engines field added to package.json ✅
