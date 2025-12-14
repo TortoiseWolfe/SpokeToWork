@@ -35,17 +35,27 @@ SpokeToWork is designed for job seekers who want to:
 - **Stay organized** with notes, contacts, and follow-up reminders
 - **Connect with others** through private, encrypted messaging
 
-Let's walk through adding your first company and tracking an application.
+Let's walk through setting up your account and tracking your first application.
 
 ---
 
-## Step 1: Add Your First Company
+## Step 1: Set Your Home Location
 
-After signing in, head to the **Companies** page. Here's where you'll build your list of potential employers.
+Before adding companies, head to your **Profile** and set your **Home Location**. This lets SpokeToWork calculate distances and plan efficient routes to potential employers.
+
+For this walkthrough, we're starting from **Community Kitchen** (727 E 11th St, Chattanooga, TN 37403) - a real resource in downtown Chattanooga that helps folks getting back on their feet.
+
+Setting your home location first means every company you add will automatically show you how far away it is - helpful when you're planning visits by bike or on foot.
+
+---
+
+## Step 2: Add Your First Company
+
+Head to the **Companies** page. This is where you'll build your list of potential employers.
 
 ### Adding the Chattanooga Public Library
 
-Click the **Add Company** button to open the form. Let's add a real location to see how it works:
+Click **Add Company** to open the form. Let's add a real location:
 
 ![Adding a company to your list](/blog-images/getting-started-job-hunt-companion/add-company-form.png)
 _The company form lets you capture all the details you need_
@@ -86,15 +96,9 @@ Use the **Notes** field for anything helpful:
 
 Click **Save** and your company is tracked!
 
-### Setting Your Home Location
-
-Before adding companies, set your **Home Location** in your profile. This lets SpokeToWork calculate distances and plan efficient routes.
-
-For this demo, we're using **Community Kitchen** (727 E 11th St, Chattanooga, TN 37403) as our starting point - a real resource for folks getting back on their feet.
-
 ---
 
-## Step 2: View Your Companies
+## Step 3: View Your Companies
 
 ![The companies list showing your tracked locations](/blog-images/getting-started-job-hunt-companion/companies-list.png)
 _Your company list shows status, priority, and latest application at a glance_
@@ -111,7 +115,7 @@ Click any company to see the full details drawer with all your notes, contacts, 
 
 ---
 
-## Step 3: Track a Job Application
+## Step 4: Track a Job Application
 
 Found a job posting? Let's track it!
 
@@ -132,14 +136,12 @@ Fill in:
 
 SpokeToWork tracks your application through each stage:
 
-| Status           | What It Means                             |
-| ---------------- | ----------------------------------------- |
-| **Not Applied**  | You're interested but haven't applied yet |
-| **Applied**      | Application submitted                     |
-| **Screening**    | Initial review, phone screen              |
-| **Interviewing** | In-person or video interviews             |
-| **Offer**        | They made you an offer!                   |
-| **Closed**       | Position filled or you moved on           |
+- **Not Applied** - You're interested but haven't applied yet
+- **Applied** - Application submitted
+- **Screening** - Initial review, phone screen
+- **Interviewing** - In-person or video interviews
+- **Offer** - They made you an offer!
+- **Closed** - Position filled or you moved on
 
 ### Tracking Outcomes
 
@@ -155,7 +157,7 @@ This data helps you understand your job search patterns over time.
 
 ---
 
-## Step 4: Plan Your Visits with Routes
+## Step 5: Plan Your Visits with Routes
 
 For job hunters who want to visit companies in person - whether to drop off a resume, scope out the location, or attend an interview - SpokeToWork includes bicycle route planning.
 
@@ -184,13 +186,14 @@ _See your companies on a map with the planned route_
 
 ---
 
-## Step 5: Staying Private and Secure
+## Step 6: Privacy and Security
 
-Your job search is personal. SpokeToWork takes privacy seriously:
+Your job search is personal. Here's how SpokeToWork handles your data:
 
-- **Your Data, Your Account**: Companies and applications are private to your account
-- **Encrypted Messaging**: If you connect with other job seekers, messages are end-to-end encrypted - we can't read them even if we wanted to
-- **No Tracking**: We don't sell your data or track your browsing
+- **Your Data, Your Account**: Companies and applications are private to your account - only you can see them
+- **Encrypted Messaging**: If you connect with other job seekers, messages are end-to-end encrypted. We literally cannot read them, even if we wanted to
+- **Anonymous Analytics**: We use Google Analytics to understand how people use the app (which pages are popular, where users get stuck). This data is anonymous - we see trends, not individuals. We never sell this data.
+- **No Data Selling**: We don't sell your personal information to advertisers or third parties
 
 Learn more about our encryption in our [security explainer](/blog/message-encryption-security-explained).
 
@@ -200,11 +203,12 @@ Learn more about our encryption in our [security explainer](/blog/message-encryp
 
 Here's a typical workflow for tracking a job opportunity:
 
-1. **Research**: Find a company you like, add it to SpokeToWork with status "Not Contacted"
-2. **Reach Out**: Apply for a position, update status to "Contacted", add an application with "Applied"
-3. **Follow Up**: Set a follow-up date, add notes about any conversations
-4. **Interview**: Update application status to "Interviewing", add interview date
-5. **Result**: Record the outcome - celebrate if hired, learn if not
+1. **Set up**: Configure your home location in your profile
+2. **Research**: Find a company you like, add it to SpokeToWork with status "Not Contacted"
+3. **Reach Out**: Apply for a position, update status to "Contacted", add an application with "Applied"
+4. **Follow Up**: Set a follow-up date, add notes about any conversations
+5. **Interview**: Update application status to "Interviewing", add interview date
+6. **Result**: Record the outcome - celebrate if hired, learn if not
 
 ---
 
@@ -241,9 +245,10 @@ If a company never responds, mark it and move on. The outcome tracking helps you
 You're ready to start organizing your job search! Here's what to do:
 
 1. **Sign up** or log in to your account
-2. **Add 3-5 companies** you're interested in
-3. **Track at least one application** to see how it works
-4. **Explore the map** if you plan to visit any locations
+2. **Set your home location** in your profile
+3. **Add 3-5 companies** you're interested in
+4. **Track at least one application** to see how it works
+5. **Explore the map** if you plan to visit any locations
 
 Good luck with your job search! SpokeToWork is here to help you stay organized and focused on what matters: finding the right opportunity.
 
