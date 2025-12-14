@@ -41,7 +41,10 @@ Let's walk through setting up your account and tracking your first application.
 
 ## Step 1: Set Your Home Location
 
-Before adding companies, head to your **Profile** and set your **Home Location**. This lets SpokeToWork calculate distances and plan efficient routes to potential employers.
+Before adding companies, head to the **Companies** page and set your **Home Location**. This lets SpokeToWork calculate distances and plan efficient routes to potential employers.
+
+![Setting your home location](/blog-images/getting-started-job-hunt-companion/home-location-settings.png)
+_Enter your address and click Geocode to set your starting point_
 
 For this walkthrough, we're starting from **Community Kitchen** (727 E 11th St, Chattanooga, TN 37403) - a real resource in downtown Chattanooga that helps folks getting back on their feet.
 

@@ -14,7 +14,7 @@
  * Screenshots saved to: public/blog-images/getting-started-job-hunt-companion/
  */
 
-import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+import { test, type BrowserContext, type Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -37,15 +37,21 @@ if (!testEmail || !testPassword) {
 const TEST_USER = { email: testEmail, password: testPassword };
 
 // Community Kitchen - soup kitchen as starting point (home location)
+// Coordinates for Chattanooga, TN (pre-geocoded to avoid API rate limits)
 const HOME_LOCATION = {
   address: '727 E 11th St, Chattanooga, TN 37403',
   name: 'Community Kitchen',
+  latitude: 35.0456,
+  longitude: -85.3097,
 };
 
 // Chattanooga Public Library - main demo company
+// Pre-geocoded coordinates
 const LIBRARY_COMPANY = {
   name: 'Chattanooga Public Library',
   address: '1001 Broad St, Chattanooga, TN 37402',
+  latitude: 35.0551,
+  longitude: -85.3094,
   website: 'https://chattlibrary.org',
   phone: '(423) 757-5310',
   contactName: 'Human Resources',
@@ -59,6 +65,19 @@ const LIBRARY_APPLICATION = {
   position: 'Library Assistant',
   dateApplied: '2025-12-14',
   status: 'applied',
+};
+
+// Cookie consent state to dismiss the banner
+// Method must match ConsentMethod enum value: 'banner_accept_all'
+const COOKIE_CONSENT = {
+  necessary: true,
+  functional: true,
+  analytics: true,
+  marketing: true,
+  timestamp: Date.now(),
+  version: '1.0.0',
+  lastUpdated: Date.now(),
+  method: 'banner_accept_all',
 };
 
 test.describe.serial('Blog Screenshot Capture', () => {
@@ -77,9 +96,55 @@ test.describe.serial('Blog Screenshot Capture', () => {
     });
     page = await context.newPage();
 
-    // Dismiss CountdownBanner before any navigation
-    await page.addInitScript(() => {
+    // Set localStorage values BEFORE any navigation to dismiss modals/banners
+    await page.addInitScript((cookieConsent) => {
+      // Dismiss cookie consent banner
+      localStorage.setItem('cookie-consent', JSON.stringify(cookieConsent));
+      // Dismiss countdown banner
       localStorage.setItem('countdown-dismissed', Date.now().toString());
+    }, COOKIE_CONSENT);
+
+    // Mock geocoding API to return Chattanooga coordinates for ALL requests
+    // This ensures maps show Chattanooga instead of defaulting to NYC
+    await page.route('**/nominatim.openstreetmap.org/**', async (route) => {
+      const url = route.request().url();
+      console.log(
+        `🗺️ Geocoding request intercepted: ${url.substring(0, 100)}...`
+      );
+
+      // Return Chattanooga Library coords for Library/1001 addresses
+      if (url.includes('1001') || url.toLowerCase().includes('library')) {
+        console.log('📍 Returning Library coords (35.0551, -85.3094)');
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([
+            {
+              lat: '35.0551',
+              lon: '-85.3094',
+              display_name:
+                'Chattanooga Public Library, 1001 Broad St, Chattanooga, TN 37402',
+            },
+          ]),
+        });
+      } else {
+        // Default to Community Kitchen coords for everything else
+        console.log(
+          '📍 Returning Community Kitchen coords (35.0456, -85.3097)'
+        );
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([
+            {
+              lat: '35.0456',
+              lon: '-85.3097',
+              display_name:
+                'Community Kitchen, 727 E 11th St, Chattanooga, TN 37403',
+            },
+          ]),
+        });
+      }
     });
 
     // Sign in with SECONDARY test user
@@ -98,50 +163,67 @@ test.describe.serial('Blog Screenshot Capture', () => {
     await context?.close();
   });
 
-  test('1. Set Home Location (Community Kitchen)', async () => {
-    // Navigate to companies page where HomeLocationSettings appears
+  test('1. Capture Home Location Settings', async () => {
+    // Navigate to companies page
     await page.goto(`${BASE_URL}/companies`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
 
-    // Look for the HomeLocationSettings component
+    // Click "Home Location" button to show the settings panel
+    // (HomeLocationSettings is hidden by default, shown when button is clicked)
+    const homeLocationButton = page.locator('button:has-text("Home Location")');
+    if ((await homeLocationButton.count()) > 0) {
+      await homeLocationButton.click();
+      await page.waitForTimeout(500);
+    }
+
+    // Wait for the HomeLocationSettings component to appear
     const homeLocationSettings = page.locator(
       '[data-testid="home-location-settings"]'
     );
+    await homeLocationSettings.waitFor({ state: 'visible', timeout: 5000 });
 
-    if ((await homeLocationSettings.count()) > 0) {
-      // Fill in Community Kitchen address
-      const addressInput = page.locator('#home-address');
-      await addressInput.fill(HOME_LOCATION.address);
+    // Fill in Community Kitchen address
+    const addressInput = page.locator('#home-address');
+    await addressInput.fill(HOME_LOCATION.address);
 
-      // Click Geocode button
-      const geocodeButton = page.locator(
-        '[data-testid="home-location-settings"] button:has-text("Geocode")'
-      );
-      if ((await geocodeButton.count()) > 0) {
-        await geocodeButton.click();
-        // Wait for geocoding
-        await page.waitForTimeout(3000);
-      }
+    // Click Geocode button FIRST - this updates the map to show Chattanooga
+    const geocodeButton = page.locator(
+      '[data-testid="home-location-settings"] button:has-text("Geocode")'
+    );
+    await geocodeButton.click();
 
-      // Click Save Home Location
-      const saveButton = page.locator(
-        'button:has-text("Save Home Location"), button:has-text("Save")'
-      );
-      if (
-        (await saveButton.count()) > 0 &&
-        (await saveButton.first().isEnabled())
-      ) {
-        await saveButton.first().click();
-        await page.waitForTimeout(2000);
-        console.log('✅ Set home location to Community Kitchen');
-      } else {
-        console.log(
-          '⚠️ Could not save home location (geocoding may have failed)'
-        );
-      }
+    // Wait for geocoding to complete - the map should update from NYC to Chattanooga
+    // The mock API returns Chattanooga coords, component should update map center
+    await page.waitForTimeout(3000);
+
+    // Verify coordinates updated (check for Chattanooga-ish coords in the label)
+    const coordsLabel = page.locator(
+      '[data-testid="home-location-settings"] .label-text-alt:has-text("Coordinates")'
+    );
+    if ((await coordsLabel.count()) > 0) {
+      const coordsText = await coordsLabel.textContent();
+      console.log(`📍 Geocoded coordinates: ${coordsText}`);
+    }
+
+    // NOW capture the screenshot - map should show Chattanooga, not NYC
+    await homeLocationSettings.screenshot({
+      path: path.join(SCREENSHOT_DIR, 'home-location-settings.png'),
+    });
+    console.log('✅ Captured: home-location-settings.png');
+
+    // Save the home location
+    const saveButton = page.locator('button:has-text("Save Home Location")');
+    const isEnabled = await saveButton
+      .first()
+      .isEnabled()
+      .catch(() => false);
+    if (isEnabled) {
+      await saveButton.first().click();
+      await page.waitForTimeout(2000);
+      console.log('✅ Set home location to Community Kitchen');
     } else {
-      console.log('ℹ️ Home location already set or settings not visible');
+      console.log('⚠️ Save button disabled - geocoding may have failed');
     }
 
     // Reload to see updated state
@@ -157,33 +239,63 @@ test.describe.serial('Blog Screenshot Capture', () => {
 
     // Click Add Company button
     const addButton = page.locator('button:has-text("Add Company")');
+    if ((await addButton.count()) === 0) {
+      console.log('⚠️ Add Company button not found');
+      return;
+    }
     await addButton.click();
-    await page.waitForTimeout(500);
 
-    // Fill in Chattanooga Public Library data
-    const nameInput = page
-      .locator('input[name="name"], #name, input[placeholder*="company"]')
-      .first();
+    // Wait for form to appear - it's rendered as part of the page, not a modal
+    await page.waitForTimeout(1000);
+
+    // Wait for the address input to be visible (form is loaded)
+    const addressInput = page.locator('#address');
+    await addressInput.waitFor({ state: 'visible', timeout: 5000 });
+
+    // Fill in company name first
+    const nameInput = page.locator('#name');
     if ((await nameInput.count()) > 0) {
       await nameInput.fill(LIBRARY_COMPANY.name);
+      console.log('✏️ Filled company name');
     }
 
-    // Fill address
-    const addressInput = page.locator(
-      'input[name="address"], input[placeholder*="address"], #address'
-    );
-    if ((await addressInput.count()) > 0) {
-      await addressInput.first().fill(LIBRARY_COMPANY.address);
+    // Fill address - CRITICAL: must fill before geocode button becomes enabled
+    await addressInput.fill(LIBRARY_COMPANY.address);
+    console.log('✏️ Filled address');
 
-      // Click Geocode button
-      const geocodeButton = page.locator('button:has-text("Geocode")');
-      if (
-        (await geocodeButton.count()) > 0 &&
-        (await geocodeButton.first().isEnabled())
-      ) {
+    // Small delay for React state to update
+    await page.waitForTimeout(500);
+
+    // Click Geocode button - CRITICAL: This updates the map from default NYC to Chattanooga
+    const geocodeButton = page.locator('button:has-text("Geocode")');
+    const buttonCount = await geocodeButton.count();
+    console.log(`🔘 Found ${buttonCount} Geocode button(s)`);
+
+    if (buttonCount > 0) {
+      const isEnabled = await geocodeButton.first().isEnabled();
+      console.log(`🔘 Geocode button enabled: ${isEnabled}`);
+
+      if (isEnabled) {
         await geocodeButton.first().click();
+        console.log('🔘 Clicked Geocode button');
+
+        // Wait for geocoding to complete (network request + state update)
         await page.waitForTimeout(3000);
+
+        // Check if geocoding succeeded
+        const submitBtn = page.locator(
+          'button[type="submit"]:has-text("Add Company")'
+        );
+        const submitEnabled = await submitBtn.isEnabled().catch(() => false);
+        console.log(`📍 Submit button enabled: ${submitEnabled}`);
+
+        // Wait extra time for map tiles to load at new location
+        await page.waitForTimeout(2000);
+      } else {
+        console.log('⚠️ Geocode button found but disabled');
       }
+    } else {
+      console.log('⚠️ Geocode button not found');
     }
 
     // Fill website
@@ -232,7 +344,7 @@ test.describe.serial('Blog Screenshot Capture', () => {
 
     await page.waitForTimeout(500);
 
-    // Capture screenshot
+    // Capture screenshot - map should now show Chattanooga area, not NYC
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'add-company-form.png'),
       fullPage: false,
@@ -240,8 +352,8 @@ test.describe.serial('Blog Screenshot Capture', () => {
 
     console.log('✅ Captured: add-company-form.png');
 
-    // Submit the form to create the company
-    await page.waitForTimeout(2000);
+    // Try to submit the form
+    await page.waitForTimeout(1000);
     const submitButton = page.locator(
       'button[type="submit"]:has-text("Add Company"), button[type="submit"]:has-text("Save")'
     );
@@ -287,34 +399,76 @@ test.describe.serial('Blog Screenshot Capture', () => {
   test('4. Capture Add Application Form', async () => {
     await page.goto(`${BASE_URL}/companies`);
     await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1000);
 
-    await page.waitForSelector('[data-testid="company-table"]', {
-      timeout: 10000,
-    });
+    // Wait for company table
+    try {
+      await page.waitForSelector('[data-testid="company-table"]', {
+        timeout: 10000,
+      });
+    } catch {
+      console.log(
+        '⚠️ Company table not found - skipping application screenshot'
+      );
+      return;
+    }
 
     // Find and click on Library row
     const libraryRow = page.locator(
       '[data-testid^="company-row-"]:has-text("Library")'
     );
-    const anyRow = page.locator('[data-testid^="company-row-"]');
+    const libraryCount = await libraryRow.count();
+    console.log(`📋 Found ${libraryCount} Library row(s)`);
 
-    if ((await libraryRow.count()) > 0) {
+    if (libraryCount > 0) {
       await libraryRow.first().click();
-    } else if ((await anyRow.count()) > 0) {
-      await anyRow.first().click();
+      console.log('✅ Clicked Library row');
     } else {
-      console.log('⚠️ No companies found - skipping application screenshot');
+      // Click first company row as fallback
+      const anyRow = page.locator('[data-testid^="company-row-"]');
+      const anyCount = await anyRow.count();
+      console.log(`📋 Found ${anyCount} total company rows`);
+      if (anyCount > 0) {
+        await anyRow.first().click();
+        console.log('✅ Clicked first company row');
+      } else {
+        console.log('⚠️ No companies found - skipping application screenshot');
+        return;
+      }
+    }
+
+    // Wait for drawer to appear
+    await page.waitForTimeout(1000);
+    const drawer = page.locator('[data-testid="company-detail-drawer"]');
+    try {
+      await drawer.waitFor({ state: 'visible', timeout: 5000 });
+      console.log('✅ Detail drawer visible');
+    } catch {
+      console.log(
+        '⚠️ Detail drawer not visible - skipping application screenshot'
+      );
       return;
     }
 
-    // Wait for drawer
-    await page.waitForSelector('[data-testid="company-detail-drawer"]', {
-      timeout: 5000,
-    });
+    // Find Add Application button (might need to scroll)
+    const addAppButton = page.locator(
+      'button:has-text("Add Application"), button:has-text("Add Job Application")'
+    );
+    const buttonCount = await addAppButton.count();
+    console.log(`📋 Found ${buttonCount} Add Application button(s)`);
 
-    // Click Add Application
-    const addAppButton = page.locator('button:has-text("Add Application")');
+    if (buttonCount === 0) {
+      console.log('⚠️ Add Application button not found - skipping');
+      // Take screenshot of drawer instead
+      await drawer.screenshot({
+        path: path.join(SCREENSHOT_DIR, 'add-application.png'),
+      });
+      console.log('✅ Captured drawer as fallback: add-application.png');
+      return;
+    }
+
     await addAppButton.first().click();
+    console.log('✅ Clicked Add Application button');
 
     // Wait for modal
     await page.waitForSelector('.modal.modal-open', { timeout: 5000 });
@@ -392,10 +546,9 @@ test.describe.serial('Blog Screenshot Capture', () => {
     // Wait for map
     await page.waitForSelector('.leaflet-container', { timeout: 15000 });
 
-    // Wait for tiles to load
-    await page.waitForTimeout(3000);
+    // Wait for tiles to fully load
+    await page.waitForTimeout(4000);
 
-    // The map should now center on Chattanooga based on home location
     // Take the screenshot
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'map-view.png'),
