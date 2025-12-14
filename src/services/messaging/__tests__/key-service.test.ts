@@ -124,14 +124,10 @@ describe('KeyManagementService', () => {
     vi.mocked(createMessagingClient).mockReturnValue(mockMsgClient);
 
     // Mock encryption service with REAL keys
+    // Note: storePrivateKey, getPrivateKey, and deletePrivateKey removed - keys now memory-only
     vi.mocked(encryptionService.exportPublicKey).mockResolvedValue(
       realPublicKeyJwk
     );
-    vi.mocked(encryptionService.storePrivateKey).mockResolvedValue(undefined);
-    vi.mocked(encryptionService.getPrivateKey).mockResolvedValue(
-      realPrivateKeyJwk
-    );
-    vi.mocked(encryptionService.deletePrivateKey).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -491,13 +487,14 @@ describe('KeyManagementService', () => {
       });
     });
 
-    it('should revoke keys and delete from IndexedDB (T059)', async () => {
+    it('should revoke keys and clear from memory (T059)', async () => {
+      // First derive some keys so we have something to clear
+      const clearKeysSpy = vi.spyOn(keyService, 'clearKeys');
+
       await keyService.revokeKeys();
 
-      // Verify IndexedDB deletion was called
-      expect(encryptionService.deletePrivateKey).toHaveBeenCalledWith(
-        mockUserId
-      );
+      // Verify memory keys were cleared (no longer uses IndexedDB)
+      expect(clearKeysSpy).toHaveBeenCalled();
     });
 
     it('should throw AuthenticationError when not signed in', async () => {

@@ -8,11 +8,11 @@
  * - ECDH P-256 for key exchange
  * - AES-GCM-256 for symmetric encryption
  * - Random 96-bit IV for each message
- * - IndexedDB storage for private keys
  * - Browser-native crypto (no external dependencies)
+ *
+ * Note: Private keys are now managed by KeyManagementService (memory-only,
+ * derived from password). This service handles encryption/decryption only.
  */
-
-import { db } from './database';
 import {
   CRYPTO_PARAMS,
   type KeyPair,
@@ -66,65 +66,6 @@ export class EncryptionService {
       return await crypto.subtle.exportKey('jwk', publicKey);
     } catch (error) {
       throw new EncryptionError('Failed to export public key', error);
-    }
-  }
-
-  /**
-   * Store private key in IndexedDB (client-side only, never sent to server)
-   * Task: T048
-   *
-   * @param userId - User ID to associate with this key
-   * @param privateKeyJwk - Private key in JWK format
-   * @throws EncryptionError if storage fails
-   */
-  async storePrivateKey(
-    userId: string,
-    privateKeyJwk: JsonWebKey
-  ): Promise<void> {
-    try {
-      await db.messaging_private_keys.put({
-        userId,
-        privateKey: privateKeyJwk,
-        created_at: Date.now(),
-      });
-    } catch (error) {
-      throw new EncryptionError('Failed to store private key', error);
-    }
-  }
-
-  /**
-   * Retrieve private key from IndexedDB
-   * Task: T049
-   *
-   * @param userId - User ID to retrieve key for
-   * @returns Promise<JsonWebKey | null> - Private key or null if not found
-   * @throws EncryptionError if retrieval fails
-   */
-  async getPrivateKey(userId: string): Promise<JsonWebKey | null> {
-    try {
-      const record = await db.messaging_private_keys.get(userId);
-      return record?.privateKey ?? null;
-    } catch (error) {
-      throw new EncryptionError('Failed to retrieve private key', error);
-    }
-  }
-
-  /**
-   * Delete private key from IndexedDB (for key revocation/logout)
-   *
-   * Security: Called during key revocation to ensure private key
-   * is removed from client-side storage, not just marked as revoked
-   * in the database.
-   *
-   * @param userId - User ID whose key should be deleted
-   * @throws EncryptionError if deletion fails
-   */
-  async deletePrivateKey(userId: string): Promise<void> {
-    try {
-      await db.messaging_private_keys.delete(userId);
-      logger.debug('Deleted private key from IndexedDB', { userId });
-    } catch (error) {
-      throw new EncryptionError('Failed to delete private key', error);
     }
   }
 
