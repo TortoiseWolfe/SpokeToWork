@@ -4,6 +4,9 @@
  * This spec captures screenshots demonstrating the "Acme Corporation"
  * demo flow for the job seeker introduction blog post.
  *
+ * Uses SECONDARY test user to ensure clean demo data (not personal account).
+ * Creates 3 demo companies and 1 application, then cleans up after.
+ *
  * Screenshots saved to: public/blog-images/getting-started-job-hunt-companion/
  */
 
@@ -17,22 +20,23 @@ const SCREENSHOT_DIR = path.join(
   'public/blog-images/getting-started-job-hunt-companion'
 );
 
-// Test user credentials from env
-const testEmail =
-  process.env.TEST_USER_EMAIL || process.env.TEST_USER_PRIMARY_EMAIL;
-const testPassword =
-  process.env.TEST_USER_PASSWORD || process.env.TEST_USER_PRIMARY_PASSWORD;
+// Use SECONDARY test user for clean demo screenshots (not personal account with 83 companies)
+const testEmail = process.env.TEST_USER_SECONDARY_EMAIL;
+const testPassword = process.env.TEST_USER_SECONDARY_PASSWORD;
 
 if (!testEmail || !testPassword) {
-  throw new Error('TEST_USER_EMAIL and TEST_USER_PASSWORD must be set in .env');
+  throw new Error(
+    'TEST_USER_SECONDARY_EMAIL and TEST_USER_SECONDARY_PASSWORD must be set in .env'
+  );
 }
 
 const TEST_USER = { email: testEmail, password: testPassword };
 
-// Acme Corporation demo data
+// Acme Corporation demo data (using real geocodable address)
 const ACME_COMPANY = {
   name: 'Acme Corporation',
-  address: '123 Innovation Drive, Tech City, CA 94000',
+  // Real address that can be geocoded (San Francisco)
+  address: '123 Main Street, San Francisco, CA 94105',
   website: 'https://acme-corp.example.com',
   phone: '(555) 123-4567',
   contactName: 'Sarah Johnson',
@@ -64,7 +68,12 @@ test.describe('Blog Screenshot Capture', () => {
     });
     page = await context.newPage();
 
-    // Sign in
+    // Dismiss CountdownBanner before any navigation (prevents modal in screenshots)
+    await page.addInitScript(() => {
+      localStorage.setItem('countdown-dismissed', Date.now().toString());
+    });
+
+    // Sign in with SECONDARY test user (cleaner than primary account with 83 companies)
     await page.goto(`${BASE_URL}/sign-in`);
     await page.fill('input[type="email"]', TEST_USER.email);
     await page.fill('input[type="password"]', TEST_USER.password);
@@ -72,6 +81,10 @@ test.describe('Blog Screenshot Capture', () => {
 
     // Wait for redirect to profile or companies
     await page.waitForURL(/\/(profile|companies|account)/, { timeout: 15000 });
+
+    console.log(
+      '✅ Signed in as SECONDARY test user, CountdownBanner dismissed'
+    );
   });
 
   test.afterAll(async () => {
@@ -110,6 +123,17 @@ test.describe('Blog Screenshot Capture', () => {
     );
     if ((await addressInput.count()) > 0) {
       await addressInput.first().fill(ACME_COMPANY.address);
+
+      // Click Geocode button to resolve address to coordinates
+      const geocodeButton = page.locator('button:has-text("Geocode")');
+      if (
+        (await geocodeButton.count()) > 0 &&
+        (await geocodeButton.first().isEnabled())
+      ) {
+        await geocodeButton.first().click();
+        // Wait for geocoding to complete (loading spinner to disappear)
+        await page.waitForTimeout(2000);
+      }
     }
 
     // Fill website
@@ -167,10 +191,34 @@ test.describe('Blog Screenshot Capture', () => {
 
     console.log('✅ Captured: add-company-form.png');
 
-    // Cancel instead of submit to avoid creating test data
-    const cancelButton = page.locator('button:has-text("Cancel")');
-    if ((await cancelButton.count()) > 0) {
-      await cancelButton.first().click();
+    // Wait for geocoding to complete (address must be geocoded for submit to be enabled)
+    // The submit button is disabled until coordinates are obtained
+    await page.waitForTimeout(3000); // Allow time for geocoding API call
+
+    // Actually submit the form to create the company for later tests
+    const submitButton = page.locator(
+      'button[type="submit"]:has-text("Add Company"), button[type="submit"]:has-text("Save")'
+    );
+
+    // Check if submit button is enabled (coordinates obtained)
+    const isEnabled = await submitButton
+      .first()
+      .isEnabled()
+      .catch(() => false);
+    if (isEnabled) {
+      await submitButton.first().click();
+      // Wait for form to close and company to be created
+      await page.waitForTimeout(2000);
+      console.log('✅ Created Acme Corporation for demo screenshots');
+    } else {
+      // Geocoding may have failed - cancel and skip company creation
+      console.log(
+        '⚠️ Submit button disabled (geocoding may have failed) - skipping company creation'
+      );
+      const cancelButton = page.locator('button:has-text("Cancel")');
+      if ((await cancelButton.count()) > 0) {
+        await cancelButton.first().click();
+      }
     }
 
     await page.waitForTimeout(500);
@@ -205,12 +253,24 @@ test.describe('Blog Screenshot Capture', () => {
     await page.goto(`${BASE_URL}/companies`);
     await page.waitForLoadState('networkidle');
 
-    // Wait for table and click on Acme row
+    // Wait for table to load
     await page.waitForSelector('[data-testid="company-table"]', {
       timeout: 10000,
     });
 
-    // Find and click on Acme Corporation row
+    // Check if any companies exist
+    const anyCompanyRow = page.locator('[data-testid^="company-row-"]');
+    const companyCount = await anyCompanyRow.count();
+
+    if (companyCount === 0) {
+      console.log(
+        '⚠️ No companies found - skipping Add Application Form screenshot'
+      );
+      console.log('   (Company creation may have failed due to geocoding)');
+      return;
+    }
+
+    // Find and click on Acme Corporation row (or first company)
     const acmeRow = page.locator(
       '[data-testid^="company-row-"]:has-text("Acme")'
     );
@@ -218,8 +278,7 @@ test.describe('Blog Screenshot Capture', () => {
       await acmeRow.first().click();
     } else {
       // Click first company row if Acme not found
-      const firstRow = page.locator('[data-testid^="company-row-"]').first();
-      await firstRow.click();
+      await anyCompanyRow.first().click();
     }
 
     // Wait for drawer to open
@@ -356,5 +415,72 @@ test.describe('Blog Screenshot Capture', () => {
     });
 
     console.log('✅ Captured: blog-listing-preview.png');
+  });
+
+  test('7. Generate OG PNG from SVG', async () => {
+    // Load the SVG file directly in browser to render it as PNG
+    const svgPath = path.join(SCREENSHOT_DIR, 'featured-og.svg');
+
+    if (!fs.existsSync(svgPath)) {
+      console.log('⚠️ SVG not found, skipping PNG generation');
+      return;
+    }
+
+    // Set viewport to exact OG image dimensions
+    await page.setViewportSize({ width: 1200, height: 630 });
+
+    // Load SVG file in browser
+    await page.goto(`file://${svgPath}`);
+    await page.waitForTimeout(500);
+
+    // Capture as PNG
+    await page.screenshot({
+      path: path.join(SCREENSHOT_DIR, 'featured-og.png'),
+      fullPage: false,
+    });
+
+    // Reset viewport for any subsequent tests
+    await page.setViewportSize({ width: 1280, height: 800 });
+
+    console.log('✅ Generated: featured-og.png (1200x630)');
+  });
+
+  test('8. Cleanup demo data', async () => {
+    // Navigate to companies page
+    await page.goto(`${BASE_URL}/companies`);
+    await page.waitForLoadState('networkidle');
+
+    // Find and delete Acme Corporation
+    const acmeRow = page.locator(
+      '[data-testid^="company-row-"]:has-text("Acme")'
+    );
+    if ((await acmeRow.count()) > 0) {
+      // Click on the row to open details drawer
+      await acmeRow.first().click();
+      await page.waitForTimeout(500);
+
+      // Look for delete button in drawer
+      const deleteButton = page.locator(
+        'button:has-text("Delete"), button[aria-label="Delete company"]'
+      );
+      if ((await deleteButton.count()) > 0) {
+        await deleteButton.first().click();
+        // Confirm deletion if dialog appears
+        const confirmButton = page.locator(
+          'button:has-text("Confirm"), button:has-text("Yes"), .modal button:has-text("Delete")'
+        );
+        if ((await confirmButton.count()) > 0) {
+          await confirmButton.first().click();
+        }
+        await page.waitForTimeout(1000);
+        console.log('🧹 Cleaned up Acme Corporation demo company');
+      } else {
+        console.log(
+          '⚠️ Delete button not found - manual cleanup may be needed'
+        );
+      }
+    } else {
+      console.log('ℹ️ No Acme company found to clean up');
+    }
   });
 });
