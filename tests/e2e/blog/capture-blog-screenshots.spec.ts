@@ -15,10 +15,28 @@
  */
 
 import { test, type BrowserContext, type Page } from '@playwright/test';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as path from 'path';
 import * as fs from 'fs';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+
+// Supabase admin client for data cleanup
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.warn(
+    '⚠️ Supabase credentials not set - data cleanup will be skipped'
+  );
+}
+
+let adminClient: SupabaseClient | null = null;
+if (supabaseUrl && supabaseServiceKey) {
+  adminClient = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
 const SCREENSHOT_DIR = path.join(
   process.cwd(),
   'public/blog-images/getting-started-job-hunt-companion'
@@ -157,6 +175,119 @@ test.describe.serial('Blog Screenshot Capture', () => {
     await page.waitForURL(/\/(profile|companies|account)/, { timeout: 15000 });
 
     console.log('✅ Signed in as SECONDARY test user');
+
+    // FLUSH ALL DATA for clean screenshots
+    if (adminClient) {
+      console.log('🧹 Flushing test user data for clean screenshots...');
+
+      // Get user ID from auth.users
+      const { data: authData } = await adminClient.auth.admin.listUsers();
+      const user = authData?.users?.find((u) => u.email === TEST_USER.email);
+
+      if (user) {
+        const userId = user.id;
+
+        // Delete private companies (user's personal companies)
+        const { error: privateError, count: privateCount } = await adminClient
+          .from('private_companies')
+          .delete()
+          .eq('user_id', userId);
+
+        if (privateError) {
+          console.log(
+            `⚠️ Error deleting private companies: ${privateError.message}`
+          );
+        } else {
+          console.log(`✅ Deleted private companies`);
+        }
+
+        // Delete user_company_tracking (links to shared companies)
+        const { error: trackingError } = await adminClient
+          .from('user_company_tracking')
+          .delete()
+          .eq('user_id', userId);
+
+        if (trackingError) {
+          console.log(
+            `⚠️ Error deleting company tracking: ${trackingError.message}`
+          );
+        } else {
+          console.log('✅ Deleted company tracking links');
+        }
+
+        // Delete from old companies table (legacy data)
+        const { error: oldCompanyError } = await adminClient
+          .from('companies')
+          .delete()
+          .eq('user_id', userId);
+
+        if (oldCompanyError) {
+          console.log(
+            `⚠️ Error deleting old companies: ${oldCompanyError.message}`
+          );
+        } else {
+          console.log('✅ Deleted old companies');
+        }
+
+        // Delete job applications
+        const { error: appError } = await adminClient
+          .from('job_applications')
+          .delete()
+          .eq('user_id', userId);
+
+        if (appError) {
+          console.log(`⚠️ Error deleting applications: ${appError.message}`);
+        } else {
+          console.log('✅ Deleted job applications');
+        }
+
+        // Delete routes and route_companies
+        const { error: routeCompanyError } = await adminClient
+          .from('route_companies')
+          .delete()
+          .eq('user_id', userId);
+
+        if (!routeCompanyError) {
+          console.log('✅ Deleted route companies');
+        }
+
+        const { error: routeError } = await adminClient
+          .from('bicycle_routes')
+          .delete()
+          .eq('user_id', userId);
+
+        if (routeError) {
+          console.log(
+            `⚠️ Error deleting bicycle routes: ${routeError.message}`
+          );
+        } else {
+          console.log('✅ Deleted bicycle routes');
+        }
+
+        // Clear home location from user_profiles
+        const { error: profileError } = await adminClient
+          .from('user_profiles')
+          .update({
+            home_address: null,
+            home_latitude: null,
+            home_longitude: null,
+            distance_radius_miles: null,
+          })
+          .eq('id', userId);
+
+        if (profileError) {
+          console.log(
+            `⚠️ Error clearing home location: ${profileError.message}`
+          );
+        } else {
+          console.log('✅ Cleared home location');
+        }
+      } else {
+        console.log('⚠️ Could not find user - skipping cleanup');
+      }
+
+      console.log('🧹 Test user data flushed - ready for clean screenshots');
+    }
   });
 
   test.afterAll(async () => {
@@ -363,9 +494,61 @@ test.describe.serial('Blog Screenshot Capture', () => {
       .isEnabled()
       .catch(() => false);
     if (isEnabled) {
+      // Listen for console errors during submission
+      const consoleErrors: string[] = [];
+      page.on('console', (msg) => {
+        if (msg.type() === 'error') {
+          consoleErrors.push(msg.text());
+        }
+      });
+
+      // Listen for network responses to catch API errors
+      page.on('response', async (response) => {
+        if (response.url().includes('supabase') && !response.ok()) {
+          const text = await response
+            .text()
+            .catch(() => 'Unable to get response text');
+          console.log(`❌ API Error: ${response.status()} - ${response.url()}`);
+          console.log(`   Response: ${text.substring(0, 200)}`);
+        }
+      });
+
       await submitButton.first().click();
+      console.log('🔄 Submitted company form, waiting for save...');
+
+      // Wait for form to close and company to appear in list
+      await page.waitForTimeout(3000);
+
+      // Log any console errors
+      if (consoleErrors.length > 0) {
+        console.log('❌ Console errors during submission:');
+        consoleErrors.forEach((err) =>
+          console.log(`   ${err.substring(0, 200)}`)
+        );
+      }
+
+      // Reload and verify the company was created
+      await page.goto(`${BASE_URL}/companies`);
+      await page.waitForLoadState('networkidle');
       await page.waitForTimeout(2000);
-      console.log('✅ Created Chattanooga Public Library');
+
+      // Check if Library appears
+      const libraryRow = page.locator(
+        '[data-testid^="company-row-"]:has-text("Library")'
+      );
+      const libraryCount = await libraryRow.count();
+      console.log(`📋 Library rows found: ${libraryCount}`);
+
+      if (libraryCount > 0) {
+        console.log('✅ Created Chattanooga Public Library');
+      } else {
+        // Check total companies
+        const allRows = page.locator('[data-testid^="company-row-"]');
+        const totalCount = await allRows.count();
+        console.log(
+          `⚠️ Library not found, but ${totalCount} total companies exist`
+        );
+      }
     } else {
       console.log('⚠️ Submit button disabled - skipping company creation');
       const cancelButton = page.locator('button:has-text("Cancel")');
@@ -376,22 +559,36 @@ test.describe.serial('Blog Screenshot Capture', () => {
   });
 
   test('3. Capture Companies List', async () => {
+    // Reload the companies page to get fresh data
     await page.goto(`${BASE_URL}/companies`);
     await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
 
-    // Wait for table
-    await page.waitForSelector('[data-testid="company-table"]', {
-      timeout: 10000,
-    });
-    await page.waitForTimeout(500);
+    // Check if we have any companies
+    const companyRows = page.locator('[data-testid^="company-row-"]');
+    const rowCount = await companyRows.count();
+    console.log(`📋 Found ${rowCount} companies in list`);
 
-    // Capture the companies table area
-    const tableArea = page.locator(
-      '[data-testid="company-table"], .overflow-x-auto, main'
-    );
-    await tableArea.first().screenshot({
-      path: path.join(SCREENSHOT_DIR, 'companies-list.png'),
-    });
+    // Wait for table or empty state
+    const hasTable = await page
+      .locator('[data-testid="company-table"]')
+      .count();
+    const hasEmptyState = await page.locator('text=No companies yet').count();
+
+    if (rowCount > 0) {
+      // Capture the companies table area
+      const tableArea = page.locator('[data-testid="company-table"]');
+      await tableArea.first().screenshot({
+        path: path.join(SCREENSHOT_DIR, 'companies-list.png'),
+      });
+    } else {
+      // Capture full page showing empty state (still useful for blog)
+      await page.screenshot({
+        path: path.join(SCREENSHOT_DIR, 'companies-list.png'),
+        fullPage: false,
+      });
+      console.log('ℹ️ Captured empty state (no companies)');
+    }
 
     console.log('✅ Captured: companies-list.png');
   });
