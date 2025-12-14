@@ -1,24 +1,50 @@
 /**
  * Test user credentials for contract tests
  *
+ * SECURITY: All credentials MUST come from environment variables.
+ * No hardcoded fallbacks are allowed.
+ *
  * Primary user: Pre-created in production Supabase with email confirmed.
  * Used for: sign-in, profile operations, most contract tests.
  *
  * Secondary user: Optional, configurable via .env for email verification tests.
  * Used for: sign-up flow, password reset, email confirmation.
  * MUST be a real email address you control if running those tests.
+ *
+ * Tertiary user: Pre-created in Supabase for messaging E2E tests.
+ * Used for: two-user messaging scenarios.
+ *
+ * Admin user: System user for welcome messages (Feature 004).
+ *
+ * @see docs/specs/047-test-security/spec.md
+ * @see CLAUDE.md: Test Users section
  */
+
+/**
+ * Helper to get required env var with clear error message
+ */
+function getRequiredEnvVar(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(
+      `Missing required test environment variable: ${name}\n` +
+        `Please configure this in your .env file.\n` +
+        `See CLAUDE.md: Test Users section for details.`
+    );
+  }
+  return value;
+}
 
 /**
  * Primary test user - pre-confirmed in Supabase
+ * REQUIRED for most tests
  */
-export const TEST_EMAIL =
-  process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com';
-export const TEST_PASSWORD =
-  process.env.TEST_USER_PRIMARY_PASSWORD || 'TestPassword123!';
+export const TEST_EMAIL = getRequiredEnvVar('TEST_USER_PRIMARY_EMAIL');
+export const TEST_PASSWORD = getRequiredEnvVar('TEST_USER_PRIMARY_PASSWORD');
 
 /**
  * Secondary test user - configurable for email verification tests
+ * OPTIONAL - only needed for sign-up and email verification tests
  */
 export const TEST_EMAIL_SECONDARY = process.env.TEST_USER_SECONDARY_EMAIL;
 export const TEST_PASSWORD_SECONDARY = process.env.TEST_USER_SECONDARY_PASSWORD;
@@ -26,11 +52,14 @@ export const TEST_PASSWORD_SECONDARY = process.env.TEST_USER_SECONDARY_PASSWORD;
 /**
  * Tertiary test user - for messaging E2E tests (Feature 024)
  * Pre-confirmed in Supabase with username 'testuser-b'
+ * REQUIRED for messaging tests
  */
-export const TEST_EMAIL_TERTIARY =
-  process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com';
-export const TEST_PASSWORD_TERTIARY =
-  process.env.TEST_USER_TERTIARY_PASSWORD || 'TestPassword456!';
+export const TEST_EMAIL_TERTIARY = getRequiredEnvVar(
+  'TEST_USER_TERTIARY_EMAIL'
+);
+export const TEST_PASSWORD_TERTIARY = getRequiredEnvVar(
+  'TEST_USER_TERTIARY_PASSWORD'
+);
 export const TEST_USERNAME_TERTIARY = 'testuser-b';
 
 /**
@@ -58,8 +87,7 @@ export function hasTertiaryUser(): boolean {
  * Private key is discarded - not needed at runtime.
  * ECDH(user_private, admin_public) = ECDH(admin_private, user_public)
  */
-export const TEST_EMAIL_ADMIN =
-  process.env.TEST_USER_ADMIN_EMAIL || 'admin@spoketowork.example';
+export const TEST_EMAIL_ADMIN = process.env.TEST_USER_ADMIN_EMAIL;
 export const ADMIN_USER_ID =
   process.env.NEXT_PUBLIC_ADMIN_USER_ID ||
   '00000000-0000-0000-0000-000000000001';

@@ -257,9 +257,11 @@ docker compose exec spoketowork pnpm run dev
 
 **Step 3:** Create test account
 
-- Enter email: `test@example.com`
-- Enter password: `TestPassword123!`
+- Enter email: Use `TEST_USER_PRIMARY_EMAIL` from your `.env` file
+- Enter password: Use `TEST_USER_PRIMARY_PASSWORD` from your `.env` file
 - Click **"Sign Up"**
+
+> **Note**: See `CLAUDE.md: Test Users` section for test credentials configuration.
 
 **Step 4:** Check email for verification
 

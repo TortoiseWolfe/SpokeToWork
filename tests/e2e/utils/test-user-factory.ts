@@ -259,5 +259,6 @@ export function generateTestEmail(prefix = 'e2e-test'): string {
 
 /**
  * Default test password that meets Supabase requirements
+ * MUST be set via environment variable - no fallback allowed
  */
-export const DEFAULT_TEST_PASSWORD = 'TestPassword123!';
+export const DEFAULT_TEST_PASSWORD = process.env.TEST_USER_PRIMARY_PASSWORD!;

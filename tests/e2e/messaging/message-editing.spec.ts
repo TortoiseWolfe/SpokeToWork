@@ -13,12 +13,12 @@ import { test, expect, type Page } from '@playwright/test';
 // Test user credentials (from .env or defaults)
 const TEST_USER_1 = {
   email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
-  password: process.env.TEST_USER_PRIMARY_PASSWORD || 'TestPassword123!',
+  password: process.env.TEST_USER_PRIMARY_PASSWORD!,
 };
 
 const TEST_USER_2 = {
   email: process.env.TEST_USER_SECONDARY_EMAIL || 'test2@example.com',
-  password: process.env.TEST_USER_SECONDARY_PASSWORD || 'TestPassword123!',
+  password: process.env.TEST_USER_SECONDARY_PASSWORD!,
 };
 
 /**

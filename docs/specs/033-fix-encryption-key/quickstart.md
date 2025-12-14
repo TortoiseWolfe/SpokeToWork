@@ -89,7 +89,9 @@ if (needsMigration) {
 
 ## Testing
 
-1. Sign in as test@example.com / TestPassword123!
+1. Sign in using credentials from `TEST_USER_PRIMARY_EMAIL` / `TEST_USER_PRIMARY_PASSWORD` in `.env`
 2. Verify no "Your account needs to be updated" error
 3. Check database: only valid-salt keys should be non-revoked
 4. Verify TypeScript compilation with new rotateKeys(password) signature
+
+> **Note**: See `CLAUDE.md: Test Users` section for test credentials configuration.

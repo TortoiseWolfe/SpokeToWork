@@ -9,9 +9,10 @@
 import { test, expect } from '@playwright/test';
 
 // Test user - use PRIMARY from standardized test fixtures (Feature 026)
+// No fallbacks allowed per security requirements (047-test-security)
 const TEST_USER = {
-  email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
-  password: process.env.TEST_USER_PRIMARY_PASSWORD || 'TestPassword123!',
+  email: process.env.TEST_USER_PRIMARY_EMAIL!,
+  password: process.env.TEST_USER_PRIMARY_PASSWORD!,
 };
 
 test.describe('GDPR Data Export', () => {
@@ -352,8 +353,8 @@ test.describe('GDPR Account Deletion', () => {
 test.describe('GDPR Accessibility', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/sign-in');
-    await page.fill('input[type="email"]', 'test@example.com');
-    await page.fill('input[type="password"]', 'TestPassword123!');
+    await page.fill('input[type="email"]', TEST_USER.email);
+    await page.fill('input[type="password"]', TEST_USER.password);
     await page.click('button[type="submit"]');
     await page.waitForURL('/', { timeout: 10000 });
     await page.goto('/account');
