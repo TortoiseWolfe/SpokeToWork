@@ -249,54 +249,34 @@ MIT - See [LICENSE](./LICENSE) for details
 
 Run these SpecKit workflows to address code review findings:
 
-### P1: IndexedDB Encryption
-
-```
-/speckit.workflow docs/specs/045-indexeddb-encryption
-```
-
 ### P1: Test Security Hardening
 
 ```
-/speckit.workflow docs/specs/046-test-security
+/speckit.workflow docs/specs/047-test-security
+```
+
+### P1: IndexedDB Encryption
+
+```
+/speckit.workflow docs/specs/048-indexeddb-encryption
 ```
 
 ### P1: Performance Optimization
 
 ```
-/speckit.workflow docs/specs/047-performance-optimization
+/speckit.workflow docs/specs/049-performance-optimization
 ```
 
 ### P2: Code Consolidation
 
 ```
-/speckit.workflow docs/specs/048-code-consolidation
-```
-
-### P2: Dead Code Cleanup
-
-```
-/speckit.workflow docs/specs/049-dead-code-cleanup
+/speckit.workflow docs/specs/050-code-consolidation
 ```
 
 ### P2: Test Coverage Expansion
 
 ```
-/speckit.workflow docs/specs/050-test-coverage
-```
-
-### P1: CI Test Memory Optimization - PARTIAL
-
-Node.js aligned to 22 across all environments. RouteBuilder OOM remains open (fundamental module loading issue).
-
-```
-/speckit.workflow docs/specs/051-ci-test-memory
-```
-
-### P2: Dependency Infrastructure Updates
-
-```
-/speckit.workflow docs/specs/052-dependency-updates
+/speckit.workflow docs/specs/052-test-coverage
 ```
 
 See [docs/TECHNICAL-DEBT.md](./docs/TECHNICAL-DEBT.md) for full details.
