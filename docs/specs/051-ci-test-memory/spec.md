@@ -119,7 +119,7 @@ RouteBuilder/
 
 **Root Cause**: When running accessibility tests in batch mode with `--pool vmThreads`, happy-dom's URL parser context gets corrupted by test isolation issues. This causes next/image's internal URL validation (`getImgProps → new URL()`) to fail with "TypeError: Invalid URL" even for valid absolute URLs.
 
-**Key Finding**: AuthorProfile tests PASS when run in isolation but FAIL when run with all 91 accessibility tests together. This is a test isolation issue, not a URL format issue.
+**Key Finding**: AuthorProfile tests PASS when run in isolation but FAIL when run with all 92 accessibility tests together. This is a test isolation issue, not a URL format issue.
 
 **Error Stack**:
 
@@ -133,7 +133,7 @@ TypeError: Invalid URL
 
 1. Added global mock for `next/image` in `tests/setup.ts`
 2. Mock renders a simple `<img>` element, bypassing next/image's URL validation
-3. All 91 happy-dom accessibility tests now pass in batch mode
+3. All 92 happy-dom accessibility tests now pass in batch mode
 
 **Files Modified**:
 
@@ -263,7 +263,7 @@ As a developer pushing code, I need CI tests to pass reliably so that I can trus
 | ------ | --------------------------------------------------- | ----------------------------------------------- |
 | FR-001 | Align Node.js version to 22 across all environments | CI and Docker both use Node 22                  |
 | FR-002 | Document current batched test architecture          | Architecture diagram in docs/project/TESTING.md |
-| FR-003 | All 92 accessibility tests pass in CI               | Zero skipped, zero OOM crashes                  |
+| FR-003 | All 93 accessibility tests pass in CI               | Zero skipped, zero OOM crashes                  |
 
 ### P1 - High Priority
 
