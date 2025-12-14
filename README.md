@@ -245,27 +245,28 @@ MIT - See [LICENSE](./LICENSE) for details
 
 ---
 
-## 🔧 Technical Debt Specs (2025-12-13)
+## 🔧 Technical Debt Specs
 
 Run these SpecKit workflows to address code review findings:
 
-### P1: Test Security Hardening
+### Completed
 
-```
-/speckit.workflow docs/specs/047-test-security
-```
-
-### P1: IndexedDB Encryption
-
-```
-/speckit.workflow docs/specs/048-indexeddb-encryption
-```
+- [x] **047-test-security** - Test security hardening (SQL injection prevention, credential fallback removal)
+- [x] **048-indexeddb-encryption** - Remove dead IndexedDB private key storage
 
 ### P1: Performance Optimization
 
 ```
 /speckit.workflow docs/specs/049-performance-optimization
 ```
+
+### P1: Company Creation Fix
+
+```
+/speckit.workflow docs/specs/054-company-creation-fix
+```
+
+Company creation via CompanyForm doesn't persist to `private_companies` table.
 
 ### P2: Code Consolidation
 
