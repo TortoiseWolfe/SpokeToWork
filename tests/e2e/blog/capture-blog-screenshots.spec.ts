@@ -1,7 +1,7 @@
 /**
  * E2E Test: Capture Screenshots for Blog Post
  *
- * This spec captures screenshots demonstrating the "Acme Corporation"
+ * This spec captures screenshots demonstrating the "Chattanooga Public Library"
  * demo flow for the job seeker introduction blog post.
  *
  * Uses SECONDARY test user to ensure clean demo data (not personal account).
@@ -32,22 +32,46 @@ if (!testEmail || !testPassword) {
 
 const TEST_USER = { email: testEmail, password: testPassword };
 
-// Acme Corporation demo data (using real geocodable address)
-const ACME_COMPANY = {
-  name: 'Acme Corporation',
-  // Real address that can be geocoded (San Francisco)
-  address: '123 Main Street, San Francisco, CA 94105',
-  website: 'https://acme-corp.example.com',
-  phone: '(555) 123-4567',
-  contactName: 'Sarah Johnson',
-  contactTitle: 'HR Manager',
-  contactEmail: 'sarah.johnson@acme-corp.example.com',
+// Chattanooga Public Library - real geocodable address
+const LIBRARY_COMPANY = {
+  name: 'Chattanooga Public Library',
+  address: '1001 Broad St, Chattanooga, TN 37402',
+  website: 'https://chattlibrary.org',
+  phone: '(423) 757-5310',
+  contactName: 'Human Resources',
+  contactTitle: 'HR Department',
+  contactEmail: 'jobs@chattlibrary.org',
   notes:
-    'Spoke with Sarah at job fair on 12/10. She mentioned they are expanding the delivery team in January.',
+    'Saw job posting for Library Assistant position. Hours are flexible, good for someone rebuilding.',
 };
 
-const DELIVERY_APPLICATION = {
-  position: 'Delivery Driver',
+// Additional real Chattanooga locations for demo
+const DEMO_COMPANIES = [
+  {
+    name: 'Chattanooga Convention Center',
+    address: '1 Carter Plaza, Chattanooga, TN 37402',
+    website: 'https://chattanoogaconventioncenter.com',
+    phone: '(423) 756-0001',
+    contactName: 'Events Staff',
+    contactTitle: 'Event Coordinator',
+    contactEmail: 'events@chattanoogacc.com',
+    notes: 'Looking for event setup and hospitality positions.',
+  },
+  {
+    name: 'Chattanooga City Hall',
+    address: '101 E 11th St, Chattanooga, TN 37402',
+    website: 'https://chattanooga.gov',
+    phone: '(423) 643-7800',
+    contactName: 'City HR',
+    contactTitle: 'Human Resources',
+    contactEmail: 'hr@chattanooga.gov',
+    notes:
+      'Check city job postings monthly. Various entry-level positions available.',
+  },
+];
+
+const LIBRARY_APPLICATION = {
+  position: 'Library Assistant',
   dateApplied: '2025-12-14',
   status: 'applied',
 };
@@ -91,7 +115,7 @@ test.describe('Blog Screenshot Capture', () => {
     await context?.close();
   });
 
-  test('1. Capture Add Company Form with Acme data', async () => {
+  test('1. Capture Add Company Form with Library data', async () => {
     // Navigate to companies page
     await page.goto(`${BASE_URL}/companies`);
     await page.waitForLoadState('networkidle');
@@ -109,12 +133,12 @@ test.describe('Blog Screenshot Capture', () => {
     // Look for the CompanyForm - it has a card structure
     const formCard = page.locator('.card, form').first();
 
-    // Fill in Acme Corporation data - look for form inputs
+    // Fill in Chattanooga Public Library data - look for form inputs
     const nameInput = page
       .locator('input[name="name"], #name, input[placeholder*="company"]')
       .first();
     if ((await nameInput.count()) > 0) {
-      await nameInput.fill(ACME_COMPANY.name);
+      await nameInput.fill(LIBRARY_COMPANY.name);
     }
 
     // Try to fill address field
@@ -122,7 +146,7 @@ test.describe('Blog Screenshot Capture', () => {
       'input[name="address"], input[placeholder*="address"], #address, input[placeholder*="Address"]'
     );
     if ((await addressInput.count()) > 0) {
-      await addressInput.first().fill(ACME_COMPANY.address);
+      await addressInput.first().fill(LIBRARY_COMPANY.address);
 
       // Click Geocode button to resolve address to coordinates
       const geocodeButton = page.locator('button:has-text("Geocode")');
@@ -141,7 +165,7 @@ test.describe('Blog Screenshot Capture', () => {
       'input[name="website"], input[type="url"], #website, input[placeholder*="website"]'
     );
     if ((await websiteInput.count()) > 0) {
-      await websiteInput.first().fill(ACME_COMPANY.website);
+      await websiteInput.first().fill(LIBRARY_COMPANY.website);
     }
 
     // Fill phone
@@ -149,7 +173,7 @@ test.describe('Blog Screenshot Capture', () => {
       'input[name="phone"], input[type="tel"], #phone, input[placeholder*="phone"]'
     );
     if ((await phoneInput.count()) > 0) {
-      await phoneInput.first().fill(ACME_COMPANY.phone);
+      await phoneInput.first().fill(LIBRARY_COMPANY.phone);
     }
 
     // Fill contact info
@@ -157,27 +181,27 @@ test.describe('Blog Screenshot Capture', () => {
       'input[name="contactName"], input[name="contact_name"], #contactName, #contact-name, input[placeholder*="contact name"]'
     );
     if ((await contactNameInput.count()) > 0) {
-      await contactNameInput.first().fill(ACME_COMPANY.contactName);
+      await contactNameInput.first().fill(LIBRARY_COMPANY.contactName);
     }
 
     const contactTitleInput = page.locator(
       'input[name="contactTitle"], input[name="contact_title"], #contactTitle, #contact-title, input[placeholder*="title"]'
     );
     if ((await contactTitleInput.count()) > 0) {
-      await contactTitleInput.first().fill(ACME_COMPANY.contactTitle);
+      await contactTitleInput.first().fill(LIBRARY_COMPANY.contactTitle);
     }
 
     const contactEmailInput = page.locator(
       'input[name="contactEmail"], input[name="contact_email"], #contactEmail, #contact-email, input[placeholder*="email"]'
     );
     if ((await contactEmailInput.count()) > 0) {
-      await contactEmailInput.first().fill(ACME_COMPANY.contactEmail);
+      await contactEmailInput.first().fill(LIBRARY_COMPANY.contactEmail);
     }
 
     // Fill notes
     const notesInput = page.locator('textarea[name="notes"], #notes, textarea');
     if ((await notesInput.count()) > 0) {
-      await notesInput.first().fill(ACME_COMPANY.notes);
+      await notesInput.first().fill(LIBRARY_COMPANY.notes);
     }
 
     // Wait a moment for form to settle
@@ -209,7 +233,7 @@ test.describe('Blog Screenshot Capture', () => {
       await submitButton.first().click();
       // Wait for form to close and company to be created
       await page.waitForTimeout(2000);
-      console.log('✅ Created Acme Corporation for demo screenshots');
+      console.log('✅ Created Chattanooga Public Library for demo screenshots');
     } else {
       // Geocoding may have failed - cancel and skip company creation
       console.log(
@@ -270,14 +294,14 @@ test.describe('Blog Screenshot Capture', () => {
       return;
     }
 
-    // Find and click on Acme Corporation row (or first company)
+    // Find and click on Chattanooga Public Library row (or first company)
     const acmeRow = page.locator(
-      '[data-testid^="company-row-"]:has-text("Acme")'
+      '[data-testid^="company-row-"]:has-text("Library")'
     );
     if ((await acmeRow.count()) > 0) {
       await acmeRow.first().click();
     } else {
-      // Click first company row if Acme not found
+      // Click first company row if Library not found
       await anyCompanyRow.first().click();
     }
 
@@ -300,7 +324,7 @@ test.describe('Blog Screenshot Capture', () => {
       '#position-title, input[name="position"], input[name="positionTitle"]'
     );
     if ((await positionInput.count()) > 0) {
-      await positionInput.first().fill(DELIVERY_APPLICATION.position);
+      await positionInput.first().fill(LIBRARY_APPLICATION.position);
     }
 
     // Set date applied
@@ -308,13 +332,13 @@ test.describe('Blog Screenshot Capture', () => {
       '#date-applied, input[name="dateApplied"], input[type="date"]'
     );
     if ((await dateInput.count()) > 0) {
-      await dateInput.first().fill(DELIVERY_APPLICATION.dateApplied);
+      await dateInput.first().fill(LIBRARY_APPLICATION.dateApplied);
     }
 
     // Set status to Applied
     const statusSelect = page.locator('#status, select[name="status"]');
     if ((await statusSelect.count()) > 0) {
-      await statusSelect.first().selectOption(DELIVERY_APPLICATION.status);
+      await statusSelect.first().selectOption(LIBRARY_APPLICATION.status);
     }
 
     await page.waitForTimeout(500);
@@ -450,9 +474,9 @@ test.describe('Blog Screenshot Capture', () => {
     await page.goto(`${BASE_URL}/companies`);
     await page.waitForLoadState('networkidle');
 
-    // Find and delete Acme Corporation
+    // Find and delete Chattanooga Public Library
     const acmeRow = page.locator(
-      '[data-testid^="company-row-"]:has-text("Acme")'
+      '[data-testid^="company-row-"]:has-text("Library")'
     );
     if ((await acmeRow.count()) > 0) {
       // Click on the row to open details drawer
@@ -473,14 +497,14 @@ test.describe('Blog Screenshot Capture', () => {
           await confirmButton.first().click();
         }
         await page.waitForTimeout(1000);
-        console.log('🧹 Cleaned up Acme Corporation demo company');
+        console.log('🧹 Cleaned up Chattanooga Public Library demo company');
       } else {
         console.log(
           '⚠️ Delete button not found - manual cleanup may be needed'
         );
       }
     } else {
-      console.log('ℹ️ No Acme company found to clean up');
+      console.log('ℹ️ No Library company found to clean up');
     }
   });
 });

@@ -12,6 +12,16 @@ echo "📦 Checking dependencies..."
 pnpm install --frozen-lockfile
 echo "✅ Dependencies are up-to-date"
 
+# Ensure Playwright browsers are installed (handles version updates)
+echo "🎭 Checking Playwright browsers..."
+if pnpm exec playwright install chromium --dry-run 2>&1 | grep -q "already installed"; then
+  echo "✅ Playwright browsers up-to-date"
+else
+  echo "📥 Installing Playwright browsers..."
+  pnpm exec playwright install chromium
+  echo "✅ Playwright browsers installed"
+fi
+
 # .next directory cleanup - remove if exists to prevent permission issues
 echo "🧹 Cleaning .next directory..."
 if [ -d "/app/.next" ]; then

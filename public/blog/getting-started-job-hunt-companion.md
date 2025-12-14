@@ -43,27 +43,27 @@ Let's walk through adding your first company and tracking an application.
 
 After signing in, head to the **Companies** page. Here's where you'll build your list of potential employers.
 
-### Adding "Acme Corporation"
+### Adding the Chattanooga Public Library
 
-Click the **Add Company** button to open the form. Let's add a fictional company to see how it works:
+Click the **Add Company** button to open the form. Let's add a real location to see how it works:
 
-![Adding Acme Corporation to your company list](/blog-images/getting-started-job-hunt-companion/add-company-form.png)
+![Adding a company to your list](/blog-images/getting-started-job-hunt-companion/add-company-form.png)
 _The company form lets you capture all the details you need_
 
 Fill in the basics:
 
-- **Company Name**: Acme Corporation
-- **Address**: 123 Innovation Drive, Tech City, CA 94000
-- **Website**: https://acme-corp.example.com
-- **Phone**: (555) 123-4567
+- **Company Name**: Chattanooga Public Library
+- **Address**: 1001 Broad St, Chattanooga, TN 37402
+- **Website**: https://chattlibrary.org
+- **Phone**: (423) 757-5310
 
 ### Adding Contact Information
 
 The best job searches involve real connections. Add your contact at the company:
 
-- **Contact Name**: Sarah Johnson
-- **Contact Title**: HR Manager
-- **Email**: sarah.johnson@acme-corp.example.com
+- **Contact Name**: Human Resources
+- **Contact Title**: HR Department
+- **Email**: jobs@chattlibrary.org
 
 ### Setting Status and Priority
 
@@ -82,15 +82,21 @@ Set **Priority** (1-5) to focus on your top picks first.
 
 Use the **Notes** field for anything helpful:
 
-> "Spoke with Sarah at job fair on 12/10. She mentioned they're expanding the delivery team in January. She said to follow up after the holidays."
+> "Saw job posting for Library Assistant position. Hours are flexible, good for someone rebuilding. Apply online or in person."
 
 Click **Save** and your company is tracked!
+
+### Setting Your Home Location
+
+Before adding companies, set your **Home Location** in your profile. This lets SpokeToWork calculate distances and plan efficient routes.
+
+For this demo, we're using **Community Kitchen** (727 E 11th St, Chattanooga, TN 37403) as our starting point - a real resource for folks getting back on their feet.
 
 ---
 
 ## Step 2: View Your Companies
 
-![The companies list showing Acme Corporation](/blog-images/getting-started-job-hunt-companion/companies-list.png)
+![The companies list showing your tracked locations](/blog-images/getting-started-job-hunt-companion/companies-list.png)
 _Your company list shows status, priority, and latest application at a glance_
 
 Your companies page shows:
@@ -107,18 +113,18 @@ Click any company to see the full details drawer with all your notes, contacts, 
 
 ## Step 3: Track a Job Application
 
-Found a job posting at Acme? Let's track it!
+Found a job posting? Let's track it!
 
 ### Adding an Application
 
-Click on Acme Corporation to open the details drawer, then click **Add Application**.
+Click on the Chattanooga Public Library to open the details drawer, then click **Add Application**.
 
-![Adding a job application for Acme](/blog-images/getting-started-job-hunt-companion/add-application.png)
+![Adding a job application](/blog-images/getting-started-job-hunt-companion/add-application.png)
 _Track each application with position details and dates_
 
 Fill in:
 
-- **Position Title**: Delivery Driver
+- **Position Title**: Library Assistant
 - **Date Applied**: December 14, 2025
 - **Status**: Applied
 
@@ -159,9 +165,11 @@ _Plan your route and mark which companies to visit on your next trip_
 ### Creating a Route
 
 1. Click **Create Route** in the sidebar
-2. Name it (e.g., "Downtown Job Search - Week 1")
+2. Name it (e.g., "Downtown Chattanooga - Week 1")
 3. Add companies from your list to the route
 4. Drag to reorder your stops
+
+For example, a route from Community Kitchen to the library, then to other downtown locations like the Chattanooga Convention Center or City Hall - all within biking distance.
 
 ### The "Next Ride" Feature
 
