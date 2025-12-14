@@ -1,5 +1,5 @@
 ---
-description: Identify underspecified areas in the current feature spec by asking up to 5 highly targeted clarification questions and encoding answers back into the spec.
+description: Identify ALL underspecified areas in the current feature spec by asking as many clarification questions as needed until ALL taxonomy categories are Clear, encoding answers back into the spec.
 handoffs:
   - label: Build Technical Plan
     agent: speckit.plan
@@ -85,8 +85,8 @@ Execution steps:
    - Clarification would not materially change implementation or validation strategy
    - Information is better deferred to planning phase (note internally)
 
-3. Generate (internally) a prioritized queue of candidate clarification questions (maximum 5). Do NOT output them all at once. Apply these constraints:
-   - Maximum of 10 total questions across the whole session.
+3. Generate (internally) a prioritized queue of candidate clarification questions for ALL unresolved categories. Do NOT output them all at once. Apply these constraints:
+   - **NO QUESTION LIMIT** - Continue until ALL taxonomy categories reach "Clear" status.
    - Each question must be answerable with EITHER:
      - A short multiple‑choice selection (2–5 distinct, mutually exclusive options), OR
      - A one-word / short‑phrase answer (explicitly constrain: "Answer in <=5 words").
@@ -94,7 +94,7 @@ Execution steps:
    - Ensure category coverage balance: attempt to cover the highest impact unresolved categories first; avoid asking two low-impact questions when a single high-impact area (e.g., security posture) is unresolved.
    - Exclude questions already answered, trivial stylistic preferences, or plan-level execution details (unless blocking correctness).
    - Favor clarifications that reduce downstream rework risk or prevent misaligned acceptance tests.
-   - If more than 5 categories remain unresolved, select the top 5 by (Impact \* Uncertainty) heuristic.
+   - Address ALL unresolved categories in priority order until complete - do not truncate or skip.
 
 4. Sequential questioning loop (interactive):
    - Present EXACTLY ONE question at a time.
@@ -125,12 +125,12 @@ Execution steps:
      - Otherwise, validate the answer maps to one option or fits the <=5 word constraint.
      - If ambiguous, ask for a quick disambiguation (count still belongs to same question; do not advance).
      - Once satisfactory, record it in working memory (do not yet write to disk) and move to the next queued question.
-   - Stop asking further questions when:
-     - All critical ambiguities resolved early (remaining queued items become unnecessary), OR
-     - User signals completion ("done", "good", "no more"), OR
-     - You reach 5 asked questions.
+   - Stop asking further questions ONLY when:
+     - ALL taxonomy categories have reached "Clear" status (no Outstanding or Partial remaining), OR
+     - User explicitly requests "skip clarification" with acknowledgment of increased rework risk.
+   - **DO NOT** stop on casual signals like "done", "good", "no more" - these do not override the requirement for complete coverage.
    - Never reveal future queued questions in advance.
-   - If no valid questions exist at start, immediately report no critical ambiguities.
+   - If no valid questions exist at start (all categories already Clear), immediately report full coverage.
 
 5. Integration after EACH accepted answer (incremental update approach):
    - Maintain in-memory representation of the spec (loaded once at start) plus the raw file contents.
@@ -152,7 +152,7 @@ Execution steps:
 
 6. Validation (performed after EACH write plus final pass):
    - Clarifications session contains exactly one bullet per accepted answer (no duplicates).
-   - Total asked (accepted) questions ≤ 5.
+   - ALL taxonomy categories must reach "Clear" status before completion.
    - Updated sections contain no lingering vague placeholders the new answer was meant to resolve.
    - No contradictory earlier statement remains (scan for now-invalid alternative choices removed).
    - Markdown structure valid; only allowed new headings: `## Clarifications`, `### Session YYYY-MM-DD`.
@@ -160,22 +160,23 @@ Execution steps:
 
 7. Write the updated spec back to `FEATURE_SPEC`.
 
-8. Report completion (after questioning loop ends or early termination):
+8. Report completion (after ALL categories reach Clear or user explicitly skips):
    - Number of questions asked & answered.
    - Path to updated spec.
    - Sections touched (list names).
-   - Coverage summary table listing each taxonomy category with Status: Resolved (was Partial/Missing and addressed), Deferred (exceeds question quota or better suited for planning), Clear (already sufficient), Outstanding (still Partial/Missing but low impact).
-   - If any Outstanding or Deferred remain, recommend whether to proceed to `/speckit.plan` or run `/speckit.clarify` again later post-plan.
+   - Coverage summary table listing each taxonomy category with Status: Clear (addressed or already sufficient).
+   - **All categories must show "Clear"** - no Outstanding or Deferred categories allowed unless user explicitly skipped with risk acknowledgment.
+   - If user skipped with unresolved categories, list them as "Skipped (user acknowledged risk)" and warn about downstream rework.
    - Suggested next command.
 
 Behavior rules:
 
-- If no meaningful ambiguities found (or all potential questions would be low-impact), respond: "No critical ambiguities detected worth formal clarification." and suggest proceeding.
+- If all categories are already Clear, respond: "All taxonomy categories are Clear. No clarification needed." and suggest proceeding.
 - If spec file missing, instruct user to run `/speckit.specify` first (do not create a new spec here).
-- Never exceed 5 total asked questions (clarification retries for a single question do not count as new questions).
+- **NO QUESTION LIMIT** - Ask as many questions as needed until ALL categories are Clear.
 - Avoid speculative tech stack questions unless the absence blocks functional clarity.
-- Respect user early termination signals ("stop", "done", "proceed").
-- If no questions asked due to full coverage, output a compact coverage summary (all categories Clear) then suggest advancing.
-- If quota reached with unresolved high-impact categories remaining, explicitly flag them under Deferred with rationale.
+- **DO NOT** respect casual early termination signals ("done", "good", "proceed") - only stop on explicit "skip clarification" with risk acknowledgment.
+- If user says "skip clarification", confirm they understand unresolved categories will increase rework risk, then proceed.
+- The goal is **complete coverage** - all categories Clear before proceeding to `/speckit.plan`.
 
 Context for prioritization: $ARGUMENTS
