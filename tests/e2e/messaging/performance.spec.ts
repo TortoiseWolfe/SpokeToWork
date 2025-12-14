@@ -14,8 +14,7 @@ import { test, expect } from '@playwright/test';
 // Test configuration
 const TEST_USER_EMAIL =
   process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com';
-const TEST_USER_PASSWORD =
-  process.env.TEST_USER_PRIMARY_PASSWORD || 'TestPassword123!';
+const TEST_USER_PASSWORD = process.env.TEST_USER_PRIMARY_PASSWORD!;
 
 test.describe('Virtual Scrolling Performance', () => {
   test.beforeEach(async ({ page }) => {

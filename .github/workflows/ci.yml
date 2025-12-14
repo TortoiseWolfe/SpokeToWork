@@ -57,6 +57,24 @@ jobs:
       - name: Security audit
         run: pnpm audit
 
+      - name: Check for SQL injection patterns
+        run: |
+          echo "Checking for unsafe SQL interpolation patterns in test files..."
+          # Pattern: '${variable}' without escapeSQL nearby
+          # This finds lines with template literal SQL that don't use escapeSQL
+          UNSAFE_PATTERNS=$(grep -rn "'\\\${" tests/ | grep -v "escapeSQL\|safeUserId\|safeEmail\|safePassword\|safeAdminId" | grep -v "node_modules" || true)
+
+          if [ -n "$UNSAFE_PATTERNS" ]; then
+            echo "ERROR: Found potentially unsafe SQL interpolation patterns:"
+            echo "$UNSAFE_PATTERNS"
+            echo ""
+            echo "All SQL string interpolation must use escapeSQL() or safe* variables."
+            echo "See docs/specs/047-test-security for details."
+            exit 1
+          fi
+
+          echo "SQL injection check passed - all interpolations use escapeSQL"
+
       - name: Generate project configuration
         run: node scripts/detect-project.js
 

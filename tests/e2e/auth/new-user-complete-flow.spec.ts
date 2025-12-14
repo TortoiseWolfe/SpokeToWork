@@ -124,16 +124,18 @@ async function createTestUserDirect(
   }
 
   // Create identity record (required for sign-in)
+  // All interpolated values use escapeSQL to prevent injection (047-test-security)
+  const safeUserId = escapeSQL(userId);
   const createIdentitySQL = `
     INSERT INTO auth.identities (
       id, user_id, provider_id, provider, identity_data,
       last_sign_in_at, created_at, updated_at
     ) VALUES (
       gen_random_uuid(),
-      '${userId}',
+      '${safeUserId}',
       '${safeEmail}',
       'email',
-      '{"sub":"${userId}","email":"${safeEmail}","email_verified":true}'::jsonb,
+      '{"sub":"${safeUserId}","email":"${safeEmail}","email_verified":true}'::jsonb,
       NOW(), NOW(), NOW()
     )
   `;
@@ -146,8 +148,12 @@ async function deleteTestUser(userId: string): Promise<void> {
   if (!isValidUUID(userId)) {
     throw new Error(`Invalid user ID for deletion: ${userId}`);
   }
-  await executeSQL(`DELETE FROM auth.identities WHERE user_id = '${userId}'`);
-  await executeSQL(`DELETE FROM auth.users WHERE id = '${userId}'`);
+  // All interpolated values use escapeSQL to prevent injection (047-test-security)
+  const safeUserId = escapeSQL(userId);
+  await executeSQL(
+    `DELETE FROM auth.identities WHERE user_id = '${safeUserId}'`
+  );
+  await executeSQL(`DELETE FROM auth.users WHERE id = '${safeUserId}'`);
 }
 
 async function getUserProfile(
@@ -156,8 +162,9 @@ async function getUserProfile(
   if (!isValidUUID(userId)) {
     throw new Error(`Invalid user ID for profile lookup: ${userId}`);
   }
+  // All interpolated values use escapeSQL to prevent injection (047-test-security)
   const result = (await executeSQL(
-    `SELECT metro_area_id FROM user_profiles WHERE id = '${userId}'`
+    `SELECT metro_area_id FROM user_profiles WHERE id = '${escapeSQL(userId)}'`
   )) as { metro_area_id: string | null }[];
   return result[0] || null;
 }
@@ -166,8 +173,9 @@ async function getUserCompanyCount(userId: string): Promise<number> {
   if (!isValidUUID(userId)) {
     throw new Error(`Invalid user ID for company count: ${userId}`);
   }
+  // All interpolated values use escapeSQL to prevent injection (047-test-security)
   const result = (await executeSQL(
-    `SELECT COUNT(*) as count FROM user_company_tracking WHERE user_id = '${userId}'`
+    `SELECT COUNT(*) as count FROM user_company_tracking WHERE user_id = '${escapeSQL(userId)}'`
   )) as { count: string }[];
   return parseInt(result[0]?.count || '0', 10);
 }
@@ -230,13 +238,14 @@ test.describe('New User Complete Flow', () => {
       if (!isValidUUID(testUserId!)) {
         throw new Error(`Invalid test user ID: ${testUserId}`);
       }
+      // All interpolated values use escapeSQL to prevent injection (047-test-security)
       await executeSQL(`
         UPDATE user_profiles
         SET home_address = '1450 Blythe Ferry Rd NE Cleveland TN 37312',
             home_latitude = 35.17783840,
             home_longitude = -84.83535530,
             distance_radius_miles = 20
-        WHERE id = '${testUserId}'
+        WHERE id = '${escapeSQL(testUserId!)}'
       `);
 
       // Verify metro area was assigned by trigger

@@ -21,6 +21,9 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 // Service role client for test setup/teardown (bypasses RLS)
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
+// Test password from env for ephemeral test users
+const TEST_EPHEMERAL_PASSWORD = process.env.TEST_USER_PRIMARY_PASSWORD!;
+
 // Test user IDs (we'll create these users in beforeAll)
 let testUser1Id: string;
 let testUser2Id: string;
@@ -31,17 +34,17 @@ describe('ConnectionService Integration Tests', () => {
     // Create test users
     const { data: user1 } = await supabaseAdmin.auth.admin.createUser({
       email: 'connection-test-user1@example.com',
-      password: 'TestPassword123!',
+      password: TEST_EPHEMERAL_PASSWORD,
       email_confirm: true,
     });
     const { data: user2 } = await supabaseAdmin.auth.admin.createUser({
       email: 'connection-test-user2@example.com',
-      password: 'TestPassword123!',
+      password: TEST_EPHEMERAL_PASSWORD,
       email_confirm: true,
     });
     const { data: user3 } = await supabaseAdmin.auth.admin.createUser({
       email: 'connection-test-user3@example.com',
-      password: 'TestPassword123!',
+      password: TEST_EPHEMERAL_PASSWORD,
       email_confirm: true,
     });
 
@@ -330,7 +333,7 @@ describe('ConnectionService Integration Tests', () => {
       // Sign in as test user 1
       const { data: session } = await supabaseAdmin.auth.signInWithPassword({
         email: 'connection-test-user1@example.com',
-        password: 'TestPassword123!',
+        password: TEST_EPHEMERAL_PASSWORD,
       });
 
       const authenticatedClient = createClient(

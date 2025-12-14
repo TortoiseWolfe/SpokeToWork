@@ -29,8 +29,7 @@ describe('Avatar Upload Integration Flow', () => {
   beforeAll(async () => {
     // Sign in test user
     const testEmail = process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com';
-    const testPassword =
-      process.env.TEST_USER_PRIMARY_PASSWORD || 'TestPassword123!';
+    const testPassword = process.env.TEST_USER_PRIMARY_PASSWORD!;
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email: testEmail,
@@ -245,8 +244,7 @@ describe('Avatar Upload Integration Flow', () => {
 
     // Re-authenticate for cleanup
     const testEmail = process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com';
-    const testPassword =
-      process.env.TEST_USER_PRIMARY_PASSWORD || 'TestPassword123!';
+    const testPassword = process.env.TEST_USER_PRIMARY_PASSWORD!;
     await supabase.auth.signInWithPassword({
       email: testEmail,
       password: testPassword,

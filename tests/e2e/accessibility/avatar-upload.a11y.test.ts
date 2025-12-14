@@ -21,8 +21,7 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
   test.beforeEach(async ({ page }) => {
     // Authenticate test user
     const testEmail = process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com';
-    const testPassword =
-      process.env.TEST_USER_PRIMARY_PASSWORD || 'TestPassword123!';
+    const testPassword = process.env.TEST_USER_PRIMARY_PASSWORD!;
 
     await page.goto('/sign-in');
     await page.fill('input[type="email"]', testEmail);

@@ -456,11 +456,12 @@ import { createClient } from '@/lib/supabase/client';
 
 describe('MessageService Integration', () => {
   beforeEach(async () => {
-    // Sign in as test user
+    // Sign in as test user - credentials from environment variables
+    // See CLAUDE.md: Test Users section for configuration
     const supabase = createClient();
     await supabase.auth.signInWithPassword({
-      email: 'test@example.com',
-      password: 'TestPassword123!',
+      email: process.env.TEST_USER_PRIMARY_EMAIL!,
+      password: process.env.TEST_USER_PRIMARY_PASSWORD!,
     });
   });
 

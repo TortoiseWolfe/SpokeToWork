@@ -16,7 +16,7 @@ const BASE_URL = 'http://localhost:3000';
 // Test users from environment
 const PRIMARY_USER = {
   email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
-  password: process.env.TEST_USER_PRIMARY_PASSWORD || 'TestPassword123!',
+  password: process.env.TEST_USER_PRIMARY_PASSWORD!,
 };
 
 // Messaging password is the same as login password for encryption key derivation

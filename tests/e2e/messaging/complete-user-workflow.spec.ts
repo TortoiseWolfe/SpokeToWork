@@ -8,13 +8,13 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const USER_A = {
   email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
-  password: process.env.TEST_USER_PRIMARY_PASSWORD || 'TestPassword123!',
+  password: process.env.TEST_USER_PRIMARY_PASSWORD!,
 };
 
 const USER_B = {
   username: 'testuser-b',
   email: process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com',
-  password: process.env.TEST_USER_TERTIARY_PASSWORD || 'TestPassword456!',
+  password: process.env.TEST_USER_TERTIARY_PASSWORD!,
 };
 
 let adminClient: SupabaseClient | null = null;

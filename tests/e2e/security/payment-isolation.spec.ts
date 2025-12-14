@@ -7,12 +7,12 @@ import { test, expect } from '@playwright/test';
 // Test users
 const USER_A = {
   email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
-  password: process.env.TEST_USER_PRIMARY_PASSWORD || 'TestPassword123!',
+  password: process.env.TEST_USER_PRIMARY_PASSWORD!,
 };
 
 const USER_B = {
   email: process.env.TEST_USER_SECONDARY_EMAIL || 'test2@example.com',
-  password: process.env.TEST_USER_SECONDARY_PASSWORD || 'TestPassword123!',
+  password: process.env.TEST_USER_SECONDARY_PASSWORD!,
 };
 
 test.describe('Payment Isolation E2E - REQ-SEC-001', () => {

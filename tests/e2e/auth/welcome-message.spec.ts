@@ -84,21 +84,22 @@ test.describe('Welcome Message Flow', () => {
     const testUserId = users[0].id;
 
     // Reset test user state: delete any existing keys and messages
+    // All interpolated values use escapeSQL to prevent injection (047-test-security)
     await executeSQL(
-      `DELETE FROM user_encryption_keys WHERE user_id = '${testUserId}'`
+      `DELETE FROM user_encryption_keys WHERE user_id = '${escapeSQL(testUserId)}'`
     );
     await executeSQL(`
       DELETE FROM messages WHERE conversation_id IN (
         SELECT id FROM conversations
-        WHERE participant_1_id = '${testUserId}' OR participant_2_id = '${testUserId}'
+        WHERE participant_1_id = '${escapeSQL(testUserId)}' OR participant_2_id = '${escapeSQL(testUserId)}'
       )
     `);
     await executeSQL(`
       DELETE FROM conversations
-      WHERE participant_1_id = '${testUserId}' OR participant_2_id = '${testUserId}'
+      WHERE participant_1_id = '${escapeSQL(testUserId)}' OR participant_2_id = '${escapeSQL(testUserId)}'
     `);
     await executeSQL(
-      `UPDATE user_profiles SET welcome_message_sent = false WHERE id = '${testUserId}'`
+      `UPDATE user_profiles SET welcome_message_sent = false WHERE id = '${escapeSQL(testUserId)}'`
     );
 
     console.log(`Reset test user ${testUserId} state`);
@@ -149,8 +150,9 @@ test.describe('Welcome Message Flow', () => {
     console.log(`Admin user ID: ${adminUserId}`);
 
     // Check welcome_message_sent flag
+    // All interpolated values use escapeSQL to prevent injection (047-test-security)
     const profiles = (await executeSQL(
-      `SELECT welcome_message_sent FROM user_profiles WHERE id = '${testUserId}'`
+      `SELECT welcome_message_sent FROM user_profiles WHERE id = '${escapeSQL(testUserId)}'`
     )) as { welcome_message_sent: boolean }[];
     console.log(`welcome_message_sent: ${profiles[0]?.welcome_message_sent}`);
 
@@ -158,8 +160,8 @@ test.describe('Welcome Message Flow', () => {
     const conversations = (await executeSQL(`
       SELECT id, participant_1_id, participant_2_id
       FROM conversations
-      WHERE (participant_1_id = '${testUserId}' AND participant_2_id = '${adminUserId}')
-         OR (participant_1_id = '${adminUserId}' AND participant_2_id = '${testUserId}')
+      WHERE (participant_1_id = '${escapeSQL(testUserId)}' AND participant_2_id = '${escapeSQL(adminUserId)}')
+         OR (participant_1_id = '${escapeSQL(adminUserId)}' AND participant_2_id = '${escapeSQL(testUserId)}')
     `)) as { id: string; participant_1_id: string; participant_2_id: string }[];
     console.log(`Conversations with admin: ${conversations.length}`);
 
@@ -169,8 +171,8 @@ test.describe('Welcome Message Flow', () => {
       messages = (await executeSQL(`
         SELECT id, sender_id
         FROM messages
-        WHERE conversation_id = '${conversations[0].id}'
-        AND sender_id = '${adminUserId}'
+        WHERE conversation_id = '${escapeSQL(conversations[0].id)}'
+        AND sender_id = '${escapeSQL(adminUserId)}'
       `)) as { id: string; sender_id: string }[];
       console.log(`Messages from admin: ${messages.length}`);
     }

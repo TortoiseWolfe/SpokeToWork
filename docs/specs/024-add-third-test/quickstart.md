@@ -35,22 +35,24 @@ docker compose up -d
 grep "TEST_USER" .env
 ```
 
-**Expected output**:
+**Expected output** (values are placeholders - use your actual secure credentials):
 
 ```
-TEST_USER_PRIMARY_EMAIL=test@example.com
-TEST_USER_PRIMARY_PASSWORD=TestPassword123!
-TEST_USER_TERTIARY_EMAIL=test-user-b@example.com
-TEST_USER_TERTIARY_PASSWORD=TestPassword456!
+TEST_USER_PRIMARY_EMAIL=<your-primary-test-email>
+TEST_USER_PRIMARY_PASSWORD=<your-secure-password>
+TEST_USER_TERTIARY_EMAIL=<your-tertiary-test-email>
+TEST_USER_TERTIARY_PASSWORD=<your-secure-password>
 SUPABASE_SERVICE_ROLE_KEY=eyJ... (long JWT token)
 ```
+
+> **SECURITY NOTE**: Never commit actual credentials. See `CLAUDE.md: Test Users` section for details.
 
 **If missing, add them**:
 
 ```bash
-# Add to .env file
-echo "TEST_USER_TERTIARY_EMAIL=test-user-b@example.com" >> .env
-echo "TEST_USER_TERTIARY_PASSWORD=TestPassword456!" >> .env
+# Add to .env file (replace with actual secure credentials)
+echo "TEST_USER_TERTIARY_EMAIL=<your-tertiary-email>" >> .env
+echo "TEST_USER_TERTIARY_PASSWORD=<your-secure-password>" >> .env
 ```
 
 ---
