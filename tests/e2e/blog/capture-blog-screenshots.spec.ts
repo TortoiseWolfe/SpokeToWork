@@ -1,11 +1,15 @@
 /**
  * E2E Test: Capture Screenshots for Blog Post
  *
- * This spec captures screenshots demonstrating the "Chattanooga Public Library"
- * demo flow for the job seeker introduction blog post.
+ * This spec captures screenshots demonstrating the job seeker flow
+ * for the getting started blog post.
  *
- * Uses SECONDARY test user to ensure clean demo data (not personal account).
- * Creates 3 demo companies and 1 application, then cleans up after.
+ * Uses SECONDARY test user to ensure clean demo data.
+ * Flow:
+ * 1. Set home location (Community Kitchen - soup kitchen starting point)
+ * 2. Add Chattanooga Public Library as a company
+ * 3. Capture companies list, application form, route sidebar, map view
+ * 4. Clean up demo data
  *
  * Screenshots saved to: public/blog-images/getting-started-job-hunt-companion/
  */
@@ -20,7 +24,7 @@ const SCREENSHOT_DIR = path.join(
   'public/blog-images/getting-started-job-hunt-companion'
 );
 
-// Use SECONDARY test user for clean demo screenshots (not personal account with 83 companies)
+// Use SECONDARY test user for clean demo screenshots
 const testEmail = process.env.TEST_USER_SECONDARY_EMAIL;
 const testPassword = process.env.TEST_USER_SECONDARY_PASSWORD;
 
@@ -32,7 +36,13 @@ if (!testEmail || !testPassword) {
 
 const TEST_USER = { email: testEmail, password: testPassword };
 
-// Chattanooga Public Library - real geocodable address
+// Community Kitchen - soup kitchen as starting point (home location)
+const HOME_LOCATION = {
+  address: '727 E 11th St, Chattanooga, TN 37403',
+  name: 'Community Kitchen',
+};
+
+// Chattanooga Public Library - main demo company
 const LIBRARY_COMPANY = {
   name: 'Chattanooga Public Library',
   address: '1001 Broad St, Chattanooga, TN 37402',
@@ -45,38 +55,13 @@ const LIBRARY_COMPANY = {
     'Saw job posting for Library Assistant position. Hours are flexible, good for someone rebuilding.',
 };
 
-// Additional real Chattanooga locations for demo
-const DEMO_COMPANIES = [
-  {
-    name: 'Chattanooga Convention Center',
-    address: '1 Carter Plaza, Chattanooga, TN 37402',
-    website: 'https://chattanoogaconventioncenter.com',
-    phone: '(423) 756-0001',
-    contactName: 'Events Staff',
-    contactTitle: 'Event Coordinator',
-    contactEmail: 'events@chattanoogacc.com',
-    notes: 'Looking for event setup and hospitality positions.',
-  },
-  {
-    name: 'Chattanooga City Hall',
-    address: '101 E 11th St, Chattanooga, TN 37402',
-    website: 'https://chattanooga.gov',
-    phone: '(423) 643-7800',
-    contactName: 'City HR',
-    contactTitle: 'Human Resources',
-    contactEmail: 'hr@chattanooga.gov',
-    notes:
-      'Check city job postings monthly. Various entry-level positions available.',
-  },
-];
-
 const LIBRARY_APPLICATION = {
   position: 'Library Assistant',
   dateApplied: '2025-12-14',
   status: 'applied',
 };
 
-test.describe('Blog Screenshot Capture', () => {
+test.describe.serial('Blog Screenshot Capture', () => {
   let context: BrowserContext;
   let page: Page;
 
@@ -92,48 +77,90 @@ test.describe('Blog Screenshot Capture', () => {
     });
     page = await context.newPage();
 
-    // Dismiss CountdownBanner before any navigation (prevents modal in screenshots)
+    // Dismiss CountdownBanner before any navigation
     await page.addInitScript(() => {
       localStorage.setItem('countdown-dismissed', Date.now().toString());
     });
 
-    // Sign in with SECONDARY test user (cleaner than primary account with 83 companies)
+    // Sign in with SECONDARY test user
     await page.goto(`${BASE_URL}/sign-in`);
     await page.fill('input[type="email"]', TEST_USER.email);
     await page.fill('input[type="password"]', TEST_USER.password);
     await page.click('button[type="submit"]');
 
-    // Wait for redirect to profile or companies
+    // Wait for redirect
     await page.waitForURL(/\/(profile|companies|account)/, { timeout: 15000 });
 
-    console.log(
-      '✅ Signed in as SECONDARY test user, CountdownBanner dismissed'
-    );
+    console.log('✅ Signed in as SECONDARY test user');
   });
 
   test.afterAll(async () => {
     await context?.close();
   });
 
-  test('1. Capture Add Company Form with Library data', async () => {
+  test('1. Set Home Location (Community Kitchen)', async () => {
+    // Navigate to companies page where HomeLocationSettings appears
+    await page.goto(`${BASE_URL}/companies`);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1000);
+
+    // Look for the HomeLocationSettings component
+    const homeLocationSettings = page.locator(
+      '[data-testid="home-location-settings"]'
+    );
+
+    if ((await homeLocationSettings.count()) > 0) {
+      // Fill in Community Kitchen address
+      const addressInput = page.locator('#home-address');
+      await addressInput.fill(HOME_LOCATION.address);
+
+      // Click Geocode button
+      const geocodeButton = page.locator(
+        '[data-testid="home-location-settings"] button:has-text("Geocode")'
+      );
+      if ((await geocodeButton.count()) > 0) {
+        await geocodeButton.click();
+        // Wait for geocoding
+        await page.waitForTimeout(3000);
+      }
+
+      // Click Save Home Location
+      const saveButton = page.locator(
+        'button:has-text("Save Home Location"), button:has-text("Save")'
+      );
+      if (
+        (await saveButton.count()) > 0 &&
+        (await saveButton.first().isEnabled())
+      ) {
+        await saveButton.first().click();
+        await page.waitForTimeout(2000);
+        console.log('✅ Set home location to Community Kitchen');
+      } else {
+        console.log(
+          '⚠️ Could not save home location (geocoding may have failed)'
+        );
+      }
+    } else {
+      console.log('ℹ️ Home location already set or settings not visible');
+    }
+
+    // Reload to see updated state
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+  });
+
+  test('2. Capture Add Company Form with Library data', async () => {
     // Navigate to companies page
     await page.goto(`${BASE_URL}/companies`);
     await page.waitForLoadState('networkidle');
-
-    // Wait for page to load
     await page.waitForTimeout(1000);
 
-    // Click Add Company button (toggles inline form, not modal)
+    // Click Add Company button
     const addButton = page.locator('button:has-text("Add Company")');
     await addButton.click();
-
-    // Wait for form to appear (inline form, not modal)
     await page.waitForTimeout(500);
 
-    // Look for the CompanyForm - it has a card structure
-    const formCard = page.locator('.card, form').first();
-
-    // Fill in Chattanooga Public Library data - look for form inputs
+    // Fill in Chattanooga Public Library data
     const nameInput = page
       .locator('input[name="name"], #name, input[placeholder*="company"]')
       .first();
@@ -141,28 +168,27 @@ test.describe('Blog Screenshot Capture', () => {
       await nameInput.fill(LIBRARY_COMPANY.name);
     }
 
-    // Try to fill address field
+    // Fill address
     const addressInput = page.locator(
-      'input[name="address"], input[placeholder*="address"], #address, input[placeholder*="Address"]'
+      'input[name="address"], input[placeholder*="address"], #address'
     );
     if ((await addressInput.count()) > 0) {
       await addressInput.first().fill(LIBRARY_COMPANY.address);
 
-      // Click Geocode button to resolve address to coordinates
+      // Click Geocode button
       const geocodeButton = page.locator('button:has-text("Geocode")');
       if (
         (await geocodeButton.count()) > 0 &&
         (await geocodeButton.first().isEnabled())
       ) {
         await geocodeButton.first().click();
-        // Wait for geocoding to complete (loading spinner to disappear)
-        await page.waitForTimeout(2000);
+        await page.waitForTimeout(3000);
       }
     }
 
     // Fill website
     const websiteInput = page.locator(
-      'input[name="website"], input[type="url"], #website, input[placeholder*="website"]'
+      'input[name="website"], input[type="url"], #website'
     );
     if ((await websiteInput.count()) > 0) {
       await websiteInput.first().fill(LIBRARY_COMPANY.website);
@@ -170,7 +196,7 @@ test.describe('Blog Screenshot Capture', () => {
 
     // Fill phone
     const phoneInput = page.locator(
-      'input[name="phone"], input[type="tel"], #phone, input[placeholder*="phone"]'
+      'input[name="phone"], input[type="tel"], #phone'
     );
     if ((await phoneInput.count()) > 0) {
       await phoneInput.first().fill(LIBRARY_COMPANY.phone);
@@ -178,21 +204,21 @@ test.describe('Blog Screenshot Capture', () => {
 
     // Fill contact info
     const contactNameInput = page.locator(
-      'input[name="contactName"], input[name="contact_name"], #contactName, #contact-name, input[placeholder*="contact name"]'
+      'input[name="contactName"], input[name="contact_name"], #contactName'
     );
     if ((await contactNameInput.count()) > 0) {
       await contactNameInput.first().fill(LIBRARY_COMPANY.contactName);
     }
 
     const contactTitleInput = page.locator(
-      'input[name="contactTitle"], input[name="contact_title"], #contactTitle, #contact-title, input[placeholder*="title"]'
+      'input[name="contactTitle"], input[name="contact_title"], #contactTitle'
     );
     if ((await contactTitleInput.count()) > 0) {
       await contactTitleInput.first().fill(LIBRARY_COMPANY.contactTitle);
     }
 
     const contactEmailInput = page.locator(
-      'input[name="contactEmail"], input[name="contact_email"], #contactEmail, #contact-email, input[placeholder*="email"]'
+      'input[name="contactEmail"], input[name="contact_email"], #contactEmail'
     );
     if ((await contactEmailInput.count()) > 0) {
       await contactEmailInput.first().fill(LIBRARY_COMPANY.contactEmail);
@@ -204,10 +230,9 @@ test.describe('Blog Screenshot Capture', () => {
       await notesInput.first().fill(LIBRARY_COMPANY.notes);
     }
 
-    // Wait a moment for form to settle
     await page.waitForTimeout(500);
 
-    // Capture screenshot of the entire page showing the form
+    // Capture screenshot
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'add-company-form.png'),
       fullPage: false,
@@ -215,50 +240,37 @@ test.describe('Blog Screenshot Capture', () => {
 
     console.log('✅ Captured: add-company-form.png');
 
-    // Wait for geocoding to complete (address must be geocoded for submit to be enabled)
-    // The submit button is disabled until coordinates are obtained
-    await page.waitForTimeout(3000); // Allow time for geocoding API call
-
-    // Actually submit the form to create the company for later tests
+    // Submit the form to create the company
+    await page.waitForTimeout(2000);
     const submitButton = page.locator(
       'button[type="submit"]:has-text("Add Company"), button[type="submit"]:has-text("Save")'
     );
 
-    // Check if submit button is enabled (coordinates obtained)
     const isEnabled = await submitButton
       .first()
       .isEnabled()
       .catch(() => false);
     if (isEnabled) {
       await submitButton.first().click();
-      // Wait for form to close and company to be created
       await page.waitForTimeout(2000);
-      console.log('✅ Created Chattanooga Public Library for demo screenshots');
+      console.log('✅ Created Chattanooga Public Library');
     } else {
-      // Geocoding may have failed - cancel and skip company creation
-      console.log(
-        '⚠️ Submit button disabled (geocoding may have failed) - skipping company creation'
-      );
+      console.log('⚠️ Submit button disabled - skipping company creation');
       const cancelButton = page.locator('button:has-text("Cancel")');
       if ((await cancelButton.count()) > 0) {
         await cancelButton.first().click();
       }
     }
-
-    await page.waitForTimeout(500);
   });
 
-  test('2. Capture Companies List', async () => {
-    // Navigate to companies page
+  test('3. Capture Companies List', async () => {
     await page.goto(`${BASE_URL}/companies`);
     await page.waitForLoadState('networkidle');
 
-    // Wait for table to load
+    // Wait for table
     await page.waitForSelector('[data-testid="company-table"]', {
       timeout: 10000,
     });
-
-    // Wait a moment for any animations
     await page.waitForTimeout(500);
 
     // Capture the companies table area
@@ -272,51 +284,39 @@ test.describe('Blog Screenshot Capture', () => {
     console.log('✅ Captured: companies-list.png');
   });
 
-  test('3. Capture Add Application Form', async () => {
-    // Navigate to companies page
+  test('4. Capture Add Application Form', async () => {
     await page.goto(`${BASE_URL}/companies`);
     await page.waitForLoadState('networkidle');
 
-    // Wait for table to load
     await page.waitForSelector('[data-testid="company-table"]', {
       timeout: 10000,
     });
 
-    // Check if any companies exist
-    const anyCompanyRow = page.locator('[data-testid^="company-row-"]');
-    const companyCount = await anyCompanyRow.count();
+    // Find and click on Library row
+    const libraryRow = page.locator(
+      '[data-testid^="company-row-"]:has-text("Library")'
+    );
+    const anyRow = page.locator('[data-testid^="company-row-"]');
 
-    if (companyCount === 0) {
-      console.log(
-        '⚠️ No companies found - skipping Add Application Form screenshot'
-      );
-      console.log('   (Company creation may have failed due to geocoding)');
+    if ((await libraryRow.count()) > 0) {
+      await libraryRow.first().click();
+    } else if ((await anyRow.count()) > 0) {
+      await anyRow.first().click();
+    } else {
+      console.log('⚠️ No companies found - skipping application screenshot');
       return;
     }
 
-    // Find and click on Chattanooga Public Library row (or first company)
-    const acmeRow = page.locator(
-      '[data-testid^="company-row-"]:has-text("Library")'
-    );
-    if ((await acmeRow.count()) > 0) {
-      await acmeRow.first().click();
-    } else {
-      // Click first company row if Library not found
-      await anyCompanyRow.first().click();
-    }
-
-    // Wait for drawer to open
+    // Wait for drawer
     await page.waitForSelector('[data-testid="company-detail-drawer"]', {
       timeout: 5000,
     });
 
-    // Click Add Application button
-    const addAppButton = page.locator(
-      'button:has-text("Add Application"), [aria-label="Add application"]'
-    );
+    // Click Add Application
+    const addAppButton = page.locator('button:has-text("Add Application")');
     await addAppButton.first().click();
 
-    // Wait for application modal
+    // Wait for modal
     await page.waitForSelector('.modal.modal-open', { timeout: 5000 });
 
     // Fill in application data
@@ -327,7 +327,6 @@ test.describe('Blog Screenshot Capture', () => {
       await positionInput.first().fill(LIBRARY_APPLICATION.position);
     }
 
-    // Set date applied
     const dateInput = page.locator(
       '#date-applied, input[name="dateApplied"], input[type="date"]'
     );
@@ -335,7 +334,6 @@ test.describe('Blog Screenshot Capture', () => {
       await dateInput.first().fill(LIBRARY_APPLICATION.dateApplied);
     }
 
-    // Set status to Applied
     const statusSelect = page.locator('#status, select[name="status"]');
     if ((await statusSelect.count()) > 0) {
       await statusSelect.first().selectOption(LIBRARY_APPLICATION.status);
@@ -343,7 +341,7 @@ test.describe('Blog Screenshot Capture', () => {
 
     await page.waitForTimeout(500);
 
-    // Capture the application form
+    // Capture the modal
     const modal = page.locator('.modal.modal-open');
     await modal.screenshot({
       path: path.join(SCREENSHOT_DIR, 'add-application.png'),
@@ -351,7 +349,7 @@ test.describe('Blog Screenshot Capture', () => {
 
     console.log('✅ Captured: add-application.png');
 
-    // Cancel to avoid creating duplicate applications
+    // Cancel
     const cancelButton = page.locator('button:has-text("Cancel")');
     if ((await cancelButton.count()) > 0) {
       await cancelButton.first().click();
@@ -360,15 +358,11 @@ test.describe('Blog Screenshot Capture', () => {
     }
   });
 
-  test('4. Capture Route Sidebar', async () => {
-    // Navigate to companies page (routes sidebar should be visible on desktop)
+  test('5. Capture Route Sidebar', async () => {
     await page.goto(`${BASE_URL}/companies`);
     await page.waitForLoadState('networkidle');
-
-    // Wait for page to fully load
     await page.waitForTimeout(1000);
 
-    // Look for route sidebar or routes section
     const routeSidebar = page.locator(
       '[data-testid="route-sidebar"], .route-sidebar, aside:has-text("Route")'
     );
@@ -379,7 +373,6 @@ test.describe('Blog Screenshot Capture', () => {
       });
       console.log('✅ Captured: route-sidebar.png');
     } else {
-      // Try capturing the left sidebar area
       const sidebar = page.locator('aside, [role="complementary"]').first();
       if ((await sidebar.count()) > 0) {
         await sidebar.screenshot({
@@ -387,23 +380,23 @@ test.describe('Blog Screenshot Capture', () => {
         });
         console.log('✅ Captured: route-sidebar.png (sidebar area)');
       } else {
-        console.log('⚠️ Route sidebar not found - skipping');
+        console.log('⚠️ Route sidebar not found');
       }
     }
   });
 
-  test('5. Capture Map View', async () => {
-    // Navigate to map page
+  test('6. Capture Map View (Chattanooga)', async () => {
     await page.goto(`${BASE_URL}/map`);
     await page.waitForLoadState('networkidle');
 
-    // Wait for map to load (Leaflet creates this element)
+    // Wait for map
     await page.waitForSelector('.leaflet-container', { timeout: 15000 });
 
     // Wait for tiles to load
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(3000);
 
-    // Capture full page map view
+    // The map should now center on Chattanooga based on home location
+    // Take the screenshot
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'map-view.png'),
       fullPage: false,
@@ -412,27 +405,19 @@ test.describe('Blog Screenshot Capture', () => {
     console.log('✅ Captured: map-view.png');
   });
 
-  test('6. Capture Blog Page Preview', async () => {
-    // Navigate to the blog post to verify it renders
+  test('7. Capture Blog Page Preview', async () => {
     await page.goto(`${BASE_URL}/blog/getting-started-job-hunt-companion`);
     await page.waitForLoadState('networkidle');
-
-    // Wait for content
     await page.waitForTimeout(1000);
 
-    // Check if page loaded (might show 404 if images missing)
     const heading = page.locator('h1');
     if ((await heading.count()) > 0) {
       console.log('✅ Blog post page loads correctly');
-    } else {
-      console.log('⚠️ Blog post may have issues loading');
     }
 
-    // Also check blog listing
     await page.goto(`${BASE_URL}/blog`);
     await page.waitForLoadState('networkidle');
 
-    // Capture blog listing
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'blog-listing-preview.png'),
       fullPage: false,
@@ -441,8 +426,7 @@ test.describe('Blog Screenshot Capture', () => {
     console.log('✅ Captured: blog-listing-preview.png');
   });
 
-  test('7. Generate OG PNG from SVG', async () => {
-    // Load the SVG file directly in browser to render it as PNG
+  test('8. Generate OG PNG from SVG', async () => {
     const svgPath = path.join(SCREENSHOT_DIR, 'featured-og.svg');
 
     if (!fs.existsSync(svgPath)) {
@@ -450,46 +434,37 @@ test.describe('Blog Screenshot Capture', () => {
       return;
     }
 
-    // Set viewport to exact OG image dimensions
     await page.setViewportSize({ width: 1200, height: 630 });
-
-    // Load SVG file in browser
     await page.goto(`file://${svgPath}`);
     await page.waitForTimeout(500);
 
-    // Capture as PNG
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'featured-og.png'),
       fullPage: false,
     });
 
-    // Reset viewport for any subsequent tests
     await page.setViewportSize({ width: 1280, height: 800 });
 
     console.log('✅ Generated: featured-og.png (1200x630)');
   });
 
-  test('8. Cleanup demo data', async () => {
-    // Navigate to companies page
+  test('9. Cleanup demo data', async () => {
     await page.goto(`${BASE_URL}/companies`);
     await page.waitForLoadState('networkidle');
 
-    // Find and delete Chattanooga Public Library
-    const acmeRow = page.locator(
+    // Delete Chattanooga Public Library if it exists
+    const libraryRow = page.locator(
       '[data-testid^="company-row-"]:has-text("Library")'
     );
-    if ((await acmeRow.count()) > 0) {
-      // Click on the row to open details drawer
-      await acmeRow.first().click();
+    if ((await libraryRow.count()) > 0) {
+      await libraryRow.first().click();
       await page.waitForTimeout(500);
 
-      // Look for delete button in drawer
       const deleteButton = page.locator(
         'button:has-text("Delete"), button[aria-label="Delete company"]'
       );
       if ((await deleteButton.count()) > 0) {
         await deleteButton.first().click();
-        // Confirm deletion if dialog appears
         const confirmButton = page.locator(
           'button:has-text("Confirm"), button:has-text("Yes"), .modal button:has-text("Delete")'
         );
@@ -497,11 +472,7 @@ test.describe('Blog Screenshot Capture', () => {
           await confirmButton.first().click();
         }
         await page.waitForTimeout(1000);
-        console.log('🧹 Cleaned up Chattanooga Public Library demo company');
-      } else {
-        console.log(
-          '⚠️ Delete button not found - manual cleanup may be needed'
-        );
+        console.log('🧹 Cleaned up Library demo company');
       }
     } else {
       console.log('ℹ️ No Library company found to clean up');
