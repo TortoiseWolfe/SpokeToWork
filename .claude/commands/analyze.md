@@ -1,5 +1,5 @@
 ---
-description: Perform a non-destructive cross-artifact consistency and quality analysis across spec.md, plan.md, and tasks.md after task generation.
+description: Perform cross-artifact consistency analysis and automatically apply ALL remediations to spec.md, plan.md, and tasks.md until zero issues remain.
 ---
 
 The user input to you can be provided directly by the agent or as a command argument - you **MUST** consider it before proceeding with the prompt (if not empty).
@@ -8,9 +8,9 @@ User input:
 
 $ARGUMENTS
 
-Goal: Identify inconsistencies, duplications, ambiguities, and underspecified items across the three core artifacts (`spec.md`, `plan.md`, `tasks.md`) before implementation. This command MUST run only after `/tasks` has successfully produced a complete `tasks.md`.
+Goal: Identify inconsistencies, duplications, ambiguities, and underspecified items across the three core artifacts (`spec.md`, `plan.md`, `tasks.md`) and **automatically apply ALL remediations** until zero issues remain. This command MUST run only after `/tasks` has successfully produced a complete `tasks.md`.
 
-STRICTLY READ-ONLY: Do **not** modify any files. Output a structured analysis report. Offer an optional remediation plan (user must explicitly approve before any follow-up editing commands would be invoked manually).
+**FULL REMEDIATION MODE**: Automatically apply fixes for **ALL** identified issues (CRITICAL, HIGH, MEDIUM, LOW) without requiring user approval for each fix. The goal is zero issues remaining before proceeding to implementation.
 
 Constitution Authority: The project constitution (`.specify/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/analyze`.
 
@@ -86,19 +86,41 @@ Execution steps:
      - Duplication Count
      - Critical Issues Count
 
-7. At end of report, output a concise Next Actions block:
-   - If CRITICAL issues exist: Recommend resolving before `/implement`.
-   - If only LOW/MEDIUM: User may proceed, but provide improvement suggestions.
-   - Provide explicit command suggestions: e.g., "Run /specify with refinement", "Run /plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'".
+7. **Apply ALL Remediations** (do not ask for permission):
 
-8. Ask the user: "Would you like me to suggest concrete remediation edits for the top N issues?" (Do NOT apply them automatically.)
+   For each finding in the analysis report:
+   - **Duplication**: Merge duplicate requirements, keep clearer phrasing, update references
+   - **Ambiguity**: Replace vague adjectives with measurable criteria, resolve placeholders
+   - **Underspecification**: Add missing outcomes, acceptance criteria, or component definitions
+   - **Constitution violations**: Adjust spec/plan/tasks to comply with MUST principles
+   - **Coverage gaps**: Add missing tasks for uncovered requirements, link orphaned tasks to requirements
+   - **Inconsistency**: Normalize terminology, align data entities, fix ordering contradictions
+
+   Update files atomically:
+   - Save `spec.md` after spec-related fixes
+   - Save `plan.md` after plan-related fixes
+   - Save `tasks.md` after task-related fixes
+
+8. **Re-Verify Until Zero Issues**:
+   - Re-run ALL detection passes (steps 4A-4F)
+   - If any issues remain, apply additional remediations
+   - Repeat until the analysis shows **zero issues**
+   - Only proceed when all checks pass
+
+9. **Report Completion**:
+   - Number of issues found and fixed
+   - Files modified with change summary
+   - Final metrics (all should show zero issues)
+   - Confirmation: "All artifacts are consistent. Ready to proceed to `/implement`."
 
 Behavior rules:
 
-- NEVER modify files.
-- NEVER hallucinate missing sections—if absent, report them.
+- **FIX ALL ISSUES** - Apply remediations for every finding, regardless of severity.
+- NEVER hallucinate missing sections—if absent, add them with appropriate content.
+- Prioritize constitution violations (these are always CRITICAL and must be fixed first).
 - KEEP findings deterministic: if rerun without changes, produce consistent IDs and counts.
 - LIMIT total findings in the main table to 50; aggregate remainder in a summarized overflow note.
-- If zero issues found, emit a success report with coverage statistics and proceed recommendation.
+- **Re-verify after fixes** - Ensure no new issues introduced, iterate until zero issues.
+- If zero issues found initially, emit a success report with coverage statistics and proceed.
 
 Context: $ARGUMENTS

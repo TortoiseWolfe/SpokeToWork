@@ -106,7 +106,7 @@ This command orchestrates the **complete** SpecKit workflow in sequence:
 
 ### Phase 2: Specification Clarification (`/speckit.clarify`)
 
-**Purpose**: Resolve all ambiguities through targeted questions
+**Purpose**: Resolve ALL ambiguities until every taxonomy category is Clear
 
 1. Run prerequisite check:
 
@@ -125,21 +125,22 @@ This command orchestrates the **complete** SpecKit workflow in sequence:
    - Terminology & consistency
    - Completion signals
 
-3. Generate prioritized clarification questions:
+3. Generate prioritized clarification questions (**NO QUESTION LIMIT**):
    - Present ONE question at a time
    - Provide **recommended option** with reasoning
    - Format as table with options
    - Accept user's choice, "yes/recommended", or custom answer
-   - Continue until all meaningful ambiguities are resolved
+   - **Continue until ALL taxonomy categories reach "Clear" status**
 
 4. After each answer, update the spec immediately:
    - Add to `## Clarifications` section with `### Session YYYY-MM-DD`
    - Apply changes to relevant sections
    - Save atomically after each integration
 
-5. Stop when:
-   - All ambiguities resolved
-   - User signals completion ("done", "good", "no more")
+5. Stop ONLY when:
+   - **ALL taxonomy categories have reached "Clear" status**
+   - User explicitly says "skip clarification" (with risk acknowledgment)
+   - **DO NOT** stop on casual signals like "done", "good", "no more"
 
 6. **CHECKPOINT**: Report completion:
 
@@ -319,9 +320,9 @@ This command orchestrates the **complete** SpecKit workflow in sequence:
 
 ### Phase 6: Consistency Analysis (`/speckit.analyze`)
 
-**Purpose**: Non-destructive cross-artifact consistency check
+**Purpose**: Cross-artifact consistency check with automatic remediation
 
-**STRICTLY READ-ONLY**: This phase does NOT modify any files.
+**FULL REMEDIATION MODE**: This phase automatically applies fixes for ALL issues until zero remain.
 
 1. Run prerequisite check:
 
@@ -355,34 +356,34 @@ This command orchestrates the **complete** SpecKit workflow in sequence:
    - **MEDIUM**: Terminology drift, missing non-functional coverage
    - **LOW**: Style improvements, minor redundancy
 
-6. Generate analysis report (Markdown, not written to file):
-   - Findings table
-   - Coverage summary table
-   - Constitution alignment issues
-   - Metrics: Total requirements, tasks, coverage %, issue counts
+6. **Apply ALL Remediations** (do not ask for permission):
+   - Fix ALL issues regardless of severity (CRITICAL, HIGH, MEDIUM, LOW)
+   - Merge duplicates, replace vague terms, add missing items
+   - Update spec.md, plan.md, tasks.md as needed
+   - Save files atomically after fixes
 
-7. **CHECKPOINT**: Report completion:
+7. **Re-verify until zero issues**:
+   - Re-run all detection passes
+   - Apply additional fixes if needed
+   - Repeat until analysis shows zero issues
 
-   > "Phase 6 complete: Consistency analysis finished.
+8. **CHECKPOINT**: Report completion:
+
+   > "Phase 6 complete: Consistency analysis and remediation finished.
    >
-   > Metrics:
+   > Issues found and fixed: <N>
+   > Files modified: [list]
+   >
+   > Final metrics (all should be zero):
    >
    > - Requirements: <N>
    > - Tasks: <N>
-   > - Coverage: <N>%
-   > - Critical issues: <N>
-   > - High issues: <N>
+   > - Coverage: 100%
+   > - Remaining issues: 0
    >
-   > [If CRITICAL issues]: Recommend resolving before implementation.
-   > [If no CRITICAL]: Ready to proceed.
-   >
-   > Would you like to:
-   >
-   > - **Continue**: Proceed to GitHub issues (optional) or implementation
-   > - **Fix**: Address critical issues first
-   > - **Remediate**: Get suggested fixes for top issues"
+   > All artifacts are consistent. Ready to proceed to GitHub issues or implementation."
 
-   Wait for user response before proceeding.
+   Wait for user confirmation before proceeding.
 
 ---
 
@@ -526,7 +527,8 @@ Include these in `$ARGUMENTS` to modify behavior:
 - Preserve all artifacts even on failure
 - Use absolute paths throughout
 - Follow Docker-first development practices from CLAUDE.md
-- Constitution violations are always CRITICAL and block implementation
-- Ask as many clarification questions as needed to resolve all ambiguities
+- Constitution violations are always CRITICAL and must be fixed immediately
+- **Clarify phase**: Ask as many questions as needed until ALL categories are Clear (no question limit)
+- **Analyze phase**: Apply ALL remediations automatically until zero issues remain (not read-only)
 - Checklists test REQUIREMENTS quality, not implementation behavior
-- Analyze phase is READ-ONLY (no file modifications)
+- The goal is **complete coverage and zero issues** before proceeding to implementation
