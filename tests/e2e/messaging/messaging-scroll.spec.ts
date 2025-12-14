@@ -50,7 +50,7 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
     );
     await page.fill(
       'input[type="password"]',
-      process.env.TEST_USER_PASSWORD || 'TestPassword123!'
+      process.env.TEST_USER_PRIMARY_PASSWORD!
     );
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/(dashboard|messages|$)/);
@@ -163,7 +163,7 @@ test.describe('Messaging Scroll - User Story 2: Scroll Through Messages', () => 
     );
     await page.fill(
       'input[type="password"]',
-      process.env.TEST_USER_PASSWORD || 'TestPassword123!'
+      process.env.TEST_USER_PRIMARY_PASSWORD!
     );
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/(dashboard|messages|$)/);
@@ -223,7 +223,7 @@ test.describe('Messaging Scroll - User Story 3: Jump to Bottom Button', () => {
     );
     await page.fill(
       'input[type="password"]',
-      process.env.TEST_USER_PASSWORD || 'TestPassword123!'
+      process.env.TEST_USER_PRIMARY_PASSWORD!
     );
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/(dashboard|messages|$)/);

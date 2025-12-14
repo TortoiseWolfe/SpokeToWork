@@ -273,13 +273,22 @@ kill -9 <PID>
 
 **Primary** (required):
 
-- Email: Read from `TEST_USER_EMAIL` in `.env`
-- Password: Read from `TEST_USER_PASSWORD` in `.env`
+- Email: Read from `TEST_USER_PRIMARY_EMAIL` in `.env`
+- Password: Read from `TEST_USER_PRIMARY_PASSWORD` in `.env`
 
 **Secondary** (optional - for email verification tests):
 
 - Email: Read from `TEST_USER_SECONDARY_EMAIL` in `.env`
 - Password: Read from `TEST_USER_SECONDARY_PASSWORD` in `.env`
+
+**Tertiary** (required - for messaging E2E tests):
+
+- Email: Read from `TEST_USER_TERTIARY_EMAIL` in `.env`
+- Password: Read from `TEST_USER_TERTIARY_PASSWORD` in `.env`
+
+**Admin** (required - for welcome message tests):
+
+- Email: Read from `TEST_USER_ADMIN_EMAIL` in `.env`
 
 **When creating test users via SQL (Supabase Management API):**
 

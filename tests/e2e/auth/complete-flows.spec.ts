@@ -159,16 +159,18 @@ async function createTestUserDirect(
   }
 
   // Create identity record (required for sign-in)
+  // All interpolated values use escapeSQL to prevent injection (047-test-security)
+  const safeUserId = escapeSQL(userId);
   const createIdentitySQL = `
     INSERT INTO auth.identities (
       id, user_id, provider_id, provider, identity_data,
       last_sign_in_at, created_at, updated_at
     ) VALUES (
       gen_random_uuid(),
-      '${userId}',
+      '${safeUserId}',
       '${safeEmail}',
       'email',
-      '{"sub":"${userId}","email":"${safeEmail}","email_verified":true}'::jsonb,
+      '{"sub":"${safeUserId}","email":"${safeEmail}","email_verified":true}'::jsonb,
       NOW(), NOW(), NOW()
     )
   `;
@@ -186,18 +188,22 @@ async function deleteTestUserDirect(userId: string): Promise<void> {
   }
 
   // Delete in correct order (reverse of cascade)
+  // All interpolated values use escapeSQL to prevent injection (047-test-security)
+  const safeUserId = escapeSQL(userId);
   await executeSQL(
-    `DELETE FROM messages WHERE conversation_id IN (SELECT id FROM conversations WHERE participant_1_id = '${userId}' OR participant_2_id = '${userId}')`
+    `DELETE FROM messages WHERE conversation_id IN (SELECT id FROM conversations WHERE participant_1_id = '${safeUserId}' OR participant_2_id = '${safeUserId}')`
   );
   await executeSQL(
-    `DELETE FROM conversations WHERE participant_1_id = '${userId}' OR participant_2_id = '${userId}'`
+    `DELETE FROM conversations WHERE participant_1_id = '${safeUserId}' OR participant_2_id = '${safeUserId}'`
   );
   await executeSQL(
-    `DELETE FROM user_encryption_keys WHERE user_id = '${userId}'`
+    `DELETE FROM user_encryption_keys WHERE user_id = '${safeUserId}'`
   );
-  await executeSQL(`DELETE FROM user_profiles WHERE id = '${userId}'`);
-  await executeSQL(`DELETE FROM auth.identities WHERE user_id = '${userId}'`);
-  await executeSQL(`DELETE FROM auth.users WHERE id = '${userId}'`);
+  await executeSQL(`DELETE FROM user_profiles WHERE id = '${safeUserId}'`);
+  await executeSQL(
+    `DELETE FROM auth.identities WHERE user_id = '${safeUserId}'`
+  );
+  await executeSQL(`DELETE FROM auth.users WHERE id = '${safeUserId}'`);
 }
 
 /**
@@ -206,7 +212,7 @@ async function deleteTestUserDirect(userId: string): Promise<void> {
 async function userExistsInAuth(userId: string): Promise<boolean> {
   if (!isValidUUID(userId)) return false;
   const result = (await executeSQL(
-    `SELECT id FROM auth.users WHERE id = '${userId}'`
+    `SELECT id FROM auth.users WHERE id = '${escapeSQL(userId)}'`
   )) as { id?: string }[];
   return !!result[0]?.id;
 }
@@ -217,7 +223,7 @@ async function userExistsInAuth(userId: string): Promise<boolean> {
 async function profileExists(userId: string): Promise<boolean> {
   if (!isValidUUID(userId)) return false;
   const result = (await executeSQL(
-    `SELECT id FROM user_profiles WHERE id = '${userId}'`
+    `SELECT id FROM user_profiles WHERE id = '${escapeSQL(userId)}'`
   )) as { id?: string }[];
   return !!result[0]?.id;
 }
@@ -228,7 +234,7 @@ async function profileExists(userId: string): Promise<boolean> {
 async function getWelcomeMessageSent(userId: string): Promise<boolean> {
   if (!isValidUUID(userId)) return false;
   const result = (await executeSQL(
-    `SELECT welcome_message_sent FROM user_profiles WHERE id = '${userId}'`
+    `SELECT welcome_message_sent FROM user_profiles WHERE id = '${escapeSQL(userId)}'`
   )) as { welcome_message_sent?: boolean }[];
   return result[0]?.welcome_message_sent ?? false;
 }
@@ -239,7 +245,7 @@ async function getWelcomeMessageSent(userId: string): Promise<boolean> {
 async function hasEncryptionKeys(userId: string): Promise<boolean> {
   if (!isValidUUID(userId)) return false;
   const result = (await executeSQL(
-    `SELECT COUNT(*) as count FROM user_encryption_keys WHERE user_id = '${userId}'`
+    `SELECT COUNT(*) as count FROM user_encryption_keys WHERE user_id = '${escapeSQL(userId)}'`
   )) as { count?: string }[];
   return parseInt(result[0]?.count || '0', 10) > 0;
 }
@@ -250,10 +256,12 @@ async function hasEncryptionKeys(userId: string): Promise<boolean> {
 async function hasConversationWithAdmin(userId: string): Promise<boolean> {
   if (!isValidUUID(userId)) return false;
   const adminUserId = await getAdminUserId();
+  const safeUserId = escapeSQL(userId);
+  const safeAdminId = escapeSQL(adminUserId);
   const result = (await executeSQL(`
     SELECT id FROM conversations
-    WHERE (participant_1_id = '${userId}' AND participant_2_id = '${adminUserId}')
-       OR (participant_1_id = '${adminUserId}' AND participant_2_id = '${userId}')
+    WHERE (participant_1_id = '${safeUserId}' AND participant_2_id = '${safeAdminId}')
+       OR (participant_1_id = '${safeAdminId}' AND participant_2_id = '${safeUserId}')
   `)) as { id?: string }[];
   return !!result[0]?.id;
 }
@@ -264,18 +272,20 @@ async function hasConversationWithAdmin(userId: string): Promise<boolean> {
 async function hasWelcomeMessage(userId: string): Promise<boolean> {
   if (!isValidUUID(userId)) return false;
   const adminUserId = await getAdminUserId();
+  const safeUserId = escapeSQL(userId);
+  const safeAdminId = escapeSQL(adminUserId);
   const conversations = (await executeSQL(`
     SELECT id FROM conversations
-    WHERE (participant_1_id = '${userId}' AND participant_2_id = '${adminUserId}')
-       OR (participant_1_id = '${adminUserId}' AND participant_2_id = '${userId}')
+    WHERE (participant_1_id = '${safeUserId}' AND participant_2_id = '${safeAdminId}')
+       OR (participant_1_id = '${safeAdminId}' AND participant_2_id = '${safeUserId}')
   `)) as { id?: string }[];
 
   if (!conversations[0]?.id) return false;
 
   const messages = (await executeSQL(`
     SELECT id FROM messages
-    WHERE conversation_id = '${conversations[0].id}'
-    AND sender_id = '${adminUserId}'
+    WHERE conversation_id = '${escapeSQL(conversations[0].id)}'
+    AND sender_id = '${safeAdminId}'
   `)) as { id?: string }[];
 
   return !!messages[0]?.id;
@@ -287,21 +297,24 @@ async function hasWelcomeMessage(userId: string): Promise<boolean> {
 async function resetUserState(userId: string): Promise<void> {
   if (!isValidUUID(userId)) return;
 
+  // All interpolated values use escapeSQL to prevent injection (047-test-security)
+  const safeUserId = escapeSQL(userId);
+
   await executeSQL(
-    `DELETE FROM user_encryption_keys WHERE user_id = '${userId}'`
+    `DELETE FROM user_encryption_keys WHERE user_id = '${safeUserId}'`
   );
   await executeSQL(`
     DELETE FROM messages WHERE conversation_id IN (
       SELECT id FROM conversations
-      WHERE participant_1_id = '${userId}' OR participant_2_id = '${userId}'
+      WHERE participant_1_id = '${safeUserId}' OR participant_2_id = '${safeUserId}'
     )
   `);
   await executeSQL(`
     DELETE FROM conversations
-    WHERE participant_1_id = '${userId}' OR participant_2_id = '${userId}'
+    WHERE participant_1_id = '${safeUserId}' OR participant_2_id = '${safeUserId}'
   `);
   await executeSQL(
-    `UPDATE user_profiles SET welcome_message_sent = false WHERE id = '${userId}'`
+    `UPDATE user_profiles SET welcome_message_sent = false WHERE id = '${safeUserId}'`
   );
 }
 
