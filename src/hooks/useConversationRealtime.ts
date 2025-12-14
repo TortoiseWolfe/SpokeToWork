@@ -111,21 +111,20 @@ export function useConversationRealtime(
         let sharedSecret = sharedSecretCache.get(cacheKey);
 
         if (!sharedSecret) {
-          // Get private key (cached)
+          // Get private key from memory (derived during sign-in)
           let privateKey = privateKeyCache.get(user.id);
           if (!privateKey) {
-            const privateKeyJwk = await encryptionService.getPrivateKey(
-              user.id
-            );
-            if (!privateKeyJwk) return null;
+            const derivedKeys = keyManagementService.getCurrentKeys();
+            if (!derivedKeys) {
+              // Keys not yet derived - user needs to re-authenticate
+              logger.warn(
+                'No derived keys available - user may need to re-authenticate'
+              );
+              return null;
+            }
 
-            privateKey = await crypto.subtle.importKey(
-              'jwk',
-              privateKeyJwk,
-              { name: 'ECDH', namedCurve: 'P-256' },
-              false,
-              ['deriveBits', 'deriveKey']
-            );
+            // Use the already-derived private key from memory
+            privateKey = derivedKeys.privateKey;
             privateKeyCache.set(user.id, privateKey);
           }
 

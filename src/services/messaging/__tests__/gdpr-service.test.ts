@@ -147,15 +147,19 @@ describe('GDPRService', () => {
         };
       });
 
-      // Mock encryption service
+      // Mock key management service (keys now from memory, not IndexedDB)
       vi.mocked(
-        encryptionService.encryptionService.getPrivateKey
-      ).mockResolvedValue({
-        kty: 'EC',
-        crv: 'P-256',
-        x: 'test-x',
-        y: 'test-y',
-        d: 'test-d',
+        keyManagementService.keyManagementService.getCurrentKeys
+      ).mockReturnValue({
+        privateKey: {} as CryptoKey, // Mock CryptoKey
+        publicKey: {} as CryptoKey,
+        publicKeyJwk: {
+          kty: 'EC',
+          crv: 'P-256',
+          x: 'test-x',
+          y: 'test-y',
+        },
+        salt: 'test-salt',
       });
 
       vi.mocked(
@@ -323,15 +327,19 @@ describe('GDPRService', () => {
         };
       });
 
-      // Mock encryption service to throw error
+      // Mock key management service (keys now from memory, not IndexedDB)
       vi.mocked(
-        encryptionService.encryptionService.getPrivateKey
-      ).mockResolvedValue({
-        kty: 'EC',
-        crv: 'P-256',
-        x: 'test-x',
-        y: 'test-y',
-        d: 'test-d',
+        keyManagementService.keyManagementService.getCurrentKeys
+      ).mockReturnValue({
+        privateKey: {} as CryptoKey,
+        publicKey: {} as CryptoKey,
+        publicKeyJwk: {
+          kty: 'EC',
+          crv: 'P-256',
+          x: 'test-x',
+          y: 'test-y',
+        },
+        salt: 'test-salt',
       });
 
       vi.mocked(
@@ -391,18 +399,9 @@ describe('GDPRService', () => {
         error: null,
       });
 
-      // Mock IndexedDB deletions
-      const mockPrivateKeysDelete = vi.fn().mockResolvedValue(undefined);
+      // Mock IndexedDB deletions (private keys no longer stored in IndexedDB)
       const mockQueuedMessagesDelete = vi.fn().mockResolvedValue(undefined);
       const mockCachedMessagesDelete = vi.fn().mockResolvedValue(undefined);
-
-      vi.mocked(messagingDb.messagingDb).messaging_private_keys = {
-        where: vi.fn().mockReturnValue({
-          equals: vi.fn().mockReturnValue({
-            delete: mockPrivateKeysDelete,
-          }),
-        }),
-      } as any;
 
       vi.mocked(messagingDb.messagingDb).messaging_queued_messages = {
         where: vi.fn().mockReturnValue({
@@ -432,8 +431,7 @@ describe('GDPRService', () => {
       // Execute deletion
       await gdprService.deleteUserAccount();
 
-      // Verify IndexedDB deletions
-      expect(mockPrivateKeysDelete).toHaveBeenCalled();
+      // Verify IndexedDB deletions (private keys no longer in IndexedDB)
       expect(mockQueuedMessagesDelete).toHaveBeenCalled();
       expect(mockCachedMessagesDelete).toHaveBeenCalled();
 
@@ -485,15 +483,7 @@ describe('GDPRService', () => {
         error: null,
       });
 
-      // Mock IndexedDB deletions (succeed)
-      vi.mocked(messagingDb.messagingDb).messaging_private_keys = {
-        where: vi.fn().mockReturnValue({
-          equals: vi.fn().mockReturnValue({
-            delete: vi.fn().mockResolvedValue(undefined),
-          }),
-        }),
-      } as any;
-
+      // Mock IndexedDB deletions (private keys no longer stored in IndexedDB)
       vi.mocked(messagingDb.messagingDb).messaging_queued_messages = {
         where: vi.fn().mockReturnValue({
           equals: vi.fn().mockReturnValue({

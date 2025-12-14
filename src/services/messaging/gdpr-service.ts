@@ -230,20 +230,21 @@ export class GDPRService {
           );
         }
 
-        // Get encryption keys for decryption
-        const privateKeyJwk = await encryptionService.getPrivateKey(user.id);
+        // Get encryption keys for decryption (from memory - derived during sign-in)
+        const derivedKeys = keyManagementService.getCurrentKeys();
         const otherPublicKey =
           await keyManagementService.getUserPublicKey(otherParticipantId);
 
-        if (!privateKeyJwk || !otherPublicKey) {
-          // Cannot decrypt messages without keys - skip this conversation
+        if (!derivedKeys || !otherPublicKey) {
+          // Cannot decrypt messages without keys - user may need to re-authenticate
           exportConversations.push({
             conversation_id: conv.id,
             participant: otherUsername,
             messages: messages.map((msg: any) => ({
               id: msg.id,
               sender: msg.sender_id === user.id ? 'you' : otherUsername,
-              content: '[Encryption keys unavailable - cannot decrypt]',
+              content:
+                '[Encryption keys unavailable - please re-authenticate to decrypt]',
               timestamp: msg.created_at,
               edited: msg.edited,
               deleted: msg.deleted,
@@ -253,14 +254,8 @@ export class GDPRService {
           continue;
         }
 
-        // Import keys for decryption
-        const privateKey = await crypto.subtle.importKey(
-          'jwk',
-          privateKeyJwk,
-          { name: 'ECDH', namedCurve: 'P-256' },
-          false,
-          ['deriveBits', 'deriveKey']
-        );
+        // Use the already-derived private key from memory
+        const privateKey = derivedKeys.privateKey;
 
         const otherPublicKeyCrypto = await crypto.subtle.importKey(
           'jwk',
@@ -409,13 +404,8 @@ export class GDPRService {
     }
 
     try {
-      // Step 1: Delete encryption keys from IndexedDB
-      await messagingDb.messaging_private_keys
-        .where('userId')
-        .equals(user.id)
-        .delete();
-
-      // Delete queued messages from IndexedDB
+      // Step 1: Delete queued messages from IndexedDB
+      // Note: Private keys are now memory-only (not stored in IndexedDB)
       await messagingDb.messaging_queued_messages
         .where('sender_id')
         .equals(user.id)

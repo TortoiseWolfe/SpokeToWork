@@ -19,7 +19,6 @@ import {
   createMessagingClient,
   type UserEncryptionKeyRow,
 } from '@/lib/supabase/messaging-client';
-import { encryptionService } from '@/lib/messaging/encryption';
 import { KeyDerivationService } from '@/lib/messaging/key-derivation';
 import { createLogger } from '@/lib/logger';
 import type { DerivedKeyPair } from '@/types/messaging';
@@ -471,9 +470,9 @@ export class KeyManagementService {
         );
       }
 
-      // Remove private key from IndexedDB
-      await encryptionService.deletePrivateKey(user.id);
-      logger.info('Revoked keys and deleted private key from IndexedDB', {
+      // Clear keys from memory (private keys are no longer stored in IndexedDB)
+      this.clearKeys();
+      logger.info('Revoked keys and cleared from memory', {
         userId: user.id,
       });
     } catch (error) {

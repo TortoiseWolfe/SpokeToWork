@@ -2,15 +2,17 @@
  * Unit Tests for EncryptionService
  * Task: T041
  *
- * Tests: generateKeyPair, exportPublicKey, storePrivateKey, getPrivateKey,
- *        deriveSharedSecret, encryptMessage, decryptMessage, error cases
+ * Tests: generateKeyPair, exportPublicKey, deriveSharedSecret,
+ *        encryptMessage, decryptMessage, error cases
+ *
+ * Note: Private key storage tests removed - keys are now managed by
+ * KeyManagementService (memory-only, derived from password).
  *
  * Coverage Target: 100%
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { EncryptionService } from '../encryption';
-import { db } from '../database';
 import { CRYPTO_PARAMS } from '@/types/messaging';
 
 describe('EncryptionService', () => {
@@ -18,11 +20,6 @@ describe('EncryptionService', () => {
 
   beforeEach(() => {
     service = new EncryptionService();
-  });
-
-  afterEach(async () => {
-    // Clean up IndexedDB after each test
-    await db.messaging_private_keys.clear();
   });
 
   describe('generateKeyPair', () => {
@@ -83,82 +80,6 @@ describe('EncryptionService', () => {
     it('should throw error for invalid key', async () => {
       const invalidKey = {} as CryptoKey;
       await expect(service.exportPublicKey(invalidKey)).rejects.toThrow();
-    });
-  });
-
-  describe('storePrivateKey', () => {
-    it('should store private key in IndexedDB', async () => {
-      const keyPair = await service.generateKeyPair();
-      const userId = 'user-123';
-      const jwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
-
-      await service.storePrivateKey(userId, jwk);
-
-      const stored = await db.messaging_private_keys.get(userId);
-      expect(stored).toBeDefined();
-      expect(stored?.userId).toBe(userId);
-      expect(stored?.privateKey).toEqual(jwk);
-      expect(stored?.created_at).toBeDefined();
-    });
-
-    it('should overwrite existing key for same user', async () => {
-      const userId = 'user-123';
-      const keyPair1 = await service.generateKeyPair();
-      const jwk1 = await crypto.subtle.exportKey('jwk', keyPair1.privateKey);
-      await service.storePrivateKey(userId, jwk1);
-
-      const keyPair2 = await service.generateKeyPair();
-      const jwk2 = await crypto.subtle.exportKey('jwk', keyPair2.privateKey);
-      await service.storePrivateKey(userId, jwk2);
-
-      const stored = await db.messaging_private_keys.get(userId);
-      expect(stored?.privateKey).toEqual(jwk2);
-      expect(stored?.privateKey).not.toEqual(jwk1);
-    });
-
-    it('should throw error if IndexedDB is unavailable', async () => {
-      const keyPair = await service.generateKeyPair();
-      const jwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
-
-      // Mock IndexedDB failure
-      const originalPut = db.messaging_private_keys.put;
-      vi.spyOn(db.messaging_private_keys, 'put').mockRejectedValue(
-        new Error('IndexedDB unavailable')
-      );
-
-      await expect(service.storePrivateKey('user-123', jwk)).rejects.toThrow();
-
-      db.messaging_private_keys.put = originalPut;
-    });
-  });
-
-  describe('getPrivateKey', () => {
-    it('should retrieve stored private key', async () => {
-      const keyPair = await service.generateKeyPair();
-      const userId = 'user-123';
-      const jwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
-      await service.storePrivateKey(userId, jwk);
-
-      const retrieved = await service.getPrivateKey(userId);
-
-      expect(retrieved).toBeDefined();
-      expect(retrieved).toEqual(jwk);
-    });
-
-    it('should return null if key does not exist', async () => {
-      const retrieved = await service.getPrivateKey('nonexistent-user');
-      expect(retrieved).toBeNull();
-    });
-
-    it('should throw error if IndexedDB is unavailable', async () => {
-      const originalGet = db.messaging_private_keys.get;
-      vi.spyOn(db.messaging_private_keys, 'get').mockRejectedValue(
-        new Error('IndexedDB unavailable')
-      );
-
-      await expect(service.getPrivateKey('user-123')).rejects.toThrow();
-
-      db.messaging_private_keys.get = originalGet;
     });
   });
 
@@ -417,21 +338,9 @@ describe('EncryptionService', () => {
 
   describe('end-to-end encryption flow', () => {
     it('should complete full encryption roundtrip between two users', async () => {
-      // Alice and Bob generate their key pairs
+      // Alice and Bob generate their key pairs (in real app, derived from password)
       const aliceKeyPair = await service.generateKeyPair();
       const bobKeyPair = await service.generateKeyPair();
-
-      // Export and store their private keys
-      const alicePrivateJwk = await crypto.subtle.exportKey(
-        'jwk',
-        aliceKeyPair.privateKey
-      );
-      const bobPrivateJwk = await crypto.subtle.exportKey(
-        'jwk',
-        bobKeyPair.privateKey
-      );
-      await service.storePrivateKey('alice', alicePrivateJwk);
-      await service.storePrivateKey('bob', bobPrivateJwk);
 
       // Alice derives shared secret with Bob's public key
       const aliceSharedSecret = await service.deriveSharedSecret(

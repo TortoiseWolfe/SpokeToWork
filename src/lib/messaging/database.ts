@@ -5,27 +5,38 @@
  * Stores:
  * - messaging_queued_messages: Offline message queue with status tracking
  * - messaging_cached_messages: Cached messages for offline viewing
- * - messaging_private_keys: User's private encryption keys
  * - messaging_sync_metadata: Sync state and metadata
+ *
+ * Note: Private keys are now managed by KeyManagementService (memory-only,
+ * derived from password). They are no longer stored in IndexedDB.
  */
 
 import Dexie, { type EntityTable } from 'dexie';
 import type {
   QueuedMessage,
   CachedMessage,
-  PrivateKey,
   SyncMetadata,
 } from '@/types/messaging';
 
 export class MessagingDatabase extends Dexie {
   messaging_queued_messages!: EntityTable<QueuedMessage, 'id'>;
   messaging_cached_messages!: EntityTable<CachedMessage, 'id'>;
-  messaging_private_keys!: EntityTable<PrivateKey, 'userId'>;
   messaging_sync_metadata!: EntityTable<SyncMetadata, 'key'>;
 
   constructor() {
     super('MessagingDB');
 
+    // Version 2: Removed messaging_private_keys table (keys now memory-only)
+    this.version(2).stores({
+      messaging_queued_messages:
+        'id, conversation_id, status, synced, created_at, sender_id',
+      messaging_cached_messages: 'id, conversation_id, created_at, sender_id',
+      messaging_sync_metadata: 'key, updated_at',
+      // Set to null to delete the table in existing databases
+      messaging_private_keys: null,
+    });
+
+    // Keep version 1 for upgrade path
     this.version(1).stores({
       messaging_queued_messages:
         'id, conversation_id, status, synced, created_at, sender_id',

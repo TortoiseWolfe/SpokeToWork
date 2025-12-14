@@ -216,56 +216,63 @@ docker compose exec spoketowork pnpm exec playwright test e2e/messaging/
 
 ### 1. Encryption Flow
 
-**First Message Send** (1-2 second delay):
+**Key Derivation** (happens during sign-in):
+
+```typescript
+// User signs in with password → KeyManagementService.deriveKeys(password)
+
+// Step 1: Fetch salt from Supabase (stored during registration)
+const { data } = await supabase
+  .from('user_encryption_keys')
+  .select('encryption_salt')
+  .eq('user_id', userId)
+  .single();
+
+// Step 2: Derive ECDH P-256 key pair from password using Argon2id
+// (same password + salt always produces same key pair)
+const keyPair = await keyDerivationService.deriveKeyPair({
+  password,
+  salt: decodeBase64(data.encryption_salt),
+});
+
+// Step 3: Hold keys in memory (cleared on logout/tab close)
+// Private keys are NEVER stored in IndexedDB - only derived on-demand
+this.derivedKeys = keyPair;
+```
+
+**First Message Send** (fast - keys already in memory):
 
 ```typescript
 // User clicks "Send" → MessageService.sendMessage()
 
-// Step 1: Check for private key in IndexedDB
-const privateKey = await encryptionService.getPrivateKey(userId);
+// Step 1: Get keys from memory (derived during sign-in)
+const keys = keyManagementService.getCurrentKeys();
+if (!keys) throw new Error('Keys not available - please re-authenticate');
 
-if (!privateKey) {
-  // Step 2: Generate ECDH P-256 key pair (computationally expensive!)
-  const keyPair = await crypto.subtle.generateKey(
-    { name: 'ECDH', namedCurve: 'P-256' },
-    true,
-    ['deriveBits', 'deriveKey']
-  );
-
-  // Step 3: Store private key in IndexedDB (client-side only)
-  await encryptionService.storePrivateKey(userId, privateKey);
-
-  // Step 4: Upload public key to Supabase
-  await supabase.from('user_encryption_keys').insert({
-    user_id: userId,
-    public_key_jwk: publicKey,
-  });
-}
-
-// Step 5: Fetch recipient's public key from Supabase
+// Step 2: Fetch recipient's public key from Supabase
 const recipientPublicKey =
   await keyManagementService.getUserPublicKey(recipientId);
 
-// Step 6: Derive shared secret (ECDH key exchange)
+// Step 3: Derive shared secret (ECDH key exchange)
 const sharedSecret = await crypto.subtle.deriveKey(
   { name: 'ECDH', public: recipientPublicKey },
-  privateKey,
+  keys.privateKey,
   { name: 'AES-GCM', length: 256 },
   false,
   ['encrypt', 'decrypt']
 );
 
-// Step 7: Generate random 96-bit initialization vector (IV)
+// Step 4: Generate random 96-bit initialization vector (IV)
 const iv = crypto.getRandomValues(new Uint8Array(12));
 
-// Step 8: Encrypt message with AES-GCM-256
+// Step 5: Encrypt message with AES-GCM-256
 const ciphertext = await crypto.subtle.encrypt(
   { name: 'AES-GCM', iv },
   sharedSecret,
   new TextEncoder().encode(plaintext)
 );
 
-// Step 9: Store ciphertext + IV in database (server never sees plaintext)
+// Step 6: Store ciphertext + IV in database (server never sees plaintext)
 await supabase.from('messages').insert({
   conversation_id: conversationId,
   sender_id: userId,
@@ -277,9 +284,9 @@ await supabase.from('messages').insert({
 
 **Subsequent Messages** (instant):
 
-- Private key already in IndexedDB ✓
+- Keys already in memory ✓
 - Public key already in Supabase ✓
-- Only steps 5-9 run (no key generation)
+- Only steps 2-6 run (no key derivation)
 - Encryption completes in <50ms
 
 ### 2. Offline Queue
@@ -1275,34 +1282,43 @@ CREATE POLICY "Users can view their accepted connections"
 
 **Possible Causes**:
 
-1. **IndexedDB cleared**: Private key lost (user cleared browser data)
-2. **Key mismatch**: Sender/recipient using different key pairs
+1. **Keys not derived**: User needs to re-authenticate (keys are memory-only)
+2. **Key mismatch**: Sender/recipient using different key pairs (wrong password)
 3. **Corrupted ciphertext**: Database corruption or encoding issue
 4. **Wrong shared secret**: ECDH derivation failed
 
 **Debug Steps**:
 
 ```typescript
-// Step 1: Check if private key exists in IndexedDB
-const privateKey = await encryptionService.getPrivateKey(userId);
-console.log('Private key exists:', !!privateKey);
+// Step 1: Check if keys exist in memory (derived during sign-in)
+const keys = keyManagementService.getCurrentKeys();
+console.log('Keys in memory:', !!keys);
 
-// Step 2: Verify public key in database matches IndexedDB
+if (!keys) {
+  console.error('No keys - user needs to re-authenticate');
+  // Keys are derived from password, not stored - re-auth required
+}
+
+// Step 2: Verify public key in database matches derived key
 const { data: dbPublicKey } = await supabase
   .from('user_encryption_keys')
   .select('public_key_jwk')
   .eq('user_id', userId)
   .single();
 
-const localPublicKey = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
 console.log(
   'Public keys match:',
-  JSON.stringify(dbPublicKey.public_key_jwk) === JSON.stringify(localPublicKey)
+  JSON.stringify(dbPublicKey.public_key_jwk) ===
+    JSON.stringify(keys.publicKeyJwk)
 );
 
 // Step 3: Test shared secret derivation
-const recipientPublicKey = await getUserPublicKey(recipientId);
-const sharedSecret = await deriveSharedSecret(privateKey, recipientPublicKey);
+const recipientPublicKey =
+  await keyManagementService.getUserPublicKey(recipientId);
+const sharedSecret = await encryptionService.deriveSharedSecret(
+  keys.privateKey,
+  recipientPublicKey
+);
 console.log('Shared secret derived:', !!sharedSecret);
 
 // Step 4: Try manual decryption
@@ -1317,59 +1333,35 @@ console.log('Manual decrypt:', new TextDecoder().decode(decrypted));
 **Solutions**:
 
 ```typescript
-// Solution 1: Re-initialize keys (user loses past message access)
-async function resetEncryptionKeys() {
-  // Delete old keys
-  await encryptionService.deletePrivateKey(userId);
+// Solution 1: Re-authenticate user (keys derived from password)
+async function reAuthenticateForKeys(password: string) {
+  // Keys are derived from password - no need to reset!
+  // Same password + stored salt = same keys
+  const keys = await keyManagementService.deriveKeys(password);
+
+  if (!keys) {
+    throw new Error('Key derivation failed - check password');
+  }
+
+  // Keys now in memory, messages should decrypt
+  console.log('Keys re-derived successfully');
+}
+
+// Solution 2: Reset keys (ONLY if salt was lost or user wants fresh keys)
+async function resetEncryptionKeys(newPassword: string) {
+  // Delete old keys from database
   await supabase.from('user_encryption_keys').delete().eq('user_id', userId);
 
-  // Generate fresh keys
-  await keyManagementService.initializeKeys();
+  // Generate fresh keys with new salt
+  await keyManagementService.initializeKeys(newPassword);
 
   // Warn user: past messages unrecoverable
   alert('Encryption keys reset. You will not be able to read past messages.');
 }
 
-// Solution 2: Implement key backup/recovery (advanced)
-// Store encrypted backup of private key on server
-async function backupPrivateKey(password: string) {
-  const privateKey = await encryptionService.getPrivateKey(userId);
-
-  // Derive encryption key from user password
-  const passwordKey = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(password),
-    { name: 'PBKDF2' },
-    false,
-    ['deriveKey']
-  );
-
-  const backupKey = await crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: crypto.getRandomValues(new Uint8Array(16)),
-      iterations: 100000,
-      hash: 'SHA-256',
-    },
-    passwordKey,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt']
-  );
-
-  // Encrypt private key with password-derived key
-  const encryptedBackup = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: crypto.getRandomValues(new Uint8Array(12)) },
-    backupKey,
-    new TextEncoder().encode(JSON.stringify(privateKey))
-  );
-
-  // Store encrypted backup on server
-  await supabase.from('key_backups').insert({
-    user_id: userId,
-    encrypted_private_key: base64Encode(encryptedBackup),
-  });
-}
+// Note: Key backup is no longer needed - keys are derived from password
+// Same password always produces the same keys (deterministic derivation)
+// The salt is stored in user_encryption_keys, not the private key
 ```
 
 ---
