@@ -474,10 +474,13 @@ describe('MessageService', () => {
         otherPublicKeyJwk
       );
 
-      // Mock private key retrieval - REAL JWK
-      vi.mocked(encryptionService.getPrivateKey).mockResolvedValue(
-        realPrivateKeyJwk
-      );
+      // Mock getCurrentKeys (keys now from memory, not IndexedDB)
+      vi.mocked(keyManagementService.getCurrentKeys).mockReturnValue({
+        privateKey: realKeyPair.privateKey, // CryptoKey
+        publicKey: realKeyPair.publicKey, // CryptoKey
+        publicKeyJwk: realPublicKeyJwk, // JWK
+        salt: 'test-salt',
+      });
     });
 
     it('should retrieve and decrypt message history (T062)', async () => {
