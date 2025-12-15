@@ -260,14 +260,7 @@ Run these SpecKit workflows to address code review findings:
   - Email validation consolidated to auth validator
 - [x] ~~**051-ci-test-memory**~~ - Fix RouteBuilder OOM (6GB+ → normal via module aliases)
 - [x] ~~**054-company-creation-fix**~~ - Fix E2E test selector for company creation
-
-### Pending
-
-#### P2: Test Coverage Expansion
-
-```
-/speckit.workflow docs/specs/052-test-coverage
-```
+- [x] ~~**052-test-coverage**~~ - Expanded test coverage (25 test files, 293+ tests for hooks, contexts, services)
 
 See [docs/TECHNICAL-DEBT.md](./docs/TECHNICAL-DEBT.md) for full details.
 
