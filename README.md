@@ -245,24 +245,13 @@ MIT - See [LICENSE](./LICENSE) for details
 
 ---
 
-## 🔧 Technical Debt Specs
+## 🔧 Specs
 
-Run these SpecKit workflows to address code review findings:
+### Upcoming
 
-### Completed
+- [ ] **055-tbd** - _To be determined_
 
-- [x] ~~**047-test-security**~~ - Test security hardening (SQL injection prevention, credential fallback removal)
-- [x] ~~**048-indexeddb-encryption**~~ - Remove dead IndexedDB private key storage
-- [x] ~~**049-performance-optimization**~~ - Test suite optimization (15min → 2min, OOM fixes)
-- [x] ~~**050-code-consolidation**~~ - Consolidate duplicate implementations (37/37 tasks)
-  - Dead code removal (rate-limiter.ts, audit-logger class)
-  - Unified offline queue module with 4 domain adapters
-  - Email validation consolidated to auth validator
-- [x] ~~**051-ci-test-memory**~~ - Fix RouteBuilder OOM (6GB+ → normal via module aliases)
-- [x] ~~**054-company-creation-fix**~~ - Fix E2E test selector for company creation
-- [x] ~~**052-test-coverage**~~ - Expanded test coverage (25 test files, 293+ tests for hooks, contexts, services)
-
-See [docs/TECHNICAL-DEBT.md](./docs/TECHNICAL-DEBT.md) for full details.
+See [docs/TECHNICAL-DEBT.md](./docs/TECHNICAL-DEBT.md) for technical debt tracking.
 
 ---
 
