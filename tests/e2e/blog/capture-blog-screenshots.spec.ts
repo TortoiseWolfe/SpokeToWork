@@ -384,10 +384,12 @@ test.describe.serial('Blog Screenshot Capture', () => {
     await addressInput.waitFor({ state: 'visible', timeout: 5000 });
 
     // Fill in company name first
-    const nameInput = page.locator('#name');
+    const nameInput = page.locator('#company-name');
     if ((await nameInput.count()) > 0) {
       await nameInput.fill(LIBRARY_COMPANY.name);
       console.log('✏️ Filled company name');
+    } else {
+      console.log('⚠️ Company name input not found with #company-name');
     }
 
     // Fill address - CRITICAL: must fill before geocode button becomes enabled
