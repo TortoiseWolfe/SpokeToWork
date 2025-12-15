@@ -9,8 +9,9 @@ import { createLogger } from '@/lib/logger';
 
 const logger = createLogger('payments:connection');
 
-let listenerInterval: NodeJS.Timeout | null = null;
+// FR-005: Removed listenerInterval (no longer polling)
 let isListening = false;
+let cleanupFunctions: (() => void)[] = [];
 
 /**
  * Start monitoring connection status
@@ -45,8 +46,11 @@ export function startConnectionListener(): () => void {
     }
   };
 
-  // Check every 30 seconds
-  listenerInterval = setInterval(checkConnection, 30000);
+  // FR-005: Removed 30s polling interval
+  // Connection status is now event-driven via:
+  // - Browser 'online' event (line 65)
+  // - Page visibility change (line 52)
+  // - Initial check on listener start (line 68)
 
   // Check when page becomes visible
   const handleVisibilityChange = () => {
@@ -56,6 +60,9 @@ export function startConnectionListener(): () => void {
     }
   };
   document.addEventListener('visibilitychange', handleVisibilityChange);
+  cleanupFunctions.push(() =>
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+  );
 
   // Check when browser reports online
   const handleOnline = () => {
@@ -63,18 +70,17 @@ export function startConnectionListener(): () => void {
     checkConnection();
   };
   window.addEventListener('online', handleOnline);
+  cleanupFunctions.push(() =>
+    window.removeEventListener('online', handleOnline)
+  );
 
   // Initial check
   checkConnection();
 
   // Return cleanup function
   return () => {
-    if (listenerInterval) {
-      clearInterval(listenerInterval);
-      listenerInterval = null;
-    }
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-    window.removeEventListener('online', handleOnline);
+    cleanupFunctions.forEach((fn) => fn());
+    cleanupFunctions = [];
     isListening = false;
     logger.info('Connection listener stopped');
   };
@@ -84,10 +90,8 @@ export function startConnectionListener(): () => void {
  * Stop monitoring connection status
  */
 export function stopConnectionListener(): void {
-  if (listenerInterval) {
-    clearInterval(listenerInterval);
-    listenerInterval = null;
-  }
+  cleanupFunctions.forEach((fn) => fn());
+  cleanupFunctions = [];
   isListening = false;
 }
 

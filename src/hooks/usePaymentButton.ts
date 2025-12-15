@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePaymentConsent } from './usePaymentConsent';
 import { createPaymentIntent } from '@/lib/payments/payment-service';
 import { createCheckoutSession as createStripeCheckout } from '@/lib/payments/stripe';
@@ -72,16 +72,16 @@ export function usePaymentButton(
 
   const { hasConsent } = usePaymentConsent();
 
-  // Poll for queued operations count
-  useState(() => {
-    const checkQueue = async () => {
+  // Load queued operations count on mount (FR-004: removed 5s polling)
+  // Count is loaded once on mount - in practice, users don't stay on payment
+  // page long enough for polling to be useful
+  useEffect(() => {
+    const loadQueueCount = async () => {
       const count = await getPendingCount();
       setQueuedCount(count);
     };
-    checkQueue();
-    const interval = setInterval(checkQueue, 5000);
-    return () => clearInterval(interval);
-  });
+    loadQueueCount();
+  }, []);
 
   const selectProvider = (provider: PaymentProvider) => {
     setSelectedProvider(provider);

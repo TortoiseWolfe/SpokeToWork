@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import AvatarDisplay from '@/components/atomic/AvatarDisplay';
 import type { UserProfile } from '@/types/messaging';
 
@@ -27,12 +27,12 @@ export interface ConversationListItemProps {
   isArchived?: boolean;
   /** Whether this conversation is selected */
   isSelected?: boolean;
-  /** Click handler */
-  onClick?: () => void;
-  /** Archive handler */
-  onArchive?: () => void;
-  /** Unarchive handler */
-  onUnarchive?: () => void;
+  /** Click handler - receives conversationId for memoization */
+  onClick?: (conversationId: string) => void;
+  /** Archive handler - receives conversationId for memoization */
+  onArchive?: (conversationId: string) => void;
+  /** Unarchive handler - receives conversationId for memoization */
+  onUnarchive?: (conversationId: string) => void;
   /** Additional CSS classes */
   className?: string;
 }
@@ -52,7 +52,7 @@ export interface ConversationListItemProps {
  *
  * @category molecular
  */
-export default function ConversationListItem({
+function ConversationListItem({
   conversationId,
   participant,
   isGroup = false,
@@ -120,13 +120,18 @@ export default function ConversationListItem({
 
   const hasUnread = unreadCount > 0;
 
+  // Handle main click (stop propagation handled by button)
+  const handleClick = () => {
+    onClick?.(conversationId);
+  };
+
   // Handle archive menu action (stop propagation to prevent triggering onClick)
   const handleArchiveClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isArchived) {
-      onUnarchive?.();
+      onUnarchive?.(conversationId);
     } else {
-      onArchive?.();
+      onArchive?.(conversationId);
     }
   };
 
@@ -151,7 +156,7 @@ export default function ConversationListItem({
     >
       {/* Main clickable area */}
       <button
-        onClick={onClick}
+        onClick={handleClick}
         className="flex min-w-0 flex-1 items-center gap-3 text-left"
         aria-label={getAriaLabel()}
       >
@@ -278,3 +283,6 @@ export default function ConversationListItem({
     </div>
   );
 }
+
+// Memoize to prevent re-renders when parent re-renders with same props
+export default memo(ConversationListItem);

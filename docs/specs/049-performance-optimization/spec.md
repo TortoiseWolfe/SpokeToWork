@@ -167,3 +167,33 @@ As a user on a mobile device, I need the app to be responsive and battery-effici
 2. **Network**: 90% reduction in polling requests
 3. **Battery**: Background CPU usage reduced (measure with Chrome DevTools)
 4. **Code**: 4 duplicate event patterns consolidated to 4 reusable hooks
+
+---
+
+## Clarifications
+
+### Session 2025-12-15
+
+**Q1: Hook Testing Requirements**
+
+- **Decision**: Unit tests only for new hooks (useOnlineStatus, useClickOutside, etc.)
+- **Rationale**: Hooks are utilities, not UI components - they don't need Storybook or a11y tests
+- **Pattern**: Create `src/hooks/useHookName.ts` with corresponding `src/hooks/__tests__/useHookName.test.ts`
+
+**Q2: Realtime Fallback Behavior**
+
+- **Decision**: Graceful degradation - fall back to polling only if realtime fails
+- **Rationale**: Maintains functionality while logging warning for debugging
+- **Pattern**: Try realtime subscription first, catch errors, fall back to setInterval with warning log
+
+**Q3: Additional Hook - useEscapeKey**
+
+- **Decision**: Add FR-010 for useEscapeKey hook
+- **Rationale**: Found 5 components with duplicate Escape key handlers during exploration
+- **Scope**: Consolidate Escape key handling in drawers and modals
+
+### Additional Requirement
+
+| ID     | Requirement                                       | Acceptance Criteria          |
+| ------ | ------------------------------------------------- | ---------------------------- |
+| FR-010 | Create `useEscapeKey` hook for modal/drawer close | 5 components use shared hook |
