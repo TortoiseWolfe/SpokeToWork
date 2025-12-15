@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { createLogger } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useCompanies } from '@/hooks/useCompanies';
@@ -50,6 +51,9 @@ import type {
   ApplicationOutcome,
 } from '@/types/company';
 import { ApplicationService } from '@/lib/companies/application-service';
+
+// Logger for companies page
+const logger = createLogger('app:companies');
 
 /** Type alias for company types used in this page */
 type CompanyType = Company | CompanyWithApplications | UnifiedCompany;
@@ -436,7 +440,17 @@ export default function CompaniesPage() {
 
   const handleAddCompany = useCallback(
     async (data: CompanyCreate | CompanyUpdate) => {
-      if (!user) return;
+      if (!user) {
+        logger.error('handleAddCompany: No user - cannot create company');
+        return;
+      }
+
+      logger.debug('handleAddCompany called', {
+        companyName: data.name,
+        hasAddress: !!data.address,
+        hasCoords: !!(data.latitude && data.longitude),
+        hasFollowUpDate: !!data.follow_up_date,
+      });
 
       try {
         setError(null);
@@ -456,12 +470,24 @@ export default function CompaniesPage() {
           notes: data.notes ?? undefined,
           status: data.status,
           priority: data.priority,
+          follow_up_date: data.follow_up_date ?? undefined, // T009: Add missing field
         };
 
+        logger.debug('handleAddCompany: privateData prepared', {
+          name: privateData.name,
+          fieldCount: Object.keys(privateData).filter(
+            (k) => privateData[k as keyof PrivateCompanyCreate] !== undefined
+          ).length,
+        });
+
         await createPrivate(privateData);
+        logger.debug('handleAddCompany: company created successfully');
         setShowAddForm(false);
       } catch (err) {
-        console.error('Error adding company:', err);
+        logger.error('handleAddCompany failed', {
+          error: err instanceof Error ? err.message : 'Unknown error',
+          companyName: data.name,
+        });
         setError(err instanceof Error ? err.message : 'Failed to add company');
         throw err;
       }
