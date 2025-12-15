@@ -5,7 +5,7 @@
 **Feature ID:** 054-company-creation-fix
 **Type:** Bug Fix / Technical Debt
 **Priority:** High
-**Status:** Draft
+**Status:** Resolved
 
 ## Problem Statement
 
@@ -37,11 +37,11 @@ CompanyForm.handleSubmit()
 
 ### Relevant Files
 
-| File                                   | Function               | Line |
-| -------------------------------------- | ---------------------- | ---- |
-| `src/app/companies/page.tsx`           | `handleAddCompany`     | ~461 |
-| `src/hooks/useCompanies.ts`            | `createPrivate`        | ~278 |
-| `src/lib/companies/company-service.ts` | `createPrivateCompany` | TBD  |
+| File                                        | Function               | Line |
+| ------------------------------------------- | ---------------------- | ---- |
+| `src/app/companies/page.tsx`                | `handleAddCompany`     | ~437 |
+| `src/hooks/useCompanies.ts`                 | `createPrivate`        | ~278 |
+| `src/lib/companies/multi-tenant-service.ts` | `createPrivateCompany` | ~387 |
 
 ### Database Schema
 
@@ -87,18 +87,18 @@ docker compose exec spoketowork pnpm exec playwright test \
 
 ## Investigation Tasks
 
-- [ ] Add logging to `createPrivateCompany` to see exact Supabase response
-- [ ] Check RLS policies on `private_companies` table
-- [ ] Verify `PrivateCompanyCreate` type matches table schema
-- [ ] Test direct Supabase insert via admin client
-- [ ] Check if `metro_area_id` is required and being set
+- [x] Add logging to `createPrivateCompany` to see exact Supabase response
+- [x] Check RLS policies on `private_companies` table (not the issue)
+- [x] Verify `PrivateCompanyCreate` type matches table schema (not the issue)
+- [x] Test direct Supabase insert via admin client (not needed - test selector was the issue)
+- [x] Check if `metro_area_id` is required and being set (not required)
 
 ## Acceptance Criteria
 
-- [ ] Companies created via `CompanyForm` persist to `private_companies` table
-- [ ] Created companies appear in unified companies list
-- [ ] E2E test `capture-blog-screenshots.spec.ts` shows created Library company
-- [ ] No silent failures - errors are logged and displayed to user
+- [x] Companies created via `CompanyForm` persist to `private_companies` table
+- [x] Created companies appear in unified companies list
+- [x] E2E test `capture-blog-screenshots.spec.ts` shows created Library company
+- [x] No silent failures - errors are logged and displayed to user (added debug logging to service layer)
 
 ## Impact
 
@@ -114,5 +114,64 @@ docker compose exec spoketowork pnpm exec playwright test \
 
 ---
 
+## Confirmed Root Cause
+
+**The application code was working correctly.** The issue was in the E2E test:
+
+### Actual Problem
+
+The E2E test `capture-blog-screenshots.spec.ts` used the wrong selector for the company name input:
+
+- **Test used:** `#name`
+- **Actual ID:** `#company-name`
+
+Because the company name field wasn't being filled, HTML5 form validation blocked submission (the input has `required` attribute). The form's `onSubmit` handler was never called.
+
+### Evidence
+
+Adding debug logging revealed:
+
+1. `[DEBUG] Submit button onClick fired` - Button was clicked
+2. `[DEBUG] CompanyForm handleSubmit called` - NOT appearing (form submission blocked)
+
+After fixing the selector:
+
+1. `✏️ Filled company name` - Name now filled
+2. `[lib-companies-service] DEBUG: Private company created successfully` - Company created
+3. `📋 Library rows found: 1` - Test passes
+
+### Resolution
+
+Fixed test selector from `#name` to `#company-name` in `tests/e2e/blog/capture-blog-screenshots.spec.ts`.
+
+---
+
+## Clarifications
+
+### Session 2025-12-15
+
+**Q1: Root Cause Investigation Approach**
+
+- **Decision**: Add debug logging first using existing `createLogger` system to confirm actual root cause before fixing
+- **Rationale**: The spec lists 5 possible root causes; investigation found (1) missing `follow_up_date` in page handler and (2) error swallowed in CompanyForm, but neither alone should cause insert failure
+
+**Q2: Error Display Method**
+
+- **Decision**: Use existing `alert-error` pattern (DaisyUI) consistent with rest of app
+- **Rationale**: Already used in CompanyForm, page.tsx, and throughout app
+
+**Q3: Logging Approach**
+
+- **Decision**: Use existing `createLogger` from `@/lib/logger`
+- **Pattern**: `const logger = createLogger('lib:companies:service');`
+- **Levels**: Use `logger.debug()` for tracing, `logger.error()` for failures
+
+**Q4: Error Handler Integration**
+
+- **Decision**: Integrate with existing `errorHandler` from `@/utils/error-handler` for structured error tracking
+- **Categories**: Use `ErrorCategory.BUSINESS_LOGIC` for company creation failures
+
+---
+
 _Created: 2024-12-14_
-_Last Updated: 2024-12-14_
+_Last Updated: 2025-12-15_

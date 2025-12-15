@@ -12,6 +12,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { createLogger } from '@/lib/logger';
 import { MultiTenantCompanyService } from '@/lib/companies/multi-tenant-service';
 import type {
   UnifiedCompany,
@@ -22,6 +23,9 @@ import type {
   TrackSharedCompanyCreate,
   UserCompanyTrackingUpdate,
 } from '@/types/company';
+
+// Logger for company hook operations
+const logger = createLogger('hooks:useCompanies');
 
 // Cache configuration
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -277,10 +281,23 @@ export function useCompanies(
   // Create private company with optimistic update
   const createPrivate = useCallback(
     async (data: PrivateCompanyCreate): Promise<UnifiedCompany> => {
+      logger.debug('createPrivate called', {
+        companyName: data.name,
+        hasAddress: !!data.address,
+        hasCoords: !!(data.latitude && data.longitude),
+      });
+
       const service = await getService();
-      if (!service) throw new Error('Not authenticated');
+      if (!service) {
+        logger.error(
+          'createPrivate failed: service not available (not authenticated)'
+        );
+        throw new Error('Not authenticated');
+      }
+      logger.debug('createPrivate: service obtained');
 
       const created = await service.createPrivateCompany(data);
+      logger.debug('createPrivate: company created', { companyId: created.id });
 
       // Create unified representation
       const unified: UnifiedCompany = {
