@@ -2,7 +2,7 @@
 
 **Feature Branch**: `052-test-coverage`
 **Created**: 2025-12-13
-**Status**: Draft
+**Status**: In Progress
 **Priority**: P2 (Medium)
 **Input**: Code review finding - 55 untested files, 54% coverage of lib/services/hooks
 
@@ -187,3 +187,59 @@ As a developer making changes to critical code, I need comprehensive test covera
 2. **Overall Coverage**: lib/services/hooks at 70% (up from 54%)
 3. **CI Integration**: Coverage thresholds enforced in CI
 4. **Refactoring Confidence**: Developers can safely modify tested code
+
+---
+
+## Clarifications
+
+### Session 2025-12-15
+
+**Q1: Test scope for files with existing tests**
+
+Some files already have contract/integration tests:
+
+- stripe.ts → tests/contract/stripe-webhook.test.ts
+- paypal.ts → tests/contract/paypal-webhook.test.ts
+- protected-route.tsx → tests/integration/auth/protected-routes.test.ts
+- database.ts → tests/integration/messaging/database-setup.test.ts
+- group-service.ts → tests/unit/services/messaging/group-service.test.ts
+- password-validator.ts → tests/unit/auth/password-validator.test.ts
+
+**Decision**: Skip files with existing tests. Focus on 9 truly untested files:
+
+1. src/lib/auth/retry-utils.ts
+2. src/lib/payments/connection-listener.ts
+3. src/lib/routing/osrm-service.ts
+4. src/lib/routes/route-service.ts
+5. src/lib/routes/route-export.ts
+6. src/contexts/AuthContext.tsx
+7. src/lib/supabase/client.ts
+8. src/lib/supabase/middleware.ts
+9. src/contexts/AccessibilityContext.tsx
+
+**Rationale**: More efficient to focus on gaps rather than duplicate existing coverage.
+
+**Q2: Hook testing scope**
+
+Found 16 hooks without tests (not 17 as originally estimated):
+
+1. useCodeBlockPreferences
+2. useCompanies
+3. useConnections
+4. useGroupMembers
+5. useIdleTimeout
+6. useKeyboardShortcuts
+7. useMetroAreas
+8. useOfflineStatus
+9. usePaymentButton
+10. usePaymentConsent
+11. usePaymentRealtime
+12. useReadReceipts
+13. useRoutes
+14. useTileProviders
+15. useUnreadCount
+16. useUserProfile
+
+**Decision**: Include all 16 hooks in test coverage expansion.
+
+**Total scope**: 9 core files + 16 hooks = 25 test files to create.
