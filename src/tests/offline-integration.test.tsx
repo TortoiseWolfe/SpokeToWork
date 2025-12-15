@@ -11,13 +11,13 @@ import {
   act,
 } from '@testing-library/react';
 import { ContactForm } from '@/components/forms/ContactForm/ContactForm';
-import * as offlineQueue from '@/utils/offline-queue';
+import * as offlineQueue from '@/lib/offline-queue';
 import * as backgroundSync from '@/utils/background-sync';
 import * as web3forms from '@/utils/web3forms';
 import { useOfflineQueue } from '@/hooks/useOfflineQueue';
 
 // Mock the modules
-vi.mock('@/utils/offline-queue');
+vi.mock('@/lib/offline-queue');
 vi.mock('@/utils/background-sync');
 vi.mock('@/utils/web3forms');
 

@@ -1,7 +1,16 @@
 /**
- * Audit Logger
- * Logs authentication and security events to the audit trail
+ * Audit Logger - Canonical Implementation
+ *
+ * This is the ONLY audit logging implementation in the codebase.
+ * Logs authentication and security events to the auth_audit_logs table.
+ *
  * REQ-SEC-007: Audit logging for security events
+ * Feature 050 - Code Consolidation (marked as canonical)
+ *
+ * Note: The class-based audit logger in services/auth/audit-logger.ts was
+ * removed as it was never used in production (only in test file).
+ *
+ * @module lib/auth/audit-logger
  */
 
 import { supabase } from '@/lib/supabase/client';

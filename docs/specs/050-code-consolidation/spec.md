@@ -2,9 +2,42 @@
 
 **Feature Branch**: `050-code-consolidation`
 **Created**: 2025-12-13
-**Status**: Draft
+**Status**: Ready for Planning
 **Priority**: P2 (Medium)
 **Input**: Code review finding - duplicate implementations across codebase
+
+---
+
+## Clarifications
+
+### Session 2025-12-15
+
+**Q1: Offline Queue Scope**
+The spec initially listed 3 implementations, but 4 were found:
+
+1. `src/utils/offline-queue.ts` (forms)
+2. `src/services/messaging/offline-queue-service.ts` (messaging)
+3. `src/lib/payments/offline-queue.ts` (payments)
+4. `src/lib/companies/offline-sync.ts` (companies - with conflict resolution)
+
+**Decision**: Include all 4 in consolidation.
+
+**Q2: Database Wrapper**
+Two approaches exist: Native IndexedDB (forms, companies) and Dexie.js (messaging, payments).
+
+**Decision**: Standardize on Dexie.js - cleaner API, already used by 2/4 implementations.
+
+**Q3: Audit Logger Pattern**
+
+- Functional version (`src/lib/auth/audit-logger.ts`) - used by 4 production components
+- Class version (`src/services/auth/audit-logger.ts`) - only used in test file
+
+**Decision**: Keep functional pattern (it's actually used in production), remove unused class.
+
+**Q4: Rate Limiter Dead Code**
+Client-side rate limiter (`src/lib/auth/rate-limiter.ts`) is never imported or used anywhere except its test file.
+
+**Decision**: Delete rate-limiter.ts and its test file - it's unused and bypassable.
 
 ## Execution Flow (main)
 
@@ -47,12 +80,12 @@ The codebase contains multiple implementations of the same functionality, creati
 
 ### Duplicate Areas Identified
 
-| Functionality    | Implementations | Files                                  |
-| ---------------- | --------------- | -------------------------------------- |
-| Offline Queue    | 3               | utils, messaging service, payments lib |
-| Audit Logger     | 2               | lib/auth, services/auth                |
-| Email Validation | 3               | auth, messaging, validation            |
-| Rate Limiting    | 2               | client-side, server-side               |
+| Functionality    | Implementations | Files                                                 |
+| ---------------- | --------------- | ----------------------------------------------------- |
+| Offline Queue    | 4               | utils, messaging service, payments lib, companies lib |
+| Audit Logger     | 2               | lib/auth (functional), services/auth (class)          |
+| Email Validation | 3               | auth, messaging, validation                           |
+| Rate Limiting    | 2               | client-side (unused), server-side (active)            |
 
 ---
 
@@ -138,34 +171,40 @@ As a developer maintaining this codebase, I need a single canonical implementati
 
 ### Offline Queue Consolidation
 
-**Create**: `src/lib/offline-queue/`
+**Create**: `src/lib/offline-queue/` (Dexie.js-based)
 
-- `index.ts` - Base abstraction
-- `form-adapter.ts` - Form submissions
-- `message-adapter.ts` - Messaging
-- `payment-adapter.ts` - Payments
+- `index.ts` - Module barrel export
+- `base-queue.ts` - Base Dexie.js abstraction with shared retry logic
+- `types.ts` - Shared TypeScript interfaces
+- `form-adapter.ts` - Form submissions adapter
+- `message-adapter.ts` - Messaging adapter
+- `payment-adapter.ts` - Payments adapter
+- `company-adapter.ts` - Company sync adapter with conflict resolution
 
-**Deprecate**:
+**Deprecate → Remove**:
 
 - `src/utils/offline-queue.ts`
 - `src/services/messaging/offline-queue-service.ts`
 - `src/lib/payments/offline-queue.ts`
+- `src/lib/companies/offline-sync.ts`
 
 ### Audit Logger Consolidation
 
-**Keep**: `src/services/auth/audit-logger.ts` (OOP pattern)
-**Deprecate**: `src/lib/auth/audit-logger.ts`
+**Keep**: `src/lib/auth/audit-logger.ts` (functional pattern - used by 4 components)
+**Remove**: `src/services/auth/audit-logger.ts` (unused class - only in test file)
+**Remove**: `tests/unit/auth/audit-logger.test.ts` (tests unused class)
 
 ### Email Validation Consolidation
 
 **Keep**: `src/lib/auth/email-validator.ts` (most comprehensive)
 **Update**: `src/lib/messaging/validation.ts` to import from auth
-**Update**: `src/lib/validation/patterns.ts` to import from auth
+**Update**: `src/lib/validation/patterns.ts` to re-export from auth
 
 ### Rate Limiting
 
-**Keep**: `src/lib/auth/rate-limit-check.ts` (server-side RPC)
-**Decide**: `src/lib/auth/rate-limiter.ts` (remove or document use case)
+**Keep**: `src/lib/auth/rate-limit-check.ts` (server-side RPC - canonical)
+**Remove**: `src/lib/auth/rate-limiter.ts` (dead code - never imported)
+**Remove**: `tests/unit/auth/rate-limiter.test.ts` (tests dead code)
 
 ---
 

@@ -1,4 +1,16 @@
 /**
+ * @deprecated This file is deprecated. Use @/lib/offline-queue instead.
+ * Migration: import { addToQueue, getQueueSize, clearQueue } from '@/lib/offline-queue';
+ *
+ * This file will be removed in a future version.
+ * Feature 050 - Code Consolidation
+ */
+
+console.warn(
+  '[@deprecated] src/utils/offline-queue.ts is deprecated. Use @/lib/offline-queue instead.'
+);
+
+/**
  * Offline queue management for form submissions using IndexedDB
  */
 

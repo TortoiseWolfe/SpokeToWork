@@ -10,7 +10,7 @@ import { usePaymentConsent } from './usePaymentConsent';
 import { createPaymentIntent } from '@/lib/payments/payment-service';
 import { createCheckoutSession as createStripeCheckout } from '@/lib/payments/stripe';
 import { createPayPalOrder } from '@/lib/payments/paypal';
-import { getPendingCount } from '@/lib/payments/offline-queue';
+import { getPendingCount } from '@/lib/offline-queue';
 import type { Currency, PaymentType, PaymentProvider } from '@/types/payment';
 
 export interface UsePaymentButtonOptions {

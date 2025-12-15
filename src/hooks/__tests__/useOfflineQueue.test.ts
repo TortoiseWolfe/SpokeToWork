@@ -14,7 +14,7 @@ import { useOfflineQueue } from '../useOfflineQueue';
 import type { QueuedMessage } from '@/types/messaging';
 
 // Mock OfflineQueueService - use factory function to avoid hoisting issues
-vi.mock('@/services/messaging/offline-queue-service', () => ({
+vi.mock('@/lib/offline-queue', () => ({
   offlineQueueService: {
     getQueue: vi.fn(),
     getFailedMessages: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('@/services/messaging/offline-queue-service', () => ({
 }));
 
 // Import after mock
-import { offlineQueueService } from '@/services/messaging/offline-queue-service';
+import { offlineQueueService } from '@/lib/offline-queue';
 
 const mockGetQueue = offlineQueueService.getQueue as ReturnType<typeof vi.fn>;
 const mockGetFailedMessages =
