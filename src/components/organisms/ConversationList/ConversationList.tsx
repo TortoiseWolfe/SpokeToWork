@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import ConversationListItem from '@/components/molecular/ConversationListItem';
 import {
@@ -92,31 +92,52 @@ export default function ConversationList({
   ]);
 
   // Debounced search (300ms)
-  const handleSearchChange = (value: string) => {
-    setSearchInput(value);
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchInput(value);
 
-    if (searchDebounce) {
-      clearTimeout(searchDebounce);
-    }
+      if (searchDebounce) {
+        clearTimeout(searchDebounce);
+      }
 
-    const timeout = setTimeout(() => {
-      setSearchQuery(value);
-    }, 300);
+      const timeout = setTimeout(() => {
+        setSearchQuery(value);
+      }, 300);
 
-    setSearchDebounce(timeout);
-  };
+      setSearchDebounce(timeout);
+    },
+    [searchDebounce, setSearchQuery]
+  );
 
-  const handleClearSearch = () => {
+  const handleClearSearch = useCallback(() => {
     setSearchInput('');
     setSearchQuery('');
     if (searchDebounce) {
       clearTimeout(searchDebounce);
     }
-  };
+  }, [searchDebounce, setSearchQuery]);
 
-  const handleConversationClick = (conversationId: string) => {
-    router.push(`/messages?conversation=${conversationId}`);
-  };
+  const handleConversationClick = useCallback(
+    (conversationId: string) => {
+      router.push(`/messages?conversation=${conversationId}`);
+    },
+    [router]
+  );
+
+  // Memoized archive/unarchive handlers to prevent re-renders
+  const handleArchive = useCallback(
+    (conversationId: string) => {
+      archiveConversation(conversationId);
+    },
+    [archiveConversation]
+  );
+
+  const handleUnarchive = useCallback(
+    (conversationId: string) => {
+      unarchiveConversation(conversationId);
+    },
+    [unarchiveConversation]
+  );
 
   return (
     <div className={`bg-base-100 flex h-full flex-col ${className}`}>
@@ -271,9 +292,9 @@ export default function ConversationList({
                 unreadCount={conv.unreadCount}
                 isArchived={conv.isArchived}
                 isSelected={conv.id === selectedConversationId}
-                onClick={() => handleConversationClick(conv.id)}
-                onArchive={() => archiveConversation(conv.id)}
-                onUnarchive={() => unarchiveConversation(conv.id)}
+                onClick={handleConversationClick}
+                onArchive={handleArchive}
+                onUnarchive={handleUnarchive}
               />
             ))}
           </div>

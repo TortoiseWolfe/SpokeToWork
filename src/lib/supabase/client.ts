@@ -111,15 +111,17 @@ export async function isSupabaseOnline(): Promise<boolean> {
 
 /**
  * Helper: Subscribe to connection status changes
+ * FR-005: Replaced 30s polling with browser events
  * @param callback - Called when connection status changes
  * @returns Unsubscribe function
  */
 export function onConnectionChange(
   callback: (online: boolean) => void
 ): () => void {
-  let isOnline = true;
+  let isOnline = navigator.onLine;
 
-  const checkConnection = async () => {
+  const handleOnline = async () => {
+    // Verify actual Supabase connectivity
     const online = await isSupabaseOnline();
     if (online !== isOnline) {
       isOnline = online;
@@ -127,12 +129,23 @@ export function onConnectionChange(
     }
   };
 
-  // Check every 30 seconds
-  const interval = setInterval(checkConnection, 30000);
+  const handleOffline = () => {
+    if (isOnline) {
+      isOnline = false;
+      callback(false);
+    }
+  };
+
+  // Use browser events instead of polling
+  window.addEventListener('online', handleOnline);
+  window.addEventListener('offline', handleOffline);
 
   // Initial check
-  checkConnection();
+  handleOnline();
 
   // Return unsubscribe function
-  return () => clearInterval(interval);
+  return () => {
+    window.removeEventListener('online', handleOnline);
+    window.removeEventListener('offline', handleOffline);
+  };
 }

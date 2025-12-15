@@ -169,7 +169,7 @@ export function useOfflineQueue(): UseOfflineQueueReturn {
     };
   }, [syncQueue]);
 
-  // Load queue on mount and set up polling
+  // Load queue on mount (no polling - queue state is updated reactively via mutations)
   useEffect(() => {
     // Initial load with sync trigger
     const initialLoad = async () => {
@@ -199,10 +199,12 @@ export function useOfflineQueue(): UseOfflineQueueReturn {
       logger.error('Failed to load offline queue on mount', { error });
     });
 
-    // Poll queue every 30 seconds to keep count updated
-    const interval = setInterval(loadQueue, 30000);
-
-    return () => clearInterval(interval);
+    // Note: Removed 30s polling interval (FR-003)
+    // Queue state is updated reactively via:
+    // - syncQueue() calls loadQueue() after sync
+    // - retryFailed() calls loadQueue() after retry
+    // - clearSynced() calls loadQueue() after clear
+    // - online event triggers syncQueue()
   }, [loadQueue, syncQueue]);
 
   return {
