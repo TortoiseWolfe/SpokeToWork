@@ -11,7 +11,7 @@
 import { createClient } from '@/lib/supabase/client';
 import { encryptionService } from '@/lib/messaging/encryption';
 import { keyManagementService } from './key-service';
-import { offlineQueueService } from './offline-queue-service';
+import { offlineQueueService } from '@/lib/offline-queue';
 import { cacheService } from '@/lib/messaging/cache';
 import { createLogger } from '@/lib/logger';
 import {

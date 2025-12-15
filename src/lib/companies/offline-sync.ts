@@ -1,4 +1,16 @@
 /**
+ * @deprecated This file is deprecated. Use @/lib/offline-queue instead.
+ * Migration: import { companyQueue } from '@/lib/offline-queue';
+ *
+ * This file will be removed in a future version.
+ * Feature 050 - Code Consolidation
+ */
+
+console.warn(
+  '[@deprecated] src/lib/companies/offline-sync.ts is deprecated. Use @/lib/offline-queue instead.'
+);
+
+/**
  * Offline Sync Service - Feature 011
  *
  * Manages IndexedDB storage and synchronization with Supabase

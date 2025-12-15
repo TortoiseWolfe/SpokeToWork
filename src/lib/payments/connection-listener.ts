@@ -4,7 +4,7 @@
  */
 
 import { isSupabaseOnline } from '@/lib/supabase/client';
-import { processPendingOperations, getPendingCount } from './offline-queue';
+import { processPendingOperations, getPendingCount } from '@/lib/offline-queue';
 import { createLogger } from '@/lib/logger';
 
 const logger = createLogger('payments:connection');

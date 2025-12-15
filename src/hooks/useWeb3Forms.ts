@@ -11,7 +11,7 @@ import {
   type Web3FormsResponse,
 } from '@/schemas/contact.schema';
 import { useOfflineQueue } from './useOfflineQueue';
-import { addToQueue, getQueueSize } from '@/utils/offline-queue';
+import { addToQueue, getQueueSize } from '@/lib/offline-queue';
 import { registerBackgroundSync } from '@/utils/background-sync';
 
 const logger = createLogger('hooks:web3Forms');

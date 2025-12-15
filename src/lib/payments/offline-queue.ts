@@ -1,4 +1,16 @@
 /**
+ * @deprecated This file is deprecated. Use @/lib/offline-queue instead.
+ * Migration: import { paymentQueue, queueOperation, processPendingOperations } from '@/lib/offline-queue';
+ *
+ * This file will be removed in a future version.
+ * Feature 050 - Code Consolidation
+ */
+
+console.warn(
+  '[@deprecated] src/lib/payments/offline-queue.ts is deprecated. Use @/lib/offline-queue instead.'
+);
+
+/**
  * Offline Queue System using Dexie.js (IndexedDB)
  * Queues payment operations when offline, processes when connection returns
  */

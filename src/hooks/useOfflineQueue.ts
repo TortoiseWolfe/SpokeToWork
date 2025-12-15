@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { offlineQueueService } from '@/services/messaging/offline-queue-service';
+import { offlineQueueService } from '@/lib/offline-queue';
 import { createLogger } from '@/lib/logger';
 import type { QueuedMessage } from '@/types/messaging';
 

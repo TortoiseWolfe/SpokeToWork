@@ -251,16 +251,17 @@ Run these SpecKit workflows to address code review findings:
 
 ### Completed
 
-- [x] **047-test-security** - Test security hardening (SQL injection prevention, credential fallback removal)
-- [x] **048-indexeddb-encryption** - Remove dead IndexedDB private key storage
+- [x] ~~**047-test-security**~~ - Test security hardening (SQL injection prevention, credential fallback removal)
+- [x] ~~**048-indexeddb-encryption**~~ - Remove dead IndexedDB private key storage
+- [x] ~~**049-performance-optimization**~~ - Test suite optimization (15min → 2min, OOM fixes)
+- [x] ~~**050-code-consolidation**~~ - Consolidate duplicate implementations (37/37 tasks)
+  - Dead code removal (rate-limiter.ts, audit-logger class)
+  - Unified offline queue module with 4 domain adapters
+  - Email validation consolidated to auth validator
 
-### P1: Performance Optimization
+### Pending
 
-```
-/speckit.workflow docs/specs/049-performance-optimization
-```
-
-### P1: Company Creation Fix
+#### P1: Company Creation Fix
 
 ```
 /speckit.workflow docs/specs/054-company-creation-fix
@@ -268,13 +269,7 @@ Run these SpecKit workflows to address code review findings:
 
 Company creation via CompanyForm doesn't persist to `private_companies` table.
 
-### P2: Code Consolidation
-
-```
-/speckit.workflow docs/specs/050-code-consolidation
-```
-
-### P2: Test Coverage Expansion
+#### P2: Test Coverage Expansion
 
 ```
 /speckit.workflow docs/specs/052-test-coverage

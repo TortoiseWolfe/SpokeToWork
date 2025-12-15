@@ -4,7 +4,7 @@
  */
 
 import { supabase, isSupabaseOnline } from '@/lib/supabase/client';
-import { queueOperation } from './offline-queue';
+import { queueOperation } from '@/lib/offline-queue';
 import type { Json } from '@/lib/supabase/types';
 import type {
   CreatePaymentIntentInput,

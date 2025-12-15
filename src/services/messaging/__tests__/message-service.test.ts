@@ -24,7 +24,7 @@ import { createClient } from '@/lib/supabase/client';
 import { createMessagingClient } from '@/lib/supabase/messaging-client';
 import { encryptionService } from '@/lib/messaging/encryption';
 import { keyManagementService } from '../key-service';
-import { offlineQueueService } from '../offline-queue-service';
+import { offlineQueueService } from '@/lib/offline-queue';
 import { cacheService } from '@/lib/messaging/cache';
 import {
   ValidationError,
@@ -38,7 +38,16 @@ vi.mock('@/lib/supabase/client');
 vi.mock('@/lib/supabase/messaging-client');
 vi.mock('@/lib/messaging/encryption');
 vi.mock('../key-service');
-vi.mock('../offline-queue-service');
+vi.mock('@/lib/offline-queue', () => ({
+  offlineQueueService: {
+    queueMessage: vi.fn(),
+    getQueue: vi.fn(),
+    syncQueue: vi.fn(),
+    retryFailed: vi.fn(),
+    clearSyncedMessages: vi.fn(),
+    getFailedMessages: vi.fn(),
+  },
+}));
 vi.mock('@/lib/messaging/cache', () => ({
   cacheService: {
     getCachedMessages: vi.fn(),

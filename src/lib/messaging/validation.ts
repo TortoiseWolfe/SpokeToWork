@@ -1,57 +1,30 @@
 /**
  * Validation Service for Messaging System
  * Task: T016
+ * Feature 050 - Code Consolidation: Uses canonical auth email validator
  *
  * Provides input validation and sanitization for messaging operations
  */
 
 import DOMPurify from 'dompurify';
 import { ValidationError } from '@/types/messaging';
-import { EMAIL_REGEX, UUID_REGEX } from '@/lib/validation/patterns';
+import { UUID_REGEX } from '@/lib/validation/patterns';
+import { validateEmail as authValidateEmail } from '@/lib/auth/email-validator';
 
 /**
  * Validate email address format
+ * Uses the canonical email validator from @/lib/auth/email-validator
+ *
  * @param email - Email address to validate
  * @throws ValidationError if email is invalid
  */
 export function validateEmail(email: string): void {
-  if (!email || typeof email !== 'string') {
-    throw new ValidationError('Email is required', 'email');
-  }
+  const result = authValidateEmail(email);
 
-  const trimmed = email.trim();
-
-  if (trimmed.length === 0) {
-    throw new ValidationError('Email cannot be empty', 'email');
-  }
-
-  if (trimmed.length > 254) {
-    throw new ValidationError(
-      'Email address is too long (max 254 characters)',
-      'email'
-    );
-  }
-
-  if (!EMAIL_REGEX.test(trimmed)) {
-    throw new ValidationError('Invalid email address format', 'email');
-  }
-
-  // Check for common typos
-  if (
-    trimmed.includes('..') ||
-    trimmed.startsWith('.') ||
-    trimmed.endsWith('.')
-  ) {
-    throw new ValidationError('Invalid email address format', 'email');
-  }
-
-  // Check for valid TLD (at least 2 characters)
-  const tld = trimmed.split('.').pop();
-  if (!tld || tld.length < 2) {
-    throw new ValidationError(
-      'Email must have a valid domain extension',
-      'email'
-    );
+  if (!result.valid) {
+    // Use first error message, or fallback
+    const errorMessage = result.errors[0] || 'Invalid email address format';
+    throw new ValidationError(errorMessage, 'email');
   }
 }
 
