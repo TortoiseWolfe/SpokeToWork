@@ -258,16 +258,10 @@ Run these SpecKit workflows to address code review findings:
   - Dead code removal (rate-limiter.ts, audit-logger class)
   - Unified offline queue module with 4 domain adapters
   - Email validation consolidated to auth validator
+- [x] ~~**054-company-creation-fix**~~ - Fix E2E test selector for company creation
+  - Root cause: Test used `#name` instead of `#company-name`
 
 ### Pending
-
-#### P1: Company Creation Fix
-
-```
-/speckit.workflow docs/specs/054-company-creation-fix
-```
-
-Company creation via CompanyForm doesn't persist to `private_companies` table.
 
 #### P2: Test Coverage Expansion
 
