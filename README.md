@@ -258,8 +258,8 @@ Run these SpecKit workflows to address code review findings:
   - Dead code removal (rate-limiter.ts, audit-logger class)
   - Unified offline queue module with 4 domain adapters
   - Email validation consolidated to auth validator
+- [x] ~~**051-ci-test-memory**~~ - Fix RouteBuilder OOM (6GB+ → normal via module aliases)
 - [x] ~~**054-company-creation-fix**~~ - Fix E2E test selector for company creation
-  - Root cause: Test used `#name` instead of `#company-name`
 
 ### Pending
 
