@@ -443,26 +443,32 @@ describe('useOfflineQueue', () => {
     });
   });
 
-  describe('polling', () => {
-    it('should poll queue every 30 seconds', async () => {
+  describe('reactive updates (FR-003)', () => {
+    it('should load queue on mount without polling', async () => {
+      // Note: Polling was removed per FR-003. Queue updates reactively via:
+      // - syncQueue() calls loadQueue() after sync
+      // - retryFailed() calls loadQueue() after retry
+      // - clearSynced() calls loadQueue() after clear
+      // - online event triggers syncQueue()
       vi.useFakeTimers();
 
       const { unmount } = renderHook(() => useOfflineQueue());
 
-      // Initial load happens first
-      await vi.waitFor(() => {
-        expect(mockGetQueue).toHaveBeenCalled();
+      // Initial load happens on mount
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
       });
 
-      const callsBefore = mockGetQueue.mock.calls.length;
+      expect(mockGetQueue).toHaveBeenCalled();
+      const callsAfterMount = mockGetQueue.mock.calls.length;
 
-      // Fast-forward 30 seconds
-      act(() => {
-        vi.advanceTimersByTime(30000);
+      // Fast-forward 30 seconds - no additional calls (no polling)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30000);
       });
 
-      // After 30 seconds, loadQueue should be called again
-      expect(mockGetQueue.mock.calls.length).toBeGreaterThan(callsBefore);
+      // No polling means no additional getQueue calls after time passes
+      expect(mockGetQueue.mock.calls.length).toBe(callsAfterMount);
 
       unmount();
       vi.useRealTimers();
