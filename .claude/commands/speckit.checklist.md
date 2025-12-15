@@ -64,7 +64,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
    Defaults when interaction impossible:
    - Depth: Standard
-   - Audience: Reviewer (PR) if code-related; Author otherwise
+   - Audience: **ALL audiences** (Author, Reviewer, QA, Release) - generate comprehensive checklist
    - Focus: Top 2 relevance clusters
 
    Output the questions (label Q1/Q2/Q3). After answers: if ≥2 scenario classes (Alternate / Exception / Recovery / Non-Functional domain) remain unclear, you MAY ask up to TWO more targeted follow‑ups (Q4/Q5) with a one-line justification each (e.g., "Unresolved recovery path risk"). Do not exceed five total questions. Skip escalation if user explicitly declines more.
@@ -113,6 +113,32 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Non-Functional Requirements** (Performance, Security, Accessibility, etc. - are they specified?)
    - **Dependencies & Assumptions** (Are they documented and validated?)
    - **Ambiguities & Conflicts** (What needs clarification?)
+
+   **Multi-Audience Structure** - Generate sections for ALL review stages:
+
+   **Author Self-Review** (pre-commit):
+   - Completeness of implementation scope
+   - Alignment with spec requirements
+   - Code quality and patterns followed
+   - Test coverage requirements met
+
+   **PR Reviewer** (peer review):
+   - Architecture decisions justified
+   - Edge cases documented
+   - Breaking changes identified
+   - Security implications addressed
+
+   **QA Review** (testing readiness):
+   - Acceptance criteria testable
+   - Test scenarios complete
+   - Regression impact assessed
+   - Performance requirements verifiable
+
+   **Release Review** (deployment readiness):
+   - Migration requirements documented
+   - Rollback procedures defined
+   - Monitoring/alerting specified
+   - Documentation updated
 
    **HOW TO WRITE CHECKLIST ITEMS - "Unit Tests for English"**:
 

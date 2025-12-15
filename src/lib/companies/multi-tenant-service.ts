@@ -12,6 +12,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { createLogger } from '@/lib/logger';
 import type {
   UnifiedCompany,
   UnifiedCompanyFilters,
@@ -30,6 +31,9 @@ import type {
   PrivateCompanyUpdate,
   EditSuggestionCreate,
 } from '@/types/company';
+
+// Logger for company service operations
+const logger = createLogger('lib:companies:service');
 
 /**
  * Error types for multi-tenant operations
@@ -410,6 +414,15 @@ export class MultiTenantCompanyService {
       // metro_area_id will be auto-assigned by trigger
     };
 
+    // Debug logging for company creation
+    logger.debug('Creating private company', {
+      userId: this.userId,
+      companyName: company.name,
+      hasAddress: !!company.address,
+      hasCoords: !!(company.latitude && company.longitude),
+      fieldCount: Object.keys(company).length,
+    });
+
     const { data: inserted, error } = await this.supabase
       .from('private_companies')
       .insert(company)
@@ -417,8 +430,21 @@ export class MultiTenantCompanyService {
       .single();
 
     if (error) {
+      logger.error('Failed to create private company', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        userId: this.userId,
+        companyName: company.name,
+      });
       throw error;
     }
+
+    logger.debug('Private company created successfully', {
+      companyId: inserted.id,
+      companyName: inserted.name,
+    });
 
     return inserted as PrivateCompany;
   }

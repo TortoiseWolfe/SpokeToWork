@@ -230,8 +230,8 @@ This command orchestrates the **complete** SpecKit workflow in sequence:
 2. Ask clarifying questions as needed to determine:
    - Checklist theme/domain (ux, api, security, performance, etc.)
    - Depth level (lightweight pre-commit vs formal release gate)
-   - Target audience (author, reviewer, QA)
    - Risk prioritization areas
+   - **Default: Generate comprehensive checklist covering ALL audiences** (Author, Reviewer, QA, Release)
 
 3. Load feature context:
    - `spec.md` - Requirements and scope
@@ -444,29 +444,36 @@ This command orchestrates the **complete** SpecKit workflow in sequence:
    - **Required**: `tasks.md`, `plan.md`
    - **If exists**: `data-model.md`, `contracts/`, `research.md`, `quickstart.md`
 
-4. Project setup verification:
+4. **Environment Readiness** - Run `./scripts/clean-start.sh` when:
+   - Starting implementation after a pause (stale containers)
+   - Previous attempt failed with build errors
+   - Switching branches with different dependencies
+   - After modifying: `package.json`, lock files, Docker configs, Tailwind/Next configs, `.env`
+   - Encountering: "Module not found", stale CSS, type errors not matching code, cache issues
+
+5. Project setup verification:
    - Detect technologies from plan.md
    - Create/verify ignore files (.gitignore, .dockerignore, .eslintignore, etc.)
 
-5. Execute tasks phase by phase:
+6. Execute tasks phase by phase:
    - **Setup first**: Project structure, dependencies, configuration
    - **Tests before code** (if TDD requested)
    - **Core development**: Models, services, endpoints
    - **Integration**: Database, middleware, external services
    - **Polish**: Final tests, optimization, documentation
 
-6. Progress tracking:
+7. Progress tracking:
    - Mark tasks complete `[X]` as finished
    - Report after each completed task
    - Halt on non-parallel task failure
    - Continue with parallel tasks [P] if some fail
 
-7. Completion validation:
+8. Completion validation:
    - All tasks completed
    - Tests pass
    - Implementation matches specification
 
-8. **FINAL REPORT**:
+9. **FINAL REPORT**:
    > "Implementation complete!
    >
    > Summary:
