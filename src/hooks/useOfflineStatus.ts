@@ -1,6 +1,14 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+/**
+ * useOfflineStatus Hook
+ * Extended offline status with connection speed tracking
+ *
+ * FR-006: Refactored to use useOnlineStatus for core online/offline state
+ */
+
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useOnlineStatus } from './useOnlineStatus';
 
 export interface OfflineStatus {
   isOffline: boolean;
@@ -10,10 +18,14 @@ export interface OfflineStatus {
 }
 
 export function useOfflineStatus() {
+  // FR-006: Use consolidated hook for online/offline status
+  const isOnline = useOnlineStatus();
+  const prevIsOnlineRef = useRef(isOnline);
+
   const [status, setStatus] = useState<OfflineStatus>({
-    isOffline: typeof window !== 'undefined' ? !navigator.onLine : false,
+    isOffline: !isOnline,
     wasOffline: false,
-    lastOnline: null,
+    lastOnline: isOnline ? new Date() : null,
     connectionSpeed: 'unknown',
   });
 
@@ -38,52 +50,47 @@ export function useOfflineStatus() {
     return 'unknown';
   }, []);
 
-  const updateStatus = useCallback(
-    (isOffline: boolean) => {
+  // Update status when isOnline changes
+  useEffect(() => {
+    const wasOffline = !prevIsOnlineRef.current && isOnline;
+    prevIsOnlineRef.current = isOnline;
+
+    setStatus((prev) => ({
+      isOffline: !isOnline,
+      wasOffline,
+      lastOnline: isOnline ? new Date() : prev.lastOnline,
+      connectionSpeed: checkConnectionSpeed(),
+    }));
+  }, [isOnline, checkConnectionSpeed]);
+
+  // Track connection speed changes
+  useEffect(() => {
+    if (!('connection' in navigator)) {
+      return;
+    }
+
+    const conn = (
+      navigator as unknown as {
+        connection: {
+          addEventListener?: (event: string, handler: () => void) => void;
+          removeEventListener?: (event: string, handler: () => void) => void;
+        };
+      }
+    ).connection;
+
+    const handleChange = () => {
       setStatus((prev) => ({
-        isOffline,
-        wasOffline: prev.isOffline && !isOffline,
-        lastOnline: isOffline ? prev.lastOnline : new Date(),
+        ...prev,
         connectionSpeed: checkConnectionSpeed(),
       }));
-    },
-    [checkConnectionSpeed]
-  );
+    };
 
-  useEffect(() => {
-    // Check initial state - only on client side
-    if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
-      updateStatus(!navigator.onLine);
-    }
-
-    const handleOnline = () => updateStatus(false);
-    const handleOffline = () => updateStatus(true);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    // Check connection changes
-    if ('connection' in navigator) {
-      const conn = (
-        navigator as unknown as {
-          connection: {
-            addEventListener?: (event: string, handler: () => void) => void;
-          };
-        }
-      ).connection;
-      conn?.addEventListener?.('change', () => {
-        setStatus((prev) => ({
-          ...prev,
-          connectionSpeed: checkConnectionSpeed(),
-        }));
-      });
-    }
+    conn?.addEventListener?.('change', handleChange);
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      conn?.removeEventListener?.('change', handleChange);
     };
-  }, [updateStatus, checkConnectionSpeed]);
+  }, [checkConnectionSpeed]);
 
   return status;
 }
