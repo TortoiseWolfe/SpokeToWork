@@ -4,7 +4,7 @@ This document captures issues encountered when forking the ScriptHammer template
 
 ## Summary
 
-Forking ScriptHammer required updating **200+ files** with hardcoded references. The Docker-first architecture also created friction with git hooks. Additionally, tests require Supabase mocking, description assertions need updating, **the basePath secret in deploy.yml breaks GitHub Pages for forks** (Issue #10), **production crashes without Supabase GitHub secrets** (Issue #11), **the footer template link needs manual update** (Issue #12), and **the PWA manifest description is generated at build time** (Issue #13).
+Forking ScriptHammer required updating **200+ files** with hardcoded references. The Docker-first architecture also created friction with git hooks. Additionally, tests require Supabase mocking, description assertions need updating, **the basePath secret in deploy.yml breaks GitHub Pages for forks** (Issue #10), **production crashes without Supabase GitHub secrets** (Issue #11), **the footer template link needs manual update** (Issue #12), **the PWA manifest description is generated at build time** (Issue #13), and **blog generation fails due to gray-matter/js-yaml version conflict** (Issue #14).
 
 ---
 
@@ -380,6 +380,53 @@ description: `${projectConfig.projectName} - Modern Next.js template with PWA, t
 docker compose exec spoketowork node scripts/generate-manifest.js
 cat public/manifest.json | grep description
 ```
+
+### 14. Blog Generation Fails Due to gray-matter/js-yaml Version Conflict
+
+**Problem:** Running `pnpm run generate:blog` fails with the error:
+
+```
+Error processing /app/public/blog/getting-started-job-hunt-companion.md: Function yaml.safeLoad is removed in js-yaml 4. Use yaml.load instead, which is now safe by default.
+```
+
+**Root Cause:** The `package.json` has a pnpm override forcing all packages to use js-yaml 4.x:
+
+```json
+"pnpm": {
+  "overrides": {
+    "js-yaml": ">=4.1.1"
+  }
+}
+```
+
+However, `gray-matter@4.0.3` (the YAML frontmatter parser used by `scripts/generate-blog-data.js`) requires `js-yaml@^3.13.1` and uses the deprecated `yaml.safeLoad()` function that was removed in js-yaml 4.0.0.
+
+**Affected Files:**
+
+- `scripts/generate-blog-data.js` - Blog generation script
+- `src/lib/blog/blog-data.json` - Generated blog data (fails to update)
+
+**Fix:** Add a package-specific override for gray-matter in `package.json`:
+
+```json
+"pnpm": {
+  "overrides": {
+    "js-yaml": ">=4.1.1",
+    "gray-matter>js-yaml": "^3.14.1"
+  }
+}
+```
+
+Then reinstall and regenerate:
+
+```bash
+docker compose exec spoketowork pnpm install
+docker compose exec spoketowork pnpm run generate:blog
+```
+
+**Suggested Fix for ScriptHammer:** Add the `gray-matter>js-yaml` override to the template's `package.json` so forks work out of the box. Alternatively, consider upgrading to a frontmatter parser that's compatible with js-yaml 4.x.
+
+**Long-term Solution:** Monitor `gray-matter` for a new release that supports js-yaml 4.x, or switch to an alternative like `front-matter` or `remark-frontmatter` that doesn't have this compatibility issue.
 
 ---
 
