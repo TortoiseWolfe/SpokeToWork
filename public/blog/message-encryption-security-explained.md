@@ -1,5 +1,5 @@
 ---
-title: 'How Your Messages Stay Private on SpokeToWork'
+title: '3 Security Layers Protecting Your Messages'
 author: SpokeToWork Team
 date: 2025-12-10
 slug: message-encryption-security-explained
@@ -15,12 +15,12 @@ excerpt: 'Your messages are encrypted so only you and your recipient can read th
 featuredImage: /blog-images/message-encryption-security-explained/featured.svg
 featuredImageAlt: 'Lock icon representing end-to-end encrypted messaging'
 ogImage: /blog-images/message-encryption-security-explained/featured-og.png
-ogTitle: 'How Your Messages Stay Private on SpokeToWork'
+ogTitle: '3 Security Layers Protecting Your Messages'
 ogDescription: 'End-to-end encryption means only you and your recipient can read your messages. Not even we can see them.'
 twitterCard: summary_large_image
 ---
 
-# How Your Messages Stay Private on SpokeToWork
+# 3 Security Layers Protecting Your Messages
 
 When you're job hunting, you might share sensitive information - salary expectations, interview feedback, or personal challenges. SpokeToWork protects these conversations with **end-to-end encryption (E2E)**, the same security used by Signal and WhatsApp.
 
