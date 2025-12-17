@@ -1,13 +1,13 @@
 {
   "posts": [
     {
-      "id": "post_jobseeker_01",
+      "id": "post_252b7ae8",
       "slug": "getting-started-job-hunt-companion",
-      "title": "Getting Started with SpokeToWork: Your Job Hunt Companion",
-      "content": "\n# Getting Started with SpokeToWork: Your Job Hunt Companion\n\nJob hunting is stressful enough without losing track of which companies you've applied to, who you talked to, and when you need to follow up. SpokeToWork helps you stay organized with a simple system for tracking companies and applications - all kept private and secure on your own account.\n\n## What SpokeToWork Helps You Do\n\nSpokeToWork is designed for job seekers who want to:\n\n- **Keep track of companies** you're interested in working for\n- **Manage job applications** from \"Applied\" through interviews to offers\n- **Plan visits** to companies (great for delivery drivers, sales roles, or just dropping off resumes)\n- **Stay organized** with notes, contacts, and follow-up reminders\n- **Connect with others** through private, encrypted messaging\n\nLet's walk through setting up your account and tracking your first application.\n\n---\n\n## Step 1: Set Your Home Location\n\nBefore adding companies, head to the **Companies** page and set your **Home Location**. This lets SpokeToWork calculate distances and plan efficient routes to potential employers.\n\n![Setting your home location](/blog-images/getting-started-job-hunt-companion/home-location-settings.png)\n*Enter your address and click Geocode to set your starting point*\n\nFor this walkthrough, we're starting from **Community Kitchen** (727 E 11th St, Chattanooga, TN 37403) - a real resource in downtown Chattanooga that helps folks getting back on their feet.\n\nSetting your home location first means every company you add will automatically show you how far away it is - helpful when you're planning visits by bike or on foot.\n\n---\n\n## Step 2: Add Your First Company\n\nHead to the **Companies** page. This is where you'll build your list of potential employers.\n\n### Adding the Chattanooga Public Library\n\nClick **Add Company** to open the form. Let's add a real location:\n\n![Adding a company to your list](/blog-images/getting-started-job-hunt-companion/add-company-form.png)\n*The company form lets you capture all the details you need*\n\nFill in the basics:\n\n- **Company Name**: Chattanooga Public Library\n- **Address**: 1001 Broad St, Chattanooga, TN 37402\n- **Website**: https://chattlibrary.org\n- **Phone**: (423) 757-5310\n\n### Adding Contact Information\n\nThe best job searches involve real connections. Add your contact at the company:\n\n- **Contact Name**: Human Resources\n- **Contact Title**: HR Department\n- **Email**: jobs@chattlibrary.org\n\n### Setting Status and Priority\n\nUse status to track where you are with each company:\n\n- **Not Contacted** - Companies you're researching\n- **Contacted** - You've reached out\n- **Follow Up** - Need to check back\n- **Meeting** - Interview scheduled\n- **Positive Outcome** - Got the job!\n- **Negative Outcome** - Didn't work out (but you learned something)\n\nSet **Priority** (1-5) to focus on your top picks first.\n\n### Notes for Future You\n\nUse the **Notes** field for anything helpful:\n\n> \"Saw job posting for Library Assistant position. Hours are flexible, good for someone rebuilding. Apply online or in person.\"\n\nClick **Save** and your company is tracked!\n\n---\n\n## Step 3: View Your Companies\n\n![The companies list showing your tracked locations](/blog-images/getting-started-job-hunt-companion/companies-list.png)\n*Your company list shows status, priority, and latest application at a glance*\n\nYour companies page shows:\n\n- Company name and location\n- Current status (color-coded for quick scanning)\n- Priority level\n- Most recent application status\n- Quick actions to edit, view details, or delete\n\nClick any company to see the full details drawer with all your notes, contacts, and applications.\n\n---\n\n## Step 4: Track a Job Application\n\nFound a job posting? Let's track it!\n\n### Adding an Application\n\nClick on the Chattanooga Public Library to open the details drawer, then click **Add Application**.\n\n![Adding a job application](/blog-images/getting-started-job-hunt-companion/add-application.png)\n*Track each application with position details and dates*\n\nFill in:\n\n- **Position Title**: Library Assistant\n- **Date Applied**: December 14, 2025\n- **Status**: Applied\n\n### Application Statuses\n\nSpokeToWork tracks your application through each stage:\n\n- **Not Applied** - You're interested but haven't applied yet\n- **Applied** - Application submitted\n- **Screening** - Initial review, phone screen\n- **Interviewing** - In-person or video interviews\n- **Offer** - They made you an offer!\n- **Closed** - Position filled or you moved on\n\n### Tracking Outcomes\n\nWhen an application concludes, record the outcome:\n\n- **Pending** - Still in progress\n- **Hired** - You got the job!\n- **Rejected** - They said no (it happens)\n- **Withdrawn** - You decided to pass\n- **Ghosted** - Never heard back (unfortunately common)\n\nThis data helps you understand your job search patterns over time.\n\n---\n\n## Step 5: Plan Your Visits with Routes\n\nFor job hunters who want to visit companies in person - whether to drop off a resume, scope out the location, or attend an interview - SpokeToWork includes bicycle route planning.\n\n![Route planning sidebar showing companies to visit](/blog-images/getting-started-job-hunt-companion/route-sidebar.png)\n*Plan your route and mark which companies to visit on your next trip*\n\n### Creating a Route\n\n1. Click **Create Route** in the sidebar\n2. Name it (e.g., \"Downtown Chattanooga - Week 1\")\n3. Add companies from your list to the route\n4. Drag to reorder your stops\n\nFor example, a route from Community Kitchen to the library, then to other downtown locations like the Chattanooga Convention Center or City Hall - all within biking distance.\n\n### The \"Next Ride\" Feature\n\nMark companies with **Next** to highlight which ones you'll visit on your next trip. This keeps your route focused when you have many companies saved.\n\n### View on the Map\n\nClick **View Map** to see all your companies plotted on an interactive map. The route line shows the suggested path between stops.\n\n![Interactive map showing company locations](/blog-images/getting-started-job-hunt-companion/map-view.png)\n*See your companies on a map with the planned route*\n\n---\n\n## Step 6: Privacy and Security\n\nYour job search is personal. Here's how SpokeToWork handles your data:\n\n- **Your Data, Your Account**: Companies and applications are private to your account - only you can see them\n- **Encrypted Messaging**: If you connect with other job seekers, messages are end-to-end encrypted. We literally cannot read them, even if we wanted to\n- **Anonymous Analytics**: We use Google Analytics to understand how people use the app (which pages are popular, where users get stuck). This data is anonymous - we see trends, not individuals. We never sell this data.\n- **No Data Selling**: We don't sell your personal information to advertisers or third parties\n\nLearn more about our encryption in our [security explainer](/blog/message-encryption-security-explained).\n\n---\n\n## Quick Reference: Job Application Workflow\n\nHere's a typical workflow for tracking a job opportunity:\n\n1. **Set up**: Configure your home location in your profile\n2. **Research**: Find a company you like, add it to SpokeToWork with status \"Not Contacted\"\n3. **Reach Out**: Apply for a position, update status to \"Contacted\", add an application with \"Applied\"\n4. **Follow Up**: Set a follow-up date, add notes about any conversations\n5. **Interview**: Update application status to \"Interviewing\", add interview date\n6. **Result**: Record the outcome - celebrate if hired, learn if not\n\n---\n\n## Tips for Job Search Success\n\n### Keep Notes Updated\n\nFuture you will thank present you for detailed notes. Write down:\n\n- Who you talked to and when\n- What they said about the role\n- Any requirements or next steps mentioned\n\n### Use Priority Wisely\n\nNot all opportunities are equal. Rank your dream jobs higher so you focus energy where it matters most.\n\n### Check In Weekly\n\nSet aside time each week to:\n\n- Review your application statuses\n- Update any companies where things have changed\n- Add new companies you've discovered\n\n### Don't Take Ghosting Personally\n\nIf a company never responds, mark it and move on. The outcome tracking helps you see patterns - some industries are worse about this than others.\n\n---\n\n## What's Next?\n\nYou're ready to start organizing your job search! Here's what to do:\n\n1. **Sign up** or log in to your account\n2. **Set your home location** in your profile\n3. **Add 3-5 companies** you're interested in\n4. **Track at least one application** to see how it works\n5. **Explore the map** if you plan to visit any locations\n\nGood luck with your job search! SpokeToWork is here to help you stay organized and focused on what matters: finding the right opportunity.\n\n---\n\n*Have questions? Check out our other guides or reach out through the contact page.*\n",
-      "excerpt": "Your personal job search organizer. Track companies, manage applications, and plan visits - all in one private, secure place.",
+      "title": "Essential Job Search Guide: 6 Steps to Organize Your Hunt with SpokeToWork",
+      "content": "\n# Essential Job Search Guide: 6 Steps to Organize Your Hunt with SpokeToWork\n\nJob hunting is stressful enough without losing track of which companies you've applied to, who you talked to, and when you need to follow up. SpokeToWork helps you stay organized with a simple system for tracking companies and applications - all kept private and secure on your own account.\n\n## What SpokeToWork Helps You Do\n\nSpokeToWork is designed for job seekers who want to:\n\n- **Keep track of companies** you're interested in working for\n- **Manage job applications** from \"Applied\" through interviews to offers\n- **Plan visits** to companies (great for delivery drivers, sales roles, or just dropping off resumes)\n- **Stay organized** with notes, contacts, and follow-up reminders\n- **Connect with others** through private, encrypted messaging\n\nLet's walk through setting up your account and tracking your first application.\n\n---\n\n## Step 1: Set Your Home Location\n\nBefore adding companies, head to the **Companies** page and set your **Home Location**. This lets SpokeToWork calculate distances and plan efficient routes to potential employers.\n\n![Setting your home location](/blog-images/getting-started-job-hunt-companion/home-location-settings.png)\n_Enter your address and click Geocode to set your starting point_\n\nFor this walkthrough, we're starting from **Community Kitchen** (727 E 11th St, Chattanooga, TN 37403) - a real resource in downtown Chattanooga that helps folks getting back on their feet.\n\nSetting your home location first means every company you add will automatically show you how far away it is - helpful when you're planning visits by bike or on foot.\n\n---\n\n## Step 2: Add Your First Company\n\nHead to the **Companies** page. This is where you'll build your list of potential employers.\n\n### Adding the Chattanooga Public Library\n\nClick **Add Company** to open the form. Let's add a real location:\n\n![Adding a company to your list](/blog-images/getting-started-job-hunt-companion/add-company-form.png)\n_The company form lets you capture all the details you need_\n\nFill in the basics:\n\n- **Company Name**: Chattanooga Public Library\n- **Address**: 1001 Broad St, Chattanooga, TN 37402\n- **Website**: https://chattlibrary.org\n- **Phone**: (423) 757-5310\n\n### Adding Contact Information\n\nThe best job searches involve real connections. Add your contact at the company:\n\n- **Contact Name**: Human Resources\n- **Contact Title**: HR Department\n- **Email**: jobs@chattlibrary.org\n\n### Setting Status and Priority\n\nUse status to track where you are with each company:\n\n- **Not Contacted** - Companies you're researching\n- **Contacted** - You've reached out\n- **Follow Up** - Need to check back\n- **Meeting Scheduled** - Interview scheduled\n- **Positive Outcome** - Got the job!\n- **Negative Outcome** - Didn't work out (but you learned something)\n\nSet **Priority** (1-5) to focus on your top picks first.\n\n### Notes for Future You\n\nUse the **Notes** field for anything helpful:\n\n> \"Saw job posting for Library Assistant position. Hours are flexible, good for someone rebuilding. Apply online or in person.\"\n\nClick **Save** and your company is tracked!\n\n---\n\n## Step 3: View Your Companies\n\n![The companies list showing your tracked locations](/blog-images/getting-started-job-hunt-companion/companies-list.png)\n_Your company list shows status, priority, and latest application at a glance_\n\nYour companies page shows:\n\n- Company name and location\n- Current status (color-coded for quick scanning)\n- Priority level\n- Most recent application status\n- Quick actions to edit, view details, or delete\n\nClick any company to see the full details drawer with all your notes, contacts, and applications.\n\n---\n\n## Step 4: Track a Job Application\n\nFound a job posting? Let's track it!\n\n### Adding an Application\n\nClick on the Chattanooga Public Library to open the details drawer, then click the **Add** button next to the Applications header (or **Add your first application** if you haven't added any yet).\n\n![Adding a job application](/blog-images/getting-started-job-hunt-companion/add-application.png)\n_Track each application with position details and dates_\n\nFill in:\n\n- **Position Title**: Library Assistant\n- **Date Applied**: December 14, 2025\n- **Status**: Applied\n\n### Application Statuses\n\nSpokeToWork tracks your application through each stage:\n\n- **Not Applied** - You're interested but haven't applied yet\n- **Applied** - Application submitted\n- **Screening** - Initial review, phone screen\n- **Interviewing** - In-person or video interviews\n- **Offer** - They made you an offer!\n- **Closed** - Position filled or you moved on\n\n### Tracking Outcomes\n\nWhen an application concludes, record the outcome:\n\n- **Pending** - Still in progress\n- **Hired** - You got the job!\n- **Rejected** - They said no (it happens)\n- **Withdrawn** - You decided to pass\n- **Ghosted** - Never heard back (unfortunately common)\n\nThis data helps you understand your job search patterns over time.\n\n---\n\n## Step 5: Plan Your Visits with Routes\n\nFor job hunters who want to visit companies in person - whether to drop off a resume, scope out the location, or attend an interview - SpokeToWork includes bicycle route planning.\n\n![Route planning sidebar showing companies to visit](/blog-images/getting-started-job-hunt-companion/route-sidebar.png)\n_Plan your route and mark which companies to visit on your next trip_\n\n### Creating a Route\n\n1. Click the **New** button in the Routes sidebar\n2. Name it (e.g., \"Downtown Chattanooga - Week 1\")\n3. Add companies from your list to the route\n4. Drag to reorder your stops\n\nFor example, a route from Community Kitchen to the library, then to other downtown locations like the Chattanooga Convention Center or City Hall - all within biking distance.\n\n### The \"Next Ride\" Feature\n\nMark companies with **Next** to highlight which ones you'll visit on your next trip. This keeps your route focused when you have many companies saved.\n\n### View on the Map\n\nNavigate to the **Map** page from the main navigation to see all your companies plotted on an interactive map. The route line shows the suggested path between stops.\n\n![Interactive map showing company locations](/blog-images/getting-started-job-hunt-companion/map-view.png)\n_See your companies on a map with the planned route_\n\n---\n\n## Step 6: Privacy and Security\n\nYour job search is personal. Here's how SpokeToWork handles your data:\n\n- **Your Data, Your Account**: Companies and applications are private to your account - only you can see them\n- **Encrypted Messaging**: If you connect with other job seekers, messages are end-to-end encrypted. We literally cannot read them, even if we wanted to\n- **Anonymous Analytics**: We use Google Analytics to understand how people use the app (which pages are popular, where users get stuck). This data is anonymous - we see trends, not individuals. We never sell this data.\n- **No Data Selling**: We don't sell your personal information to advertisers or third parties\n\nLearn more about our encryption in our [security explainer](/blog/message-encryption-security-explained).\n\n---\n\n## Quick Reference: Job Application Workflow\n\nHere's a typical workflow for tracking a job opportunity:\n\n1. **Set up**: Configure your home location in your profile\n2. **Research**: Find a company you like, add it to SpokeToWork with status \"Not Contacted\"\n3. **Reach Out**: Apply for a position, update status to \"Contacted\", add an application with \"Applied\"\n4. **Follow Up**: Set a follow-up date, add notes about any conversations\n5. **Interview**: Update application status to \"Interviewing\", add interview date\n6. **Result**: Record the outcome - celebrate if hired, learn if not\n\n---\n\n## Tips for Job Search Success\n\n### Keep Notes Updated\n\nFuture you will thank present you for detailed notes. Write down:\n\n- Who you talked to and when\n- What they said about the role\n- Any requirements or next steps mentioned\n\n### Use Priority Wisely\n\nNot all opportunities are equal. Rank your dream jobs higher so you focus energy where it matters most.\n\n### Check In Weekly\n\nSet aside time each week to:\n\n- Review your application statuses\n- Update any companies where things have changed\n- Add new companies you've discovered\n\n### Don't Take Ghosting Personally\n\nIf a company never responds, mark it and move on. The outcome tracking helps you see patterns - some industries are worse about this than others.\n\n---\n\n## What's Next?\n\nYou're ready to start organizing your job search! Here's what to do:\n\n1. **Sign up** or log in to your account\n2. **Set your home location** in your profile\n3. **Add 3-5 companies** you're interested in\n4. **Track at least one application** to see how it works\n5. **Explore the map** if you plan to visit any locations\n\nGood luck with your job search! SpokeToWork is here to help you stay organized and focused on what matters: finding the right opportunity.\n\n---\n\n_Have questions? Check out our other guides or reach out through the contact page._\n",
+      "excerpt": "Learn how to organize your job search in 6 simple steps. Track companies, manage applications, and plan visits - all in one private, secure place.",
       "publishedAt": "2025-12-15T00:00:00.000Z",
-      "updatedAt": "2025-12-15T00:00:00.000Z",
+      "updatedAt": "2025-12-17T11:53:38.332Z",
       "status": "published",
       "author": {
         "id": "default",
@@ -16,6 +16,7 @@
       "metadata": {
         "tags": [
           "job-hunting",
+          "job-search",
           "getting-started",
           "tutorial",
           "companies",
@@ -25,79 +26,70 @@
           "tutorials",
           "job-hunting"
         ],
-        "readingTime": 6,
-        "wordCount": 1150,
-        "showToc": true,
-        "showAuthor": true,
-        "showShareButtons": true,
-        "featured": true,
-        "featuredImage": "/blog-images/getting-started-job-hunt-companion/featured-og.svg",
-        "featuredImageAlt": "SpokeToWork dashboard showing company tracking and job application management"
-      },
-      "seo": {
-        "title": "Getting Started with SpokeToWork: Your Job Hunt Companion",
-        "description": "Track companies, manage job applications, and plan visits to potential employers. Your private, organized approach to job hunting.",
-        "keywords": [
-          "job search",
-          "job hunting",
-          "application tracker",
-          "company tracker",
-          "job organizer"
-        ],
-        "ogTitle": "Getting Started with SpokeToWork: Your Job Hunt Companion",
-        "ogDescription": "Track companies, manage job applications, and plan visits to potential employers. Your private, organized approach to job hunting.",
-        "ogImage": "/blog-images/getting-started-job-hunt-companion/featured-og.png",
-        "twitterCard": "summary_large_image"
-      }
-    },
-    {
-      "id": "post_sec_encrypt_01",
-      "slug": "message-encryption-security-explained",
-      "title": "How We Protect Your Messages: E2E Encryption",
-      "content": "\n# How SpokeToWork Protects Your Messages\n\n## The Bottom Line\n\nYour messages on SpokeToWork are **end-to-end encrypted**. This means we literally cannot read them—only you and the person you're messaging can. Even if someone broke into our servers, your message content would be scrambled nonsense to them.\n\n## Why We Built This\n\nMost social networks can read your private messages. Not because they're nosy (hopefully), but because of how they're built. Your messages sit on their servers in readable form, protected only by company policies and employee access controls.\n\nWe wanted something different. We believe private conversations should actually be private—not just from hackers, but from us too.\n\n## How It Works (The Simple Version)\n\nImagine you have a special lockbox:\n\n1. **Your password creates your unique key** - When you set up messaging, your password transforms into a digital key that only you have. We never see this key.\n\n2. **Every message gets locked before sending** - Before your message leaves your device, it gets scrambled using your key and the recipient's key together.\n\n3. **Only the recipient can unlock it** - The scrambled message travels through our servers to the other person. They use their key to unscramble it.\n\n4. **We only see scrambled text** - Our servers store your messages, but they're just random-looking characters to us. We couldn't read them even if we wanted to.\n\n## How We Compare to Other Platforms\n\n![Platform comparison chart showing SpokeToWork vs Facebook, Instagram, Twitter, and WhatsApp - only SpokeToWork and WhatsApp use encryption](/blog-images/message-encryption-security-explained/comparison-chart.png)\n\nWhatsApp also uses encryption, but there's a key difference: they control the key generation process. With SpokeToWork, your keys come from your password on your device—we're never involved in creating them.\n\n## What We're Honest About\n\nNo security system is perfect, and we believe you deserve to know our limitations:\n\n### We protect your message content, not everything\n\n- **Protected**: The actual words you write\n- **Not protected**: Who you message and when (we need this to deliver messages)\n\nThink of it like the postal service: they can see you sent a letter to someone, but they can't read what's inside.\n\n### Your password is crucial\n\nIf you forget your messaging password, we cannot recover your old messages. This is actually a security feature—it means we truly don't have access—but it also means **write down your password somewhere safe**.\n\n### We haven't had a professional security audit yet\n\nWe built this using industry-standard techniques recommended by [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password%5FStorage%5FCheat%5FSheet.html) (the same math that protects banking websites), but we're a small team and haven't paid for a formal security audit. We're transparent about this.\n\n### One password, all messages\n\nIf someone gets your password, they could read all your messages (not just new ones). Some messaging apps like [Signal](https://signal.org/) rotate keys constantly to prevent this, but it would mean you couldn't access messages from a new device. We chose convenience here—but it's a tradeoff you should understand.\n\n## Your Questions Answered\n\n**Q: What happens if you get hacked?**\nA: Hackers would get scrambled data. Without your password (which we don't have), they can't unscramble it.\n\n**Q: Can you read my messages if law enforcement asks?**\nA: No. We literally don't have the ability. We can only provide the scrambled version, which is useless without your password.\n\n**Q: What if I forget my password?**\nA: You'll need to set up encryption again with a new password. Old messages will be unreadable. Sorry—that's the price of real privacy.\n\n**Q: Is this the same as Signal?**\nA: Similar concept, different implementation. [Signal](https://signal.org/) uses a more advanced protocol with additional protections. We use proven cryptography but simpler key management.\n\n**Q: Should I trust this for highly sensitive information?**\nA: We'd recommend dedicated secure messengers ([Signal](https://signal.org/), etc.) for extremely sensitive communications. SpokeToWork's encryption is solid for normal private conversations, but hasn't been audited like those specialized apps.\n\n## The Technical Details (For the Curious)\n\nIf you're interested in the specifics:\n\n- **Key derivation**: [Argon2id](https://cheatsheetseries.owasp.org/cheatsheets/Password%5FStorage%5FCheat%5FSheet.html#argon2id) (memory-hard, time-hard)\n- **Key exchange**: ECDH with P-256 curve\n- **Message encryption**: AES-256-GCM\n- **Random IV**: 96 bits per message\n\nThese are all industry-standard, [OWASP-recommended](https://owasp.org/) algorithms.\n\n---\n\n**Have questions about our security?** We're happy to discuss—transparency is part of our commitment to you. Check out our [other blog posts](/blog/) or reach out anytime.\n",
-      "excerpt": "Your messages on SpokeToWork are end-to-end encrypted. We explain how it works, how we compare to other platforms, and what limitations exist—honestly.",
-      "publishedAt": "2025-11-30T00:00:00.000Z",
-      "updatedAt": "2025-12-15T00:00:00.000Z",
-      "status": "published",
-      "author": {
-        "id": "default",
-        "name": "SpokeToWork Team"
-      },
-      "metadata": {
-        "tags": [
-          "security",
-          "encryption",
-          "privacy",
-          "e2e",
-          "messaging"
-        ],
-        "categories": [
-          "security",
-          "transparency"
-        ],
-        "readingTime": 5,
-        "wordCount": 850,
+        "readingTime": 7,
+        "wordCount": 1380,
         "showToc": true,
         "showAuthor": true,
         "showShareButtons": true,
         "featured": false,
-        "featuredImage": "/blog-images/message-encryption-security-explained/featured.png",
-        "featuredImageAlt": "End-to-end encryption explained with lock icons and security badges showing AES-256 and Argon2id"
+        "featuredImage": "/blog-images/getting-started-job-hunt-companion/featured-og.svg",
+        "featuredImageAlt": "SpokeToWork dashboard showing company tracking and job application management"
       },
       "seo": {
-        "title": "Message Encryption: How We Protect Your Privacy",
-        "description": "Learn how SpokeToWork's E2E encryption protects your messages. Discover our security vs Facebook, honest limitations, and why we can't read your DMs.",
+        "title": "Essential Job Search Guide: 6 Steps to Organize Your Hunt with SpokeToWork",
+        "description": "Learn how to organize your job search in 6 simple steps. Track companies, manage applications, and plan visits - all in one private, secure place.",
         "keywords": [
-          "end-to-end encryption",
-          "private messaging",
-          "secure messaging",
-          "E2E encryption"
+          "job-hunting",
+          "job-search",
+          "getting-started",
+          "tutorial",
+          "companies",
+          "applications"
         ],
-        "ogTitle": "Message Encryption: 5 Ways We Protect Your Privacy",
-        "ogDescription": "Learn how SpokeToWork's E2E encryption works, compare to Facebook/Instagram/WhatsApp, and discover our honest security limitations.",
-        "ogImage": "/blog-images/message-encryption-security-explained/featured-og.png",
+        "ogTitle": "Essential Job Search Guide: 6 Steps to Organize Your Hunt",
+        "ogDescription": "Discover how to track companies, manage job applications, and plan visits to potential employers. Your private, organized approach to job hunting.",
+        "ogImage": "/blog-images/getting-started-job-hunt-companion/featured-og.png",
+        "twitterCard": "summary_large_image"
+      },
+      "frontMatter": {
+        "title": "Essential Job Search Guide: 6 Steps to Organize Your Hunt with SpokeToWork",
+        "author": "SpokeToWork Team",
+        "date": "2025-12-15T00:00:00.000Z",
+        "slug": "getting-started-job-hunt-companion",
+        "tags": [
+          "job-hunting",
+          "job-search",
+          "getting-started",
+          "tutorial",
+          "companies",
+          "applications"
+        ],
+        "categories": [
+          "tutorials",
+          "job-hunting"
+        ],
+        "excerpt": "Learn how to organize your job search in 6 simple steps. Track companies, manage applications, and plan visits - all in one private, secure place.",
+        "featuredImage": "/blog-images/getting-started-job-hunt-companion/featured-og.svg",
+        "featuredImageAlt": "SpokeToWork dashboard showing company tracking and job application management",
+        "ogImage": "/blog-images/getting-started-job-hunt-companion/featured-og.png",
+        "ogTitle": "Essential Job Search Guide: 6 Steps to Organize Your Hunt",
+        "ogDescription": "Discover how to track companies, manage job applications, and plan visits to potential employers. Your private, organized approach to job hunting.",
         "twitterCard": "summary_large_image"
       }
     }
+  ],
+  "generated": "2025-12-17T12:31:11.502Z",
+  "count": 1,
+  "tags": [
+    "job-hunting",
+    "job-search",
+    "getting-started",
+    "tutorial",
+    "companies",
+    "applications"
+  ],
+  "categories": [
+    "tutorials",
+    "job-hunting"
   ]
 }
