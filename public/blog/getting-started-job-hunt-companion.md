@@ -85,7 +85,7 @@ Use status to track where you are with each company:
 - **Not Contacted** - Companies you're researching
 - **Contacted** - You've reached out
 - **Follow Up** - Need to check back
-- **Meeting** - Interview scheduled
+- **Meeting Scheduled** - Interview scheduled
 - **Positive Outcome** - Got the job!
 - **Negative Outcome** - Didn't work out (but you learned something)
 
@@ -124,7 +124,7 @@ Found a job posting? Let's track it!
 
 ### Adding an Application
 
-Click on the Chattanooga Public Library to open the details drawer, then click **Add Application**.
+Click on the Chattanooga Public Library to open the details drawer, then click the **Add** button next to the Applications header (or **Add your first application** if you haven't added any yet).
 
 ![Adding a job application](/blog-images/getting-started-job-hunt-companion/add-application.png)
 _Track each application with position details and dates_
@@ -169,7 +169,7 @@ _Plan your route and mark which companies to visit on your next trip_
 
 ### Creating a Route
 
-1. Click **Create Route** in the sidebar
+1. Click the **New** button in the Routes sidebar
 2. Name it (e.g., "Downtown Chattanooga - Week 1")
 3. Add companies from your list to the route
 4. Drag to reorder your stops
@@ -182,7 +182,7 @@ Mark companies with **Next** to highlight which ones you'll visit on your next t
 
 ### View on the Map
 
-Click **View Map** to see all your companies plotted on an interactive map. The route line shows the suggested path between stops.
+Navigate to the **Map** page from the main navigation to see all your companies plotted on an interactive map. The route line shows the suggested path between stops.
 
 ![Interactive map showing company locations](/blog-images/getting-started-job-hunt-companion/map-view.png)
 _See your companies on a map with the planned route_
