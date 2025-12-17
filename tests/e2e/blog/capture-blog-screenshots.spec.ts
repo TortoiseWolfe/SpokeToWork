@@ -1,8 +1,9 @@
 /**
- * E2E Test: Capture Screenshots for Blog Post
+ * E2E Test: Capture Screenshots for Blog Post with Accuracy Audit
  *
  * This spec captures screenshots demonstrating the job seeker flow
- * for the getting started blog post.
+ * for the getting started blog post AND validates that the UI matches
+ * what's documented in the blog.
  *
  * Uses SECONDARY test user to ensure clean demo data.
  * Flow:
@@ -10,14 +11,100 @@
  * 2. Add Chattanooga Public Library as a company
  * 3. Capture companies list, application form, route sidebar, map view
  * 4. Clean up demo data
+ * 5. Generate audit report of discrepancies
  *
  * Screenshots saved to: public/blog-images/getting-started-job-hunt-companion/
+ * Audit report saved to: public/blog-images/getting-started-job-hunt-companion/audit-report.md
  */
 
-import { test, type BrowserContext, type Page } from '@playwright/test';
+import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as path from 'path';
 import * as fs from 'fs';
+
+// ============================================================================
+// AUDIT INFRASTRUCTURE
+// ============================================================================
+
+interface DiscrepancyReport {
+  step: string;
+  element: string;
+  expected: string;
+  actual: string;
+  severity: 'critical' | 'warning' | 'info';
+}
+
+const auditResults: DiscrepancyReport[] = [];
+
+function addDiscrepancy(report: DiscrepancyReport) {
+  auditResults.push(report);
+  const emoji =
+    report.severity === 'critical'
+      ? '❌'
+      : report.severity === 'warning'
+        ? '⚠️'
+        : 'ℹ️';
+  console.log(
+    `[AUDIT ${report.severity.toUpperCase()}] ${emoji} ${report.step}: ${report.element}`
+  );
+  console.log(`  Expected: "${report.expected}"`);
+  console.log(`  Actual: "${report.actual}"`);
+}
+
+// Blog expectations - derived from getting-started-job-hunt-companion.md
+const BLOG_EXPECTATIONS = {
+  step1: {
+    title: 'Step 1: Set Your Home Location',
+    buttons: ['Geocode', 'Save Home Location'],
+    fields: ['home address'],
+  },
+  step2: {
+    title: 'Step 2: Add Your First Company',
+    buttons: ['Add Company', 'Geocode', 'Save'],
+    fields: [
+      'Company Name',
+      'Address',
+      'Website',
+      'Phone',
+      'Contact Name',
+      'Contact Title',
+      'Email',
+      'Notes',
+      'Status',
+      'Priority',
+    ],
+    // Blog says these exact status labels
+    statuses: [
+      'Not Contacted',
+      'Contacted',
+      'Follow Up',
+      'Meeting', // Blog says "Meeting" - actual may differ
+      'Positive Outcome',
+      'Negative Outcome',
+    ],
+    priorities: ['1', '2', '3', '4', '5'],
+  },
+  step4: {
+    title: 'Step 4: Track a Job Application',
+    buttons: ['Add Application'],
+    // Blog says these exact application statuses
+    appStatuses: [
+      'Not Applied',
+      'Applied',
+      'Screening',
+      'Interviewing',
+      'Offer',
+      'Closed',
+    ],
+    // Blog says these exact outcomes
+    outcomes: ['Pending', 'Hired', 'Rejected', 'Withdrawn', 'Ghosted'],
+  },
+  step5: {
+    title: 'Step 5: Plan Your Visits with Routes',
+    buttons: ['Create Route', 'View Map'],
+    features: ['Next', 'Next Ride'],
+  },
+};
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
@@ -98,7 +185,7 @@ const COOKIE_CONSENT = {
   method: 'banner_accept_all',
 };
 
-test.describe.serial('Blog Screenshot Capture', () => {
+test.describe.serial('Blog Screenshot Capture with Accuracy Audit', () => {
   let context: BrowserContext;
   let page: Page;
 
@@ -294,16 +381,28 @@ test.describe.serial('Blog Screenshot Capture', () => {
     await context?.close();
   });
 
-  test('1. Capture Home Location Settings', async () => {
+  test('1. Audit & Capture Home Location Settings', async () => {
+    console.log('\n📋 AUDIT: Step 1 - Home Location Settings');
+
     // Navigate to companies page
     await page.goto(`${BASE_URL}/companies`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
 
-    // Click "Home Location" button to show the settings panel
-    // (HomeLocationSettings is hidden by default, shown when button is clicked)
+    // AUDIT: Check for "Home Location" button
     const homeLocationButton = page.locator('button:has-text("Home Location")');
-    if ((await homeLocationButton.count()) > 0) {
+    const homeLocationButtonCount = await homeLocationButton.count();
+
+    if (homeLocationButtonCount === 0) {
+      addDiscrepancy({
+        step: 'Step 1',
+        element: 'Home Location button',
+        expected: 'Button with text "Home Location" on companies page',
+        actual: 'Button not found',
+        severity: 'critical',
+      });
+    } else {
+      console.log('✅ AUDIT: "Home Location" button found');
       await homeLocationButton.click();
       await page.waitForTimeout(500);
     }
@@ -312,23 +411,55 @@ test.describe.serial('Blog Screenshot Capture', () => {
     const homeLocationSettings = page.locator(
       '[data-testid="home-location-settings"]'
     );
-    await homeLocationSettings.waitFor({ state: 'visible', timeout: 5000 });
 
-    // Fill in Community Kitchen address
+    try {
+      await homeLocationSettings.waitFor({ state: 'visible', timeout: 5000 });
+      console.log('✅ AUDIT: Home Location Settings panel visible');
+    } catch {
+      addDiscrepancy({
+        step: 'Step 1',
+        element: 'Home Location Settings panel',
+        expected: 'Settings panel appears after clicking button',
+        actual: 'Panel did not appear within 5 seconds',
+        severity: 'critical',
+      });
+      return;
+    }
+
+    // AUDIT: Check for address input (blog says "Enter your address")
     const addressInput = page.locator('#home-address');
-    await addressInput.fill(HOME_LOCATION.address);
+    if ((await addressInput.count()) === 0) {
+      addDiscrepancy({
+        step: 'Step 1',
+        element: 'Address input field',
+        expected: 'Input field for home address',
+        actual: 'Input field not found with #home-address',
+        severity: 'critical',
+      });
+    } else {
+      console.log('✅ AUDIT: Address input field found');
+      await addressInput.fill(HOME_LOCATION.address);
+    }
 
-    // Click Geocode button FIRST - this updates the map to show Chattanooga
+    // AUDIT: Check for "Geocode" button (blog says "click Geocode to set your starting point")
     const geocodeButton = page.locator(
       '[data-testid="home-location-settings"] button:has-text("Geocode")'
     );
-    await geocodeButton.click();
+    if ((await geocodeButton.count()) === 0) {
+      addDiscrepancy({
+        step: 'Step 1',
+        element: 'Geocode button',
+        expected: 'Button with text "Geocode" (per blog)',
+        actual: 'Geocode button not found',
+        severity: 'critical',
+      });
+    } else {
+      console.log('✅ AUDIT: "Geocode" button found');
+      await geocodeButton.click();
+      await page.waitForTimeout(3000);
+    }
 
-    // Wait for geocoding to complete - the map should update from NYC to Chattanooga
-    // The mock API returns Chattanooga coords, component should update map center
-    await page.waitForTimeout(3000);
-
-    // Verify coordinates updated (check for Chattanooga-ish coords in the label)
+    // Verify coordinates updated
     const coordsLabel = page.locator(
       '[data-testid="home-location-settings"] .label-text-alt:has-text("Coordinates")'
     );
@@ -343,95 +474,159 @@ test.describe.serial('Blog Screenshot Capture', () => {
     });
     console.log('✅ Captured: home-location-settings.png');
 
-    // Save the home location
+    // AUDIT: Check for "Save Home Location" button (blog mentions this)
     const saveButton = page.locator('button:has-text("Save Home Location")');
-    const isEnabled = await saveButton
-      .first()
-      .isEnabled()
-      .catch(() => false);
-    if (isEnabled) {
-      await saveButton.first().click();
-      await page.waitForTimeout(2000);
-      console.log('✅ Set home location to Community Kitchen');
+    if ((await saveButton.count()) === 0) {
+      addDiscrepancy({
+        step: 'Step 1',
+        element: 'Save Home Location button',
+        expected: 'Button with text "Save Home Location"',
+        actual: 'Button not found',
+        severity: 'warning',
+      });
     } else {
-      console.log('⚠️ Save button disabled - geocoding may have failed');
+      console.log('✅ AUDIT: "Save Home Location" button found');
+      const isEnabled = await saveButton
+        .first()
+        .isEnabled()
+        .catch(() => false);
+      if (isEnabled) {
+        await saveButton.first().click();
+        await page.waitForTimeout(2000);
+        console.log('✅ Set home location to Community Kitchen');
+      } else {
+        console.log('⚠️ Save button disabled - geocoding may have failed');
+      }
     }
 
     // Reload to see updated state
     await page.reload();
     await page.waitForLoadState('networkidle');
+
+    console.log('📋 Step 1 audit complete\n');
   });
 
-  test('2. Capture Add Company Form with Library data', async () => {
+  test('2. Audit & Capture Add Company Form', async () => {
+    console.log('\n📋 AUDIT: Step 2 - Add Company Form');
+
     // Navigate to companies page
     await page.goto(`${BASE_URL}/companies`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
 
-    // Click Add Company button
+    // AUDIT: Check for "Add Company" button
     const addButton = page.locator('button:has-text("Add Company")');
     if ((await addButton.count()) === 0) {
-      console.log('⚠️ Add Company button not found');
+      addDiscrepancy({
+        step: 'Step 2',
+        element: 'Add Company button',
+        expected: 'Button with text "Add Company"',
+        actual: 'Button not found',
+        severity: 'critical',
+      });
       return;
     }
+    console.log('✅ AUDIT: "Add Company" button found');
     await addButton.click();
 
-    // Wait for form to appear - it's rendered as part of the page, not a modal
+    // Wait for form to appear
     await page.waitForTimeout(1000);
 
     // Wait for the address input to be visible (form is loaded)
     const addressInput = page.locator('#address');
-    await addressInput.waitFor({ state: 'visible', timeout: 5000 });
+    try {
+      await addressInput.waitFor({ state: 'visible', timeout: 5000 });
+      console.log('✅ AUDIT: Address input field found');
+    } catch {
+      addDiscrepancy({
+        step: 'Step 2',
+        element: 'Address input field',
+        expected: 'Input field for company address',
+        actual: 'Address input not found with #address',
+        severity: 'critical',
+      });
+    }
 
-    // Fill in company name first
+    // AUDIT: Check for company name input
     const nameInput = page.locator('#company-name');
     if ((await nameInput.count()) > 0) {
+      console.log('✅ AUDIT: Company name input found');
       await nameInput.fill(LIBRARY_COMPANY.name);
-      console.log('✏️ Filled company name');
     } else {
-      console.log('⚠️ Company name input not found with #company-name');
+      addDiscrepancy({
+        step: 'Step 2',
+        element: 'Company Name input',
+        expected: 'Input field for company name',
+        actual: 'Input not found with #company-name',
+        severity: 'critical',
+      });
     }
 
-    // Fill address - CRITICAL: must fill before geocode button becomes enabled
+    // Fill address
     await addressInput.fill(LIBRARY_COMPANY.address);
-    console.log('✏️ Filled address');
-
-    // Small delay for React state to update
     await page.waitForTimeout(500);
 
-    // Click Geocode button - CRITICAL: This updates the map from default NYC to Chattanooga
-    const geocodeButton = page.locator('button:has-text("Geocode")');
-    const buttonCount = await geocodeButton.count();
-    console.log(`🔘 Found ${buttonCount} Geocode button(s)`);
+    // AUDIT: Check for status select and validate options match blog
+    const statusSelect = page.locator('#status, select[name="status"]');
+    if ((await statusSelect.count()) > 0) {
+      console.log('✅ AUDIT: Status dropdown found');
+      const statusOptions = await statusSelect
+        .locator('option')
+        .allTextContents();
+      console.log(`   Status options in UI: ${statusOptions.join(', ')}`);
 
-    if (buttonCount > 0) {
-      const isEnabled = await geocodeButton.first().isEnabled();
-      console.log(`🔘 Geocode button enabled: ${isEnabled}`);
-
-      if (isEnabled) {
-        await geocodeButton.first().click();
-        console.log('🔘 Clicked Geocode button');
-
-        // Wait for geocoding to complete (network request + state update)
-        await page.waitForTimeout(3000);
-
-        // Check if geocoding succeeded
-        const submitBtn = page.locator(
-          'button[type="submit"]:has-text("Add Company")'
+      // Check each blog-expected status
+      for (const expectedStatus of BLOG_EXPECTATIONS.step2.statuses) {
+        const found = statusOptions.some((opt) =>
+          opt.toLowerCase().includes(expectedStatus.toLowerCase())
         );
-        const submitEnabled = await submitBtn.isEnabled().catch(() => false);
-        console.log(`📍 Submit button enabled: ${submitEnabled}`);
-
-        // Wait extra time for map tiles to load at new location
-        await page.waitForTimeout(2000);
-      } else {
-        console.log('⚠️ Geocode button found but disabled');
+        if (!found) {
+          // Check if "Meeting Scheduled" exists when we expected "Meeting"
+          if (
+            expectedStatus === 'Meeting' &&
+            statusOptions.some((opt) => opt.includes('Meeting Scheduled'))
+          ) {
+            addDiscrepancy({
+              step: 'Step 2',
+              element: `Status option "${expectedStatus}"`,
+              expected: `"Meeting" (per blog)`,
+              actual: '"Meeting Scheduled" (UI has different text)',
+              severity: 'warning',
+            });
+          } else {
+            addDiscrepancy({
+              step: 'Step 2',
+              element: `Status option "${expectedStatus}"`,
+              expected: `Status option "${expectedStatus}" in dropdown`,
+              actual: 'Not found in status dropdown',
+              severity: 'warning',
+            });
+          }
+        }
       }
     } else {
-      console.log('⚠️ Geocode button not found');
+      addDiscrepancy({
+        step: 'Step 2',
+        element: 'Status dropdown',
+        expected: 'Select element for company status',
+        actual: 'Status dropdown not found',
+        severity: 'warning',
+      });
     }
 
-    // Fill website
+    // Click Geocode button
+    const geocodeButton = page.locator('button:has-text("Geocode")');
+    const buttonCount = await geocodeButton.count();
+    if (buttonCount > 0) {
+      const isEnabled = await geocodeButton.first().isEnabled();
+      if (isEnabled) {
+        await geocodeButton.first().click();
+        console.log('✅ AUDIT: Geocode button clicked');
+        await page.waitForTimeout(3000);
+      }
+    }
+
+    // Fill remaining fields
     const websiteInput = page.locator(
       'input[name="website"], input[type="url"], #website'
     );
@@ -439,7 +634,6 @@ test.describe.serial('Blog Screenshot Capture', () => {
       await websiteInput.first().fill(LIBRARY_COMPANY.website);
     }
 
-    // Fill phone
     const phoneInput = page.locator(
       'input[name="phone"], input[type="tel"], #phone'
     );
@@ -447,7 +641,6 @@ test.describe.serial('Blog Screenshot Capture', () => {
       await phoneInput.first().fill(LIBRARY_COMPANY.phone);
     }
 
-    // Fill contact info
     const contactNameInput = page.locator(
       'input[name="contactName"], input[name="contact_name"], #contactName'
     );
@@ -469,7 +662,6 @@ test.describe.serial('Blog Screenshot Capture', () => {
       await contactEmailInput.first().fill(LIBRARY_COMPANY.contactEmail);
     }
 
-    // Fill notes
     const notesInput = page.locator('textarea[name="notes"], #notes, textarea');
     if ((await notesInput.count()) > 0) {
       await notesInput.first().fill(LIBRARY_COMPANY.notes);
@@ -477,15 +669,14 @@ test.describe.serial('Blog Screenshot Capture', () => {
 
     await page.waitForTimeout(500);
 
-    // Capture screenshot - map should now show Chattanooga area, not NYC
+    // Capture screenshot
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'add-company-form.png'),
       fullPage: false,
     });
-
     console.log('✅ Captured: add-company-form.png');
 
-    // Try to submit the form
+    // Submit the form
     await page.waitForTimeout(1000);
     const submitButton = page.locator(
       'button[type="submit"]:has-text("Add Company"), button[type="submit"]:has-text("Save")'
@@ -496,7 +687,6 @@ test.describe.serial('Blog Screenshot Capture', () => {
       .isEnabled()
       .catch(() => false);
     if (isEnabled) {
-      // Listen for console errors during submission
       const consoleErrors: string[] = [];
       page.on('console', (msg) => {
         if (msg.type() === 'error') {
@@ -504,7 +694,6 @@ test.describe.serial('Blog Screenshot Capture', () => {
         }
       });
 
-      // Listen for network responses to catch API errors
       page.on('response', async (response) => {
         if (response.url().includes('supabase') && !response.ok()) {
           const text = await response
@@ -517,11 +706,8 @@ test.describe.serial('Blog Screenshot Capture', () => {
 
       await submitButton.first().click();
       console.log('🔄 Submitted company form, waiting for save...');
-
-      // Wait for form to close and company to appear in list
       await page.waitForTimeout(3000);
 
-      // Log any console errors
       if (consoleErrors.length > 0) {
         console.log('❌ Console errors during submission:');
         consoleErrors.forEach((err) =>
@@ -529,12 +715,11 @@ test.describe.serial('Blog Screenshot Capture', () => {
         );
       }
 
-      // Reload and verify the company was created
+      // Verify the company was created
       await page.goto(`${BASE_URL}/companies`);
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(2000);
 
-      // Check if Library appears
       const libraryRow = page.locator(
         '[data-testid^="company-row-"]:has-text("Library")'
       );
@@ -544,7 +729,6 @@ test.describe.serial('Blog Screenshot Capture', () => {
       if (libraryCount > 0) {
         console.log('✅ Created Chattanooga Public Library');
       } else {
-        // Check total companies
         const allRows = page.locator('[data-testid^="company-row-"]');
         const totalCount = await allRows.count();
         console.log(
@@ -558,6 +742,8 @@ test.describe.serial('Blog Screenshot Capture', () => {
         await cancelButton.first().click();
       }
     }
+
+    console.log('📋 Step 2 audit complete\n');
   });
 
   test('3. Capture Companies List', async () => {
@@ -595,7 +781,9 @@ test.describe.serial('Blog Screenshot Capture', () => {
     console.log('✅ Captured: companies-list.png');
   });
 
-  test('4. Capture Add Application Form', async () => {
+  test('4. Audit & Capture Add Application Form', async () => {
+    console.log('\n📋 AUDIT: Step 4 - Add Application Form');
+
     await page.goto(`${BASE_URL}/companies`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
@@ -606,9 +794,13 @@ test.describe.serial('Blog Screenshot Capture', () => {
         timeout: 10000,
       });
     } catch {
-      console.log(
-        '⚠️ Company table not found - skipping application screenshot'
-      );
+      addDiscrepancy({
+        step: 'Step 4',
+        element: 'Company table',
+        expected: 'Company table visible on /companies page',
+        actual: 'Table not found within 10 seconds',
+        severity: 'critical',
+      });
       return;
     }
 
@@ -623,7 +815,6 @@ test.describe.serial('Blog Screenshot Capture', () => {
       await libraryRow.first().click();
       console.log('✅ Clicked Library row');
     } else {
-      // Click first company row as fallback
       const anyRow = page.locator('[data-testid^="company-row-"]');
       const anyCount = await anyRow.count();
       console.log(`📋 Found ${anyCount} total company rows`);
@@ -631,7 +822,13 @@ test.describe.serial('Blog Screenshot Capture', () => {
         await anyRow.first().click();
         console.log('✅ Clicked first company row');
       } else {
-        console.log('⚠️ No companies found - skipping application screenshot');
+        addDiscrepancy({
+          step: 'Step 4',
+          element: 'Company rows',
+          expected: 'At least one company in table',
+          actual: 'No company rows found',
+          severity: 'critical',
+        });
         return;
       }
     }
@@ -641,36 +838,131 @@ test.describe.serial('Blog Screenshot Capture', () => {
     const drawer = page.locator('[data-testid="company-detail-drawer"]');
     try {
       await drawer.waitFor({ state: 'visible', timeout: 5000 });
-      console.log('✅ Detail drawer visible');
+      console.log('✅ AUDIT: Company detail drawer visible');
     } catch {
-      console.log(
-        '⚠️ Detail drawer not visible - skipping application screenshot'
-      );
+      addDiscrepancy({
+        step: 'Step 4',
+        element: 'Company detail drawer',
+        expected: 'Drawer appears when clicking company row',
+        actual: 'Drawer did not appear',
+        severity: 'critical',
+      });
       return;
     }
 
-    // Find Add Application button (might need to scroll)
+    // AUDIT: Check for "Add Application" button (blog says "Add Application")
     const addAppButton = page.locator(
       'button:has-text("Add Application"), button:has-text("Add Job Application")'
     );
     const buttonCount = await addAppButton.count();
-    console.log(`📋 Found ${buttonCount} Add Application button(s)`);
 
     if (buttonCount === 0) {
-      console.log('⚠️ Add Application button not found - skipping');
-      // Take screenshot of drawer instead
+      addDiscrepancy({
+        step: 'Step 4',
+        element: 'Add Application button',
+        expected: 'Button with text "Add Application"',
+        actual: 'Button not found in drawer',
+        severity: 'critical',
+      });
       await drawer.screenshot({
         path: path.join(SCREENSHOT_DIR, 'add-application.png'),
       });
       console.log('✅ Captured drawer as fallback: add-application.png');
       return;
     }
-
+    console.log('✅ AUDIT: "Add Application" button found');
     await addAppButton.first().click();
-    console.log('✅ Clicked Add Application button');
 
     // Wait for modal
-    await page.waitForSelector('.modal.modal-open', { timeout: 5000 });
+    try {
+      await page.waitForSelector('.modal.modal-open', { timeout: 5000 });
+      console.log('✅ AUDIT: Application modal opened');
+    } catch {
+      addDiscrepancy({
+        step: 'Step 4',
+        element: 'Application modal',
+        expected: 'Modal opens when clicking Add Application',
+        actual: 'Modal did not open',
+        severity: 'critical',
+      });
+      return;
+    }
+
+    // AUDIT: Check application status options match blog
+    const statusSelect = page.locator(
+      '.modal select[name="status"], .modal #status'
+    );
+    if ((await statusSelect.count()) > 0) {
+      const statusOptions = await statusSelect
+        .locator('option')
+        .allTextContents();
+      console.log(`   Application status options: ${statusOptions.join(', ')}`);
+
+      // Check each blog-expected status
+      for (const expectedStatus of BLOG_EXPECTATIONS.step4.appStatuses) {
+        const found = statusOptions.some((opt) =>
+          opt.toLowerCase().includes(expectedStatus.toLowerCase())
+        );
+        if (!found) {
+          addDiscrepancy({
+            step: 'Step 4',
+            element: `Application status "${expectedStatus}"`,
+            expected: `Status option "${expectedStatus}" in dropdown`,
+            actual: 'Not found in application status dropdown',
+            severity: 'warning',
+          });
+        }
+      }
+    }
+
+    // AUDIT: Check outcome options match blog
+    const outcomeSelect = page.locator(
+      '.modal select[name="outcome"], .modal #outcome'
+    );
+    if ((await outcomeSelect.count()) > 0) {
+      const outcomeOptions = await outcomeSelect
+        .locator('option')
+        .allTextContents();
+      console.log(`   Outcome options: ${outcomeOptions.join(', ')}`);
+
+      // Check each blog-expected outcome
+      for (const expectedOutcome of BLOG_EXPECTATIONS.step4.outcomes) {
+        const found = outcomeOptions.some((opt) =>
+          opt.toLowerCase().includes(expectedOutcome.toLowerCase())
+        );
+        if (!found) {
+          addDiscrepancy({
+            step: 'Step 4',
+            element: `Outcome option "${expectedOutcome}"`,
+            expected: `Outcome option "${expectedOutcome}" in dropdown`,
+            actual: 'Not found in outcome dropdown',
+            severity: 'warning',
+          });
+        }
+      }
+
+      // Check for undocumented options (like "Offer Declined")
+      const blogOutcomes = BLOG_EXPECTATIONS.step4.outcomes.map((o) =>
+        o.toLowerCase()
+      );
+      for (const uiOption of outcomeOptions) {
+        const normalized = uiOption.toLowerCase().trim();
+        if (
+          normalized &&
+          normalized !== 'select outcome' &&
+          normalized !== '' &&
+          !blogOutcomes.some((b) => normalized.includes(b))
+        ) {
+          addDiscrepancy({
+            step: 'Step 4',
+            element: `Undocumented outcome "${uiOption}"`,
+            expected: 'All UI options documented in blog',
+            actual: `"${uiOption}" exists in UI but not documented in blog`,
+            severity: 'info',
+          });
+        }
+      }
+    }
 
     // Fill in application data
     const positionInput = page.locator(
@@ -687,7 +979,6 @@ test.describe.serial('Blog Screenshot Capture', () => {
       await dateInput.first().fill(LIBRARY_APPLICATION.dateApplied);
     }
 
-    const statusSelect = page.locator('#status, select[name="status"]');
     if ((await statusSelect.count()) > 0) {
       await statusSelect.first().selectOption(LIBRARY_APPLICATION.status);
     }
@@ -699,7 +990,6 @@ test.describe.serial('Blog Screenshot Capture', () => {
     await modal.screenshot({
       path: path.join(SCREENSHOT_DIR, 'add-application.png'),
     });
-
     console.log('✅ Captured: add-application.png');
 
     // Cancel
@@ -709,9 +999,13 @@ test.describe.serial('Blog Screenshot Capture', () => {
     } else {
       await page.keyboard.press('Escape');
     }
+
+    console.log('📋 Step 4 audit complete\n');
   });
 
-  test('5. Capture Route Sidebar', async () => {
+  test('5. Audit & Capture Route Sidebar', async () => {
+    console.log('\n📋 AUDIT: Step 5 - Route Sidebar');
+
     await page.goto(`${BASE_URL}/companies`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
@@ -720,22 +1014,100 @@ test.describe.serial('Blog Screenshot Capture', () => {
       '[data-testid="route-sidebar"], .route-sidebar, aside:has-text("Route")'
     );
 
-    if ((await routeSidebar.count()) > 0) {
-      await routeSidebar.first().screenshot({
-        path: path.join(SCREENSHOT_DIR, 'route-sidebar.png'),
+    if ((await routeSidebar.count()) === 0) {
+      addDiscrepancy({
+        step: 'Step 5',
+        element: 'Route sidebar',
+        expected: 'Route sidebar visible on companies page',
+        actual: 'Route sidebar not found',
+        severity: 'warning',
       });
-      console.log('✅ Captured: route-sidebar.png');
-    } else {
+
+      // Try to find any sidebar as fallback
       const sidebar = page.locator('aside, [role="complementary"]').first();
       if ((await sidebar.count()) > 0) {
         await sidebar.screenshot({
           path: path.join(SCREENSHOT_DIR, 'route-sidebar.png'),
         });
-        console.log('✅ Captured: route-sidebar.png (sidebar area)');
-      } else {
-        console.log('⚠️ Route sidebar not found');
+        console.log('✅ Captured fallback sidebar: route-sidebar.png');
       }
+      return;
     }
+
+    console.log('✅ AUDIT: Route sidebar found');
+
+    // AUDIT: Check for "Create Route" button (blog says "Create Route")
+    const createRouteButton = routeSidebar.locator(
+      'button:has-text("Create Route")'
+    );
+    const newButton = routeSidebar.locator('button:has-text("New")');
+
+    if ((await createRouteButton.count()) === 0) {
+      if ((await newButton.count()) > 0) {
+        addDiscrepancy({
+          step: 'Step 5',
+          element: 'Create Route button',
+          expected: 'Button labeled "Create Route" (per blog)',
+          actual: 'Button labeled "New" (different text)',
+          severity: 'warning',
+        });
+        console.log('⚠️ AUDIT: Blog says "Create Route", UI has "New"');
+      } else {
+        addDiscrepancy({
+          step: 'Step 5',
+          element: 'Create Route button',
+          expected: 'Button to create a route',
+          actual: 'Neither "Create Route" nor "New" button found',
+          severity: 'warning',
+        });
+      }
+    } else {
+      console.log('✅ AUDIT: "Create Route" button found');
+    }
+
+    // AUDIT: Check for "View Map" button (blog mentions this)
+    const viewMapButton = routeSidebar.locator('button:has-text("View Map")');
+    if ((await viewMapButton.count()) === 0) {
+      const mapLink = routeSidebar.locator('a:has-text("Map")');
+      if ((await mapLink.count()) === 0) {
+        addDiscrepancy({
+          step: 'Step 5',
+          element: 'View Map button',
+          expected: 'Button or link to view map (per blog)',
+          actual: 'View Map button/link not found in sidebar',
+          severity: 'info',
+        });
+      }
+    } else {
+      console.log('✅ AUDIT: "View Map" button found');
+    }
+
+    // AUDIT: Check for "Next" or "Next Ride" feature (blog mentions marking companies for "Next" ride)
+    const nextFeature = page.locator('text="Next"');
+    const nextRideFeature = page.locator('text="Next Ride"');
+
+    if (
+      (await nextFeature.count()) === 0 &&
+      (await nextRideFeature.count()) === 0
+    ) {
+      addDiscrepancy({
+        step: 'Step 5',
+        element: '"Next Ride" feature',
+        expected: 'Feature to mark companies for "Next" ride (per blog)',
+        actual: '"Next" or "Next Ride" text not found on page',
+        severity: 'info',
+      });
+    } else {
+      console.log('✅ AUDIT: "Next" feature found');
+    }
+
+    // Capture screenshot
+    await routeSidebar.first().screenshot({
+      path: path.join(SCREENSHOT_DIR, 'route-sidebar.png'),
+    });
+    console.log('✅ Captured: route-sidebar.png');
+
+    console.log('📋 Step 5 audit complete\n');
   });
 
   test('6. Capture Map View (Chattanooga)', async () => {
@@ -829,5 +1201,116 @@ test.describe.serial('Blog Screenshot Capture', () => {
     } else {
       console.log('ℹ️ No Library company found to clean up');
     }
+  });
+
+  test('10. Generate Audit Report', async () => {
+    console.log('\n📋 GENERATING AUDIT REPORT');
+
+    const reportPath = path.join(SCREENSHOT_DIR, 'audit-report.json');
+    const markdownReportPath = path.join(SCREENSHOT_DIR, 'audit-report.md');
+
+    // Generate JSON report
+    const jsonReport = {
+      timestamp: new Date().toISOString(),
+      blogPost: 'getting-started-job-hunt-companion',
+      totalDiscrepancies: auditResults.length,
+      critical: auditResults.filter((d) => d.severity === 'critical').length,
+      warnings: auditResults.filter((d) => d.severity === 'warning').length,
+      info: auditResults.filter((d) => d.severity === 'info').length,
+      discrepancies: auditResults,
+    };
+
+    fs.writeFileSync(reportPath, JSON.stringify(jsonReport, null, 2));
+    console.log(`✅ JSON report saved: ${reportPath}`);
+
+    // Generate Markdown report
+    let markdown = `# Blog Accuracy Audit Report\n\n`;
+    markdown += `**Generated:** ${new Date().toISOString()}\n`;
+    markdown += `**Blog Post:** getting-started-job-hunt-companion.md\n`;
+    markdown += `**Test File:** capture-blog-screenshots.spec.ts\n\n`;
+
+    markdown += `## Summary\n\n`;
+    markdown += `| Severity | Count |\n`;
+    markdown += `|----------|-------|\n`;
+    markdown += `| ❌ Critical | ${jsonReport.critical} |\n`;
+    markdown += `| ⚠️ Warning | ${jsonReport.warnings} |\n`;
+    markdown += `| ℹ️ Info | ${jsonReport.info} |\n`;
+    markdown += `| **Total** | **${jsonReport.totalDiscrepancies}** |\n\n`;
+
+    if (auditResults.length > 0) {
+      markdown += `## Discrepancies Found\n\n`;
+
+      // Group by step
+      const stepGroups = new Map<string, DiscrepancyReport[]>();
+      for (const d of auditResults) {
+        const existing = stepGroups.get(d.step) || [];
+        existing.push(d);
+        stepGroups.set(d.step, existing);
+      }
+
+      for (const [step, discrepancies] of stepGroups) {
+        markdown += `### ${step}\n\n`;
+        for (const d of discrepancies) {
+          const emoji =
+            d.severity === 'critical'
+              ? '❌'
+              : d.severity === 'warning'
+                ? '⚠️'
+                : 'ℹ️';
+          markdown += `#### ${emoji} ${d.element}\n`;
+          markdown += `- **Severity:** ${d.severity}\n`;
+          markdown += `- **Expected:** ${d.expected}\n`;
+          markdown += `- **Actual:** ${d.actual}\n\n`;
+        }
+      }
+
+      markdown += `## Recommended Blog Updates\n\n`;
+      markdown += `Based on the audit, consider updating the blog post:\n\n`;
+
+      for (const d of auditResults) {
+        if (d.severity === 'warning' || d.severity === 'critical') {
+          markdown += `- [ ] ${d.step}: Update "${d.element}" - ${d.actual}\n`;
+        }
+      }
+
+      for (const d of auditResults) {
+        if (d.severity === 'info') {
+          markdown += `- [ ] ${d.step}: Consider documenting "${d.element}"\n`;
+        }
+      }
+    } else {
+      markdown += `## Result\n\n`;
+      markdown += `✅ **No discrepancies found!** The blog accurately reflects the current UI.\n`;
+    }
+
+    markdown += `\n---\n`;
+    markdown += `*Report generated by Playwright accuracy audit test*\n`;
+
+    fs.writeFileSync(markdownReportPath, markdown);
+    console.log(`✅ Markdown report saved: ${markdownReportPath}`);
+
+    // Print summary to console
+    console.log(`\n${'='.repeat(60)}`);
+    console.log('AUDIT SUMMARY');
+    console.log('='.repeat(60));
+    console.log(`Total discrepancies: ${auditResults.length}`);
+    console.log(`  Critical: ${jsonReport.critical}`);
+    console.log(`  Warnings: ${jsonReport.warnings}`);
+    console.log(`  Info: ${jsonReport.info}`);
+    console.log('='.repeat(60));
+
+    if (jsonReport.critical > 0) {
+      console.log(
+        `\n❌ ${jsonReport.critical} CRITICAL discrepancies require immediate attention!`
+      );
+    }
+
+    if (jsonReport.warnings > 0) {
+      console.log(
+        `\n⚠️ ${jsonReport.warnings} warnings should be reviewed for blog updates.`
+      );
+    }
+
+    console.log(`\nFull report: ${markdownReportPath}`);
   });
 });
