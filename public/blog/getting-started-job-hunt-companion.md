@@ -1,5 +1,5 @@
 ---
-title: 'Essential Job Search Guide: 6 Steps to Organize Your Hunt with SpokeToWork'
+title: 'Job-Hunting Guide: 6 Steps to Stay Organized'
 author: SpokeToWork Team
 date: 2025-12-15
 slug: getting-started-job-hunt-companion
@@ -17,12 +17,12 @@ excerpt: 'Learn how to organize your job search in 6 simple steps. Track compani
 featuredImage: /blog-images/getting-started-job-hunt-companion/featured-og.svg
 featuredImageAlt: 'SpokeToWork dashboard showing company tracking and job application management'
 ogImage: /blog-images/getting-started-job-hunt-companion/featured-og.png
-ogTitle: 'Essential Job Search Guide: 6 Steps to Organize Your Hunt'
+ogTitle: 'Job-Hunting Guide: 6 Steps to Stay Organized'
 ogDescription: 'Discover how to track companies, manage job applications, and plan visits to potential employers. Your private, organized approach to job hunting.'
 twitterCard: summary_large_image
 ---
 
-# Essential Job Search Guide: 6 Steps to Organize Your Hunt with SpokeToWork
+# Job-Hunting Guide: 6 Steps to Stay Organized
 
 Job hunting is stressful enough without losing track of which companies you've applied to, who you talked to, and when you need to follow up. SpokeToWork helps you stay organized with a simple system for tracking companies and applications - all kept private and secure on your own account.
 
