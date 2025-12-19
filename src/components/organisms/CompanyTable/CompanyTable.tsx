@@ -212,6 +212,12 @@ export default function CompanyTable({
             0;
           comparison = aCount - bCount;
           break;
+        case 'website':
+          // Empty/null websites sort first (ascending) so devs can find companies needing sites
+          const aWeb = a.website || '';
+          const bWeb = b.website || '';
+          comparison = aWeb.localeCompare(bWeb);
+          break;
       }
 
       return sort.direction === 'asc' ? comparison : -comparison;
@@ -368,7 +374,16 @@ export default function CompanyTable({
                     <SortIcon field="applications" />
                   </button>
                 </th>
-                <th className="hidden lg:table-cell">Website</th>
+                <th className="hidden lg:table-cell">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-xs"
+                    onClick={() => handleSort('website')}
+                  >
+                    Website
+                    <SortIcon field="website" />
+                  </button>
+                </th>
                 <th>Actions</th>
               </tr>
             </thead>

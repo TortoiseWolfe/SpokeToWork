@@ -10,12 +10,25 @@
 // =============================================================================
 
 /**
- * GeoJSON LineString for route path
+ * GeoJSON LineString for simple route path
  */
-export interface RouteGeometry {
+export interface LineStringGeometry {
   type: 'LineString';
   coordinates: [number, number][]; // [longitude, latitude] pairs
 }
+
+/**
+ * GeoJSON MultiLineString for complex paths with branches/disconnected segments
+ */
+export interface MultiLineStringGeometry {
+  type: 'MultiLineString';
+  coordinates: [number, number][][]; // Array of line segments
+}
+
+/**
+ * GeoJSON geometry for route path (supports both LineString and MultiLineString)
+ */
+export type RouteGeometry = LineStringGeometry | MultiLineStringGeometry;
 
 /**
  * Location point (start or end)

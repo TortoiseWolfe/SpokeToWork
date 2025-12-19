@@ -299,7 +299,8 @@ export interface CompanySort {
     | 'created_at'
     | 'follow_up_date'
     | 'zip_code'
-    | 'applications';
+    | 'applications'
+    | 'website';
   direction: 'asc' | 'desc';
 }
 
