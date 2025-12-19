@@ -402,6 +402,66 @@ ADD COLUMN IF NOT EXISTS encryption_salt TEXT;
 - Suggest running SQL snippets piecemeal
 - Use Supabase CLI migrations
 
+## Querying Supabase Data (Claude Code)
+
+To query the database directly (e.g., searching for contacts, companies):
+
+### Setup
+
+1. **Extract project ref** from `NEXT_PUBLIC_SUPABASE_URL` in `.env`:
+   - URL format: `https://<PROJECT_REF>.supabase.co`
+   - Example: `utxdunkaropkwnrqrsef`
+
+2. **Get access token** from `SUPABASE_ACCESS_TOKEN` in `.env`
+
+### Important: Bash Syntax Limitations
+
+Claude Code's bash tool mangles command substitution `$(...)`. You **cannot** do:
+
+```bash
+# ❌ BROKEN - command substitution gets mangled
+export TOKEN=$(grep SUPABASE_ACCESS_TOKEN .env | cut -d'=' -f2)
+curl ... -H "Authorization: Bearer $TOKEN"
+```
+
+**Workaround**: Read `.env` with the Read tool first, then hardcode values:
+
+```bash
+# ✅ WORKS - hardcode values extracted from .env
+curl -s -X POST "https://api.supabase.com/v1/projects/<PROJECT_REF>/database/query" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "SELECT * FROM private_companies WHERE name ILIKE '\''%search%'\'';"}'
+```
+
+### SQL Single Quote Escaping
+
+In bash single-quoted strings, escape single quotes with `'\''`:
+
+```bash
+# SQL: WHERE name ILIKE '%foo%'
+# Bash: '{"query": "... ILIKE '\''%foo%'\''"}'
+```
+
+### Searchable Tables & Columns
+
+| Table               | Searchable Columns                                           |
+| ------------------- | ------------------------------------------------------------ |
+| `private_companies` | `name`, `contact_name`, `notes`, `email`, `phone`, `address` |
+| `shared_companies`  | `name`                                                       |
+| `job_applications`  | `notes`, `position_title`                                    |
+| `user_profiles`     | `display_name`                                               |
+| `auth.users`        | `email`                                                      |
+
+### Fuzzy Search Example
+
+Use `%partial%` for substring matches:
+
+```sql
+SELECT name, contact_name, phone FROM private_companies
+WHERE name ILIKE '%steph%' OR contact_name ILIKE '%steph%';
+```
+
 ## Important Notes
 
 - Never create components manually - use the generator
