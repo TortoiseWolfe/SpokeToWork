@@ -4,7 +4,7 @@ This document captures issues encountered when forking the ScriptHammer template
 
 ## Summary
 
-Forking ScriptHammer required updating **200+ files** with hardcoded references. The Docker-first architecture also created friction with git hooks. Additionally, tests require Supabase mocking, description assertions need updating, **the basePath secret in deploy.yml breaks GitHub Pages for forks** (Issue #10), **production crashes without Supabase GitHub secrets** (Issue #11), **the footer template link needs manual update** (Issue #12), **the PWA manifest description is generated at build time** (Issue #13), and **blog generation fails due to gray-matter/js-yaml version conflict** (Issue #14).
+Forking ScriptHammer required updating **200+ files** with hardcoded references. The Docker-first architecture also created friction with git hooks. Additionally, tests require Supabase mocking, description assertions need updating, **the basePath secret in deploy.yml breaks GitHub Pages for forks** (Issue #10), **production crashes without Supabase GitHub secrets** (Issue #11), **the footer template link needs manual update** (Issue #12), **the PWA manifest description is generated at build time** (Issue #13), **blog generation fails due to gray-matter/js-yaml version conflict** (Issue #14), and **Leaflet raster tiles have illegible fonts on high-DPI screens** (Issue #15 - migrated to MapLibre GL).
 
 ---
 
@@ -427,6 +427,114 @@ docker compose exec spoketowork pnpm run generate:blog
 **Suggested Fix for ScriptHammer:** Add the `gray-matter>js-yaml` override to the template's `package.json` so forks work out of the box. Alternatively, consider upgrading to a frontmatter parser that's compatible with js-yaml 4.x.
 
 **Long-term Solution:** Monitor `gray-matter` for a new release that supports js-yaml 4.x, or switch to an alternative like `front-matter` or `remark-frontmatter` that doesn't have this compatibility issue.
+
+### 15. Map Font Legibility Issues with Leaflet Raster Tiles
+
+**Problem:** The default Leaflet + raster tile setup (CyclOSM, OpenStreetMap) renders street names and labels at the tile server's fixed resolution. On high-DPI screens and at certain zoom levels, text becomes too small to read comfortably—especially critical for a cycling app where users need to quickly identify street names while riding.
+
+**Root Cause:** Raster tiles have fonts "baked in" at a fixed size. The client cannot adjust font sizes because the text is part of the pre-rendered PNG/JPEG image.
+
+**User-Visible Issues:**
+
+- Street names illegible at zoom 13-15 on mobile devices
+- Place labels too small for quick glancing
+- No way to increase map text size without changing zoom level
+- Dark mode requires completely different tile set (not auto-detected)
+
+**Solution Implemented:** Migrate from Leaflet (raster) to MapLibre GL JS (vector tiles):
+
+| Before (Leaflet)              | After (MapLibre GL)                           |
+| ----------------------------- | --------------------------------------------- |
+| `react-leaflet` + `leaflet`   | `react-map-gl/maplibre` + `maplibre-gl`       |
+| CyclOSM raster tiles          | OpenFreeMap vector tiles                      |
+| Fixed font sizes (baked in)   | Client-controlled 16px+ fonts                 |
+| Separate light/dark tile URLs | JSON style files with theme switching         |
+| ~85KB bundle                  | ~200KB bundle (mitigated with code-splitting) |
+
+**Key Files Created/Modified:**
+
+```
+src/styles/
+├── map-style-light.json    # MapLibre style spec (light theme)
+└── map-style-dark.json     # MapLibre style spec (dark theme)
+
+src/hooks/
+└── useMapTheme.ts          # Auto-detects DaisyUI theme, returns style
+
+src/components/map/
+├── MapContainer/
+│   ├── MapContainerInner.tsx  # Migrated to react-map-gl/maplibre
+│   └── MapContainer.tsx       # Updated wrapper
+└── RoutePolyline/
+    └── RoutePolyline.tsx      # Migrated to MapLibre Source/Layer API
+```
+
+**Suggested Fix for ScriptHammer:**
+
+1. **Replace Leaflet with MapLibre GL** as the default map library:
+
+   ```bash
+   pnpm remove leaflet react-leaflet @types/leaflet
+   pnpm add maplibre-gl react-map-gl
+   ```
+
+2. **Use OpenFreeMap** (no API key required) or provide tile source config:
+
+   ```json
+   {
+     "sources": {
+       "openmaptiles": {
+         "type": "vector",
+         "url": "https://tiles.openfreemap.org/planet"
+       }
+     }
+   }
+   ```
+
+3. **Create theme-aware map styles** with minimum 16px fonts:
+
+   ```json
+   {
+     "id": "road-label",
+     "type": "symbol",
+     "layout": {
+       "text-size": [
+         "interpolate",
+         ["linear"],
+         ["zoom"],
+         10,
+         12,
+         13,
+         16,
+         16,
+         20
+       ]
+     }
+   }
+   ```
+
+4. **Add DaisyUI theme detection hook** that observes `data-theme` attribute
+
+5. **Use dynamic import** to mitigate bundle size:
+   ```typescript
+   const MapContainer = dynamic(() => import('./MapContainerInner'), {
+     ssr: false,
+   });
+   ```
+
+**Benefits:**
+
+- Accessible, legible fonts at all zoom levels
+- Automatic dark mode switching with DaisyUI themes
+- Custom styling for bike lanes (highlight in pink: `#d63384`)
+- Better touch interaction on mobile
+- Offline tile caching support (via service worker)
+
+**Trade-offs:**
+
+- ~115KB larger bundle (200KB vs 85KB), mitigated with lazy loading
+- More complex style configuration (JSON style spec vs simple URL)
+- Requires understanding MapLibre expressions for dynamic styling
 
 ---
 

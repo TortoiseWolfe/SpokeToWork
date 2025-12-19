@@ -10,9 +10,10 @@ import {
   GeolocationConsent,
   GeolocationPurpose,
 } from '@/components/map/GeolocationConsent';
-import type { LatLngTuple } from 'leaflet';
+// Position tuple type for map coordinates [lat, lng]
+type Position = [number, number];
 import { createLogger } from '@/lib/logger';
-import { CYCLOSM_TILE_URL, CYCLOSM_ATTRIBUTION } from '@/utils/map-utils';
+import { DEFAULT_MAP_CONFIG } from '@/utils/map-utils';
 import type { RouteCompanyWithDetails } from '@/types/route';
 import type { MapMarker } from '@/components/map/MapContainer/MapContainerInner';
 
@@ -58,8 +59,8 @@ export default function MapPage() {
   const [hasConsent, setHasConsent] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  const [userLocation, setUserLocation] = useState<LatLngTuple | null>(null);
-  const [mapCenter, setMapCenter] = useState<LatLngTuple>([35.159, -84.876]); // Default to Cleveland, TN
+  const [userLocation, setUserLocation] = useState<Position | null>(null);
+  const [mapCenter, setMapCenter] = useState<Position>([35.159, -84.876]); // Default to Cleveland, TN
 
   // Fix hydration mismatch - only show client-side content after mount
   useEffect(() => {
@@ -134,7 +135,7 @@ export default function MapPage() {
       .filter((rc) => rc.company.latitude && rc.company.longitude)
       .map((rc) => ({
         id: `company-${rc.id}`,
-        position: [rc.company.latitude!, rc.company.longitude!] as LatLngTuple,
+        position: [rc.company.latitude!, rc.company.longitude!] as Position,
         popup: `${rc.company.name}${rc.visit_on_next_ride ? ' 🚴 Next Ride' : ''}`,
         variant: rc.visit_on_next_ride
           ? ('next-ride' as const)
@@ -216,7 +217,7 @@ export default function MapPage() {
 
   const handleLocationFound = useCallback(
     (geolocationPosition: GeolocationPosition) => {
-      const newLocation: LatLngTuple = [
+      const newLocation: Position = [
         geolocationPosition.coords.latitude,
         geolocationPosition.coords.longitude,
       ];
@@ -239,7 +240,7 @@ export default function MapPage() {
   // Update location when position changes
   React.useEffect(() => {
     if (position) {
-      const newLocation: LatLngTuple = [
+      const newLocation: Position = [
         position.coords.latitude,
         position.coords.longitude,
       ];
@@ -252,7 +253,7 @@ export default function MapPage() {
   // TODO: Re-enable once Leaflet initialization issue is fixed
   const demoMarkers: Array<{
     id: string;
-    position: LatLngTuple;
+    position: Position;
     popup: string;
   }> = [];
 
@@ -357,8 +358,6 @@ export default function MapPage() {
               zoom={13}
               height="600px"
               width="100%"
-              tileUrl={CYCLOSM_TILE_URL}
-              attribution={CYCLOSM_ATTRIBUTION}
               showUserLocation={false} // We'll manage location manually
               markers={[
                 ...demoMarkers,
