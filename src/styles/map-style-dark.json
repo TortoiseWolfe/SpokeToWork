@@ -5,6 +5,12 @@
     "openmaptiles": {
       "type": "vector",
       "url": "https://tiles.openfreemap.org/planet"
+    },
+    "cycling-overlay": {
+      "type": "raster",
+      "tiles": ["https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png"],
+      "tileSize": 256,
+      "attribution": "Cycling overlay © <a href='https://waymarkedtrails.org'>Waymarked Trails</a>"
     }
   },
   "sprite": "https://tiles.openfreemap.org/sprites/liberty/sprite",
@@ -96,20 +102,96 @@
       }
     },
     {
-      "id": "cycleway",
+      "id": "cycling-routes-overlay",
+      "type": "raster",
+      "source": "cycling-overlay",
+      "paint": {
+        "raster-opacity": 0.4
+      }
+    },
+    {
+      "id": "cycleway-casing",
       "type": "line",
       "source": "openmaptiles",
       "source-layer": "transportation",
+      "minzoom": 8,
       "filter": [
         "any",
         ["==", ["get", "class"], "path"],
         ["==", ["get", "subclass"], "cycleway"],
-        ["==", ["get", "bicycle"], "designated"]
+        ["==", ["get", "bicycle"], "designated"],
+        ["==", ["get", "bicycle"], "yes"]
       ],
       "paint": {
-        "line-color": "#e91e8c",
-        "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1, 16, 4],
-        "line-dasharray": [2, 1]
+        "line-color": "#1a1a2e",
+        "line-width": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          8,
+          4,
+          10,
+          5,
+          14,
+          8,
+          16,
+          12
+        ],
+        "line-opacity": 0.9
+      }
+    },
+    {
+      "id": "cycleway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 8,
+      "filter": [
+        "any",
+        ["==", ["get", "class"], "path"],
+        ["==", ["get", "subclass"], "cycleway"],
+        ["==", ["get", "bicycle"], "designated"],
+        ["==", ["get", "bicycle"], "yes"]
+      ],
+      "paint": {
+        "line-color": "#4ade80",
+        "line-width": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          8,
+          3,
+          10,
+          4,
+          14,
+          6,
+          16,
+          9
+        ],
+        "line-opacity": 1
+      }
+    },
+    {
+      "id": "cycleway-label",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "transportation_name",
+      "filter": [
+        "any",
+        ["==", ["get", "class"], "path"],
+        ["==", ["get", "subclass"], "cycleway"]
+      ],
+      "layout": {
+        "text-field": ["get", "name"],
+        "text-font": ["Open Sans Semibold"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 12, 11, 16, 14],
+        "symbol-placement": "line",
+        "text-max-angle": 30
+      },
+      "paint": {
+        "text-color": "#86efac",
+        "text-halo-color": "#1a1a2e",
+        "text-halo-width": 2
       }
     },
     {

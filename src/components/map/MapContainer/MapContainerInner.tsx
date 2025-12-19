@@ -137,9 +137,77 @@ const MapContainerInner: React.FC<MapContainerInnerProps> = ({
   const mapCenter: LngLatLike = [center[1], center[0]];
 
   // Handle map load
-  const handleLoad = useCallback(() => {
+  const handleLoad = useCallback(async () => {
     if (mapRef.current && onMapReady) {
       onMapReady(mapRef.current);
+    }
+
+    // Load bike routes when map is ready
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    try {
+      const response = await fetch('/data/all-bike-routes.geojson');
+      const geojson = await response.json();
+
+      if (map.getSource('all-bike-routes')) return;
+
+      map.addSource('all-bike-routes', {
+        type: 'geojson',
+        data: geojson,
+      });
+
+      map.addLayer({
+        id: 'all-bike-routes-casing',
+        type: 'line',
+        source: 'all-bike-routes',
+        paint: {
+          'line-color': '#ffffff',
+          'line-width': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            5,
+            6,
+            8,
+            7,
+            12,
+            9,
+            16,
+            12,
+          ],
+          'line-opacity': 0.9,
+        },
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+      });
+
+      map.addLayer({
+        id: 'all-bike-routes',
+        type: 'line',
+        source: 'all-bike-routes',
+        paint: {
+          'line-color': '#22c55e',
+          'line-width': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            5,
+            4,
+            8,
+            5,
+            12,
+            7,
+            16,
+            10,
+          ],
+          'line-opacity': 1,
+        },
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+      });
+
+      console.log('Loaded', geojson.features.length, 'bike routes');
+    } catch (err) {
+      console.error('Failed to load bike routes:', err);
     }
   }, [onMapReady]);
 
