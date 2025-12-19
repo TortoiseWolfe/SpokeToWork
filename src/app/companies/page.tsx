@@ -149,6 +149,7 @@ export default function CompaniesPage() {
     toggleNextRide,
     reorderCompanies,
     getNextRideCompanies,
+    getActiveRouteCompanyIds,
     generateRouteGeometry,
     refetch: refetchRoutes,
   } = useRoutes({ skip: !user || authLoading });
@@ -178,9 +179,9 @@ export default function CompaniesPage() {
   >([]);
   const [isLoadingRouteCompanies, setIsLoadingRouteCompanies] = useState(false);
   const [showRouteDetailDrawer, setShowRouteDetailDrawer] = useState(false);
-  const [nextRideCompanyIds, setNextRideCompanyIds] = useState<Set<string>>(
-    new Set()
-  );
+  const [activeRouteCompanyIds, setActiveRouteCompanyIds] = useState<
+    Set<string>
+  >(new Set());
 
   // Feature 014: Application service and state
   const [applicationService] = useState(() => new ApplicationService(supabase));
@@ -293,32 +294,53 @@ export default function CompaniesPage() {
     loadRouteCompanies();
   }, [selectedRouteId, getRouteCompanies]);
 
-  // Feature 041: Fetch next ride company IDs for filtering
+  // Feature 044: Fetch active route company IDs for filtering
+  // The route_companies table stores shared_company_id, but CompanyTable receives
+  // converted CompanyWithApplications where id = tracking_id.
+  // We need to include BOTH shared_company_ids AND their corresponding tracking_ids.
   useEffect(() => {
-    async function loadNextRideCompanies() {
+    async function loadActiveRouteCompanies() {
       if (!user) {
-        setNextRideCompanyIds(new Set());
+        setActiveRouteCompanyIds(new Set());
         return;
       }
 
       try {
-        const nextRideCompanies = await getNextRideCompanies();
-        // Build a Set of all company IDs (both shared and private)
-        const ids = new Set<string>();
-        nextRideCompanies.forEach((rc) => {
-          if (rc.company.id) {
-            ids.add(rc.company.id);
+        const ids = await getActiveRouteCompanyIds();
+
+        // The set now contains shared_company_ids from route_companies.
+        // We also need to add the tracking_ids that correspond to these shared_company_ids.
+        // This allows the filter to match against converted CompanyWithApplications.id
+        const enrichedIds = new Set(ids);
+        unifiedCompanies.forEach((company) => {
+          if (company.source === 'shared' && company.company_id) {
+            // If this company's shared_company_id is in the route, add its tracking_id
+            if (ids.has(company.company_id) && company.tracking_id) {
+              enrichedIds.add(company.tracking_id);
+            }
           }
         });
-        setNextRideCompanyIds(ids);
+
+        logger.debug('Active route company IDs enriched', {
+          originalSize: ids.size,
+          enrichedSize: enrichedIds.size,
+        });
+
+        setActiveRouteCompanyIds(enrichedIds);
       } catch (err) {
-        console.error('Error loading next ride companies:', err);
-        setNextRideCompanyIds(new Set());
+        console.error('Error loading active route companies:', err);
+        setActiveRouteCompanyIds(new Set());
       }
     }
 
-    loadNextRideCompanies();
-  }, [user, getNextRideCompanies, routeCompaniesPreview]); // Re-fetch when route companies change (toggling next ride)
+    loadActiveRouteCompanies();
+  }, [
+    user,
+    getActiveRouteCompanyIds,
+    activeRouteId,
+    routeCompaniesPreview,
+    unifiedCompanies,
+  ]); // Re-fetch when active route or route companies change
 
   // Feature 014: Initialize application service with user
   useEffect(() => {
@@ -979,6 +1001,7 @@ export default function CompaniesPage() {
             unified.source === 'private'
               ? (unified.private_company_id ?? undefined)
               : undefined,
+          tracking_id: unified.tracking_id ?? undefined,
         });
 
         // Auto-generate bicycle route geometry via OSRM
@@ -1458,7 +1481,7 @@ ${rows}
                 onDelete={handleDeleteCompany}
                 onStatusChange={handleStatusChange}
                 onAddToRoute={handleAddToRoute}
-                nextRideCompanyIds={nextRideCompanyIds}
+                activeRouteCompanyIds={activeRouteCompanyIds}
               />
             </>
           )}

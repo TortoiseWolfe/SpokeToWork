@@ -5,6 +5,10 @@
  *
  * Displays an aggregated list of companies marked "visit on next ride"
  * across all routes. Provides quick clear all functionality.
+ *
+ * @deprecated Feature 044 simplified "Next Ride" to use active route filter.
+ * This component is no longer rendered. Will be removed in future cleanup.
+ * Use the "On Active Route" filter in CompanyFilters instead.
  */
 
 import { useMemo } from 'react';

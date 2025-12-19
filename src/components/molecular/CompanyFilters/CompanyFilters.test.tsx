@@ -91,4 +91,47 @@ describe('CompanyFilters', () => {
     render(<CompanyFilters {...defaultProps} className="custom-class" />);
     expect(screen.getByTestId('company-filters')).toHaveClass('custom-class');
   });
+
+  // Feature 044: On Active Route filter tests
+  describe('On Active Route filter', () => {
+    it('renders On Active Route checkbox', () => {
+      render(<CompanyFilters {...defaultProps} />);
+      expect(
+        screen.getByLabelText('Show only companies on active route')
+      ).toBeInTheDocument();
+    });
+
+    it('calls onFiltersChange when On Active Route checkbox changes', () => {
+      const onFiltersChange = vi.fn();
+      render(
+        <CompanyFilters {...defaultProps} onFiltersChange={onFiltersChange} />
+      );
+
+      const checkbox = screen.getByLabelText(
+        'Show only companies on active route'
+      );
+      fireEvent.click(checkbox);
+
+      expect(onFiltersChange).toHaveBeenCalledWith({ on_active_route: true });
+    });
+
+    it('shows On Active Route as checked when filter is active', () => {
+      render(
+        <CompanyFilters {...defaultProps} filters={{ on_active_route: true }} />
+      );
+
+      const checkbox = screen.getByLabelText(
+        'Show only companies on active route'
+      );
+      expect(checkbox).toBeChecked();
+    });
+
+    it('shows clear button when On Active Route filter is active', () => {
+      render(
+        <CompanyFilters {...defaultProps} filters={{ on_active_route: true }} />
+      );
+
+      expect(screen.getByLabelText('Clear all filters')).toBeInTheDocument();
+    });
+  });
 });
