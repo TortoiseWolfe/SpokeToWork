@@ -177,6 +177,7 @@ describe('RouteCompanyList', () => {
       checkRouteCompanyLimits: vi.fn(),
       getRouteSummaries: vi.fn(),
       generateRouteGeometry: vi.fn(),
+      getActiveRouteCompanyIds: vi.fn().mockResolvedValue(new Set()),
       refetch: vi.fn(),
       invalidateCache: vi.fn(),
     });
@@ -227,6 +228,7 @@ describe('RouteCompanyList', () => {
       checkRouteCompanyLimits: vi.fn(),
       getRouteSummaries: vi.fn(),
       generateRouteGeometry: vi.fn(),
+      getActiveRouteCompanyIds: vi.fn().mockResolvedValue(new Set()),
       refetch: vi.fn(),
       invalidateCache: vi.fn(),
     });

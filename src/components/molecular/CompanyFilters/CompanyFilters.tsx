@@ -109,10 +109,12 @@ export default function CompanyFilters({
     });
   };
 
-  const handleNextRideOnlyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleOnActiveRouteChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     onFiltersChange({
       ...filters,
-      next_ride_only: e.target.checked || undefined,
+      on_active_route: e.target.checked || undefined,
     });
   };
 
@@ -126,7 +128,7 @@ export default function CompanyFilters({
     filters.priority ||
     filters.is_active !== undefined ||
     filters.extended_range ||
-    filters.next_ride_only
+    filters.on_active_route
   );
 
   return (
@@ -230,16 +232,16 @@ export default function CompanyFilters({
         </label>
       </div>
 
-      {/* Next Ride Filter */}
+      {/* On Active Route Filter */}
       <div className="form-control">
         <label className="label cursor-pointer gap-2">
-          <span className="label-text text-sm">Next Ride</span>
+          <span className="label-text text-sm">On Active Route</span>
           <input
             type="checkbox"
             className="checkbox checkbox-sm checkbox-primary"
-            checked={filters.next_ride_only || false}
-            onChange={handleNextRideOnlyChange}
-            aria-label="Show only companies marked for next ride"
+            checked={filters.on_active_route || false}
+            onChange={handleOnActiveRouteChange}
+            aria-label="Show only companies on active route"
           />
         </label>
       </div>
