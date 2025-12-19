@@ -189,7 +189,7 @@
     "serve": "^14.2.5",
     "sharp": "^0.34.4",
     "start-server-and-test": "^2.1.0",
-    "storybook": "^9.1.5",
+    "storybook": "^9.1.17",
     "tailwindcss": "^4.1.13",
     "tsx": "^4.20.6",
     "typescript": "^5.9.2",
