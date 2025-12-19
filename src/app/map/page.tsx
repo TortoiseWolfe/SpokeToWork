@@ -60,7 +60,7 @@ export default function MapPage() {
   const [isMounted, setIsMounted] = useState(false);
 
   const [userLocation, setUserLocation] = useState<Position | null>(null);
-  const [mapCenter, setMapCenter] = useState<Position>([35.159, -84.876]); // Default to Cleveland, TN
+  const [mapCenter, setMapCenter] = useState<Position>([35.175, -84.865]); // Center on Cleveland GreenWay
 
   // Fix hydration mismatch - only show client-side content after mount
   useEffect(() => {
@@ -69,13 +69,28 @@ export default function MapPage() {
 
   // Feature 041: Auth and routes for displaying route polylines
   const { user, isLoading: authLoading } = useAuth();
+
+  // Always load routes - system routes visible to everyone
   const {
     routes,
     activeRouteId,
     isLoading: routesLoading,
     error: routesError,
     getRouteCompanies,
-  } = useRoutes({ skip: !user || authLoading });
+    getSystemRoutes,
+  } = useRoutes({ skip: false });
+
+  // Fetch system routes for unauthenticated users
+  const [systemRoutes, setSystemRoutes] = useState<typeof routes>([]);
+
+  useEffect(() => {
+    if (!user && !authLoading) {
+      getSystemRoutes().then(setSystemRoutes).catch(console.error);
+    }
+  }, [user, authLoading, getSystemRoutes]);
+
+  // Combine routes: use all routes for logged-in users, only system routes for guests
+  const displayRoutes = user ? routes : systemRoutes;
 
   // State for companies on routes (for displaying markers)
   const [routeCompanies, setRouteCompanies] = useState<
@@ -290,16 +305,17 @@ export default function MapPage() {
           )}
         </p>
         {/* Feature 041: Route status indicator */}
-        {user && !routesLoading && routes.length > 0 && (
+        {!routesLoading && displayRoutes.length > 0 && (
           <p className="text-primary text-sm">
-            Showing {routes.filter((r) => r.route_geometry).length} route(s)
-            with geometry
-            {companyMarkers.length > 0 &&
+            Showing {displayRoutes.filter((r) => r.route_geometry).length}{' '}
+            route(s) with geometry
+            {user &&
+              companyMarkers.length > 0 &&
               ` • ${companyMarkers.length} company marker(s)`}
-            {activeRouteId && ' • Active route highlighted'}
+            {user && activeRouteId && ' • Active route highlighted'}
           </p>
         )}
-        {user && !routesLoading && routes.length === 0 && (
+        {user && !routesLoading && displayRoutes.length === 0 && (
           <p className="text-base-content/60 text-sm">
             No routes created yet.{' '}
             <a href="/companies" className="link link-primary">
@@ -308,12 +324,12 @@ export default function MapPage() {
             on the Companies page.
           </p>
         )}
-        {!user && (
+        {!user && !routesLoading && displayRoutes.length === 0 && (
           <p className="text-base-content/60 text-sm">
             <a href="/sign-in" className="link link-primary">
               Sign in
             </a>{' '}
-            to view your bicycle routes on the map.
+            to create your own bicycle routes.
           </p>
         )}
       </header>
@@ -376,13 +392,13 @@ export default function MapPage() {
               onLocationError={handleLocationError}
               testId="map-container"
             >
-              {/* Feature 041: Render route polylines if user is authenticated and no errors */}
-              {user && !routesError && routes.length > 0 && (
+              {/* Feature 041: Render route polylines - system routes for everyone, user routes when logged in */}
+              {!routesError && displayRoutes.length > 0 && (
                 <RoutePolylines
-                  routes={routes}
+                  routes={displayRoutes}
                   activeRouteId={activeRouteId}
                   showSystemRoutes={true}
-                  showUserRoutes={true}
+                  showUserRoutes={!!user}
                 />
               )}
             </MapContainer>
