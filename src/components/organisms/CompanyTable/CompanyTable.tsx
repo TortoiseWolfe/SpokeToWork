@@ -173,7 +173,12 @@ export default function CompanyTable({
           comparison = a.name.localeCompare(b.name);
           break;
         case 'status':
-          comparison = a.status.localeCompare(b.status);
+          // Sort by application status if available, otherwise by company status
+          const aApp = (a as CompanyWithApplications).latest_application;
+          const bApp = (b as CompanyWithApplications).latest_application;
+          const aStatus = aApp ? aApp.status : a.status;
+          const bStatus = bApp ? bApp.status : b.status;
+          comparison = aStatus.localeCompare(bStatus);
           break;
         case 'priority':
           comparison = a.priority - b.priority;
