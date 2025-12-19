@@ -33,6 +33,8 @@ export interface CompanyRowProps {
   onStatusChange?: (company: Company, status: CompanyStatus) => void;
   /** Callback when add to route is requested (Feature 041) */
   onAddToRoute?: (company: CompanyType) => void;
+  /** Whether this company is on the active route (Feature 044) */
+  isOnActiveRoute?: boolean;
   /** Whether this row is selected */
   isSelected?: boolean;
   /** Additional CSS classes */
@@ -115,6 +117,7 @@ export default function CompanyRow({
   onDelete,
   onStatusChange,
   onAddToRoute,
+  isOnActiveRoute = false,
   isSelected = false,
   className = '',
   testId = 'company-row',
@@ -165,6 +168,31 @@ export default function CompanyRow({
               title={`Priority ${company.priority}`}
             >
               {PRIORITY_LABELS[company.priority]}
+            </span>
+          )}
+          {/* Feature 044: Active route indicator */}
+          {isOnActiveRoute && (
+            <span
+              className="text-primary"
+              title="On active route"
+              aria-label="On active route"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                {/* Bicycle icon */}
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5.5 17.5a3 3 0 100-6 3 3 0 000 6zm13 0a3 3 0 100-6 3 3 0 000 6zM5.5 14.5h4l2-3m0 0l2.5-3 3 3m-5.5 0l2 3h4.5"
+                />
+              </svg>
+              <span className="sr-only">On active route</span>
             </span>
           )}
           <div>

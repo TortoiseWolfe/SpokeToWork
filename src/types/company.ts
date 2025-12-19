@@ -285,7 +285,7 @@ export interface CompanyFilters {
   is_active?: boolean;
   extended_range?: boolean;
   search?: string; // Free-text search
-  next_ride_only?: boolean; // Filter to show only companies marked for next ride (Feature 041)
+  on_active_route?: boolean; // Filter to show only companies on active route (Feature 044)
 }
 
 /**

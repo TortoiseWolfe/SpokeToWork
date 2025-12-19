@@ -82,4 +82,47 @@ describe('CompanyRow Accessibility', () => {
       expect(hasText || hasAriaLabel).toBeTruthy();
     });
   });
+
+  // Feature 044: Active route indicator accessibility tests
+  describe('Active Route Indicator Accessibility (Feature 044)', () => {
+    it('should have no accessibility violations with active route indicator', async () => {
+      const { container } = renderInTable(
+        <CompanyRow company={mockCompany} isOnActiveRoute={true} />
+      );
+      const results = await axe(container);
+      expect(results).toHaveNoViolations();
+    });
+
+    it('should have aria-label on active route indicator', () => {
+      const { container } = renderInTable(
+        <CompanyRow company={mockCompany} isOnActiveRoute={true} />
+      );
+
+      const indicator = container.querySelector(
+        '[aria-label="On active route"]'
+      );
+      expect(indicator).toBeInTheDocument();
+    });
+
+    it('should have screen reader only text for active route indicator', () => {
+      const { container } = renderInTable(
+        <CompanyRow company={mockCompany} isOnActiveRoute={true} />
+      );
+
+      const srOnly = container.querySelector('.sr-only');
+      expect(srOnly).toBeInTheDocument();
+      expect(srOnly?.textContent).toBe('On active route');
+    });
+
+    it('should have title attribute for tooltip', () => {
+      const { container } = renderInTable(
+        <CompanyRow company={mockCompany} isOnActiveRoute={true} />
+      );
+
+      const indicatorWithTitle = container.querySelector(
+        '[title="On active route"]'
+      );
+      expect(indicatorWithTitle).toBeInTheDocument();
+    });
+  });
 });

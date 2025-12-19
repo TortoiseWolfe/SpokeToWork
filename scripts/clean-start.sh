@@ -10,6 +10,12 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Load HOST_PORT from .env if it exists, default to 3001
+if [ -f .env ]; then
+  HOST_PORT=$(grep -E '^HOST_PORT=' .env 2>/dev/null | cut -d '=' -f2 | tr -d ' ')
+fi
+HOST_PORT=${HOST_PORT:-3001}
+
 echo -e "${YELLOW}🧹 Cleaning build artifacts...${NC}"
 
 # Stop any running containers
@@ -43,8 +49,8 @@ sleep 5
 
 # Check if dev server is running
 for i in {1..30}; do
-  if curl -s http://localhost:3000/ > /dev/null 2>&1; then
-    echo -e "${GREEN}✅ Development server is ready at http://localhost:3000${NC}"
+  if curl -s http://localhost:${HOST_PORT}/ > /dev/null 2>&1; then
+    echo -e "${GREEN}✅ Development server is ready at http://localhost:${HOST_PORT}${NC}"
     break
   fi
   echo -n "."

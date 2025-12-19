@@ -231,3 +231,40 @@ export const PrivateCompany: Story = {
     },
   },
 };
+
+// Feature 044: Active Route Indicator Stories
+export const OnActiveRoute: Story = {
+  args: {
+    company: mockCompany,
+    isOnActiveRoute: true,
+    onClick: fn(),
+    onEdit: fn(),
+    onDelete: fn(),
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Company that is on the active route (Feature 044). Shows bicycle icon indicator.',
+      },
+    },
+  },
+};
+
+export const HighPriorityOnActiveRoute: Story = {
+  args: {
+    company: { ...mockCompany, priority: 1 },
+    isOnActiveRoute: true,
+    onClick: fn(),
+    onEdit: fn(),
+    onDelete: fn(),
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'High priority company that is on the active route. Shows both priority star and route indicator.',
+      },
+    },
+  },
+};

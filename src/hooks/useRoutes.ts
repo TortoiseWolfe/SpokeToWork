@@ -114,6 +114,9 @@ export interface UseRoutesReturn {
   // Route Geometry
   generateRouteGeometry: (routeId: string) => Promise<void>;
 
+  // Active Route Companies (Feature 044)
+  getActiveRouteCompanyIds: () => Promise<Set<string>>;
+
   // Utilities
   refetch: () => Promise<void>;
   invalidateCache: () => void;
@@ -328,7 +331,11 @@ export function useRoutes(options: UseRoutesOptions = {}): UseRoutesReturn {
     [getService]
   );
 
-  // Next Ride operations
+  /**
+   * Toggle "next ride" status for a company on a route.
+   * @deprecated Feature 044 simplified "Next Ride" to use active route filter.
+   * Use getActiveRouteCompanyIds() instead to filter companies by active route.
+   */
   const toggleNextRide = useCallback(
     async (routeCompanyId: string): Promise<RouteCompany> => {
       const service = getService();
@@ -339,6 +346,11 @@ export function useRoutes(options: UseRoutesOptions = {}): UseRoutesReturn {
     [getService, invalidateCache]
   );
 
+  /**
+   * Get all companies marked for "next ride" across all routes.
+   * @deprecated Feature 044 simplified "Next Ride" to use active route filter.
+   * Use getActiveRouteCompanyIds() instead to get companies on the active route.
+   */
   const getNextRideCompanies = useCallback(async (): Promise<
     RouteCompanyWithDetails[]
   > => {
@@ -346,6 +358,11 @@ export function useRoutes(options: UseRoutesOptions = {}): UseRoutesReturn {
     return service.getNextRideCompanies();
   }, [getService]);
 
+  /**
+   * Clear all "next ride" markers across all routes.
+   * @deprecated Feature 044 simplified "Next Ride" to use active route filter.
+   * This function is no longer needed with the new active route-based filtering.
+   */
   const clearAllNextRide = useCallback(async (): Promise<void> => {
     const service = getService();
     await service.clearAllNextRide();
@@ -462,6 +479,54 @@ export function useRoutes(options: UseRoutesOptions = {}): UseRoutesReturn {
     [getService, invalidateCache, fetchRoutes]
   );
 
+  // Feature 044: Get company IDs on the active route
+  const getActiveRouteCompanyIds = useCallback(async (): Promise<
+    Set<string>
+  > => {
+    logger.debug('getActiveRouteCompanyIds called', { activeRouteId });
+    if (!activeRouteId) {
+      logger.debug('No active route, returning empty set');
+      return new Set<string>();
+    }
+
+    try {
+      const service = getService();
+      const companies = await service.getRouteCompanies(activeRouteId);
+      logger.debug('Got route companies', { count: companies.length });
+
+      // Build a Set of all company IDs (tracking_id, shared, and private)
+      // tracking_id is the primary identifier for unified companies
+      const ids = new Set<string>();
+      companies.forEach((rc) => {
+        // Add tracking_id first - this is the primary ID for unified companies
+        if (rc.tracking_id) {
+          ids.add(rc.tracking_id);
+        }
+        // Add the company's canonical ID from the joined table
+        if (rc.company.id) {
+          ids.add(rc.company.id);
+        }
+        // Also add shared_company_id if present
+        if (rc.shared_company_id) {
+          ids.add(rc.shared_company_id);
+        }
+        // And private_company_id if present
+        if (rc.private_company_id) {
+          ids.add(rc.private_company_id);
+        }
+      });
+
+      logger.debug('Built ID set', { size: ids.size });
+      return ids;
+    } catch (err) {
+      logger.error('Failed to get active route company IDs', {
+        activeRouteId,
+        error: err instanceof Error ? err.message : 'Unknown error',
+      });
+      return new Set<string>();
+    }
+  }, [activeRouteId, getService]);
+
   return {
     routes,
     activeRouteId,
@@ -486,6 +551,7 @@ export function useRoutes(options: UseRoutesOptions = {}): UseRoutesReturn {
     checkRouteCompanyLimits,
     getRouteSummaries,
     generateRouteGeometry,
+    getActiveRouteCompanyIds,
     refetch,
     invalidateCache,
   };

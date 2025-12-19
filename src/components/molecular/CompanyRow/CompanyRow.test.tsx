@@ -149,4 +149,49 @@ describe('CompanyRow', () => {
     );
     expect(screen.getByTestId('company-row')).toHaveClass('opacity-60');
   });
+
+  // Feature 044: Active route indicator tests
+  describe('Active Route Indicator (Feature 044)', () => {
+    it('does not show active route indicator by default', () => {
+      renderInTable(<CompanyRow company={mockCompany} />);
+      expect(screen.queryByTitle('On active route')).not.toBeInTheDocument();
+    });
+
+    it('shows active route indicator when isOnActiveRoute is true', () => {
+      renderInTable(
+        <CompanyRow company={mockCompany} isOnActiveRoute={true} />
+      );
+      expect(screen.getByTitle('On active route')).toBeInTheDocument();
+    });
+
+    it('does not show active route indicator when isOnActiveRoute is false', () => {
+      renderInTable(
+        <CompanyRow company={mockCompany} isOnActiveRoute={false} />
+      );
+      expect(screen.queryByTitle('On active route')).not.toBeInTheDocument();
+    });
+
+    it('has screen reader text for active route indicator', () => {
+      renderInTable(
+        <CompanyRow company={mockCompany} isOnActiveRoute={true} />
+      );
+      expect(screen.getByText('On active route')).toBeInTheDocument();
+    });
+
+    it('applies primary color to active route indicator', () => {
+      renderInTable(
+        <CompanyRow company={mockCompany} isOnActiveRoute={true} />
+      );
+      const indicator = screen.getByTitle('On active route');
+      expect(indicator).toHaveClass('text-primary');
+    });
+
+    it('indicator has aria-label for accessibility', () => {
+      renderInTable(
+        <CompanyRow company={mockCompany} isOnActiveRoute={true} />
+      );
+      const indicator = screen.getByLabelText('On active route');
+      expect(indicator).toBeInTheDocument();
+    });
+  });
 });

@@ -412,6 +412,9 @@ ADD COLUMN IF NOT EXISTS encryption_salt TEXT;
 
 ## Active Technologies
 
+- TypeScript 5.9, React 19, Next.js 15 + React, DaisyUI, Tailwind CSS 4, Supabase JS client (044-simplify-next-ride)
+- Supabase PostgreSQL (existing `active_route_planning` and `route_companies` tables) (044-simplify-next-ride)
+
 - Bash script + Vitest 3.2.4 on Node.js 22 + Vitest, pnpm, GitHub Actions runner (043-fix-ci-oom)
 - N/A (test infrastructure) (043-fix-ci-oom)
 

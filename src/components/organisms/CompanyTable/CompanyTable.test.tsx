@@ -242,3 +242,115 @@ describe('CompanyTable - Source Badges (Feature 012)', () => {
     expect(screen.queryByText('Private LLC')).not.toBeInTheDocument();
   });
 });
+
+// Feature 044: Active Route filter tests
+describe('CompanyTable - Active Route Filter (Feature 044)', () => {
+  it('filters companies by activeRouteCompanyIds', () => {
+    const activeRouteCompanyIds = new Set(['company-1']);
+    render(
+      <CompanyTable
+        companies={mockCompanies}
+        activeRouteCompanyIds={activeRouteCompanyIds}
+      />
+    );
+
+    // Activate the On Active Route filter
+    const checkbox = screen.getByLabelText(
+      'Show only companies on active route'
+    );
+    fireEvent.click(checkbox);
+
+    expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+    expect(screen.queryByText('Beta Inc')).not.toBeInTheDocument();
+  });
+
+  it('shows all companies when On Active Route filter is off', () => {
+    const activeRouteCompanyIds = new Set(['company-1']);
+    render(
+      <CompanyTable
+        companies={mockCompanies}
+        activeRouteCompanyIds={activeRouteCompanyIds}
+      />
+    );
+
+    expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+    expect(screen.getByText('Beta Inc')).toBeInTheDocument();
+  });
+
+  it('shows empty state message when no companies on active route', () => {
+    const activeRouteCompanyIds = new Set(['non-existent-id']);
+    render(
+      <CompanyTable
+        companies={mockCompanies}
+        activeRouteCompanyIds={activeRouteCompanyIds}
+      />
+    );
+
+    // Activate the On Active Route filter
+    const checkbox = screen.getByLabelText(
+      'Show only companies on active route'
+    );
+    fireEvent.click(checkbox);
+
+    expect(
+      screen.getByText(/No companies on this route yet/)
+    ).toBeInTheDocument();
+  });
+
+  it('filters unified companies by activeRouteCompanyIds using tracking_id', () => {
+    const activeRouteCompanyIds = new Set(['tracking-1']);
+    render(
+      <CompanyTable
+        companies={mockUnifiedCompanies}
+        activeRouteCompanyIds={activeRouteCompanyIds}
+      />
+    );
+
+    // Activate the On Active Route filter
+    const checkbox = screen.getByLabelText(
+      'Show only companies on active route'
+    );
+    fireEvent.click(checkbox);
+
+    expect(screen.getByText('Community Corp')).toBeInTheDocument();
+    expect(screen.queryByText('Private LLC')).not.toBeInTheDocument();
+  });
+
+  it('filters unified companies by activeRouteCompanyIds using company_id', () => {
+    const activeRouteCompanyIds = new Set(['company-1']);
+    render(
+      <CompanyTable
+        companies={mockUnifiedCompanies}
+        activeRouteCompanyIds={activeRouteCompanyIds}
+      />
+    );
+
+    // Activate the On Active Route filter
+    const checkbox = screen.getByLabelText(
+      'Show only companies on active route'
+    );
+    fireEvent.click(checkbox);
+
+    expect(screen.getByText('Community Corp')).toBeInTheDocument();
+    expect(screen.queryByText('Private LLC')).not.toBeInTheDocument();
+  });
+
+  it('filters unified companies by activeRouteCompanyIds using private_company_id', () => {
+    const activeRouteCompanyIds = new Set(['private-1']);
+    render(
+      <CompanyTable
+        companies={mockUnifiedCompanies}
+        activeRouteCompanyIds={activeRouteCompanyIds}
+      />
+    );
+
+    // Activate the On Active Route filter
+    const checkbox = screen.getByLabelText(
+      'Show only companies on active route'
+    );
+    fireEvent.click(checkbox);
+
+    expect(screen.queryByText('Community Corp')).not.toBeInTheDocument();
+    expect(screen.getByText('Private LLC')).toBeInTheDocument();
+  });
+});

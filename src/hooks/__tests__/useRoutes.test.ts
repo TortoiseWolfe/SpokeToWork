@@ -388,8 +388,91 @@ describe('useRoutes', () => {
       expect(result.current).toHaveProperty('checkRouteCompanyLimits');
       expect(result.current).toHaveProperty('getRouteSummaries');
       expect(result.current).toHaveProperty('generateRouteGeometry');
+      expect(result.current).toHaveProperty('getActiveRouteCompanyIds');
       expect(result.current).toHaveProperty('refetch');
       expect(result.current).toHaveProperty('invalidateCache');
+    });
+  });
+
+  describe('getActiveRouteCompanyIds', () => {
+    it('should return empty Set when no active route', async () => {
+      const { result } = renderHook(() => useRoutes());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      let ids: Set<string> = new Set();
+      await act(async () => {
+        ids = await result.current.getActiveRouteCompanyIds();
+      });
+
+      expect(ids.size).toBe(0);
+    });
+
+    it('should return company IDs from active route', async () => {
+      mockGetActiveRoute.mockResolvedValue({ route_id: 'route-1' });
+      mockGetRouteCompanies.mockResolvedValue([
+        {
+          id: 'rc-1',
+          route_id: 'route-1',
+          shared_company_id: 'shared-company-1',
+          private_company_id: null,
+          company: { id: 'company-1' },
+        },
+        {
+          id: 'rc-2',
+          route_id: 'route-1',
+          shared_company_id: null,
+          private_company_id: 'private-company-1',
+          company: { id: 'company-2' },
+        },
+      ]);
+
+      const { result } = renderHook(() => useRoutes());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // Set active route first
+      await act(async () => {
+        await result.current.setActiveRoute('route-1');
+      });
+
+      let ids: Set<string> = new Set();
+      await act(async () => {
+        ids = await result.current.getActiveRouteCompanyIds();
+      });
+
+      expect(mockGetRouteCompanies).toHaveBeenCalledWith('route-1');
+      expect(ids.has('company-1')).toBe(true);
+      expect(ids.has('company-2')).toBe(true);
+      expect(ids.has('shared-company-1')).toBe(true);
+      expect(ids.has('private-company-1')).toBe(true);
+    });
+
+    it('should return empty Set on error', async () => {
+      mockGetActiveRoute.mockResolvedValue({ route_id: 'route-1' });
+      mockGetRouteCompanies.mockRejectedValue(new Error('Network error'));
+
+      const { result } = renderHook(() => useRoutes());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // Set active route first
+      await act(async () => {
+        await result.current.setActiveRoute('route-1');
+      });
+
+      let ids: Set<string> = new Set();
+      await act(async () => {
+        ids = await result.current.getActiveRouteCompanyIds();
+      });
+
+      expect(ids.size).toBe(0);
     });
   });
 });

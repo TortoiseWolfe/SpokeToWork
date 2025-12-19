@@ -56,8 +56,8 @@ export interface CompanyTableProps {
   onStatusChange?: (company: Company, status: CompanyStatus) => void;
   /** Callback when add to route is requested (Feature 041) */
   onAddToRoute?: (company: CompanyType) => void;
-  /** Set of company IDs marked for "next ride" (Feature 041) */
-  nextRideCompanyIds?: Set<string>;
+  /** Set of company IDs on the active route (Feature 044) */
+  activeRouteCompanyIds?: Set<string>;
   /** Additional CSS classes */
   className?: string;
   /** Test ID for testing */
@@ -84,7 +84,7 @@ export default function CompanyTable({
   onDelete,
   onStatusChange,
   onAddToRoute,
-  nextRideCompanyIds,
+  activeRouteCompanyIds,
   className = '',
   testId = 'company-table',
 }: CompanyTableProps) {
@@ -138,27 +138,29 @@ export default function CompanyTable({
           return false;
       }
 
-      // Next Ride filter (Feature 041)
-      if (filters.next_ride_only && nextRideCompanyIds) {
+      // Active Route filter (Feature 044)
+      if (filters.on_active_route && activeRouteCompanyIds) {
         const companyId = getCompanyId(company);
         // For unified companies, check both tracking_id/private_company_id and company_id
-        let isOnNextRide = nextRideCompanyIds.has(companyId);
-        if (!isOnNextRide && isUnifiedCompany(company)) {
+        let isOnActiveRoute = activeRouteCompanyIds.has(companyId);
+        if (!isOnActiveRoute && isUnifiedCompany(company)) {
           // Also check against company_id for shared companies
           if (company.company_id) {
-            isOnNextRide = nextRideCompanyIds.has(company.company_id);
+            isOnActiveRoute = activeRouteCompanyIds.has(company.company_id);
           }
           // And private_company_id
-          if (!isOnNextRide && company.private_company_id) {
-            isOnNextRide = nextRideCompanyIds.has(company.private_company_id);
+          if (!isOnActiveRoute && company.private_company_id) {
+            isOnActiveRoute = activeRouteCompanyIds.has(
+              company.private_company_id
+            );
           }
         }
-        if (!isOnNextRide) return false;
+        if (!isOnActiveRoute) return false;
       }
 
       return true;
     });
-  }, [companies, filters, nextRideCompanyIds]);
+  }, [companies, filters, activeRouteCompanyIds]);
 
   // Apply sorting
   const sortedCompanies = useMemo(() => {
@@ -294,6 +296,11 @@ export default function CompanyTable({
                 </button>
               </div>
             </>
+          ) : filters.on_active_route ? (
+            <p className="text-base-content/70">
+              No companies on this route yet. Add companies to your active route
+              to see them here.
+            </p>
           ) : (
             <p className="text-base-content/70">
               No companies match your filters.
@@ -363,6 +370,24 @@ export default function CompanyTable({
             <tbody>
               {sortedCompanies.map((company) => {
                 const companyId = getCompanyId(company);
+                // Feature 044: Check if company is on active route
+                let isOnActiveRoute = false;
+                if (activeRouteCompanyIds) {
+                  isOnActiveRoute = activeRouteCompanyIds.has(companyId);
+                  // Also check company_id and private_company_id for unified companies
+                  if (!isOnActiveRoute && isUnifiedCompany(company)) {
+                    if (company.company_id) {
+                      isOnActiveRoute = activeRouteCompanyIds.has(
+                        company.company_id
+                      );
+                    }
+                    if (!isOnActiveRoute && company.private_company_id) {
+                      isOnActiveRoute = activeRouteCompanyIds.has(
+                        company.private_company_id
+                      );
+                    }
+                  }
+                }
                 return (
                   <CompanyRow
                     key={companyId}
@@ -372,6 +397,7 @@ export default function CompanyTable({
                     onDelete={onDelete}
                     onStatusChange={onStatusChange}
                     onAddToRoute={onAddToRoute}
+                    isOnActiveRoute={isOnActiveRoute}
                     testId={`company-row-${companyId}`}
                   />
                 );

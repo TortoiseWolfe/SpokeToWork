@@ -5,9 +5,9 @@ services:
       dockerfile: docker/Dockerfile
       target: dev
     ports:
-      - '3000:3000'
-      - '6006:6006'
-      - '24678:24678' # Next.js HMR websocket
+      - '${HOST_PORT:-3001}:3000'
+      - '${STORYBOOK_PORT:-6007}:6006'
+      - '${HMR_PORT:-24679}:24678' # Next.js HMR websocket
     volumes:
       - .:/app
       - node_modules:/app/node_modules
@@ -25,7 +25,7 @@ services:
       - 8.8.8.8
       - 1.1.1.1
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000/']
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/']  # Internal container port
       interval: 30s
       timeout: 10s
       retries: 3
