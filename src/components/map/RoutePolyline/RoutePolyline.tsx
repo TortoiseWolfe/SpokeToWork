@@ -3,34 +3,15 @@
 /**
  * RoutePolyline - Feature 041: Bicycle Route Planning
  *
- * Renders a route path as a Leaflet polyline on the map.
+ * Renders a route path as a MapLibre line layer on the map.
  * Supports GeoJSON LineString geometry with configurable styling.
+ * Migrated from Leaflet to MapLibre GL for Feature 045.
  */
 
-import { useMemo, useState, useEffect } from 'react';
-import { Polyline, Popup, useMap } from 'react-leaflet';
-import type { LatLngTuple, PathOptions } from 'leaflet';
+import { useMemo, useState, useCallback } from 'react';
+import { Source, Layer, Popup, useMap } from 'react-map-gl/maplibre';
+import type { LineLayerSpecification } from 'maplibre-gl';
 import type { RouteGeometry, BicycleRoute } from '@/types/route';
-
-/**
- * Hook to check if map is ready for rendering children
- * Uses the map's container to verify initialization
- */
-function useMapReady(): boolean {
-  const map = useMap();
-  const [isReady, setIsReady] = useState(false);
-
-  useEffect(() => {
-    if (map && map.getContainer()) {
-      // Small delay to ensure Leaflet is fully initialized
-      const timer = setTimeout(() => setIsReady(true), 50);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [map]);
-
-  return isReady;
-}
 
 export interface RoutePolylineProps {
   /** Route data including geometry */
@@ -52,44 +33,63 @@ export interface RoutePolylineProps {
 }
 
 /**
- * Convert GeoJSON coordinates to Leaflet LatLngTuple array
- * GeoJSON uses [longitude, latitude], Leaflet uses [latitude, longitude]
+ * Convert route geometry to GeoJSON Feature for MapLibre Source
  */
-function geoJsonToLatLng(geometry: RouteGeometry): LatLngTuple[] {
-  return geometry.coordinates.map(([lng, lat]) => [lat, lng] as LatLngTuple);
+function routeToGeoJSON(
+  geometry: RouteGeometry
+): GeoJSON.Feature<GeoJSON.LineString | GeoJSON.MultiLineString> {
+  // Handle both LineString and MultiLineString geometries
+  if (geometry.type === 'MultiLineString') {
+    return {
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'MultiLineString',
+        coordinates: geometry.coordinates as number[][][],
+      },
+    };
+  }
+
+  return {
+    type: 'Feature',
+    properties: {},
+    geometry: {
+      type: 'LineString',
+      coordinates: geometry.coordinates as number[][],
+    },
+  };
 }
 
 /**
- * Get default styling based on route type
+ * Get line layer paint properties based on route type
  */
-function getRouteStyle(
+function getLayerPaint(
   isSystemRoute: boolean,
   isActive: boolean,
   customColor?: string,
   customWeight?: number
-): PathOptions {
-  // Use bright, high-contrast colors that stand out on CyclOSM tiles
-  // System routes: bright emerald green, User routes: bright cyan blue
+): LineLayerSpecification['paint'] {
+  // Use bright, high-contrast colors
   const systemColor = '#00FF88'; // Bright neon green
-  const userColor = '#00BFFF'; // Deep sky blue (high contrast)
+  const userColor = '#00BFFF'; // Deep sky blue
 
-  const baseStyle: PathOptions = {
-    color: customColor ?? (isSystemRoute ? systemColor : userColor),
-    weight: customWeight ?? (isActive ? 8 : 6), // Thicker lines for visibility
-    opacity: 1, // Full opacity for maximum visibility
-    lineCap: 'round',
-    lineJoin: 'round',
+  return {
+    'line-color': customColor ?? (isSystemRoute ? systemColor : userColor),
+    'line-width': customWeight ?? (isActive ? 8 : 6),
+    'line-opacity': 1,
   };
+}
 
-  if (isSystemRoute) {
-    // System routes (trails) have dashed pattern - very visible
-    return {
-      ...baseStyle,
-      dashArray: '20, 10',
-    };
-  }
-
-  return baseStyle;
+/**
+ * Get line layer layout properties
+ */
+function getLayerLayout(
+  isSystemRoute: boolean
+): LineLayerSpecification['layout'] {
+  return {
+    'line-cap': 'round',
+    'line-join': 'round',
+  };
 }
 
 export default function RoutePolyline({
@@ -102,14 +102,17 @@ export default function RoutePolyline({
   onClick,
   popupClassName = '',
 }: RoutePolylineProps) {
-  // Wait for map to be fully ready before rendering Polyline
-  const mapReady = useMapReady();
+  const { current: map } = useMap();
+  const [popupInfo, setPopupInfo] = useState<{
+    longitude: number;
+    latitude: number;
+  } | null>(null);
 
-  // Convert geometry to positions
-  const positions = useMemo(() => {
+  // Convert geometry to GeoJSON
+  const geoJsonData = useMemo(() => {
     if (!route.route_geometry) return null;
     try {
-      return geoJsonToLatLng(route.route_geometry);
+      return routeToGeoJSON(route.route_geometry);
     } catch {
       console.warn('Invalid route geometry for route:', route.id);
       return null;
@@ -117,9 +120,9 @@ export default function RoutePolyline({
   }, [route.route_geometry, route.id]);
 
   // Get styling
-  const pathOptions = useMemo(
+  const paint = useMemo(
     () =>
-      getRouteStyle(
+      getLayerPaint(
         isSystemRoute || route.is_system_route,
         isActive,
         color ?? route.color,
@@ -128,25 +131,91 @@ export default function RoutePolyline({
     [isSystemRoute, route.is_system_route, isActive, color, route.color, weight]
   );
 
-  // Don't render if map not ready or no valid geometry
-  if (!mapReady || !positions || positions.length < 2) {
+  const layout = useMemo(
+    () => getLayerLayout(isSystemRoute || route.is_system_route),
+    [isSystemRoute, route.is_system_route]
+  );
+
+  // Handle click on layer
+  const handleLayerClick = useCallback(
+    (e: maplibregl.MapLayerMouseEvent) => {
+      if (e.lngLat) {
+        setPopupInfo({
+          longitude: e.lngLat.lng,
+          latitude: e.lngLat.lat,
+        });
+      }
+      onClick?.(route);
+    },
+    [onClick, route]
+  );
+
+  // Set up click handler on the layer
+  useMemo(() => {
+    if (!map) return;
+
+    const layerId = `route-${route.id}`;
+
+    // Add click handler
+    const clickHandler = (e: maplibregl.MapLayerMouseEvent) => {
+      handleLayerClick(e);
+    };
+
+    // Add cursor change on hover
+    const mouseEnterHandler = () => {
+      map.getCanvas().style.cursor = 'pointer';
+    };
+
+    const mouseLeaveHandler = () => {
+      map.getCanvas().style.cursor = '';
+    };
+
+    map.on('click', layerId, clickHandler);
+    map.on('mouseenter', layerId, mouseEnterHandler);
+    map.on('mouseleave', layerId, mouseLeaveHandler);
+
+    return () => {
+      map.off('click', layerId, clickHandler);
+      map.off('mouseenter', layerId, mouseEnterHandler);
+      map.off('mouseleave', layerId, mouseLeaveHandler);
+    };
+  }, [map, route.id, handleLayerClick]);
+
+  // Don't render if no valid geometry
+  if (!geoJsonData) {
     return null;
   }
 
-  const handleClick = () => {
-    onClick?.(route);
-  };
+  const sourceId = `route-source-${route.id}`;
+  const layerId = `route-${route.id}`;
 
   return (
-    <Polyline
-      positions={positions}
-      pathOptions={pathOptions}
-      eventHandlers={{
-        click: handleClick,
-      }}
-    >
-      {showPopup && (
-        <Popup className={popupClassName}>
+    <>
+      <Source id={sourceId} type="geojson" data={geoJsonData}>
+        <Layer id={layerId} type="line" paint={paint} layout={layout} />
+        {/* Dashed overlay for system routes */}
+        {(isSystemRoute || route.is_system_route) && (
+          <Layer
+            id={`${layerId}-dash`}
+            type="line"
+            paint={{
+              ...paint,
+              'line-dasharray': [2, 1],
+            }}
+            layout={layout}
+          />
+        )}
+      </Source>
+
+      {showPopup && popupInfo && (
+        <Popup
+          longitude={popupInfo.longitude}
+          latitude={popupInfo.latitude}
+          anchor="bottom"
+          onClose={() => setPopupInfo(null)}
+          closeOnClick={false}
+          className={popupClassName}
+        >
           <div className="min-w-48" data-testid="route-popup">
             <h3 className="mb-1 text-base font-semibold">{route.name}</h3>
 
@@ -189,7 +258,7 @@ export default function RoutePolyline({
           </div>
         </Popup>
       )}
-    </Polyline>
+    </>
   );
 }
 
@@ -215,7 +284,7 @@ export function RoutePolylines({
     return routes.filter((route) => {
       if (route.is_system_route && !showSystemRoutes) return false;
       if (!route.is_system_route && !showUserRoutes) return false;
-      // Only include routes with valid geometry (not null/undefined and has coordinates)
+      // Only include routes with valid geometry
       return (
         route.route_geometry != null &&
         typeof route.route_geometry === 'object' &&

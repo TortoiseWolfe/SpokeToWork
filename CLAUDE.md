@@ -472,6 +472,9 @@ WHERE name ILIKE '%steph%' OR contact_name ILIKE '%steph%';
 
 ## Active Technologies
 
+- TypeScript 5.9, React 19, Next.js 15 + `maplibre-gl`, `react-map-gl` (replacing `react-leaflet`, `leaflet`) (045-map-font-legibility)
+- Existing Supabase PostgreSQL for route data; IndexedDB (Dexie) for tile caching (045-map-font-legibility)
+
 - TypeScript 5.9, React 19, Next.js 15 + React, DaisyUI, Tailwind CSS 4, Supabase JS client (044-simplify-next-ride)
 - Supabase PostgreSQL (existing `active_route_planning` and `route_companies` tables) (044-simplify-next-ride)
 
