@@ -1,35 +1,34 @@
 'use client';
 
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 import dynamic from 'next/dynamic';
-import type { Map as LeafletMap, LatLngTuple } from 'leaflet';
-import { fixLeafletIconPaths, DEFAULT_MAP_CONFIG } from '@/utils/map-utils';
+import type { MapRef } from 'react-map-gl/maplibre';
+import { DEFAULT_MAP_CONFIG } from '@/utils/map-utils';
 import { LocationButton } from '@/components/map/LocationButton';
-import 'leaflet/dist/leaflet.css';
+import type { MapTheme } from '@/hooks/useMapTheme';
 
 export interface MapContainerProps {
-  center?: LatLngTuple;
+  center?: [number, number]; // [lat, lng]
   zoom?: number;
   height?: string;
   width?: string;
   showUserLocation?: boolean;
   markers?: Array<{
-    position: LatLngTuple;
+    position: [number, number]; // [lat, lng]
     popup?: string;
     id: string;
+    variant?: 'default' | 'next-ride' | 'active-route';
   }>;
   onLocationFound?: (position: GeolocationPosition) => void;
   onLocationError?: (error: GeolocationPositionError) => void;
-  onMapReady?: (map: LeafletMap) => void;
+  onMapReady?: (map: MapRef) => void;
+  onError?: (error: Error) => void;
   className?: string;
   testId?: string;
   style?: React.CSSProperties;
-  /** Custom tile URL - overrides config.tileUrl */
-  tileUrl?: string;
-  /** Custom attribution - overrides config.attribution */
-  attribution?: string;
+  theme?: MapTheme;
   config?: {
-    center?: LatLngTuple;
+    center?: [number, number];
     zoom?: number;
     height?: string;
     showUserLocation?: boolean;
@@ -38,8 +37,6 @@ export interface MapContainerProps {
     scrollWheelZoom?: boolean;
     keyboardNavigation?: boolean;
     zoomControl?: boolean;
-    tileUrl?: string;
-    attribution?: string;
   };
   children?: React.ReactNode;
 }
@@ -54,7 +51,7 @@ const MapContainerInner = dynamic(() => import('./MapContainerInner'), {
 });
 
 export const MapContainer: React.FC<MapContainerProps> = ({
-  center = DEFAULT_MAP_CONFIG.center,
+  center = DEFAULT_MAP_CONFIG.center as [number, number],
   zoom = DEFAULT_MAP_CONFIG.zoom,
   height = DEFAULT_MAP_CONFIG.height,
   width = DEFAULT_MAP_CONFIG.width,
@@ -63,27 +60,23 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   onLocationFound,
   onLocationError,
   onMapReady,
+  onError,
   className = '',
   testId = 'map-container',
   style,
-  tileUrl,
-  attribution,
+  theme = 'auto',
   config,
   children,
 }) => {
-  const mapRef = useRef<LeafletMap | null>(null);
+  const mapRef = useRef<MapRef | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
 
-  useEffect(() => {
-    fixLeafletIconPaths();
-  }, []);
-
   const handleMapReady = useCallback(
-    (map: LeafletMap) => {
+    (map: MapRef) => {
       mapRef.current = map;
       // Expose map instance to window for testing
       if (typeof window !== 'undefined') {
-        (window as Window & { leafletMap?: LeafletMap }).leafletMap = map;
+        (window as Window & { maplibreMap?: MapRef }).maplibreMap = map;
       }
       if (onMapReady) {
         onMapReady(map);
@@ -93,8 +86,6 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   );
 
   const handleLocationClick = useCallback(() => {
-    if (!mapRef.current) return;
-
     setLocationLoading(true);
 
     if (!navigator.geolocation) {
@@ -118,12 +109,13 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         if (onLocationFound) {
           onLocationFound(position);
         }
-        // Pan map to user location
+        // Pan map to user location using MapLibre API
         if (mapRef.current) {
-          mapRef.current.setView(
-            [position.coords.latitude, position.coords.longitude],
-            16
-          );
+          mapRef.current.flyTo({
+            center: [position.coords.longitude, position.coords.latitude],
+            zoom: 16,
+            duration: 1000,
+          });
         }
       },
       (error) => {
@@ -156,19 +148,20 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         onLocationFound={onLocationFound}
         onLocationError={onLocationError}
         onMapReady={handleMapReady}
-        tileUrl={tileUrl || config?.tileUrl}
-        attribution={attribution || config?.attribution}
+        onError={onError}
         scrollWheelZoom={config?.scrollWheelZoom}
         zoomControl={config?.zoomControl}
         keyboardNavigation={config?.keyboardNavigation}
+        theme={theme}
       >
         {children}
       </MapContainerInner>
+      {/* Additional location button (MapLibre also has built-in GeolocateControl) */}
       {showUserLocation && (
         <LocationButton
           onClick={handleLocationClick}
           loading={locationLoading}
-          className="absolute top-4 right-4 z-[1000]"
+          className="absolute right-4 bottom-4 z-[1000]"
         />
       )}
     </div>

@@ -1,18 +1,17 @@
-import React, { useEffect } from 'react';
-import {
-  MapContainer as LeafletMapContainer,
-  TileLayer,
+'use client';
+
+import React, { useEffect, useRef, useCallback, useState } from 'react';
+import Map, {
   Marker,
   Popup,
-  useMap,
-} from 'react-leaflet';
-import type { Map as LeafletMap, LatLngTuple } from 'leaflet';
-import L from 'leaflet';
-import {
-  OSM_TILE_URL,
-  OSM_ATTRIBUTION,
-  DEFAULT_MAP_CONFIG,
-} from '@/utils/map-utils';
+  NavigationControl,
+  GeolocateControl,
+  type MapRef,
+} from 'react-map-gl/maplibre';
+import type { LngLatLike } from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import { useMapTheme, type MapTheme } from '@/hooks/useMapTheme';
+import { DEFAULT_MAP_CONFIG } from '@/utils/map-utils';
 
 /**
  * Marker variant for different display styles
@@ -20,214 +19,98 @@ import {
 export type MarkerVariant = 'default' | 'next-ride' | 'active-route';
 
 export interface MapMarker {
-  position: LatLngTuple;
+  position: [number, number]; // [lat, lng]
   popup?: string;
   id: string;
   variant?: MarkerVariant;
 }
 
 interface MapContainerInnerProps {
-  center: LatLngTuple;
+  center: [number, number]; // [lat, lng]
   zoom: number;
   showUserLocation?: boolean;
   markers?: MapMarker[];
   onLocationFound?: (position: GeolocationPosition) => void;
   onLocationError?: (error: GeolocationPositionError) => void;
-  onMapReady?: (map: LeafletMap) => void;
-  tileUrl?: string;
-  attribution?: string;
+  onMapReady?: (map: MapRef) => void;
+  onError?: (error: Error) => void;
   scrollWheelZoom?: boolean;
   zoomControl?: boolean;
   keyboardNavigation?: boolean;
+  theme?: MapTheme;
   children?: React.ReactNode;
 }
 
-// Custom marker icons for different variants
-const createMarkerIcon = (
-  variant: MarkerVariant
-): L.Icon | L.DivIcon | undefined => {
-  if (typeof window === 'undefined') return undefined;
-
+/**
+ * Get marker color based on variant
+ */
+const getMarkerColor = (variant: MarkerVariant = 'default'): string => {
   switch (variant) {
     case 'next-ride':
-      // Highlighted marker for next-ride companies - larger, primary color with pulse
-      return L.divIcon({
-        className: 'next-ride-marker',
-        html: `
-          <div class="relative">
-            <div class="absolute inset-0 bg-primary rounded-full animate-ping opacity-50"></div>
-            <div class="relative bg-primary rounded-full w-6 h-6 border-2 border-white shadow-lg flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
-              </svg>
-            </div>
-          </div>
-        `,
-        iconSize: [28, 28],
-        iconAnchor: [14, 14],
-      });
-
+      return 'oklch(var(--p))'; // DaisyUI primary
     case 'active-route':
-      // Marker for companies on active route - secondary color
-      return L.divIcon({
-        className: 'active-route-marker',
-        html: `
-          <div class="relative bg-secondary rounded-full w-5 h-5 border-2 border-white shadow-lg"></div>
-        `,
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
-      });
-
-    case 'default':
+      return 'oklch(var(--s))'; // DaisyUI secondary
     default:
-      // Default marker - use Leaflet's default
-      return undefined;
+      return '#3b82f6'; // Default blue
   }
 };
 
-// Component to handle center updates - only when coordinates actually change
-const MapCenterUpdater: React.FC<{ center: LatLngTuple }> = ({ center }) => {
-  const map = useMap();
-  const prevCoordsRef = React.useRef<LatLngTuple | null>(null);
-  const lat = center[0];
-  const lng = center[1];
+/**
+ * Custom marker component for different variants
+ */
+const CustomMarker: React.FC<{
+  marker: MapMarker;
+  onClick?: () => void;
+}> = ({ marker, onClick }) => {
+  const color = getMarkerColor(marker.variant);
+  const isNextRide = marker.variant === 'next-ride';
 
-  useEffect(() => {
-    // Only re-center if coordinates actually changed
-    // Not on every render (which would fight with user panning)
-    const prev = prevCoordsRef.current;
-    if (!prev || prev[0] !== lat || prev[1] !== lng) {
-      map.setView(center);
-      prevCoordsRef.current = center;
-    }
-  }, [map, center, lat, lng]);
-
-  return null;
-};
-
-const MapEventHandler: React.FC<{
-  onMapReady?: (map: LeafletMap) => void;
-  showUserLocation?: boolean;
-  onLocationFound?: (position: GeolocationPosition) => void;
-  onLocationError?: (error: GeolocationPositionError) => void;
-}> = ({ onMapReady, showUserLocation, onLocationFound, onLocationError }) => {
-  const map = useMap();
-
-  // Handle container resize - fixes zoom glitches and tile redraw issues
-  useEffect(() => {
-    let isMounted = true;
-    const container = map.getContainer();
-    if (!container) return;
-
-    // Safe wrapper to prevent calling invalidateSize on destroyed container
-    const safeInvalidateSize = () => {
-      if (isMounted && map.getContainer()) {
-        try {
-          map.invalidateSize();
-        } catch {
-          // Container may have been destroyed during unmount
+  return (
+    <div
+      onClick={onClick}
+      className="cursor-pointer"
+      role="button"
+      tabIndex={0}
+      aria-label={marker.popup || 'Map marker'}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          onClick?.();
         }
-      }
-    };
-
-    const resizeObserver = new ResizeObserver(() => {
-      // Delay to ensure DOM has settled after resize
-      setTimeout(safeInvalidateSize, 100);
-    });
-
-    resizeObserver.observe(container);
-
-    // Also handle window resize as backup
-    const handleWindowResize = () => {
-      setTimeout(safeInvalidateSize, 100);
-    };
-    window.addEventListener('resize', handleWindowResize);
-
-    // Initial invalidateSize after mount to ensure proper sizing
-    setTimeout(safeInvalidateSize, 200);
-
-    return () => {
-      isMounted = false;
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', handleWindowResize);
-    };
-  }, [map]);
-
-  useEffect(() => {
-    if (onMapReady) {
-      onMapReady(map);
-    }
-
-    if (showUserLocation && navigator.geolocation) {
-      map.locate({ setView: true, maxZoom: 16 });
-    }
-
-    const handleLocationFound = (e: L.LocationEvent) => {
-      if (onLocationFound) {
-        const position: GeolocationPosition = {
-          coords: {
-            latitude: e.latlng.lat,
-            longitude: e.latlng.lng,
-            accuracy: e.accuracy,
-            altitude: null,
-            altitudeAccuracy: null,
-            heading: null,
-            speed: null,
-            toJSON: () => ({
-              latitude: e.latlng.lat,
-              longitude: e.latlng.lng,
-              accuracy: e.accuracy,
-            }),
-          } as GeolocationCoordinates,
-          timestamp: Date.now(),
-          toJSON: () => ({
-            coords: {
-              latitude: e.latlng.lat,
-              longitude: e.latlng.lng,
-              accuracy: e.accuracy,
-            },
-            timestamp: Date.now(),
-          }),
-        };
-        onLocationFound(position);
-      }
-    };
-
-    const handleLocationError = (e: L.ErrorEvent) => {
-      if (onLocationError) {
-        let code = 0;
-        const message = e.message;
-
-        if (message.includes('denied')) {
-          code = 1; // PERMISSION_DENIED
-        } else if (message.includes('unavailable')) {
-          code = 2; // POSITION_UNAVAILABLE
-        } else if (message.includes('timeout')) {
-          code = 3; // TIMEOUT
-        }
-
-        const error: GeolocationPositionError = {
-          code,
-          message,
-          PERMISSION_DENIED: 1,
-          POSITION_UNAVAILABLE: 2,
-          TIMEOUT: 3,
-        };
-        onLocationError(error);
-      }
-    };
-
-    map.on('locationfound', handleLocationFound);
-    map.on('locationerror', handleLocationError);
-
-    return () => {
-      map.off('locationfound', handleLocationFound);
-      map.off('locationerror', handleLocationError);
-    };
-  }, [map, onMapReady, showUserLocation, onLocationFound, onLocationError]);
-
-  return null;
+      }}
+    >
+      {isNextRide ? (
+        <div className="relative">
+          <div
+            className="absolute inset-0 animate-ping rounded-full opacity-50"
+            style={{ backgroundColor: color }}
+          />
+          <div
+            className="relative flex h-6 w-6 items-center justify-center rounded-full border-2 border-white shadow-lg"
+            style={{ backgroundColor: color }}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-3 w-3 text-white"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+              <path
+                fillRule="evenodd"
+                d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </div>
+        </div>
+      ) : (
+        <div
+          className="h-5 w-5 rounded-full border-2 border-white shadow-lg"
+          style={{ backgroundColor: color }}
+        />
+      )}
+    </div>
+  );
 };
 
 const MapContainerInner: React.FC<MapContainerInnerProps> = ({
@@ -238,46 +121,133 @@ const MapContainerInner: React.FC<MapContainerInnerProps> = ({
   onLocationFound,
   onLocationError,
   onMapReady,
-  tileUrl = OSM_TILE_URL,
-  attribution = OSM_ATTRIBUTION,
+  onError,
   scrollWheelZoom = DEFAULT_MAP_CONFIG.scrollWheelZoom,
   zoomControl = DEFAULT_MAP_CONFIG.zoomControl,
   keyboardNavigation = DEFAULT_MAP_CONFIG.keyboardNavigation,
+  theme = 'auto',
   children,
 }) => {
+  const mapRef = useRef<MapRef>(null);
+  const geolocateRef = useRef<maplibregl.GeolocateControl | null>(null);
+  const [selectedMarker, setSelectedMarker] = useState<MapMarker | null>(null);
+  const mapStyle = useMapTheme(theme);
+
+  // Convert [lat, lng] to MapLibre's [lng, lat] format
+  const mapCenter: LngLatLike = [center[1], center[0]];
+
+  // Handle map load
+  const handleLoad = useCallback(() => {
+    if (mapRef.current && onMapReady) {
+      onMapReady(mapRef.current);
+    }
+  }, [onMapReady]);
+
+  // Handle map error
+  const handleError = useCallback(
+    (event: { error: Error }) => {
+      if (onError) {
+        onError(event.error);
+      }
+    },
+    [onError]
+  );
+
+  // Handle geolocate events
+  const handleGeolocate = useCallback(
+    (event: GeolocationPosition) => {
+      if (onLocationFound) {
+        onLocationFound(event);
+      }
+    },
+    [onLocationFound]
+  );
+
+  const handleGeolocateError = useCallback(
+    (event: GeolocationPositionError) => {
+      if (onLocationError) {
+        onLocationError(event);
+      }
+    },
+    [onLocationError]
+  );
+
+  // Expose map instance globally for testing
+  useEffect(() => {
+    if (typeof window !== 'undefined' && mapRef.current) {
+      (window as Window & { maplibreMap?: MapRef }).maplibreMap =
+        mapRef.current;
+    }
+  }, []);
+
   return (
-    <LeafletMapContainer
-      center={center}
-      zoom={zoom}
-      scrollWheelZoom={scrollWheelZoom}
-      className="h-full w-full"
-      zoomControl={zoomControl}
+    <Map
+      ref={mapRef}
+      initialViewState={{
+        longitude: mapCenter[0] as number,
+        latitude: mapCenter[1] as number,
+        zoom: zoom,
+      }}
+      style={{ width: '100%', height: '100%' }}
+      mapStyle={mapStyle}
+      scrollZoom={scrollWheelZoom}
       keyboard={keyboardNavigation}
+      onLoad={handleLoad}
+      onError={handleError}
+      reuseMaps
     >
-      <TileLayer attribution={attribution} url={tileUrl} />
+      {/* Navigation controls */}
+      {zoomControl && <NavigationControl position="top-right" />}
 
-      <MapEventHandler
-        onMapReady={onMapReady}
-        showUserLocation={showUserLocation}
-        onLocationFound={onLocationFound}
-        onLocationError={onLocationError}
-      />
+      {/* Geolocation control */}
+      {showUserLocation && (
+        <GeolocateControl
+          ref={(ref) => {
+            geolocateRef.current =
+              ref as unknown as maplibregl.GeolocateControl;
+          }}
+          position="top-right"
+          trackUserLocation
+          onGeolocate={handleGeolocate}
+          onError={handleGeolocateError}
+        />
+      )}
 
-      <MapCenterUpdater center={center} />
+      {/* Markers */}
+      {markers.map((marker) => (
+        <Marker
+          key={marker.id}
+          longitude={marker.position[1]}
+          latitude={marker.position[0]}
+          anchor="center"
+          onClick={(e) => {
+            e.originalEvent.stopPropagation();
+            setSelectedMarker(marker);
+          }}
+        >
+          <CustomMarker
+            marker={marker}
+            onClick={() => setSelectedMarker(marker)}
+          />
+        </Marker>
+      ))}
 
-      {markers.map((marker) => {
-        const icon = marker.variant
-          ? createMarkerIcon(marker.variant)
-          : undefined;
-        return (
-          <Marker key={marker.id} position={marker.position} icon={icon}>
-            {marker.popup && <Popup>{marker.popup}</Popup>}
-          </Marker>
-        );
-      })}
+      {/* Selected marker popup */}
+      {selectedMarker && selectedMarker.popup && (
+        <Popup
+          longitude={selectedMarker.position[1]}
+          latitude={selectedMarker.position[0]}
+          anchor="bottom"
+          onClose={() => setSelectedMarker(null)}
+          closeOnClick={false}
+        >
+          <div className="text-sm">{selectedMarker.popup}</div>
+        </Popup>
+      )}
 
+      {/* Children (route overlays, etc.) */}
       {children}
-    </LeafletMapContainer>
+    </Map>
   );
 };
 
