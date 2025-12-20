@@ -162,8 +162,8 @@ export default function RouteSidebar({
       role="complementary"
       aria-label="Route sidebar"
     >
-      {/* Header */}
-      <div className="border-base-300 border-b p-4">
+      {/* Feature 047 US2: Fixed header (FR-011) - stays in place while route list scrolls */}
+      <div className="border-base-300 flex-shrink-0 border-b p-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Routes</h2>
           <button
@@ -237,11 +237,14 @@ export default function RouteSidebar({
         </div>
       </div>
 
-      {/* Route list */}
+      {/* Feature 047 US2: Route list with independent scrolling (FR-003, FR-012) */}
+      {/* Header/footer are fixed; route list uses flex-1 to fill remaining space */}
+      {/* will-change-transform enables GPU acceleration for smooth 60fps scrolling */}
       <div
-        className="flex-1 overflow-y-auto"
+        className="flex-1 overflow-y-auto scroll-smooth will-change-transform"
         role="list"
         aria-label="Route list"
+        tabIndex={0}
       >
         {isLoading ? (
           <div className="flex justify-center p-4">
@@ -272,8 +275,8 @@ export default function RouteSidebar({
         )}
       </div>
 
-      {/* Footer with count */}
-      <div className="border-base-300 text-base-content/60 border-t p-3 text-sm">
+      {/* Feature 047 US2: Fixed footer - stays in place while route list scrolls */}
+      <div className="border-base-300 text-base-content/60 flex-shrink-0 border-t p-3 text-sm">
         {displayedRoutes.length} route{displayedRoutes.length !== 1 ? 's' : ''}
         {!showSystemRoutes &&
           routes.filter((r) => r.is_system_route).length > 0 && (
@@ -309,10 +312,11 @@ function RouteListItem({
 }: RouteListItemProps) {
   const [showMenu, setShowMenu] = useState(false);
 
+  // Feature 047 FR-013: Selected route indicator with 20% primary opacity, 3px left border
   return (
     <div
       role="listitem"
-      className={`border-base-300 hover:bg-base-300 cursor-pointer border-b p-3 transition-colors ${isActive ? 'bg-primary/10 border-l-primary border-l-4' : ''} `}
+      className={`border-base-300 hover:bg-base-300 cursor-pointer border-b p-3 transition-colors duration-150 ${isActive ? 'bg-primary/20 border-l-primary border-l-[3px]' : ''} `}
       onClick={onSelect}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -334,7 +338,16 @@ function RouteListItem({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="truncate font-medium">{route.name}</h3>
+            {/* Feature 047 US4: Tooltip shows full route name on hover (FR-005, NFR-003) */}
+            {/* DaisyUI tooltip with 300ms delay via CSS, auto-flip positioning */}
+            <div
+              className="tooltip tooltip-top min-w-0 flex-1 before:transition-opacity before:delay-300"
+              data-tip={route.name}
+            >
+              <h3 className="truncate text-left font-medium" title={route.name}>
+                {route.name}
+              </h3>
+            </div>
             {isActive && (
               <span
                 className="badge badge-primary badge-xs"

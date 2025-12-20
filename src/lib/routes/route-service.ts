@@ -24,6 +24,12 @@ import type {
   ActiveRoutePlanning,
   ROUTE_LIMITS,
 } from '@/types/route';
+import type {
+  RouteOptimizationInput,
+  RouteOptimizationResult,
+  OptimizationComparisonData,
+} from './optimization-types';
+import { solveRouteOptimization, calculateRouteStats } from './tsp-solver';
 
 // Re-export limits for convenience
 export { ROUTE_LIMITS } from '@/types/route';
@@ -698,6 +704,205 @@ export class RouteService {
     }
 
     return summaries;
+  }
+
+  // ==========================================================================
+  // ROUTE OPTIMIZATION (Feature 046)
+  // ==========================================================================
+
+  /**
+   * Optimize company visit order for a route using TSP solver
+   * Returns comparison data without persisting changes
+   */
+  async optimizeRoute(routeId: string): Promise<OptimizationComparisonData> {
+    // Get route and companies
+    const route = await this.getRouteById(routeId);
+    if (!route) {
+      throw new RouteNotFoundError(routeId);
+    }
+
+    const companies = await this.getRouteCompanies(routeId);
+
+    // Filter companies with valid coordinates
+    const validCompanies = companies.filter(
+      (c) => c.company.latitude !== null && c.company.longitude !== null
+    );
+    const excludedCompanies = companies
+      .filter(
+        (c) => c.company.latitude === null || c.company.longitude === null
+      )
+      .map((c) => ({
+        id: c.id,
+        name: c.company.name,
+        reason: 'Missing coordinates',
+      }));
+
+    // Build optimization input
+    const input: RouteOptimizationInput = {
+      routeId,
+      startPoint: {
+        latitude: route.start_latitude ?? 0,
+        longitude: route.start_longitude ?? 0,
+        type: route.start_type,
+      },
+      endPoint: {
+        latitude: route.end_latitude ?? route.start_latitude ?? 0,
+        longitude: route.end_longitude ?? route.start_longitude ?? 0,
+        type: route.end_type,
+      },
+      companies: validCompanies.map((c) => ({
+        id: c.id, // Use route_company id for ordering
+        name: c.company.name,
+        latitude: c.company.latitude!,
+        longitude: c.company.longitude!,
+      })),
+      isRoundTrip: route.is_round_trip,
+    };
+
+    // Run optimization
+    const result = solveRouteOptimization(input);
+
+    // Calculate before stats (current order)
+    const currentOrder = validCompanies.map((c) => c.id);
+    const beforeStats = calculateRouteStats(
+      currentOrder,
+      validCompanies.map((c) => ({
+        id: c.id,
+        latitude: c.company.latitude!,
+        longitude: c.company.longitude!,
+      })),
+      {
+        latitude: input.startPoint.latitude,
+        longitude: input.startPoint.longitude,
+      },
+      {
+        latitude: input.endPoint.latitude,
+        longitude: input.endPoint.longitude,
+      },
+      route.is_round_trip
+    );
+
+    return {
+      before: {
+        order: currentOrder,
+        distanceMiles: beforeStats.distanceMiles,
+        timeMinutes: beforeStats.timeMinutes,
+      },
+      after: {
+        order: result.optimizedOrder,
+        distanceMiles: result.totalDistanceMiles,
+        timeMinutes: result.estimatedTimeMinutes,
+        distancesFromStart: result.distancesFromStart,
+      },
+      savings: {
+        distanceMiles: result.distanceSavingsMiles,
+        percent: result.distanceSavingsPercent,
+      },
+      excludedCompanies,
+    };
+  }
+
+  /**
+   * Apply optimized order to route (persist changes)
+   */
+  async applyRouteOptimization(
+    routeId: string,
+    optimizedOrder: string[],
+    distancesFromStart: Record<string, number>
+  ): Promise<void> {
+    // Update each route_company with new sequence_order and distance_from_start_miles
+    const updates = optimizedOrder.map((routeCompanyId, index) =>
+      this.supabase
+        .from('route_companies')
+        .update({
+          sequence_order: index,
+          distance_from_start_miles: distancesFromStart[routeCompanyId] ?? null,
+        })
+        .eq('id', routeCompanyId)
+        .eq('route_id', routeId)
+    );
+
+    const results = await Promise.all(updates);
+    const errors = results.filter((r) => r.error).map((r) => r.error);
+    if (errors.length) throwSupabaseError(errors[0]);
+
+    // Update route's last_optimized_at timestamp
+    await this.supabase
+      .from('bicycle_routes')
+      .update({ last_optimized_at: new Date().toISOString() })
+      .eq('id', routeId);
+  }
+
+  /**
+   * Set route start/end point types
+   */
+  async setRouteStartEnd(
+    routeId: string,
+    options: {
+      startType?: 'home' | 'custom';
+      endType?: 'home' | 'custom';
+      startLatitude?: number;
+      startLongitude?: number;
+      startAddress?: string;
+      endLatitude?: number;
+      endLongitude?: number;
+      endAddress?: string;
+      isRoundTrip?: boolean;
+    }
+  ): Promise<BicycleRoute> {
+    const updateData: Partial<BicycleRoute> = {};
+
+    if (options.startType !== undefined)
+      updateData.start_type = options.startType;
+    if (options.endType !== undefined) updateData.end_type = options.endType;
+    if (options.startLatitude !== undefined)
+      updateData.start_latitude = options.startLatitude;
+    if (options.startLongitude !== undefined)
+      updateData.start_longitude = options.startLongitude;
+    if (options.startAddress !== undefined)
+      updateData.start_address = options.startAddress;
+    if (options.endLatitude !== undefined)
+      updateData.end_latitude = options.endLatitude;
+    if (options.endLongitude !== undefined)
+      updateData.end_longitude = options.endLongitude;
+    if (options.endAddress !== undefined)
+      updateData.end_address = options.endAddress;
+    if (options.isRoundTrip !== undefined)
+      updateData.is_round_trip = options.isRoundTrip;
+
+    const { data: route, error } = await this.supabase
+      .from('bicycle_routes')
+      .update(updateData)
+      .eq('id', routeId)
+      .select()
+      .single();
+
+    if (error && error.code === 'PGRST116') {
+      throw new RouteNotFoundError(routeId);
+    }
+    if (error) throwSupabaseError(error);
+    return route;
+  }
+
+  /**
+   * Toggle round-trip mode for a route
+   */
+  async toggleRoundTrip(routeId: string): Promise<BicycleRoute> {
+    // Get current value
+    const route = await this.getRouteById(routeId);
+    if (!route) {
+      throw new RouteNotFoundError(routeId);
+    }
+
+    const { data: updated, error } = await this.supabase
+      .from('bicycle_routes')
+      .update({ is_round_trip: !route.is_round_trip })
+      .eq('id', routeId)
+      .select()
+      .single();
+
+    if (error) throwSupabaseError(error);
+    return updated;
   }
 }
 

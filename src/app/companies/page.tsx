@@ -25,6 +25,7 @@ import CompanyImport from '@/components/organisms/CompanyImport';
 import ApplicationForm from '@/components/organisms/ApplicationForm';
 import CompanyExport from '@/components/molecular/CompanyExport';
 import RouteSidebar from '@/components/organisms/RouteSidebar';
+import ResizablePanel from '@/components/molecular/ResizablePanel';
 import RouteBuilder from '@/components/organisms/RouteBuilder';
 import RouteDetailDrawer from '@/components/organisms/RouteDetailDrawer';
 import type { ExportFormat } from '@/components/molecular/CompanyExport';
@@ -956,10 +957,13 @@ export default function CompaniesPage() {
     [deleteRoute, selectedRouteId]
   );
 
+  // Feature 047: Auto-open drawer on route selection (US1)
   const handleSelectRoute = useCallback(
     (route: BicycleRoute) => {
       setSelectedRouteId(route.id);
       setActiveRoute(route.id);
+      // FR-001: Auto-open RouteDetailDrawer when route is selected
+      setShowRouteDetailDrawer(true);
     },
     [setActiveRoute]
   );
@@ -1194,8 +1198,14 @@ ${rows}
   return (
     <div className="flex min-h-screen">
       {/* Feature 041: Route Sidebar - only render when authenticated */}
+      {/* Feature 047 US5: Wrapped in ResizablePanel for resizable width (FR-007) */}
       {user && (
-        <aside className="bg-base-200 sticky top-0 hidden h-screen w-72 flex-shrink-0 border-r lg:flex lg:flex-col">
+        <ResizablePanel
+          className="bg-base-200 sticky top-0 hidden h-screen flex-shrink-0 border-r lg:flex lg:flex-col"
+          data-testid="route-sidebar-panel"
+        >
+          {/* Feature 047: RouteSidebar now auto-opens drawer on route click (US1) */}
+          {/* FR-004: Inline company preview removed (US3) - view companies in drawer */}
           <RouteSidebar
             routes={routes}
             activeRouteId={activeRouteId}
@@ -1208,83 +1218,7 @@ ${rows}
             onEditRoute={handleEditRoute}
             onDeleteRoute={handleDeleteRoute}
           />
-
-          {/* Inline Company Preview - shows when route is selected */}
-          {selectedRouteId && (
-            <div className="border-base-300 flex max-h-[35vh] flex-col border-t">
-              <div className="bg-base-300/50 flex items-center justify-between p-3">
-                <h3 className="text-sm font-semibold">
-                  Companies on Route
-                  {routeCompaniesPreview.length > 0 && (
-                    <span className="badge badge-ghost badge-sm ml-2">
-                      {routeCompaniesPreview.length}
-                    </span>
-                  )}
-                </h3>
-                {routeCompaniesPreview.length > 0 && (
-                  <button
-                    className="btn btn-ghost btn-xs"
-                    onClick={() => setShowRouteDetailDrawer(true)}
-                    aria-label="View all companies on route"
-                  >
-                    View All
-                  </button>
-                )}
-              </div>
-
-              <div className="flex-1 overflow-y-auto">
-                {isLoadingRouteCompanies ? (
-                  <div className="flex justify-center p-4">
-                    <span
-                      className="loading loading-spinner loading-sm"
-                      aria-label="Loading companies"
-                    ></span>
-                  </div>
-                ) : routeCompaniesPreview.length === 0 ? (
-                  <div className="text-base-content/60 p-4 text-center text-sm">
-                    <p>No companies added yet</p>
-                    <p className="mt-1 text-xs">
-                      Click a marker to add companies
-                    </p>
-                  </div>
-                ) : (
-                  <ul className="menu menu-compact p-2">
-                    {routeCompaniesPreview.slice(0, 5).map((rc, index) => (
-                      <li key={rc.id}>
-                        <div className="flex items-center gap-2 py-1">
-                          <span className="text-base-content/50 w-4 text-xs">
-                            {index + 1}.
-                          </span>
-                          <span className="flex-1 truncate text-sm">
-                            {rc.company.name}
-                          </span>
-                          {rc.visit_on_next_ride && (
-                            <span
-                              className="badge badge-primary badge-xs"
-                              aria-label="On next ride"
-                            >
-                              Next
-                            </span>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                    {routeCompaniesPreview.length > 5 && (
-                      <li>
-                        <button
-                          className="text-primary justify-center text-xs"
-                          onClick={() => setShowRouteDetailDrawer(true)}
-                        >
-                          + {routeCompaniesPreview.length - 5} more
-                        </button>
-                      </li>
-                    )}
-                  </ul>
-                )}
-              </div>
-            </div>
-          )}
-        </aside>
+        </ResizablePanel>
       )}
 
       {/* Main Content */}
