@@ -141,27 +141,14 @@ describe('RoutePolyline Accessibility', () => {
     );
   });
 
-  it('active route has brighter color when no custom color', () => {
-    // Use route without custom color to test default color behavior
-    const routeNoColor = { ...mockRoute, color: null };
+  it('uses route color when provided', () => {
+    // Route has a custom color that should be used
+    render(<RoutePolyline route={mockRoute} isActive={false} />);
 
-    const { rerender } = render(
-      <RoutePolyline route={routeNoColor} isActive={false} />
-    );
+    const layer = screen.getByTestId('mock-layer-route-route-1');
+    const paint = JSON.parse(layer.getAttribute('data-paint') || '{}');
 
-    const inactiveLayer = screen.getByTestId('mock-layer-route-route-1');
-    const inactivePaint = JSON.parse(
-      inactiveLayer.getAttribute('data-paint') || '{}'
-    );
-
-    rerender(<RoutePolyline route={routeNoColor} isActive={true} />);
-
-    const activeLayer = screen.getByTestId('mock-layer-route-route-1');
-    const activePaint = JSON.parse(
-      activeLayer.getAttribute('data-paint') || '{}'
-    );
-
-    // Colors should differ between active and inactive when no custom color
-    expect(activePaint['line-color']).not.toBe(inactivePaint['line-color']);
+    // Should use the route's custom color
+    expect(paint['line-color']).toBe(mockRoute.color);
   });
 });
