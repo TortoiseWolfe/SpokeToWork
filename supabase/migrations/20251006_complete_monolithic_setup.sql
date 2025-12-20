@@ -2594,6 +2594,18 @@ BEGIN
   END IF;
 END $$;
 
+-- Feature 046: Route Optimization - Add start/end type and round-trip columns
+ALTER TABLE bicycle_routes
+ADD COLUMN IF NOT EXISTS start_type TEXT DEFAULT 'home' CHECK (start_type IN ('home', 'custom')),
+ADD COLUMN IF NOT EXISTS end_type TEXT DEFAULT 'home' CHECK (end_type IN ('home', 'custom')),
+ADD COLUMN IF NOT EXISTS is_round_trip BOOLEAN DEFAULT true,
+ADD COLUMN IF NOT EXISTS last_optimized_at TIMESTAMPTZ;
+
+COMMENT ON COLUMN bicycle_routes.start_type IS 'Whether start uses home location or custom coordinates (Feature 046)';
+COMMENT ON COLUMN bicycle_routes.end_type IS 'Whether end uses home location or custom coordinates (Feature 046)';
+COMMENT ON COLUMN bicycle_routes.is_round_trip IS 'True if route returns to start point (Feature 046)';
+COMMENT ON COLUMN bicycle_routes.last_optimized_at IS 'Timestamp of last TSP optimization (Feature 046)';
+
 -- T004: Seed map_tile_providers with default providers
 INSERT INTO map_tile_providers (name, display_name, url_template, attribution, max_zoom, is_cycling_optimized, requires_api_key, priority)
 VALUES

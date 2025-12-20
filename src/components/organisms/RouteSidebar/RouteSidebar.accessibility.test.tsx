@@ -235,3 +235,115 @@ describe('RouteSidebar Accessibility', () => {
     // Warning should be present if returned from checkRouteLimits
   });
 });
+
+// Feature 047 US4: Tooltip accessibility tests (FR-005, FR-006)
+describe('RouteSidebar tooltip accessibility (US4)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseRoutes.mockReturnValue(defaultMockData);
+  });
+
+  it('route names have accessible title attribute for screen readers', () => {
+    render(<RouteSidebar />);
+
+    // Title attribute provides accessible name for tooltip
+    const morningLoopHeading = screen.getByText('Morning Loop');
+    expect(morningLoopHeading).toHaveAttribute('title', 'Morning Loop');
+  });
+
+  it('truncated text has visual overflow indication', () => {
+    render(<RouteSidebar />);
+
+    const routeHeading = screen.getByText('Morning Loop');
+    // truncate class applies text-overflow: ellipsis
+    expect(routeHeading).toHaveClass('truncate');
+  });
+
+  it('tooltip wrapper maintains accessible structure', () => {
+    render(<RouteSidebar />);
+
+    // Tooltip should not break heading semantics
+    const heading = screen.getByText('Morning Loop');
+    expect(heading.tagName).toBe('H3');
+  });
+
+  it('tooltip content is accessible via data-tip attribute', () => {
+    render(<RouteSidebar />);
+
+    // DaisyUI tooltip uses data-tip which is rendered in CSS ::before
+    const tooltipWrapper = screen.getByText('Morning Loop').closest('.tooltip');
+    expect(tooltipWrapper).toHaveAttribute('data-tip', 'Morning Loop');
+  });
+});
+
+// Feature 047 US2: Keyboard scroll navigation accessibility tests (FR-016, A11Y-001)
+describe('RouteSidebar keyboard scroll navigation (US2)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseRoutes.mockReturnValue(defaultMockData);
+  });
+
+  it('route list container is keyboard focusable (A11Y-001)', () => {
+    render(<RouteSidebar />);
+
+    const routeList = screen.getByRole('list', { name: /route list/i });
+
+    // Route list should be focusable for keyboard scroll navigation
+    expect(routeList).toHaveAttribute('tabIndex', '0');
+  });
+
+  it('route list can receive focus', () => {
+    render(<RouteSidebar />);
+
+    const routeList = screen.getByRole('list', { name: /route list/i });
+    routeList.focus();
+
+    expect(document.activeElement).toBe(routeList);
+  });
+
+  it('route items support keyboard activation (Enter key)', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<RouteSidebar onRouteSelect={onSelect} />);
+
+    const firstRoute = screen.getByRole('listitem', { name: /morning loop/i });
+    firstRoute.focus();
+    await user.keyboard('{Enter}');
+
+    expect(onSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Morning Loop' })
+    );
+  });
+
+  it('route items support keyboard activation (Space key)', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<RouteSidebar onRouteSelect={onSelect} />);
+
+    const firstRoute = screen.getByRole('listitem', { name: /morning loop/i });
+    firstRoute.focus();
+    await user.keyboard(' ');
+
+    expect(onSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Morning Loop' })
+    );
+  });
+
+  it('active route has aria-current attribute (A11Y-006)', () => {
+    render(<RouteSidebar />);
+
+    const activeRoute = screen.getByRole('listitem', { name: /morning loop/i });
+    // aria-current is the valid ARIA attribute for indicating current item in a list
+    expect(activeRoute).toHaveAttribute('aria-current', 'true');
+  });
+
+  it('inactive routes do not have aria-current', () => {
+    render(<RouteSidebar />);
+
+    const inactiveRoute = screen.getByRole('listitem', {
+      name: /cleveland greenway/i,
+    });
+    // aria-current should not be present for inactive routes
+    expect(inactiveRoute).not.toHaveAttribute('aria-current');
+  });
+});

@@ -22,6 +22,10 @@ const mockRoute: BicycleRoute = {
   is_system_route: false,
   source_name: null,
   is_active: true,
+  start_type: 'home',
+  end_type: 'home',
+  is_round_trip: true,
+  last_optimized_at: null,
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
 };
@@ -290,5 +294,50 @@ describe('RouteDetailDrawer', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
 
     expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it('shows optimize button when 2+ companies', () => {
+    render(
+      <RouteDetailDrawer
+        route={mockRoute}
+        companies={mockCompanies}
+        isOpen={true}
+        onClose={mockOnClose}
+      />
+    );
+
+    expect(
+      screen.getByRole('button', { name: /optimize route order/i })
+    ).toBeInTheDocument();
+  });
+
+  it('hides optimize button with 1 company', () => {
+    render(
+      <RouteDetailDrawer
+        route={mockRoute}
+        companies={[mockCompanies[0]]}
+        isOpen={true}
+        onClose={mockOnClose}
+      />
+    );
+
+    expect(
+      screen.queryByRole('button', { name: /optimize route order/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('hides optimize button with 0 companies', () => {
+    render(
+      <RouteDetailDrawer
+        route={mockRoute}
+        companies={[]}
+        isOpen={true}
+        onClose={mockOnClose}
+      />
+    );
+
+    expect(
+      screen.queryByRole('button', { name: /optimize route order/i })
+    ).not.toBeInTheDocument();
   });
 });
