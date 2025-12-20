@@ -1,0 +1,57 @@
+/*
+ * Overpass Query: Cleveland TN / Chattanooga Metro Bike Routes
+ * Feature: 045-fix-bike-route-display
+ *
+ * Bounding Box: 34.85,-85.45,35.25,-84.75
+ *   - South: 34.85 (south of Cleveland TN)
+ *   - West: -85.45 (west of Chattanooga)
+ *   - North: 35.25 (north of Cleveland TN)
+ *   - East: -84.75 (east of Cleveland TN)
+ *
+ * Includes:
+ *   - Dedicated cycleways (highway=cycleway)
+ *   - Paths suitable for cycling (highway=path with bicycle allowed)
+ *   - Tracks suitable for cycling (highway=track with bicycle allowed)
+ *   - Roads with cycle infrastructure (cycleway=*)
+ *   - Shared lanes/sharrows (cycleway=shared_lane)
+ *
+ * Excludes:
+ *   - Motorways (highway=motorway, motorway_link)
+ *   - Trunk roads (highway=trunk, trunk_link)
+ *   - Roads where cycling is prohibited (bicycle=no, bicycle=prohibited)
+ *
+ * Generated: 2025-12-19
+ */
+[out:json][timeout:300];
+
+// Collect all bike-friendly ways
+(
+  // Dedicated cycleways
+  way["highway"="cycleway"](34.85,-85.45,35.25,-84.75);
+
+  // Paths suitable for cycling
+  way["highway"="path"]["bicycle"!="no"]["bicycle"!="prohibited"](34.85,-85.45,35.25,-84.75);
+
+  // Tracks suitable for cycling
+  way["highway"="track"]["bicycle"!="no"]["bicycle"!="prohibited"](34.85,-85.45,35.25,-84.75);
+
+  // Roads with cycle infrastructure
+  way["cycleway"]["cycleway"!="no"](34.85,-85.45,35.25,-84.75);
+  way["cycleway:left"]["cycleway:left"!="no"](34.85,-85.45,35.25,-84.75);
+  way["cycleway:right"]["cycleway:right"!="no"](34.85,-85.45,35.25,-84.75);
+  way["cycleway:both"]["cycleway:both"!="no"](34.85,-85.45,35.25,-84.75);
+
+  // Shared lanes (sharrows)
+  way["cycleway"="shared_lane"](34.85,-85.45,35.25,-84.75);
+);
+
+// Exclude highways where cycling is illegal
+(._; - way["highway"="motorway"];);
+(._; - way["highway"="motorway_link"];);
+(._; - way["highway"="trunk"];);
+(._; - way["highway"="trunk_link"];);
+(._; - way["bicycle"="no"];);
+(._; - way["bicycle"="prohibited"];);
+
+// Output with geometry
+out geom;

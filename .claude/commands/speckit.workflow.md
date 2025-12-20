@@ -2,540 +2,459 @@
 description: Execute the complete SpecKit workflow from feature description to implementation, including all phases with user checkpoints.
 ---
 
+# CRITICAL EXECUTION RULES
+
+**YOU MUST EXECUTE EACH PHASE IN ORDER. NO EXCEPTIONS.**
+
+```
+Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7 → Phase 8
+   ↓         ↓         ↓         ↓         ↓         ↓         ↓         ↓         ↓
+ STOP      STOP      STOP      STOP      STOP      STOP      STOP      STOP      DONE
+```
+
+**FORBIDDEN ACTIONS:**
+
+- ❌ NEVER skip to implementation without completing phases 1-6
+- ❌ NEVER write code until Phase 8
+- ❌ NEVER assume a phase is "good enough" - complete it fully
+- ❌ NEVER proceed past a checkpoint without user confirmation
+- ❌ NEVER use your own judgment to skip phases - only explicit `--skip-X` flags allow skipping
+
+**REQUIRED AT START:**
+
+1. Use TodoWrite to create a phase checklist immediately
+2. Mark each phase in_progress → completed as you go
+3. If you find yourself writing implementation code before Phase 8, STOP and go back
+
+---
+
 ## User Input
 
 ```text
 $ARGUMENTS
 ```
 
-You **MUST** consider the user input before proceeding (if not empty).
+Parse for:
 
-## Complete Workflow Overview
+- Feature description (required unless spec path provided)
+- `--skip-*` flags (only way to skip phases)
+- `--to-*` flags (stop early)
+- Existing spec path (e.g., `docs/specs/045-feature/spec.md`)
 
-This command orchestrates the **complete** SpecKit workflow in sequence:
+---
+
+## PHASE 0: Constitution Check
+
+**REQUIRED ACTIONS:**
+
+1. Run: `test -f .specify/memory/constitution.md && echo "EXISTS" || echo "MISSING"`
+2. If EXISTS: Read and display key principles
+3. If MISSING: ERROR - run `/speckit.constitution` first
+
+**CHECKPOINT 0:**
 
 ```
-/speckit.constitution  →  /speckit.specify  →  /speckit.clarify  →  /speckit.plan  →  /speckit.checklist  →  /speckit.tasks  →  /speckit.analyze  →  /speckit.taskstoissues  →  /speckit.implement
-        ↓                      ↓                    ↓                   ↓                    ↓                     ↓                   ↓                      ↓                       ↓
-   Project            Branch +              Refine spec        Tech plan +        Validate           Task list        Consistency       GitHub              Execute
-  principles           Spec                (interactive)        artifacts         requirements        generation         check           Issues           implementation
-  (optional)                                                                      quality                            (read-only)       (optional)
+✓ Constitution verified at .specify/memory/constitution.md
+Proceeding to Phase 1...
 ```
 
-## Execution Steps
+Wait for user to confirm or type "continue".
 
 ---
 
-### Phase 0: Project Constitution (`/speckit.constitution`) - OPTIONAL
+## PHASE 1: Feature Specification
 
-**Purpose**: Establish or verify project principles (one-time setup)
+**SKIP IF:** Spec path provided in $ARGUMENTS AND file exists
 
-**Skip if**: Constitution already exists at `.specify/memory/constitution.md`
+**REQUIRED ACTIONS:**
 
-1. Check if constitution exists:
+1. Generate branch number (check remote, local, specs dirs)
+2. Run: `.specify/scripts/bash/create-new-feature.sh --json "$ARGUMENTS" --number <N> --short-name "<name>"`
+3. Load `.specify/templates/spec-template.md`
+4. Write complete spec to `docs/specs/<N>-<name>/spec.md`
+5. Create `docs/specs/<N>-<name>/checklists/` directory
 
-   ```bash
-   test -f .specify/memory/constitution.md && echo "EXISTS" || echo "MISSING"
-   ```
+**REQUIRED OUTPUTS:**
 
-2. **If constitution exists**:
-   - Load and display key principles
-   - Ask: "Constitution exists. Skip to feature specification? (yes/no)"
-   - If no, proceed to update constitution
+- [ ] `docs/specs/<N>-<name>/spec.md` exists
+- [ ] Feature branch created or spec path verified
+- [ ] Spec has all mandatory sections filled
 
-3. **If constitution missing or update requested**:
-   - Guide user through principle definition
-   - Create/update `.specify/memory/constitution.md`
-   - Principles become non-negotiable gates for all subsequent phases
+**CHECKPOINT 1:**
 
-4. **CHECKPOINT**: Report status and proceed to Phase 1.
+```
+Phase 1 COMPLETE.
 
----
+Created:
+- Branch: <branch-name>
+- Spec: <spec-path>
 
-### Phase 1: Feature Specification (`/speckit.specify`)
+Type "continue" to proceed to Phase 2 (Clarification).
+```
 
-**Purpose**: Create feature branch and initial specification
-
-1. Parse the feature description from `$ARGUMENTS`
-   - If empty, ERROR: "No feature description provided. Usage: /speckit.workflow <feature description>"
-
-2. Generate a concise short name (2-4 words) for the branch:
-   - Extract meaningful keywords from the description
-   - Use action-noun format (e.g., "add-user-auth", "fix-payment-bug")
-
-3. Check for existing branches before creating:
-
-   ```bash
-   git fetch --all --prune
-   ```
-
-   - Check remote branches: `git ls-remote --heads origin | grep -E 'refs/heads/[0-9]+-<short-name>$'`
-   - Check local branches: `git branch | grep -E '^[* ]*[0-9]+-<short-name>$'`
-   - Check specs directories: Look for `specs/[0-9]+-<short-name>`
-   - Use the next available number (highest + 1)
-
-4. Run the branch creation script:
-
-   ```bash
-   .specify/scripts/bash/create-new-feature.sh --json "$ARGUMENTS" --number <N> --short-name "<short-name>" "<feature description>"
-   ```
-
-5. Load `.specify/templates/spec-template.md` and generate the specification:
-   - Fill all mandatory sections
-   - Mark unknowns with `[NEEDS CLARIFICATION: ...]` as needed
-   - Focus on WHAT and WHY, not HOW
-   - Make informed guesses using context and industry standards
-   - Document assumptions in Assumptions section
-
-6. Create initial quality checklist at `FEATURE_DIR/checklists/requirements.md`
-
-7. Validate specification against quality criteria:
-   - No implementation details
-   - Requirements are testable
-   - Success criteria are measurable and technology-agnostic
-
-8. **CHECKPOINT**: Report completion:
-
-   > "Phase 1 complete: Branch `<branch-name>` created with spec at `<spec-path>`.
-   >
-   > Ready to proceed with clarification to refine the specification."
-
-   Wait for user confirmation before proceeding.
+**HARD STOP. DO NOT PROCEED WITHOUT USER CONFIRMATION.**
 
 ---
 
-### Phase 2: Specification Clarification (`/speckit.clarify`)
+## PHASE 2: Specification Clarification
 
-**Purpose**: Resolve ALL ambiguities until every taxonomy category is Clear
+**REQUIRED ACTIONS:**
 
-1. Run prerequisite check:
-
-   ```bash
-   .specify/scripts/bash/check-prerequisites.sh --json --paths-only
-   ```
-
-2. Load the spec and perform structured ambiguity scan across:
+1. Run: `.specify/scripts/bash/check-prerequisites.sh --json --paths-only`
+2. Read the spec completely
+3. Scan for ambiguities in ALL categories:
    - Functional scope & behavior
    - Domain & data model
    - Interaction & UX flow
-   - Non-functional quality attributes
-   - Integration & external dependencies
-   - Edge cases & failure handling
+   - Non-functional requirements
+   - Integration & dependencies
+   - Edge cases & errors
    - Constraints & tradeoffs
-   - Terminology & consistency
-   - Completion signals
+   - Terminology
 
-3. Generate prioritized clarification questions (**NO QUESTION LIMIT**):
-   - Present ONE question at a time
-   - Provide **recommended option** with reasoning
-   - Format as table with options
-   - Accept user's choice, "yes/recommended", or custom answer
-   - **Continue until ALL taxonomy categories reach "Clear" status**
+4. For EACH ambiguity found:
+   - Ask ONE question with options
+   - Wait for answer
+   - Update spec.md immediately
+   - Add to `## Clarifications` section
 
-4. After each answer, update the spec immediately:
-   - Add to `## Clarifications` section with `### Session YYYY-MM-DD`
-   - Apply changes to relevant sections
-   - Save atomically after each integration
+5. Continue until ALL categories are "Clear"
 
-5. Stop ONLY when:
-   - **ALL taxonomy categories have reached "Clear" status**
-   - User explicitly says "skip clarification" (with risk acknowledgment)
-   - **DO NOT** stop on casual signals like "done", "good", "no more"
+**REQUIRED OUTPUTS:**
 
-6. **CHECKPOINT**: Report completion:
+- [ ] `## Clarifications` section added to spec with session date
+- [ ] All ambiguous items resolved or marked as explicit assumptions
+- [ ] Spec updated with user's answers
 
-   > "Phase 2 complete: <N> clarifications resolved.
-   >
-   > Coverage summary:
-   > | Category | Status |
-   > |----------|--------|
-   > | Functional Scope | Clear |
-   > | Data Model | Resolved |
-   > | ... | ... |
-   >
-   > Ready to proceed with technical planning."
+**CHECKPOINT 2:**
 
-   Wait for user confirmation before proceeding.
+```
+Phase 2 COMPLETE.
 
----
+Clarifications resolved: <N>
+Categories covered:
+| Category | Status |
+|----------|--------|
+| Functional Scope | ✓ Clear |
+| Data Model | ✓ Clear |
+| ... | ... |
 
-### Phase 3: Technical Planning (`/speckit.plan`)
+Type "continue" to proceed to Phase 3 (Technical Planning).
+```
 
-**Purpose**: Generate implementation plan and design artifacts
-
-1. Run setup script:
-
-   ```bash
-   .specify/scripts/bash/setup-plan.sh --json
-   ```
-
-2. Load context:
-   - Feature spec (FEATURE_SPEC)
-   - Constitution (`.specify/memory/constitution.md`)
-   - Plan template (IMPL_PLAN)
-
-3. Execute planning workflow:
-   - Fill Technical Context (mark unknowns as "NEEDS CLARIFICATION")
-   - Fill Constitution Check section
-   - Evaluate gates (ERROR if violations unjustified)
-
-4. **Phase 0 - Research**: Generate `research.md`:
-   - Extract unknowns from Technical Context
-   - Research best practices for each technology
-   - Consolidate findings with Decision/Rationale/Alternatives format
-
-5. **Phase 1 - Design**: Generate artifacts:
-   - `data-model.md` - Entities, fields, relationships, validation rules
-   - `contracts/` - OpenAPI/GraphQL schemas from functional requirements
-   - `quickstart.md` - Integration scenarios
-
-6. Update agent context:
-
-   ```bash
-   .specify/scripts/bash/update-agent-context.sh claude
-   ```
-
-7. Re-evaluate Constitution Check post-design
-
-8. **CHECKPOINT**: Report completion:
-
-   > "Phase 3 complete: Implementation plan generated.
-   >
-   > Artifacts created:
-   >
-   > - `plan.md` - Technical implementation plan
-   > - `research.md` - Technical decisions
-   > - `data-model.md` - Entity definitions
-   > - `contracts/` - API specifications
-   > - `quickstart.md` - Integration scenarios
-   >
-   > Ready to proceed with requirements quality validation."
-
-   Wait for user confirmation before proceeding.
+**HARD STOP. DO NOT PROCEED WITHOUT USER CONFIRMATION.**
 
 ---
 
-### Phase 4: Requirements Quality Validation (`/speckit.checklist`)
+## PHASE 3: Technical Planning
 
-**Purpose**: Generate "unit tests for requirements" - validate spec quality
+**REQUIRED ACTIONS:**
 
-**CRITICAL CONCEPT**: Checklists test the REQUIREMENTS, not the implementation.
+1. Run: `.specify/scripts/bash/setup-plan.sh --json`
+2. Load spec and constitution
+3. Create these artifacts in `docs/specs/<feature>/`:
 
-1. Run prerequisite check:
+   a. **plan.md** - Technical implementation plan
+   - Architecture decisions
+   - Technology choices
+   - File structure
+   - Dependencies
 
-   ```bash
-   .specify/scripts/bash/check-prerequisites.sh --json
-   ```
+   b. **research.md** - Technical decisions
+   - Unknowns investigated
+   - Best practices found
+   - Decision/Rationale/Alternatives format
 
-2. Ask clarifying questions as needed to determine:
-   - Checklist theme/domain (ux, api, security, performance, etc.)
-   - Depth level (lightweight pre-commit vs formal release gate)
-   - Risk prioritization areas
-   - **Default: Generate comprehensive checklist covering ALL audiences** (Author, Reviewer, QA, Release)
+   c. **data-model.md** - Entity definitions
+   - Tables/collections
+   - Fields and types
+   - Relationships
+   - Validation rules
 
-3. Load feature context:
-   - `spec.md` - Requirements and scope
-   - `plan.md` - Technical details
-   - `tasks.md` - Implementation tasks (if exists)
+4. Run: `.specify/scripts/bash/update-agent-context.sh claude`
 
-4. Generate checklist at `FEATURE_DIR/checklists/<domain>.md`:
-   - Items test requirement QUALITY, not implementation behavior
-   - Categories: Completeness, Clarity, Consistency, Measurability, Coverage, Edge Cases
-   - Each item references spec section or uses markers: `[Gap]`, `[Ambiguity]`, `[Conflict]`
-   - Number items CHK001, CHK002, etc.
+**REQUIRED OUTPUTS:**
 
-5. **Examples of CORRECT checklist items**:
-   - ✅ "Are error handling requirements defined for all API failure modes? [Gap]"
-   - ✅ "Is 'fast loading' quantified with specific timing thresholds? [Clarity, Spec §NFR-2]"
-   - ✅ "Can 'prominent display' be objectively measured? [Measurability]"
+- [ ] `docs/specs/<feature>/plan.md` exists and is complete
+- [ ] `docs/specs/<feature>/research.md` exists
+- [ ] `docs/specs/<feature>/data-model.md` exists (if data involved)
 
-6. **PROHIBITED patterns** (test implementation, not requirements):
-   - ❌ "Verify landing page displays 3 cards"
-   - ❌ "Test hover states work correctly"
+**CHECKPOINT 3:**
 
-7. **CHECKPOINT**: Report completion:
+```
+Phase 3 COMPLETE.
 
-   > "Phase 4 complete: Requirements quality checklist generated.
-   >
-   > Checklist: `<checklist-path>`
-   > Items: <N> across <N> categories
-   > Focus: <domain>
-   >
-   > Ready to proceed with task generation."
+Artifacts created:
+- plan.md: <path>
+- research.md: <path>
+- data-model.md: <path>
 
-   Wait for user confirmation before proceeding.
+Type "continue" to proceed to Phase 4 (Requirements Checklist).
+```
+
+**HARD STOP. DO NOT PROCEED WITHOUT USER CONFIRMATION.**
 
 ---
 
-### Phase 5: Task Generation (`/speckit.tasks`)
+## PHASE 4: Requirements Quality Checklist
 
-**Purpose**: Create actionable, dependency-ordered task list
+**REQUIRED ACTIONS:**
 
-1. Run prerequisite check:
+1. Run: `.specify/scripts/bash/check-prerequisites.sh --json`
+2. Read spec.md and plan.md
+3. Generate `docs/specs/<feature>/checklists/requirements.md`:
+   - Items test REQUIREMENT QUALITY, not implementation
+   - Categories: Completeness, Clarity, Consistency, Measurability
+   - Format: `- [ ] CHK001: <question> [Category, Spec §X]`
 
-   ```bash
-   .specify/scripts/bash/check-prerequisites.sh --json
-   ```
+**CORRECT checklist items:**
 
-2. Load design documents:
-   - **Required**: `plan.md`, `spec.md`
-   - **Optional**: `data-model.md`, `contracts/`, `research.md`, `quickstart.md`
+- ✅ "Are error handling requirements defined for all failure modes?"
+- ✅ "Is 'fast loading' quantified with specific thresholds?"
+- ✅ "Can success criteria be objectively measured?"
 
-3. Execute task generation:
-   - Extract tech stack, libraries, project structure from plan
-   - Extract user stories with priorities (P1, P2, P3) from spec
-   - Map entities and endpoints to user stories
-   - Generate tasks organized by user story
+**WRONG checklist items (these test implementation, not requirements):**
 
-4. Generate `tasks.md` with structure:
-   - **Phase 1**: Setup (project initialization)
-   - **Phase 2**: Foundational (blocking prerequisites)
-   - **Phase 3+**: User Stories in priority order
-   - **Final Phase**: Polish & cross-cutting concerns
+- ❌ "Verify the button is blue"
+- ❌ "Test that the API returns 200"
 
-5. Task format (REQUIRED):
+**REQUIRED OUTPUTS:**
 
-   ```
-   - [ ] [TaskID] [P?] [Story?] Description with file path
-   ```
+- [ ] `docs/specs/<feature>/checklists/requirements.md` exists
+- [ ] At least 10 checklist items
+- [ ] All items reference spec sections
 
-   - Example: `- [ ] T012 [P] [US1] Create User model in src/models/user.py`
+**CHECKPOINT 4:**
 
-6. **CHECKPOINT**: Report completion:
+```
+Phase 4 COMPLETE.
 
-   > "Phase 5 complete: Task list generated.
-   >
-   > Summary:
-   >
-   > - Total tasks: <N>
-   > - Phases: <N>
-   > - Parallel opportunities: <N>
-   > - Tasks per user story: US1: <N>, US2: <N>, ...
-   >
-   > Ready to proceed with consistency analysis."
+Checklist: <path>
+Items: <N> across <N> categories
 
-   Wait for user confirmation before proceeding.
+Type "continue" to proceed to Phase 5 (Task Generation).
+```
+
+**HARD STOP. DO NOT PROCEED WITHOUT USER CONFIRMATION.**
 
 ---
 
-### Phase 6: Consistency Analysis (`/speckit.analyze`)
+## PHASE 5: Task Generation
 
-**Purpose**: Cross-artifact consistency check with automatic remediation
+**REQUIRED ACTIONS:**
 
-**FULL REMEDIATION MODE**: This phase automatically applies fixes for ALL issues until zero remain.
+1. Run: `.specify/scripts/bash/check-prerequisites.sh --json`
+2. Read: spec.md, plan.md, data-model.md
+3. Generate `docs/specs/<feature>/tasks.md`:
 
-1. Run prerequisite check:
+```markdown
+# Tasks for <Feature Name>
 
-   ```bash
-   .specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
-   ```
+## Phase 1: Setup
 
-2. Load artifacts:
-   - `spec.md` - Requirements, user stories, edge cases
-   - `plan.md` - Architecture, data model, phases
-   - `tasks.md` - Task IDs, descriptions, dependencies
-   - Constitution - Principle validation
+- [ ] T001 [P] Create directory structure
+- [ ] T002 [P] Install dependencies
 
-3. Build semantic models:
-   - Requirements inventory with stable keys
-   - User story/action inventory
-   - Task coverage mapping
-   - Constitution rule set
+## Phase 2: Foundation
 
-4. Run detection passes:
-   - **Duplication**: Near-duplicate requirements
-   - **Ambiguity**: Vague adjectives, unresolved placeholders
-   - **Underspecification**: Missing outcomes, acceptance criteria
-   - **Constitution Alignment**: Violations of MUST principles (always CRITICAL)
-   - **Coverage Gaps**: Requirements with no tasks, orphaned tasks
-   - **Inconsistency**: Terminology drift, conflicting requirements
+- [ ] T003 [US1] Create data model
+- [ ] T004 [US1] Add database migration
 
-5. Assign severity:
-   - **CRITICAL**: Constitution violations, zero coverage for core requirements
-   - **HIGH**: Duplicates, conflicts, ambiguous security/performance
-   - **MEDIUM**: Terminology drift, missing non-functional coverage
-   - **LOW**: Style improvements, minor redundancy
+## Phase 3: Core Implementation
 
-6. **Apply ALL Remediations** (do not ask for permission):
-   - Fix ALL issues regardless of severity (CRITICAL, HIGH, MEDIUM, LOW)
-   - Merge duplicates, replace vague terms, add missing items
-   - Update spec.md, plan.md, tasks.md as needed
-   - Save files atomically after fixes
+- [ ] T005 [US1] Implement main component
+- [ ] T006 [US1] Add unit tests
+- [ ] T007 [US1] Add accessibility tests
 
-7. **Re-verify until zero issues**:
-   - Re-run all detection passes
-   - Apply additional fixes if needed
-   - Repeat until analysis shows zero issues
+## Phase 4: Integration
 
-8. **CHECKPOINT**: Report completion:
+- [ ] T008 [US2] Connect to existing systems
+- [ ] T009 [US2] Add E2E tests
 
-   > "Phase 6 complete: Consistency analysis and remediation finished.
-   >
-   > Issues found and fixed: <N>
-   > Files modified: [list]
-   >
-   > Final metrics (all should be zero):
-   >
-   > - Requirements: <N>
-   > - Tasks: <N>
-   > - Coverage: 100%
-   > - Remaining issues: 0
-   >
-   > All artifacts are consistent. Ready to proceed to GitHub issues or implementation."
+## Phase 5: Polish
 
-   Wait for user confirmation before proceeding.
+- [ ] T010 Update documentation
+- [ ] T011 Run full test suite
+```
+
+Task format: `- [ ] T<ID> [P?] [US?] Description with file path`
+
+- `[P]` = Can run in parallel
+- `[US1]` = Maps to User Story 1
+
+**REQUIRED OUTPUTS:**
+
+- [ ] `docs/specs/<feature>/tasks.md` exists
+- [ ] Tasks organized by phase
+- [ ] Each task has ID, description, and file path
+- [ ] Dependencies are clear (non-P tasks are sequential)
+
+**CHECKPOINT 5:**
+
+```
+Phase 5 COMPLETE.
+
+Tasks: <path>
+Total: <N> tasks across <N> phases
+Parallel opportunities: <N>
+
+Type "continue" to proceed to Phase 6 (Consistency Analysis).
+```
+
+**HARD STOP. DO NOT PROCEED WITHOUT USER CONFIRMATION.**
 
 ---
 
-### Phase 7: GitHub Issues (`/speckit.taskstoissues`) - OPTIONAL
+## PHASE 6: Consistency Analysis
 
-**Purpose**: Convert tasks to GitHub issues for project tracking
+**REQUIRED ACTIONS:**
 
-**Skip if**: User declines or no GitHub MCP server available
+1. Run: `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`
+2. Load: spec.md, plan.md, tasks.md, constitution
+3. Check for issues:
+   - Duplicate requirements
+   - Ambiguous terms remaining
+   - Requirements without tasks
+   - Tasks without requirements
+   - Constitution violations
+   - Terminology inconsistencies
 
-1. Run prerequisite check:
+4. **FIX ALL ISSUES FOUND** - do not just report them
+5. Re-run checks until zero issues remain
 
-   ```bash
-   .specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
-   ```
+**REQUIRED OUTPUTS:**
 
-2. Verify Git remote is GitHub:
+- [ ] All artifacts are consistent
+- [ ] Zero unresolved issues
+- [ ] Files updated if fixes were needed
 
-   ```bash
-   git config --get remote.origin.url
-   ```
+**CHECKPOINT 6:**
 
-   - **ONLY proceed if remote is a GitHub URL**
-   - **NEVER create issues in non-matching repositories**
+```
+Phase 6 COMPLETE.
 
-3. For each task in `tasks.md`:
-   - Create GitHub issue using GitHub MCP server
-   - Preserve task dependencies and labels
-   - Link related issues
+Issues found: <N>
+Issues fixed: <N>
+Remaining: 0
 
-4. **CHECKPOINT**: Report completion:
+All artifacts consistent. Type "continue" to proceed to Phase 7 (GitHub Issues) or Phase 8 (Implementation).
+```
 
-   > "Phase 7 complete: <N> GitHub issues created.
-   >
-   > Issues: [list of issue URLs]
-   >
-   > Ready to proceed with implementation."
-
-   Wait for user confirmation before proceeding.
+**HARD STOP. DO NOT PROCEED WITHOUT USER CONFIRMATION.**
 
 ---
 
-### Phase 8: Implementation (`/speckit.implement`)
+## PHASE 7: GitHub Issues (OPTIONAL)
 
-**Purpose**: Execute the implementation plan
+**SKIP IF:** User says "skip issues" or `--skip-issues` flag
 
-1. Run prerequisite check:
+**REQUIRED ACTIONS:**
 
-   ```bash
-   .specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
-   ```
+1. Verify GitHub remote: `git config --get remote.origin.url`
+2. For each task in tasks.md, create GitHub issue
+3. Link related issues
+4. Update tasks.md with issue URLs
 
-2. Check checklists status (if `FEATURE_DIR/checklists/` exists):
-   - Count complete vs incomplete items per checklist
-   - Display status table
-   - **If incomplete**: Ask user to confirm proceeding
+**CHECKPOINT 7:**
 
-3. Load implementation context:
-   - **Required**: `tasks.md`, `plan.md`
-   - **If exists**: `data-model.md`, `contracts/`, `research.md`, `quickstart.md`
+```
+Phase 7 COMPLETE.
 
-4. **Environment Readiness** - Run `./scripts/clean-start.sh` when:
-   - Starting implementation after a pause (stale containers)
-   - Previous attempt failed with build errors
-   - Switching branches with different dependencies
-   - After modifying: `package.json`, lock files, Docker configs, Tailwind/Next configs, `.env`
-   - Encountering: "Module not found", stale CSS, type errors not matching code, cache issues
+Issues created: <N>
+[List of issue URLs]
 
-5. Project setup verification:
-   - Detect technologies from plan.md
-   - Create/verify ignore files (.gitignore, .dockerignore, .eslintignore, etc.)
+Type "continue" to proceed to Phase 8 (Implementation).
+```
 
-6. Execute tasks phase by phase:
-   - **Setup first**: Project structure, dependencies, configuration
-   - **Tests before code** (if TDD requested)
-   - **Core development**: Models, services, endpoints
-   - **Integration**: Database, middleware, external services
-   - **Polish**: Final tests, optimization, documentation
+---
 
-7. Progress tracking:
-   - Mark tasks complete `[X]` as finished
-   - Report after each completed task
-   - Halt on non-parallel task failure
-   - Continue with parallel tasks [P] if some fail
+## PHASE 8: Implementation
 
-8. Completion validation:
-   - All tasks completed
-   - Tests pass
-   - Implementation matches specification
+**BEFORE YOU START - VERIFY:**
 
-9. **FINAL REPORT**:
-   > "Implementation complete!
-   >
-   > Summary:
-   >
-   > - Tasks completed: <N>/<N>
-   > - Tests: <status>
-   > - Branch: `<branch-name>`
-   >
-   > Next steps:
-   >
-   > - Review changes: `git diff main`
-   > - Create PR: `/ship` or `gh pr create`"
+```
+Required artifacts exist:
+- [ ] spec.md
+- [ ] plan.md
+- [ ] tasks.md
+- [ ] checklists/requirements.md
+
+If ANY are missing, STOP and go back to the missing phase.
+```
+
+**REQUIRED ACTIONS:**
+
+1. Run: `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`
+2. Display checklist status - ask user to confirm proceeding if incomplete
+3. Load tasks.md
+4. Execute tasks IN ORDER:
+   - Mark `[X]` as you complete each
+   - Update tasks.md after each task
+   - Run tests after code changes
+   - Follow component structure from CLAUDE.md
+
+5. After all tasks:
+   - Run type-check: `docker compose exec spoketowork pnpm run type-check`
+   - Run lint: `docker compose exec spoketowork pnpm run lint`
+   - Run tests: `docker compose exec spoketowork pnpm test`
+
+**FINAL REPORT:**
+
+```
+Implementation COMPLETE!
+
+Tasks completed: <N>/<N>
+Tests: PASS/FAIL
+Type-check: PASS/FAIL
+Lint: PASS/FAIL
+
+Branch: <branch-name>
+
+Next steps:
+- Review: git diff main
+- Commit: /commit
+- Ship: /ship or gh pr create
+```
 
 ---
 
 ## Workflow Flags
 
-Include these in `$ARGUMENTS` to modify behavior:
-
-| Flag                  | Effect                                            |
-| --------------------- | ------------------------------------------------- |
-| `--skip-constitution` | Skip Phase 0 (constitution check)                 |
-| `--skip-clarify`      | Skip Phase 2 (clarification) - higher rework risk |
-| `--skip-checklist`    | Skip Phase 4 (requirements validation)            |
-| `--skip-analyze`      | Skip Phase 6 (consistency analysis)               |
-| `--skip-issues`       | Skip Phase 7 (GitHub issues)                      |
-| `--to-spec`           | Stop after Phase 1 (specification only)           |
-| `--to-plan`           | Stop after Phase 3 (planning only)                |
-| `--to-tasks`          | Stop after Phase 5 (task generation only)         |
-| `--dry-run`           | Run through Phase 6, skip implementation          |
+| Flag                  | Effect               |
+| --------------------- | -------------------- |
+| `--skip-constitution` | Skip Phase 0         |
+| `--skip-clarify`      | Skip Phase 2 (risky) |
+| `--skip-checklist`    | Skip Phase 4         |
+| `--skip-analyze`      | Skip Phase 6         |
+| `--skip-issues`       | Skip Phase 7         |
+| `--to-spec`           | Stop after Phase 1   |
+| `--to-plan`           | Stop after Phase 3   |
+| `--to-tasks`          | Stop after Phase 5   |
+| `--dry-run`           | Stop after Phase 6   |
 
 ---
 
-## Error Handling
+## Error Recovery
 
-- If any phase fails, halt workflow and report:
-  - Which phase failed
-  - Error details
-  - How to resume (e.g., "Run `/speckit.plan` to retry")
+If you realize you skipped a phase:
 
-- If user says "stop", "pause", or "cancel" at any checkpoint:
-  - Save current progress
-  - Report what was completed
-  - Explain how to resume
+1. STOP immediately
+2. Tell the user which phase was skipped
+3. Go back and complete that phase
+4. Resume from where you left off
 
-- If prerequisite script fails:
-  - Check if on correct branch
-  - Verify spec files exist
-  - Suggest running earlier phase first
+If a phase fails:
+
+1. Report what failed and why
+2. Suggest how to fix it
+3. Wait for user before retrying
 
 ---
 
-## Behavior Rules
+## REMEMBER
 
-- Always wait for user confirmation at checkpoints
-- Never skip phases without explicit user request or flag
-- Save progress incrementally (atomic writes)
-- Preserve all artifacts even on failure
-- Use absolute paths throughout
-- Follow Docker-first development practices from CLAUDE.md
-- Constitution violations are always CRITICAL and must be fixed immediately
-- **Clarify phase**: Ask as many questions as needed until ALL categories are Clear (no question limit)
-- **Analyze phase**: Apply ALL remediations automatically until zero issues remain (not read-only)
-- Checklists test REQUIREMENTS quality, not implementation behavior
-- The goal is **complete coverage and zero issues** before proceeding to implementation
+1. **Each phase creates artifacts** - if the artifacts don't exist, the phase wasn't done
+2. **Checkpoints are HARD STOPS** - never proceed without user saying "continue"
+3. **Implementation is Phase 8** - if you're writing code before then, you skipped phases
+4. **Use TodoWrite** - track phase progress so you don't lose your place
+5. **When in doubt, STOP and ASK** - don't assume you can skip ahead

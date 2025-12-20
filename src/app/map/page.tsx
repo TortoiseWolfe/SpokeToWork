@@ -47,7 +47,7 @@ const MapContainer = dynamicImport(
   {
     ssr: false,
     loading: () => (
-      <div className="bg-base-200 flex h-[600px] items-center justify-center">
+      <div className="bg-base-200 flex h-full items-center justify-center">
         <span className="loading loading-spinner loading-lg"></span>
       </div>
     ),
@@ -273,138 +273,80 @@ export default function MapPage() {
   }> = [];
 
   return (
-    <main className="container mx-auto p-4">
-      <header className="prose mb-6 max-w-none">
-        <div className="not-prose mb-2 flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-2xl font-bold sm:text-4xl md:text-5xl">
-            Interactive Map
-          </h1>
-          <a href="/companies" className="btn btn-sm btn-outline gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1.581.814L10 14.647l-4.419 2.167A1 1 0 014 16V4z"
-                clipRule="evenodd"
-              />
-            </svg>
-            Manage Companies
-          </a>
-        </div>
-        <p>
-          Explore the map and enable location services to see your current
-          position.
-          {isMounted && !isSupported && (
-            <span className="text-error ml-2">
-              (Geolocation is not supported by your browser)
-            </span>
-          )}
-        </p>
-        {/* Feature 041: Route status indicator */}
-        {!routesLoading && displayRoutes.length > 0 && (
-          <p className="text-primary text-sm">
-            Showing {displayRoutes.filter((r) => r.route_geometry).length}{' '}
-            route(s) with geometry
-            {user &&
-              companyMarkers.length > 0 &&
-              ` • ${companyMarkers.length} company marker(s)`}
-            {user && activeRouteId && ' • Active route highlighted'}
-          </p>
-        )}
-        {user && !routesLoading && displayRoutes.length === 0 && (
-          <p className="text-base-content/60 text-sm">
-            No routes created yet.{' '}
-            <a href="/companies" className="link link-primary">
-              Create routes
-            </a>{' '}
-            on the Companies page.
-          </p>
-        )}
-        {!user && !routesLoading && displayRoutes.length === 0 && (
-          <p className="text-base-content/60 text-sm">
-            <a href="/sign-in" className="link link-primary">
-              Sign in
-            </a>{' '}
-            to create your own bicycle routes.
-          </p>
-        )}
-      </header>
+    <main className="flex h-[calc(100vh-4rem)] flex-col">
+      {/* Compact toolbar */}
+      <div className="bg-base-100 flex flex-wrap items-center gap-2 px-2 py-1 shadow-sm">
+        <LocationButton
+          onClick={handleLocationRequest}
+          loading={loading}
+          disabled={!isMounted || !isSupported || permission === 'denied'}
+          hasLocation={!!userLocation}
+          permissionState={permission}
+        />
 
-      <section className="card bg-base-100 shadow-xl">
-        <div className="card-body p-4">
-          <div className="mb-4 flex flex-wrap gap-4">
-            <LocationButton
-              onClick={handleLocationRequest}
-              loading={loading}
-              disabled={!isMounted || !isSupported || permission === 'denied'}
-              hasLocation={!!userLocation}
-              permissionState={permission}
+        {userLocation && (
+          <span className="text-xs opacity-70">
+            {userLocation[0].toFixed(4)}, {userLocation[1].toFixed(4)}
+            {accuracy && ` (±${accuracy.toFixed(0)}m)`}
+          </span>
+        )}
+
+        {error && <span className="text-error text-xs">{error.message}</span>}
+
+        <div className="flex-1" />
+
+        <a href="/companies" className="btn btn-xs btn-ghost gap-1">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-3 w-3"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1.581.814L10 14.647l-4.419 2.167A1 1 0 014 16V4z"
+              clipRule="evenodd"
             />
+          </svg>
+          Companies
+        </a>
+      </div>
 
-            {error && (
-              <div className="alert alert-error">
-                <span>{error.message}</span>
-              </div>
-            )}
-
-            {userLocation && (
-              <div className="stats shadow">
-                <div className="stat">
-                  <div className="stat-title">Your Location</div>
-                  <div className="stat-value text-lg">
-                    {userLocation[0].toFixed(4)}, {userLocation[1].toFixed(4)}
-                  </div>
-                  {accuracy && (
-                    <div className="stat-desc">
-                      Accuracy: ±{accuracy.toFixed(0)}m
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="relative">
-            <MapContainer
-              center={mapCenter}
-              zoom={13}
-              height="600px"
-              width="100%"
-              showUserLocation={false} // We'll manage location manually
-              markers={[
-                ...demoMarkers,
-                ...companyMarkers, // Companies on routes
-                ...(userLocation
-                  ? [
-                      {
-                        id: 'user-location',
-                        position: userLocation,
-                        popup: `You are here (Accuracy: ±${accuracy?.toFixed(0) || 0}m)`,
-                      },
-                    ]
-                  : []),
-              ]}
-              onLocationFound={handleLocationFound}
-              onLocationError={handleLocationError}
-              testId="map-container"
-            >
-              {/* Feature 041: Render route polylines - system routes for everyone, user routes when logged in */}
-              {!routesError && displayRoutes.length > 0 && (
-                <RoutePolylines
-                  routes={displayRoutes}
-                  activeRouteId={activeRouteId}
-                  showSystemRoutes={true}
-                  showUserRoutes={!!user}
-                />
-              )}
-            </MapContainer>
-          </div>
-        </div>
-      </section>
+      {/* Full-height map */}
+      <div className="relative flex-1">
+        <MapContainer
+          center={mapCenter}
+          zoom={13}
+          height="100%"
+          width="100%"
+          showUserLocation={false}
+          markers={[
+            ...demoMarkers,
+            ...companyMarkers,
+            ...(userLocation
+              ? [
+                  {
+                    id: 'user-location',
+                    position: userLocation,
+                    popup: `You are here (Accuracy: ±${accuracy?.toFixed(0) || 0}m)`,
+                  },
+                ]
+              : []),
+          ]}
+          onLocationFound={handleLocationFound}
+          onLocationError={handleLocationError}
+          testId="map-container"
+        >
+          {!routesError && displayRoutes.length > 0 && (
+            <RoutePolylines
+              routes={displayRoutes}
+              activeRouteId={activeRouteId}
+              showSystemRoutes={true}
+              showUserRoutes={!!user}
+            />
+          )}
+        </MapContainer>
+      </div>
 
       <GeolocationConsent
         isOpen={showConsentModal}

@@ -12,6 +12,7 @@ import type { LngLatLike } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useMapTheme, type MapTheme } from '@/hooks/useMapTheme';
 import { DEFAULT_MAP_CONFIG } from '@/utils/map-utils';
+import { BikeRoutesLayer } from '@/components/map/BikeRoutesLayer';
 
 /**
  * Marker variant for different display styles
@@ -43,13 +44,14 @@ interface MapContainerInnerProps {
 
 /**
  * Get marker color based on variant
+ * Uses fixed high-contrast colors that work on both light (#f8f9fa) and dark (#1a1a2e) map backgrounds
  */
 const getMarkerColor = (variant: MarkerVariant = 'default'): string => {
   switch (variant) {
     case 'next-ride':
-      return 'oklch(var(--p))'; // DaisyUI primary
+      return '#FF6B35'; // Bright orange - high visibility on both backgrounds
     case 'active-route':
-      return 'oklch(var(--s))'; // DaisyUI secondary
+      return '#E63946'; // Bright red - stands out on light and dark maps
     default:
       return '#3b82f6'; // Default blue
   }
@@ -57,6 +59,9 @@ const getMarkerColor = (variant: MarkerVariant = 'default'): string => {
 
 /**
  * Custom marker component for different variants
+ * - next-ride: Ping animation + eye icon (24px)
+ * - active-route: Pulse animation + building icon (28px)
+ * - default: Plain dot (20px)
  */
 const CustomMarker: React.FC<{
   marker: MapMarker;
@@ -64,6 +69,7 @@ const CustomMarker: React.FC<{
 }> = ({ marker, onClick }) => {
   const color = getMarkerColor(marker.variant);
   const isNextRide = marker.variant === 'next-ride';
+  const isActiveRoute = marker.variant === 'active-route';
 
   return (
     <div
@@ -88,6 +94,7 @@ const CustomMarker: React.FC<{
             className="relative flex h-6 w-6 items-center justify-center rounded-full border-2 border-white shadow-lg"
             style={{ backgroundColor: color }}
           >
+            {/* Eye icon for next-ride */}
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-3 w-3 text-white"
@@ -103,15 +110,66 @@ const CustomMarker: React.FC<{
             </svg>
           </div>
         </div>
+      ) : isActiveRoute ? (
+        <div className="relative">
+          {/* Pulse ring animation for active-route */}
+          <div
+            className="absolute -inset-2 animate-pulse rounded-full opacity-50"
+            style={{
+              backgroundColor: color,
+              boxShadow: `0 0 12px 6px ${color}`,
+            }}
+          />
+          <div
+            className="relative flex h-8 w-8 items-center justify-center rounded-full border-[3px] border-white"
+            style={{
+              backgroundColor: color,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.4), 0 0 0 2px rgba(0,0,0,0.2)',
+            }}
+          >
+            {/* Building icon for business stops */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4 text-white drop-shadow-sm"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </div>
+        </div>
       ) : (
         <div
-          className="h-5 w-5 rounded-full border-2 border-white shadow-lg"
-          style={{ backgroundColor: color }}
+          className="h-6 w-6 rounded-full border-2 border-white"
+          style={{
+            backgroundColor: color,
+            boxShadow: '0 2px 6px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.15)',
+          }}
         />
       )}
     </div>
   );
 };
+
+// List of known dark themes in DaisyUI
+const DARK_THEMES = [
+  'dark',
+  'synthwave',
+  'halloween',
+  'forest',
+  'black',
+  'luxury',
+  'dracula',
+  'business',
+  'night',
+  'coffee',
+  'dim',
+  'sunset',
+];
 
 const MapContainerInner: React.FC<MapContainerInnerProps> = ({
   center,
@@ -131,83 +189,50 @@ const MapContainerInner: React.FC<MapContainerInnerProps> = ({
   const mapRef = useRef<MapRef>(null);
   const geolocateRef = useRef<maplibregl.GeolocateControl | null>(null);
   const [selectedMarker, setSelectedMarker] = useState<MapMarker | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const mapStyle = useMapTheme(theme);
+
+  // Detect dark mode for BikeRoutesLayer theme-adaptive colors
+  useEffect(() => {
+    const detectDarkMode = (): boolean => {
+      const dataTheme = document.documentElement.getAttribute('data-theme');
+      if (dataTheme && DARK_THEMES.includes(dataTheme)) {
+        return true;
+      }
+      if (!dataTheme || dataTheme === 'system' || dataTheme === 'auto') {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+      }
+      return false;
+    };
+
+    setIsDarkMode(detectDarkMode());
+
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(detectDarkMode());
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleMediaChange = () => setIsDarkMode(detectDarkMode());
+    mediaQuery.addEventListener('change', handleMediaChange);
+
+    return () => {
+      observer.disconnect();
+      mediaQuery.removeEventListener('change', handleMediaChange);
+    };
+  }, []);
 
   // Convert [lat, lng] to MapLibre's [lng, lat] format
   const mapCenter: LngLatLike = [center[1], center[0]];
 
-  // Handle map load
-  const handleLoad = useCallback(async () => {
+  // Handle map load - bike routes now handled by BikeRoutesLayer component
+  const handleLoad = useCallback(() => {
     if (mapRef.current && onMapReady) {
       onMapReady(mapRef.current);
-    }
-
-    // Load bike routes when map is ready
-    const map = mapRef.current?.getMap();
-    if (!map) return;
-
-    try {
-      const response = await fetch('/data/all-bike-routes.geojson');
-      const geojson = await response.json();
-
-      if (map.getSource('all-bike-routes')) return;
-
-      map.addSource('all-bike-routes', {
-        type: 'geojson',
-        data: geojson,
-      });
-
-      map.addLayer({
-        id: 'all-bike-routes-casing',
-        type: 'line',
-        source: 'all-bike-routes',
-        paint: {
-          'line-color': '#ffffff',
-          'line-width': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            5,
-            6,
-            8,
-            7,
-            12,
-            9,
-            16,
-            12,
-          ],
-          'line-opacity': 0.9,
-        },
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-      });
-
-      map.addLayer({
-        id: 'all-bike-routes',
-        type: 'line',
-        source: 'all-bike-routes',
-        paint: {
-          'line-color': '#22c55e',
-          'line-width': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            5,
-            4,
-            8,
-            5,
-            12,
-            7,
-            16,
-            10,
-          ],
-          'line-opacity': 1,
-        },
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-      });
-
-      console.log('Loaded', geojson.features.length, 'bike routes');
-    } catch (err) {
-      console.error('Failed to load bike routes:', err);
     }
   }, [onMapReady]);
 
@@ -264,6 +289,9 @@ const MapContainerInner: React.FC<MapContainerInnerProps> = ({
       onError={handleError}
       reuseMaps
     >
+      {/* OSM Bike Routes - uses declarative components for theme persistence */}
+      <BikeRoutesLayer isDarkMode={isDarkMode} />
+
       {/* Navigation controls */}
       {zoomControl && <NavigationControl position="top-right" />}
 
@@ -308,8 +336,11 @@ const MapContainerInner: React.FC<MapContainerInnerProps> = ({
           anchor="bottom"
           onClose={() => setSelectedMarker(null)}
           closeOnClick={false}
+          className="map-popup"
         >
-          <div className="text-sm">{selectedMarker.popup}</div>
+          <div className="rounded bg-white px-2 py-1 text-sm font-medium text-gray-900 shadow-lg">
+            {selectedMarker.popup}
+          </div>
         </Popup>
       )}
 

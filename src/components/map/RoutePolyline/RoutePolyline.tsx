@@ -62,6 +62,7 @@ function routeToGeoJSON(
 
 /**
  * Get line layer paint properties based on route type
+ * Active routes use brighter colors and wider lines for visibility
  */
 function getLayerPaint(
   isSystemRoute: boolean,
@@ -69,14 +70,39 @@ function getLayerPaint(
   customColor?: string,
   customWeight?: number
 ): LineLayerSpecification['paint'] {
-  // Use bright, high-contrast colors
+  // Base colors for inactive routes
   const systemColor = '#00FF88'; // Bright neon green
   const userColor = '#00BFFF'; // Deep sky blue
 
+  // Brighter colors for active routes
+  const activeSystemColor = '#00FFAA'; // Even brighter green
+  const activeUserColor = '#00D4FF'; // Even brighter blue
+
+  const baseColor = isSystemRoute ? systemColor : userColor;
+  const activeColor = isSystemRoute ? activeSystemColor : activeUserColor;
+
+  return {
+    'line-color': customColor ?? (isActive ? activeColor : baseColor),
+    'line-width': customWeight ?? (isActive ? 10 : 6), // 10px active vs 6px inactive
+    'line-opacity': isActive ? 1 : 0.85,
+  };
+}
+
+/**
+ * Get glow layer paint properties for active routes
+ */
+function getGlowLayerPaint(
+  isSystemRoute: boolean,
+  customColor?: string
+): LineLayerSpecification['paint'] {
+  const systemColor = '#00FFAA';
+  const userColor = '#00D4FF';
+
   return {
     'line-color': customColor ?? (isSystemRoute ? systemColor : userColor),
-    'line-width': customWeight ?? (isActive ? 8 : 6),
-    'line-opacity': 1,
+    'line-width': 18,
+    'line-opacity': 0.3,
+    'line-blur': 4,
   };
 }
 
@@ -129,6 +155,16 @@ export default function RoutePolyline({
         weight
       ),
     [isSystemRoute, route.is_system_route, isActive, color, route.color, weight]
+  );
+
+  // Glow effect paint for active routes
+  const glowPaint = useMemo(
+    () =>
+      getGlowLayerPaint(
+        isSystemRoute || route.is_system_route,
+        color ?? route.color
+      ),
+    [isSystemRoute, route.is_system_route, color, route.color]
   );
 
   const layout = useMemo(
@@ -192,6 +228,15 @@ export default function RoutePolyline({
   return (
     <>
       <Source id={sourceId} type="geojson" data={geoJsonData}>
+        {/* Glow layer for active routes - rendered first (below) */}
+        {isActive && (
+          <Layer
+            id={`${layerId}-glow`}
+            type="line"
+            paint={glowPaint}
+            layout={layout}
+          />
+        )}
         <Layer id={layerId} type="line" paint={paint} layout={layout} />
         {/* Dashed overlay for system routes */}
         {(isSystemRoute || route.is_system_route) && (

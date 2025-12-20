@@ -405,6 +405,104 @@ test.describe('Geolocation Map Page', () => {
     expect(canvasExists).toBe(1);
   });
 
+  test('should preserve bike routes after theme toggle (Feature 045)', async ({
+    page,
+  }) => {
+    await page.goto('/map');
+    await dismissBanner(page);
+
+    // Wait for map and bike routes to load
+    await page.waitForSelector('.maplibregl-canvas', { state: 'visible' });
+    await page.waitForTimeout(3000); // Wait for GeoJSON to load
+
+    // Collect console errors
+    const consoleErrors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        consoleErrors.push(msg.text());
+      }
+    });
+
+    // Verify bike routes source exists initially
+    const hasRoutesInitial = await page.evaluate(() => {
+      const map = (window as any).maplibreMap?.getMap?.();
+      return map?.getSource?.('all-bike-routes') !== undefined;
+    });
+    expect(hasRoutesInitial).toBe(true);
+
+    // Toggle to dark theme
+    await page.evaluate(() => {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    });
+    await page.waitForTimeout(2000); // Wait for style change
+
+    // Verify bike routes still exist after theme toggle
+    const hasRoutesAfterDark = await page.evaluate(() => {
+      const map = (window as any).maplibreMap?.getMap?.();
+      return map?.getSource?.('all-bike-routes') !== undefined;
+    });
+    expect(hasRoutesAfterDark).toBe(true);
+
+    // Toggle back to light theme
+    await page.evaluate(() => {
+      document.documentElement.setAttribute('data-theme', 'light');
+    });
+    await page.waitForTimeout(2000);
+
+    // Verify bike routes still exist
+    const hasRoutesAfterLight = await page.evaluate(() => {
+      const map = (window as any).maplibreMap?.getMap?.();
+      return map?.getSource?.('all-bike-routes') !== undefined;
+    });
+    expect(hasRoutesAfterLight).toBe(true);
+
+    // No console errors during theme switching
+    const themeErrors = consoleErrors.filter(
+      (e) => e.includes('bike') || e.includes('route') || e.includes('layer')
+    );
+    expect(themeErrors).toHaveLength(0);
+  });
+
+  test('should survive 10 consecutive theme toggles (SC-001)', async ({
+    page,
+  }) => {
+    await page.goto('/map');
+    await dismissBanner(page);
+
+    // Wait for map to fully load
+    await page.waitForSelector('.maplibregl-canvas', { state: 'visible' });
+    await page.waitForTimeout(3000);
+
+    // Verify initial state
+    const hasRoutesInitial = await page.evaluate(() => {
+      const map = (window as any).maplibreMap?.getMap?.();
+      return map?.getSource?.('all-bike-routes') !== undefined;
+    });
+    expect(hasRoutesInitial).toBe(true);
+
+    // Toggle theme 10 times
+    for (let i = 0; i < 10; i++) {
+      const theme = i % 2 === 0 ? 'dark' : 'light';
+      await page.evaluate((t) => {
+        document.documentElement.setAttribute('data-theme', t);
+      }, theme);
+      await page.waitForTimeout(500);
+    }
+
+    // Wait for final style to stabilize
+    await page.waitForTimeout(1000);
+
+    // Verify bike routes still exist after 10 toggles
+    const hasRoutesAfterToggles = await page.evaluate(() => {
+      const map = (window as any).maplibreMap?.getMap?.();
+      return map?.getSource?.('all-bike-routes') !== undefined;
+    });
+    expect(hasRoutesAfterToggles).toBe(true);
+
+    // Map canvas should still be functional
+    await expect(page.locator('.maplibregl-canvas')).toBeVisible();
+  });
+
   // Skip: accuracy-circle testid not implemented in MapLibre version
   test.skip('should display accuracy circle when available', async ({
     page,

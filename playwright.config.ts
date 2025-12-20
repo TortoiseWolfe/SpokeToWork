@@ -47,6 +47,14 @@ export default defineConfig({
     ['json', { outputFile: 'test-results/results.json' }],
     ['junit', { outputFile: 'test-results/junit.xml' }],
   ],
+  /* Visual regression snapshot settings */
+  snapshotDir: './tests/e2e/__snapshots__',
+  expect: {
+    toHaveScreenshot: {
+      maxDiffPixelRatio: 0.01, // Allow 1% pixel difference
+      threshold: 0.2, // Color threshold per pixel
+    },
+  },
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
