@@ -7,7 +7,7 @@
  * "next ride" toggle, and remove functionality.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -176,9 +176,9 @@ export default function RouteCompanyList({
     useState<RouteCompany[]>(companies);
 
   // Keep local state in sync with props
-  useState(() => {
+  useEffect(() => {
     setLocalCompanies(companies);
-  });
+  }, [companies]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -298,7 +298,7 @@ export default function RouteCompanyList({
   return (
     <div className="space-y-2">
       {/* Header with stats */}
-      <div className="text-base-content/70 flex items-center justify-between px-2 text-sm">
+      <div className="text-base-content/70 flex items-center gap-2 px-2 text-sm">
         <span>{localCompanies.length} companies</span>
         {nextRideCount > 0 && (
           <span className="badge badge-primary badge-sm">

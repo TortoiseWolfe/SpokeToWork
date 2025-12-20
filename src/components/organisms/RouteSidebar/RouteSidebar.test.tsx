@@ -242,3 +242,232 @@ describe('RouteSidebar error state', () => {
     );
   });
 });
+
+// Feature 047: US1+US3 Tests
+describe('RouteSidebar auto-open drawer callback (US1)', () => {
+  const mockOnRouteSelect = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseRoutes.mockReturnValue(defaultMockData);
+  });
+
+  it('calls onRouteSelect with full route object when route is clicked', async () => {
+    const user = userEvent.setup();
+    render(<RouteSidebar onRouteSelect={mockOnRouteSelect} />);
+
+    await user.click(screen.getByText('Morning Loop'));
+
+    expect(mockOnRouteSelect).toHaveBeenCalledTimes(1);
+    expect(mockOnRouteSelect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: '1',
+        name: 'Morning Loop',
+        color: '#3B82F6',
+        distance_miles: 5.2,
+      })
+    );
+  });
+
+  it('calls onRouteSelect when route is activated via Enter key', async () => {
+    const user = userEvent.setup();
+    render(<RouteSidebar onRouteSelect={mockOnRouteSelect} />);
+
+    const routeItem = screen.getByRole('listitem', { name: /morning loop/i });
+    routeItem.focus();
+    await user.keyboard('{Enter}');
+
+    expect(mockOnRouteSelect).toHaveBeenCalledTimes(1);
+    expect(mockOnRouteSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Morning Loop' })
+    );
+  });
+
+  it('calls onRouteSelect when route is activated via Space key', async () => {
+    const user = userEvent.setup();
+    render(<RouteSidebar onRouteSelect={mockOnRouteSelect} />);
+
+    const routeItem = screen.getByRole('listitem', { name: /morning loop/i });
+    routeItem.focus();
+    await user.keyboard(' ');
+
+    expect(mockOnRouteSelect).toHaveBeenCalledTimes(1);
+    expect(mockOnRouteSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Morning Loop' })
+    );
+  });
+
+  it('provides aria-current attribute on active route', () => {
+    render(<RouteSidebar onRouteSelect={mockOnRouteSelect} />);
+
+    // Morning Loop is the active route (id: '1' matches activeRouteId)
+    const activeRoute = screen.getByRole('listitem', { name: /morning loop/i });
+    expect(activeRoute).toHaveAttribute('aria-current', 'true');
+
+    // Cleveland GreenWay is not active - should not have aria-current
+    const inactiveRoute = screen.getByRole('listitem', {
+      name: /cleveland greenway/i,
+    });
+    expect(inactiveRoute).not.toHaveAttribute('aria-current');
+  });
+});
+
+describe('RouteSidebar does not render inline company preview (US3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseRoutes.mockReturnValue(defaultMockData);
+  });
+
+  it('does not render any company preview section', () => {
+    render(<RouteSidebar />);
+
+    // FR-004: RouteSidebar should NOT contain inline company preview elements
+    expect(screen.queryByText('Companies on Route')).not.toBeInTheDocument();
+    expect(screen.queryByText('View All')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('No companies added yet')
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not render company names or counts in route items', () => {
+    render(<RouteSidebar />);
+
+    // Route items should only show route info, not company details
+    // The company count badge exists but it shows route company counts, not inline preview
+    expect(
+      screen.queryByRole('list', { name: /companies/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('only renders route-specific content in sidebar', () => {
+    render(<RouteSidebar />);
+
+    // Should have route list
+    expect(
+      screen.getByRole('list', { name: /route list/i })
+    ).toBeInTheDocument();
+
+    // Should have route items
+    expect(screen.getByText('Morning Loop')).toBeInTheDocument();
+    expect(screen.getByText('Cleveland GreenWay')).toBeInTheDocument();
+
+    // Should NOT have any inline company preview content
+    expect(screen.queryByText(/click a marker/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/on next ride/i)).not.toBeInTheDocument();
+  });
+});
+
+// Feature 047: US4 Tests - Tooltip for truncated route names
+describe('RouteSidebar tooltip for truncated names (US4)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseRoutes.mockReturnValue(defaultMockData);
+  });
+
+  it('route names have title attribute with full name (FR-005)', () => {
+    render(<RouteSidebar />);
+
+    // Each route name should have a title attribute for native tooltip fallback
+    const morningLoopHeading = screen.getByText('Morning Loop');
+    expect(morningLoopHeading).toHaveAttribute('title', 'Morning Loop');
+
+    const greenWayHeading = screen.getByText('Cleveland GreenWay');
+    expect(greenWayHeading).toHaveAttribute('title', 'Cleveland GreenWay');
+  });
+
+  it('route names have DaisyUI tooltip wrapper with data-tip', () => {
+    render(<RouteSidebar />);
+
+    // Find the tooltip wrappers with data-tip attribute
+    const tooltipWrappers = document.querySelectorAll('[data-tip]');
+    expect(tooltipWrappers.length).toBeGreaterThanOrEqual(2);
+
+    // Verify the tooltip content matches route names
+    const dataTips = Array.from(tooltipWrappers).map((el) =>
+      el.getAttribute('data-tip')
+    );
+    expect(dataTips).toContain('Morning Loop');
+    expect(dataTips).toContain('Cleveland GreenWay');
+  });
+
+  it('route names have truncate class for text overflow ellipsis', () => {
+    render(<RouteSidebar />);
+
+    const morningLoopHeading = screen.getByText('Morning Loop');
+    expect(morningLoopHeading).toHaveClass('truncate');
+  });
+
+  it('tooltip wrapper has delay class for 300ms delay (NFR-003)', () => {
+    render(<RouteSidebar />);
+
+    // Find tooltip wrapper with delay class
+    const tooltipWrappers = document.querySelectorAll('.tooltip');
+    expect(tooltipWrappers.length).toBeGreaterThanOrEqual(2);
+
+    // At least one should have the delay class
+    const hasDelayClass = Array.from(tooltipWrappers).some((el) =>
+      el.classList.contains('before:delay-300')
+    );
+    expect(hasDelayClass).toBe(true);
+  });
+});
+
+// Feature 047: US2 Tests - Independent Scrolling
+describe('RouteSidebar independent scrolling (US2)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseRoutes.mockReturnValue(defaultMockData);
+  });
+
+  it('has a scrollable route list container (FR-003)', () => {
+    render(<RouteSidebar />);
+
+    const routeList = screen.getByRole('list', { name: /route list/i });
+
+    // Should have overflow-y-auto for independent scrolling
+    expect(routeList).toHaveClass('overflow-y-auto');
+  });
+
+  it('has fixed header outside scroll container (FR-011)', () => {
+    render(<RouteSidebar />);
+
+    // Header should contain Routes title and New button
+    const header = screen.getByText('Routes').closest('div');
+    expect(header).toBeInTheDocument();
+
+    // Header should have flex-shrink-0 to prevent shrinking
+    const headerContainer = header?.parentElement;
+    expect(headerContainer).toHaveClass('flex-shrink-0');
+  });
+
+  it('has scroll performance optimization (FR-012)', () => {
+    render(<RouteSidebar />);
+
+    const routeList = screen.getByRole('list', { name: /route list/i });
+
+    // Should have will-change-transform for GPU acceleration
+    expect(routeList).toHaveClass('will-change-transform');
+    // Should have scroll-smooth for smooth scrolling
+    expect(routeList).toHaveClass('scroll-smooth');
+  });
+
+  it('route list is keyboard focusable for scroll navigation', () => {
+    render(<RouteSidebar />);
+
+    const routeList = screen.getByRole('list', { name: /route list/i });
+
+    // Should be focusable for keyboard navigation (Page Up/Down, arrow keys)
+    expect(routeList).toHaveAttribute('tabIndex', '0');
+  });
+
+  it('maintains fixed footer outside scroll container', () => {
+    render(<RouteSidebar />);
+
+    // Footer shows route count
+    const footer = screen.getByText(/2 routes/);
+    expect(footer).toBeInTheDocument();
+
+    // Footer should have flex-shrink-0 to prevent shrinking
+    expect(footer).toHaveClass('flex-shrink-0');
+  });
+});

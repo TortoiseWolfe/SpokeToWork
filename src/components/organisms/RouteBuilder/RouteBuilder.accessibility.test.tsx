@@ -122,6 +122,10 @@ describe('RouteBuilder Accessibility', () => {
       is_system_route: false,
       source_name: null,
       is_active: true,
+      start_type: 'home' as const,
+      end_type: 'home' as const,
+      is_round_trip: true,
+      last_optimized_at: null,
       created_at: '2025-01-01T00:00:00Z',
       updated_at: '2025-01-01T00:00:00Z',
     };

@@ -155,3 +155,62 @@ export const Interactive: Story = {
     },
   },
 };
+
+/**
+ * Feature 047 US4: Long route names with tooltip
+ *
+ * Demonstrates truncated route names that show full name on hover.
+ * Names over ~15 characters will be truncated with ellipsis.
+ * Hover over truncated names to see the tooltip with full name.
+ */
+export const LongRouteNames: Story = {
+  args: {},
+  parameters: {
+    mockData: {
+      routes: [
+        {
+          id: 'long-1',
+          name: 'My Very Long Route Name That Will Definitely Be Truncated',
+          color: '#3B82F6',
+          distance_miles: 12.5,
+          is_system_route: false,
+          is_active: true,
+          description: 'A route with a very long name to test tooltip behavior',
+        },
+        {
+          id: 'long-2',
+          name: 'Another Extremely Long Route Name For Testing Purposes',
+          color: '#10B981',
+          distance_miles: 8.3,
+          is_system_route: false,
+          is_active: true,
+          description: 'This one also has a very long name',
+        },
+        {
+          id: 'short',
+          name: 'Short Name',
+          color: '#EF4444',
+          distance_miles: 3.1,
+          is_system_route: false,
+          is_active: true,
+          description: 'A route with a short name that fits',
+        },
+        {
+          id: 'medium',
+          name: 'Medium Length Name',
+          color: '#F59E0B',
+          distance_miles: 5.7,
+          is_system_route: false,
+          is_active: true,
+        },
+      ],
+      activeRouteId: 'long-1',
+    },
+    docs: {
+      description: {
+        story:
+          'Shows how long route names are truncated with ellipsis and display full name on hover via tooltip. Hover over any truncated name to see the full text.',
+      },
+    },
+  },
+};

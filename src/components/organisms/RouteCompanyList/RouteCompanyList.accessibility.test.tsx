@@ -39,6 +39,10 @@ describe('RouteCompanyList Accessibility', () => {
     is_system_route: false,
     source_name: null,
     is_active: true,
+    start_type: 'home',
+    end_type: 'home',
+    is_round_trip: true,
+    last_optimized_at: null,
     created_at: '2025-01-01T00:00:00Z',
     updated_at: '2025-01-01T00:00:00Z',
   };
@@ -181,12 +185,15 @@ describe('RouteCompanyList Accessibility', () => {
     );
 
     // Tab through focusable elements
+    // First tab: Drag handle
     await user.tab();
     expect(document.activeElement?.getAttribute('aria-label')).toMatch(/drag/i);
 
+    // Second tab: Next ride checkbox
     await user.tab();
     expect(document.activeElement?.getAttribute('type')).toBe('checkbox');
 
+    // Third tab: Remove button
     await user.tab();
     expect(document.activeElement?.getAttribute('aria-label')).toMatch(
       /remove/i

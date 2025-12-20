@@ -78,6 +78,12 @@ export interface BicycleRoute {
   source_name: string | null;
   is_active: boolean;
 
+  // Route optimization (Feature 046)
+  start_type: 'home' | 'custom';
+  end_type: 'home' | 'custom';
+  is_round_trip: boolean;
+  last_optimized_at: string | null;
+
   // Timestamps
   created_at: string;
   updated_at: string;
@@ -98,6 +104,10 @@ export interface BicycleRouteCreate {
   end_longitude: number;
   route_geometry?: RouteGeometry;
   metro_area_id?: string;
+  // Route optimization (Feature 046)
+  start_type?: 'home' | 'custom';
+  end_type?: 'home' | 'custom';
+  is_round_trip?: boolean;
 }
 
 /**
@@ -118,6 +128,11 @@ export interface BicycleRouteUpdate {
   distance_miles?: number | null;
   estimated_time_minutes?: number | null;
   is_active?: boolean;
+  // Route optimization (Feature 046)
+  start_type?: 'home' | 'custom';
+  end_type?: 'home' | 'custom';
+  is_round_trip?: boolean;
+  last_optimized_at?: string | null;
 }
 
 // =============================================================================

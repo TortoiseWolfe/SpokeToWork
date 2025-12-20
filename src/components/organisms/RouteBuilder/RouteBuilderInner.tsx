@@ -13,6 +13,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRoutes } from '@/hooks/useRoutes';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import RouteStartEndEditor, {
+  type LocationPoint,
+} from '@/components/molecular/RouteStartEndEditor';
 import type {
   BicycleRoute,
   BicycleRouteCreate,
@@ -35,20 +38,21 @@ interface FormState {
   name: string;
   description: string;
   color: string;
+  startType: 'home' | 'custom';
   startAddress: string;
-  startLatitude: string;
-  startLongitude: string;
+  startLatitude: number | null;
+  startLongitude: number | null;
+  endType: 'home' | 'custom';
   endAddress: string;
-  endLatitude: string;
-  endLongitude: string;
+  endLatitude: number | null;
+  endLongitude: number | null;
+  isRoundTrip: boolean;
 }
 
 interface FormErrors {
   name?: string;
   startLatitude?: string;
-  startLongitude?: string;
   endLatitude?: string;
-  endLongitude?: string;
 }
 
 export default function RouteBuilderInner({
@@ -65,23 +69,34 @@ export default function RouteBuilderInner({
   // Check if user has home location
   const hasHomeLocation = !!(profile?.home_latitude && profile?.home_longitude);
 
+  // Home location object for RouteStartEndEditor
+  const homeLocation = hasHomeLocation
+    ? {
+        address: profile!.home_address,
+        latitude: profile!.home_latitude,
+        longitude: profile!.home_longitude,
+      }
+    : null;
+
   // Form state
   const [form, setForm] = useState<FormState>({
     name: '',
     description: '',
     color: ROUTE_COLORS[0],
+    startType: 'home',
     startAddress: '',
-    startLatitude: '',
-    startLongitude: '',
+    startLatitude: null,
+    startLongitude: null,
+    endType: 'home',
     endAddress: '',
-    endLatitude: '',
-    endLongitude: '',
+    endLatitude: null,
+    endLongitude: null,
+    isRoundTrip: true,
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showHomePrompt, setShowHomePrompt] = useState(false);
 
   // Initialize form with route data or home location defaults
   useEffect(() => {
@@ -91,27 +106,30 @@ export default function RouteBuilderInner({
         name: route.name,
         description: route.description ?? '',
         color: route.color,
+        startType: route.start_type ?? 'home',
         startAddress: route.start_address ?? '',
-        startLatitude: route.start_latitude?.toString() ?? '',
-        startLongitude: route.start_longitude?.toString() ?? '',
+        startLatitude: route.start_latitude,
+        startLongitude: route.start_longitude,
+        endType: route.end_type ?? 'home',
         endAddress: route.end_address ?? '',
-        endLatitude: route.end_latitude?.toString() ?? '',
-        endLongitude: route.end_longitude?.toString() ?? '',
+        endLatitude: route.end_latitude,
+        endLongitude: route.end_longitude,
+        isRoundTrip: route.is_round_trip ?? true,
       });
     } else if (profile && hasHomeLocation) {
-      // Create mode with home location defaults
+      // Create mode with home location defaults (T018)
       setForm((prev) => ({
         ...prev,
+        startType: 'home',
         startAddress: profile.home_address ?? '',
-        startLatitude: profile.home_latitude?.toString() ?? '',
-        startLongitude: profile.home_longitude?.toString() ?? '',
+        startLatitude: profile.home_latitude,
+        startLongitude: profile.home_longitude,
+        endType: 'home',
         endAddress: profile.home_address ?? '',
-        endLatitude: profile.home_latitude?.toString() ?? '',
-        endLongitude: profile.home_longitude?.toString() ?? '',
+        endLatitude: profile.home_latitude,
+        endLongitude: profile.home_longitude,
+        isRoundTrip: true,
       }));
-    } else if (!profileLoading && !hasHomeLocation) {
-      // No home location - show prompt
-      setShowHomePrompt(true);
     }
   }, [route, profile, hasHomeLocation, profileLoading]);
 
@@ -126,33 +144,16 @@ export default function RouteBuilderInner({
       newErrors.name = `Name must be ${ROUTE_LIMITS.NAME_MAX_LENGTH} characters or less`;
     }
 
-    // Coordinate validation
-    const lat = parseFloat(form.startLatitude);
-    const lng = parseFloat(form.startLongitude);
-    const endLat = parseFloat(form.endLatitude);
-    const endLng = parseFloat(form.endLongitude);
-
-    if (form.startLatitude && (isNaN(lat) || lat < -90 || lat > 90)) {
-      newErrors.startLatitude = 'Invalid latitude (-90 to 90)';
-    }
-    if (form.startLongitude && (isNaN(lng) || lng < -180 || lng > 180)) {
-      newErrors.startLongitude = 'Invalid longitude (-180 to 180)';
-    }
-    if (form.endLatitude && (isNaN(endLat) || endLat < -90 || endLat > 90)) {
-      newErrors.endLatitude = 'Invalid latitude (-90 to 90)';
-    }
-    if (form.endLongitude && (isNaN(endLng) || endLng < -180 || endLng > 180)) {
-      newErrors.endLongitude = 'Invalid longitude (-180 to 180)';
+    // Start location validation
+    if (form.startLatitude === null || form.startLongitude === null) {
+      newErrors.startLatitude = 'Start location is required';
     }
 
-    // Require start coordinates
-    if (!form.startLatitude || !form.startLongitude) {
-      newErrors.startLatitude =
-        newErrors.startLatitude ?? 'Start location is required';
-    }
-    if (!form.endLatitude || !form.endLongitude) {
-      newErrors.endLatitude =
-        newErrors.endLatitude ?? 'End location is required';
+    // End location validation (only if not round trip)
+    if (!form.isRoundTrip) {
+      if (form.endLatitude === null || form.endLongitude === null) {
+        newErrors.endLatitude = 'End location is required';
+      }
     }
 
     return newErrors;
@@ -175,6 +176,48 @@ export default function RouteBuilderInner({
     setForm((prev) => ({ ...prev, color }));
   };
 
+  // Handle start point change from RouteStartEndEditor
+  const handleStartChange = (point: LocationPoint) => {
+    setForm((prev) => ({
+      ...prev,
+      startType: point.type,
+      startAddress: point.address ?? '',
+      startLatitude: point.latitude,
+      startLongitude: point.longitude,
+    }));
+    setErrors((prev) => ({ ...prev, startLatitude: undefined }));
+  };
+
+  // Handle end point change from RouteStartEndEditor
+  const handleEndChange = (point: LocationPoint) => {
+    setForm((prev) => ({
+      ...prev,
+      endType: point.type,
+      endAddress: point.address ?? '',
+      endLatitude: point.latitude,
+      endLongitude: point.longitude,
+    }));
+    setErrors((prev) => ({ ...prev, endLatitude: undefined }));
+  };
+
+  // Handle round trip toggle
+  const handleRoundTripChange = (isRoundTrip: boolean) => {
+    setForm((prev) => {
+      if (isRoundTrip) {
+        // Sync end with start
+        return {
+          ...prev,
+          isRoundTrip,
+          endType: prev.startType,
+          endAddress: prev.startAddress,
+          endLatitude: prev.startLatitude,
+          endLongitude: prev.startLongitude,
+        };
+      }
+      return { ...prev, isRoundTrip };
+    });
+  };
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,6 +230,12 @@ export default function RouteBuilderInner({
 
     setIsSubmitting(true);
 
+    // For round trip, use start as end
+    const endLat = form.isRoundTrip ? form.startLatitude : form.endLatitude;
+    const endLng = form.isRoundTrip ? form.startLongitude : form.endLongitude;
+    const endAddr = form.isRoundTrip ? form.startAddress : form.endAddress;
+    const endType = form.isRoundTrip ? form.startType : form.endType;
+
     try {
       if (isEditMode && route) {
         // Update existing route
@@ -196,11 +245,14 @@ export default function RouteBuilderInner({
           description: form.description.trim() || null,
           color: form.color,
           start_address: form.startAddress.trim() || null,
-          start_latitude: parseFloat(form.startLatitude),
-          start_longitude: parseFloat(form.startLongitude),
-          end_address: form.endAddress.trim() || null,
-          end_latitude: parseFloat(form.endLatitude),
-          end_longitude: parseFloat(form.endLongitude),
+          start_latitude: form.startLatitude!,
+          start_longitude: form.startLongitude!,
+          end_address: endAddr.trim() || null,
+          end_latitude: endLat!,
+          end_longitude: endLng!,
+          start_type: form.startType,
+          end_type: endType,
+          is_round_trip: form.isRoundTrip,
         };
 
         const updated = await updateRoute(updateData);
@@ -212,11 +264,14 @@ export default function RouteBuilderInner({
           description: form.description.trim() || undefined,
           color: form.color,
           start_address: form.startAddress.trim() || undefined,
-          start_latitude: parseFloat(form.startLatitude),
-          start_longitude: parseFloat(form.startLongitude),
-          end_address: form.endAddress.trim() || undefined,
-          end_latitude: parseFloat(form.endLatitude),
-          end_longitude: parseFloat(form.endLongitude),
+          start_latitude: form.startLatitude!,
+          start_longitude: form.startLongitude!,
+          end_address: endAddr.trim() || undefined,
+          end_latitude: endLat!,
+          end_longitude: endLng!,
+          start_type: form.startType,
+          end_type: endType,
+          is_round_trip: form.isRoundTrip,
         };
 
         const created = await createRoute(createData);
@@ -250,17 +305,22 @@ export default function RouteBuilderInner({
     }
   };
 
-  // Copy start to end (for round trips)
-  const copyStartToEnd = () => {
-    setForm((prev) => ({
-      ...prev,
-      endAddress: prev.startAddress,
-      endLatitude: prev.startLatitude,
-      endLongitude: prev.startLongitude,
-    }));
+  if (!isOpen) return null;
+
+  // Build start/end point objects for RouteStartEndEditor
+  const startPoint: LocationPoint = {
+    type: form.startType,
+    address: form.startAddress || null,
+    latitude: form.startLatitude,
+    longitude: form.startLongitude,
   };
 
-  if (!isOpen) return null;
+  const endPoint: LocationPoint = {
+    type: form.endType,
+    address: form.endAddress || null,
+    latitude: form.endLatitude,
+    longitude: form.endLongitude,
+  };
 
   return (
     <div
@@ -299,36 +359,6 @@ export default function RouteBuilderInner({
             </svg>
           </button>
         </div>
-
-        {/* Home location prompt */}
-        {showHomePrompt && !isEditMode && (
-          <div className="alert alert-warning m-4">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
-            <div>
-              <h3 className="font-bold">No home address set</h3>
-              <p className="text-sm">
-                Set your home address in settings to auto-fill route start/end
-                points.
-              </p>
-              <a href="/settings" className="btn btn-sm btn-link">
-                Go to Settings
-              </a>
-            </div>
-          </div>
-        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4 p-4">
@@ -402,57 +432,24 @@ export default function RouteBuilderInner({
             </div>
           </div>
 
-          {/* Start Point */}
-          <fieldset className="border-base-300 rounded-lg border p-3">
-            <legend className="px-2 text-sm font-medium">Start Point</legend>
-            <div className="space-y-2">
-              <input
-                type="text"
-                name="startAddress"
-                value={form.startAddress}
-                onChange={handleChange}
-                placeholder="Address (optional)"
-                className="input input-bordered input-sm w-full"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="text"
-                  name="startLatitude"
-                  value={form.startLatitude}
-                  onChange={handleChange}
-                  placeholder="Latitude *"
-                  className={`input input-bordered input-sm ${errors.startLatitude ? 'input-error' : ''}`}
-                  aria-invalid={!!errors.startLatitude}
-                />
-                <input
-                  type="text"
-                  name="startLongitude"
-                  value={form.startLongitude}
-                  onChange={handleChange}
-                  placeholder="Longitude *"
-                  className={`input input-bordered input-sm ${errors.startLongitude ? 'input-error' : ''}`}
-                  aria-invalid={!!errors.startLongitude}
-                />
-              </div>
-              {(errors.startLatitude || errors.startLongitude) && (
-                <p className="text-error text-xs">
-                  {errors.startLatitude || errors.startLongitude}
-                </p>
-              )}
-            </div>
-          </fieldset>
+          {/* Start/End Point Editor (Feature 046) */}
+          <RouteStartEndEditor
+            startPoint={startPoint}
+            endPoint={endPoint}
+            homeLocation={homeLocation}
+            isRoundTrip={form.isRoundTrip}
+            onStartChange={handleStartChange}
+            onEndChange={handleEndChange}
+            onRoundTripChange={handleRoundTripChange}
+            disabled={isSubmitting}
+          />
 
-          {/* Copy start to end button */}
-          <div className="flex justify-center">
-            <button
-              type="button"
-              onClick={copyStartToEnd}
-              className="btn btn-ghost btn-xs"
-              aria-label="Copy start point to end point (round trip)"
-            >
+          {/* Location validation errors */}
+          {(errors.startLatitude || errors.endLatitude) && (
+            <div className="alert alert-error text-sm">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="mr-1 h-4 w-4"
+                className="h-5 w-5 shrink-0"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -461,52 +458,12 @@ export default function RouteBuilderInner({
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                 />
               </svg>
-              Round Trip (copy start to end)
-            </button>
-          </div>
-
-          {/* End Point */}
-          <fieldset className="border-base-300 rounded-lg border p-3">
-            <legend className="px-2 text-sm font-medium">End Point</legend>
-            <div className="space-y-2">
-              <input
-                type="text"
-                name="endAddress"
-                value={form.endAddress}
-                onChange={handleChange}
-                placeholder="Address (optional)"
-                className="input input-bordered input-sm w-full"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="text"
-                  name="endLatitude"
-                  value={form.endLatitude}
-                  onChange={handleChange}
-                  placeholder="Latitude *"
-                  className={`input input-bordered input-sm ${errors.endLatitude ? 'input-error' : ''}`}
-                  aria-invalid={!!errors.endLatitude}
-                />
-                <input
-                  type="text"
-                  name="endLongitude"
-                  value={form.endLongitude}
-                  onChange={handleChange}
-                  placeholder="Longitude *"
-                  className={`input input-bordered input-sm ${errors.endLongitude ? 'input-error' : ''}`}
-                  aria-invalid={!!errors.endLongitude}
-                />
-              </div>
-              {(errors.endLatitude || errors.endLongitude) && (
-                <p className="text-error text-xs">
-                  {errors.endLatitude || errors.endLongitude}
-                </p>
-              )}
+              <span>{errors.startLatitude || errors.endLatitude}</span>
             </div>
-          </fieldset>
+          )}
 
           {/* Actions */}
           <div className="border-base-300 flex items-center justify-between border-t pt-4">

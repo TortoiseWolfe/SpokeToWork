@@ -23,6 +23,8 @@ import type {
   RouteCompanyWithDetails,
   RouteCompanyReorder,
 } from '@/types/route';
+import { useRouteOptimization } from '@/hooks/useRouteOptimization';
+import RouteOptimizationModal from '@/components/molecular/RouteOptimizationModal';
 
 // Sortable item component for drag-and-drop
 interface SortableCompanyItemProps {
@@ -193,6 +195,19 @@ export default function RouteDetailDrawer({
 }: RouteDetailDrawerProps) {
   const drawerRef = useRef<HTMLDivElement>(null);
   const [localCompanies, setLocalCompanies] = useState(companies);
+
+  // Route optimization hook
+  const optimization = useRouteOptimization({
+    onSuccess: () => {
+      // Trigger parent to refetch companies by calling onReorder
+      if (route && onReorder) {
+        onReorder({
+          route_id: route.id,
+          ordered_ids: localCompanies.map((c) => c.id),
+        });
+      }
+    },
+  });
 
   // Sync local state when companies prop changes
   useEffect(() => {
@@ -404,11 +419,43 @@ export default function RouteDetailDrawer({
         <div className="flex-1 overflow-y-auto p-4">
           <h3 className="mb-3 flex items-center justify-between font-semibold">
             <span>Companies on Route</span>
-            {!isLoading && localCompanies.length > 0 && (
-              <span className="text-base-content/60 text-sm font-normal">
-                Drag to reorder
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {!isLoading && localCompanies.length >= 2 && route && (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-xs gap-1"
+                  onClick={() => optimization.optimize(route.id)}
+                  disabled={optimization.isLoading}
+                  aria-label="Optimize route order"
+                  title="Optimize company visit order for shortest distance"
+                >
+                  {optimization.isLoading ? (
+                    <span className="loading loading-spinner loading-xs" />
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-3 w-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                      />
+                    </svg>
+                  )}
+                  Optimize
+                </button>
+              )}
+              {!isLoading && localCompanies.length > 0 && (
+                <span className="text-base-content/60 text-sm font-normal">
+                  Drag to reorder
+                </span>
+              )}
+            </div>
           </h3>
 
           {isLoading ? (
@@ -492,6 +539,21 @@ export default function RouteDetailDrawer({
           </button>
         </div>
       </div>
+
+      {/* Route Optimization Modal */}
+      <RouteOptimizationModal
+        isOpen={optimization.isOpen}
+        result={optimization.result}
+        companies={optimization.companies.map((c) => ({
+          id: c.id,
+          name: c.company.name,
+        }))}
+        originalOrder={optimization.originalOrder}
+        isLoading={optimization.isLoading || optimization.isApplying}
+        error={optimization.error}
+        onApply={optimization.apply}
+        onClose={optimization.close}
+      />
     </>
   );
 }

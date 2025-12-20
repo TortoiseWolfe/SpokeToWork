@@ -26,6 +26,10 @@ const mockRoute: BicycleRoute = {
   is_system_route: false,
   source_name: null,
   is_active: true,
+  start_type: 'home',
+  end_type: 'home',
+  is_round_trip: true,
+  last_optimized_at: null,
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
 };
@@ -48,6 +52,26 @@ const mockCompanies: RouteCompanyWithDetails[] = [
       address: '456 Oak Ave',
       latitude: 35.1235,
       longitude: -84.5679,
+      source: 'shared',
+    },
+  },
+  {
+    id: 'rc-2',
+    route_id: 'route-1',
+    user_id: 'user-1',
+    shared_company_id: 'company-2',
+    private_company_id: null,
+    tracking_id: null,
+    sequence_order: 1,
+    visit_on_next_ride: false,
+    distance_from_start_miles: 2.5,
+    created_at: '2024-01-01T00:00:00Z',
+    company: {
+      id: 'company-2',
+      name: 'Tech Startup',
+      address: '789 Pine Blvd',
+      latitude: 35.1236,
+      longitude: -84.568,
       source: 'shared',
     },
   },
@@ -215,5 +239,20 @@ describe('RouteDetailDrawer Accessibility', () => {
 
     const title = screen.getByRole('heading', { name: 'Morning Loop' });
     expect(title).toHaveAttribute('id', 'route-drawer-title');
+  });
+
+  it('optimize button has accessible label when visible', () => {
+    render(
+      <RouteDetailDrawer
+        route={mockRoute}
+        companies={mockCompanies}
+        isOpen={true}
+        onClose={mockOnClose}
+      />
+    );
+
+    expect(
+      screen.getByRole('button', { name: /optimize route order/i })
+    ).toBeInTheDocument();
   });
 });

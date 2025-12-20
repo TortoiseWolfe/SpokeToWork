@@ -35,10 +35,11 @@ describe('RouteBuilder', () => {
     it('pre-fills start/end with home address', () => {
       render(<RouteBuilder onSave={mockOnSave} onClose={mockOnClose} />);
 
-      const latInputs = screen.getAllByPlaceholderText('Latitude *');
-      const lngInputs = screen.getAllByPlaceholderText('Longitude *');
-      expect(latInputs[0]).toHaveValue('35.1667');
-      expect(lngInputs[0]).toHaveValue('-84.8667');
+      // When home location is set and start type is 'home', display shows the address
+      // The mock useUserProfile provides home_address: '123 Test St, Test City, TS 12345'
+      // Address appears in both the Start Point display and Summary section
+      const addressElements = screen.getAllByText(/123 Test St/);
+      expect(addressElements.length).toBeGreaterThanOrEqual(1);
     });
 
     it('validates required fields', async () => {
@@ -110,6 +111,10 @@ describe('RouteBuilder', () => {
       is_system_route: false,
       source_name: null,
       is_active: true,
+      start_type: 'home' as const,
+      end_type: 'home' as const,
+      is_round_trip: true,
+      last_optimized_at: null,
       created_at: '2025-01-01T00:00:00Z',
       updated_at: '2025-01-01T00:00:00Z',
     };
@@ -194,7 +199,9 @@ describe('RouteBuilder', () => {
     it('renders all color options', () => {
       render(<RouteBuilder onSave={mockOnSave} onClose={mockOnClose} />);
 
-      const colorButtons = screen.getAllByRole('radio');
+      // Color picker has radio buttons + RouteStartEndEditor has Home/Custom toggles
+      // Look for color radios specifically by their aria-label pattern
+      const colorButtons = screen.getAllByRole('radio', { name: /color #/i });
       expect(colorButtons.length).toBe(8); // ROUTE_COLORS has 8 colors
     });
 
@@ -212,26 +219,38 @@ describe('RouteBuilder', () => {
   });
 
   describe('Round Trip Feature', () => {
-    it('copies start to end when round trip button clicked', async () => {
+    it('shows round trip checkbox and hides end point when checked', () => {
+      render(<RouteBuilder onSave={mockOnSave} onClose={mockOnClose} />);
+
+      // Round trip checkbox should be present and checked by default
+      const roundTripCheckbox = screen.getByLabelText(/round trip route/i);
+      expect(roundTripCheckbox).toBeChecked();
+
+      // End Point fieldset should not be visible when round trip is enabled
+      expect(screen.queryByText('End Point')).not.toBeInTheDocument();
+
+      // Summary should show "Round Trip"
+      expect(screen.getByText('Round Trip')).toBeInTheDocument();
+    });
+
+    it('shows end point when round trip is unchecked', async () => {
       const user = userEvent.setup();
       render(<RouteBuilder onSave={mockOnSave} onClose={mockOnClose} />);
 
-      // Change start location
-      const startLat = screen.getAllByPlaceholderText('Latitude *')[0];
-      await user.clear(startLat);
-      await user.type(startLat, '36.0');
+      // Uncheck round trip
+      const roundTripCheckbox = screen.getByLabelText(/round trip route/i);
+      await user.click(roundTripCheckbox);
 
-      // Click round trip button
-      await user.click(screen.getByRole('button', { name: /round trip/i }));
+      // End Point fieldset should now be visible
+      expect(screen.getByText('End Point')).toBeInTheDocument();
 
-      // End should match start
-      const endLat = screen.getAllByPlaceholderText('Latitude *')[1];
-      expect(endLat).toHaveValue('36.0');
+      // Summary should show "One-Way"
+      expect(screen.getByText('One-Way')).toBeInTheDocument();
     });
   });
 
   describe('Home Location Prompt', () => {
-    it('shows prompt when no home location', () => {
+    it('shows warning when no home location', () => {
       // Use imported mock directly (not require - aliases don't work with CommonJS)
       (useUserProfile as ReturnType<typeof vi.fn>).mockReturnValue({
         profile: {
@@ -245,8 +264,31 @@ describe('RouteBuilder', () => {
 
       render(<RouteBuilder onSave={mockOnSave} onClose={mockOnClose} />);
 
+      // RouteStartEndEditor shows warning with link to settings
       expect(screen.getByText(/no home address set/i)).toBeInTheDocument();
-      expect(screen.getByText(/go to settings/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: /set in settings/i })
+      ).toBeInTheDocument();
+    });
+
+    it('disables Home button when no home location', () => {
+      (useUserProfile as ReturnType<typeof vi.fn>).mockReturnValue({
+        profile: {
+          home_address: null,
+          home_latitude: null,
+          home_longitude: null,
+        },
+        loading: false,
+        isLoading: false,
+      });
+
+      render(<RouteBuilder onSave={mockOnSave} onClose={mockOnClose} />);
+
+      // Home buttons should be disabled when no home location
+      const homeButtons = screen.getAllByRole('radio', { name: 'Home' });
+      homeButtons.forEach((button) => {
+        expect(button).toBeDisabled();
+      });
     });
   });
 });
