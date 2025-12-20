@@ -1,8 +1,25 @@
-import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
-import { MapContainer } from 'react-leaflet';
-import RoutePolyline from './RoutePolyline';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import type { BicycleRoute, RouteGeometry } from '@/types/route';
+
+// Mock react-map-gl/maplibre components since MapLibre doesn't work in happy-dom
+vi.mock('react-map-gl/maplibre', () => ({
+  Source: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="mock-source">{children}</div>
+  ),
+  Layer: ({ id, paint }: { id: string; paint?: Record<string, unknown> }) => (
+    <div data-testid={`mock-layer-${id}`} data-paint={JSON.stringify(paint)} />
+  ),
+  Popup: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="mock-popup" role="dialog">
+      {children}
+    </div>
+  ),
+  useMap: () => ({ current: null }),
+}));
+
+// Import component after mocks are set up
+import RoutePolyline from './RoutePolyline';
 
 // Mock route geometry
 const mockGeometry: RouteGeometry = {
@@ -45,107 +62,106 @@ const mockSystemRoute: BicycleRoute = {
   source_name: 'Cleveland Parks',
 };
 
-// Wrapper component for tests
-const MapWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <MapContainer
-    center={[35.16, -84.87]}
-    zoom={13}
-    style={{ height: 400, width: 400 }}
-  >
-    {children}
-  </MapContainer>
-);
-
 describe('RoutePolyline Accessibility', () => {
-  // Note: Leaflet polylines are SVG paths which are decorative by default.
-  // The primary accessibility for routes comes from the popup content.
+  it('renders source and layer elements', () => {
+    render(<RoutePolyline route={mockRoute} showPopup={true} />);
 
-  it('renders popup with semantic structure', () => {
-    const { container } = render(
-      <MapWrapper>
-        <RoutePolyline route={mockRoute} showPopup={true} />
-      </MapWrapper>
-    );
-
-    // Map container should render
-    expect(container.querySelector('.leaflet-container')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-source')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-layer-route-route-1')).toBeInTheDocument();
   });
 
-  it('popup content has proper heading structure', async () => {
-    // The popup content includes an h3 for the route name
-    // This is tested implicitly through the component rendering
-    const { container } = render(
-      <MapWrapper>
-        <RoutePolyline route={mockRoute} showPopup={true} />
-      </MapWrapper>
-    );
+  it('renders glow layer when active', () => {
+    render(<RoutePolyline route={mockRoute} isActive={true} />);
 
-    expect(container.querySelector('.leaflet-container')).toBeInTheDocument();
+    // Active routes should have a glow layer
+    expect(
+      screen.getByTestId('mock-layer-route-route-1-glow')
+    ).toBeInTheDocument();
   });
 
-  it('system route badge is accessible', () => {
-    const { container } = render(
-      <MapWrapper>
-        <RoutePolyline route={mockSystemRoute} />
-      </MapWrapper>
-    );
+  it('renders dash layer for system routes', () => {
+    render(<RoutePolyline route={mockSystemRoute} isSystemRoute={true} />);
 
-    // Badge content would be in the popup, accessible via click
-    expect(container.querySelector('.leaflet-container')).toBeInTheDocument();
-  });
-
-  it('route information is organized in semantic groups', () => {
-    const { container } = render(
-      <MapWrapper>
-        <RoutePolyline route={mockRoute} />
-      </MapWrapper>
-    );
-
-    // The popup uses semantic spans with labels
-    expect(container.querySelector('.leaflet-container')).toBeInTheDocument();
+    // System routes have a dashed overlay
+    expect(
+      screen.getByTestId('mock-layer-route-system-route-1-dash')
+    ).toBeInTheDocument();
   });
 
   it('renders without crashing for null geometry', () => {
     const routeWithNullGeometry = { ...mockRoute, route_geometry: null };
 
     const { container } = render(
-      <MapWrapper>
-        <RoutePolyline route={routeWithNullGeometry} />
-      </MapWrapper>
+      <RoutePolyline route={routeWithNullGeometry} />
     );
 
-    expect(container.querySelector('.leaflet-container')).toBeInTheDocument();
+    // Should render nothing when geometry is null
+    expect(container.querySelector('[data-testid="mock-source"]')).toBeNull();
   });
 
   it('different route types have visually distinct styling', () => {
-    // System routes use dashed lines, user routes use solid
-    // This provides visual distinction for users who can see
+    const { rerender } = render(<RoutePolyline route={mockRoute} />);
 
-    const { container: container1 } = render(
-      <MapWrapper>
-        <RoutePolyline route={mockRoute} />
-      </MapWrapper>
-    );
+    // User route layer
+    const userLayer = screen.getByTestId('mock-layer-route-route-1');
+    const userPaint = JSON.parse(userLayer.getAttribute('data-paint') || '{}');
 
-    const { container: container2 } = render(
-      <MapWrapper>
-        <RoutePolyline route={mockSystemRoute} isSystemRoute={true} />
-      </MapWrapper>
-    );
+    rerender(<RoutePolyline route={mockSystemRoute} isSystemRoute={true} />);
 
-    // Both render without error
-    expect(container1.querySelector('.leaflet-container')).toBeInTheDocument();
-    expect(container2.querySelector('.leaflet-container')).toBeInTheDocument();
+    // System route layer - should have dash layer
+    expect(
+      screen.getByTestId('mock-layer-route-system-route-1-dash')
+    ).toBeInTheDocument();
+
+    // Check that paint properties exist
+    expect(userPaint).toHaveProperty('line-color');
+    expect(userPaint).toHaveProperty('line-width');
   });
 
   it('active route has increased visual weight', () => {
-    const { container } = render(
-      <MapWrapper>
-        <RoutePolyline route={mockRoute} isActive={true} />
-      </MapWrapper>
+    const { rerender } = render(
+      <RoutePolyline route={mockRoute} isActive={false} />
     );
 
-    // Active routes have heavier stroke weight for visibility
-    expect(container.querySelector('.leaflet-container')).toBeInTheDocument();
+    const inactiveLayer = screen.getByTestId('mock-layer-route-route-1');
+    const inactivePaint = JSON.parse(
+      inactiveLayer.getAttribute('data-paint') || '{}'
+    );
+
+    rerender(<RoutePolyline route={mockRoute} isActive={true} />);
+
+    const activeLayer = screen.getByTestId('mock-layer-route-route-1');
+    const activePaint = JSON.parse(
+      activeLayer.getAttribute('data-paint') || '{}'
+    );
+
+    // Active route should have wider line width (10 vs 6)
+    expect(activePaint['line-width']).toBeGreaterThan(
+      inactivePaint['line-width']
+    );
+  });
+
+  it('active route has brighter color when no custom color', () => {
+    // Use route without custom color to test default color behavior
+    const routeNoColor = { ...mockRoute, color: null };
+
+    const { rerender } = render(
+      <RoutePolyline route={routeNoColor} isActive={false} />
+    );
+
+    const inactiveLayer = screen.getByTestId('mock-layer-route-route-1');
+    const inactivePaint = JSON.parse(
+      inactiveLayer.getAttribute('data-paint') || '{}'
+    );
+
+    rerender(<RoutePolyline route={routeNoColor} isActive={true} />);
+
+    const activeLayer = screen.getByTestId('mock-layer-route-route-1');
+    const activePaint = JSON.parse(
+      activeLayer.getAttribute('data-paint') || '{}'
+    );
+
+    // Colors should differ between active and inactive when no custom color
+    expect(activePaint['line-color']).not.toBe(inactivePaint['line-color']);
   });
 });
