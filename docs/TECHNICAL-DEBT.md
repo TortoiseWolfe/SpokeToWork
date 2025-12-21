@@ -10,14 +10,14 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 
 ### Priority Matrix
 
-| Priority | Category          | Issue Count | Status    |
-| -------- | ----------------- | ----------- | --------- |
-| P0       | Security          | 2           | Fixed     |
-| P1       | CI/Infrastructure | 1           | **Fixed** |
-| P1       | Security          | 6           | Open      |
-| P1       | Performance       | 4           | Open      |
-| P2       | Code Quality      | 15          | Open      |
-| P2       | Test Coverage     | 55 files    | Open      |
+| Priority | Category          | Issue Count | Status          |
+| -------- | ----------------- | ----------- | --------------- |
+| P0       | Security          | 2           | Fixed           |
+| P1       | CI/Infrastructure | 1           | **Fixed**       |
+| P1       | Security          | 5 (was 6)   | 1 Fixed, 5 Open |
+| P1       | Performance       | 4           | Open            |
+| P2       | Code Quality      | 15          | Open            |
+| P2       | Test Coverage     | 55 files    | Open            |
 
 ---
 
@@ -41,14 +41,18 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 
 ## P1: High Priority Issues
 
-### Security: Private Keys Stored Unencrypted in IndexedDB
+### Security: Private Keys Stored Unencrypted in IndexedDB - ✅ FIXED
 
-**Severity**: MEDIUM
-**Files**: `src/lib/messaging/encryption.ts:73-93`
-**Issue**: Private keys stored as plaintext JWK in IndexedDB, vulnerable to physical device access
-**Mitigations in Place**: HTTPS, browser same-origin policy, CSP headers
-**Recommended Fix**: Implement passphrase-based encryption of IndexedDB entries
-**SpecKit Spec**: `specs/049-indexeddb-encryption/spec.md`
+**Severity**: MEDIUM → RESOLVED
+**Files**: `src/lib/messaging/encryption.ts`, `src/services/messaging/key-service.ts`
+**Issue**: Original concern was plaintext keys in IndexedDB
+**Status**: ✅ FIXED - Private keys are now:
+
+- Never stored at rest (not in IndexedDB, not anywhere)
+- Derived fresh on each login from password + salt using Argon2id
+- Held in memory only, cleared on logout/tab close
+  **Additional Fix (Feature 049)**: Password change now triggers key rotation to prevent silent key invalidation
+  **SpecKit Spec**: `specs/049-indexeddb-encryption/spec.md` (completed 2025-12-21)
 
 ### Security: Test Credential Fallbacks
 
