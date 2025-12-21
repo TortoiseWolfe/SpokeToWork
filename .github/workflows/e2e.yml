@@ -86,6 +86,20 @@ jobs:
           # Tests expect app at root, not with base path
           BASE_URL: http://localhost:3000
           DEBUG: pw:api
+          # Supabase credentials for E2E tests
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Test user credentials
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_PRIMARY_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
+          TEST_USER_PRIMARY_EMAIL: ${{ secrets.TEST_USER_PRIMARY_EMAIL }}
+          TEST_USER_PRIMARY_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
+          TEST_USER_SECONDARY_EMAIL: ${{ secrets.TEST_USER_SECONDARY_EMAIL }}
+          TEST_USER_SECONDARY_PASSWORD: ${{ secrets.TEST_USER_SECONDARY_PASSWORD }}
+          TEST_USER_TERTIARY_EMAIL: ${{ secrets.TEST_USER_TERTIARY_EMAIL }}
+          TEST_USER_TERTIARY_PASSWORD: ${{ secrets.TEST_USER_TERTIARY_PASSWORD }}
 
       - name: Upload test results
         if: always()
