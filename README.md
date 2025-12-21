@@ -13,13 +13,9 @@ These are tracked issues from our code review. Run `/speckit.workflow` with the 
 
 ### Security Issues
 
-**049 - IndexedDB Private Key Encryption**
+~~**049 - IndexedDB Private Key Encryption**~~ ✅ **FIXED**
 
-```
-/speckit.workflow specs/049-indexeddb-encryption
-```
-
-> Private keys stored as plaintext in IndexedDB. Needs passphrase-based encryption.
+> ~~Private keys stored as plaintext in IndexedDB.~~ Keys are now derived in-memory only (Argon2id), never stored. Password change triggers key rotation.
 > [View Spec](specs/049-indexeddb-encryption/spec.md)
 
 **050 - OAuth State Token Cleanup**
