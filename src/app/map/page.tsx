@@ -5,6 +5,7 @@ import dynamicImport from 'next/dynamic';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRoutes } from '@/hooks/useRoutes';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import { LocationButton } from '@/components/map/LocationButton';
 import {
   GeolocationConsent,
@@ -70,6 +71,9 @@ export default function MapPage() {
   // Feature 041: Auth and routes for displaying route polylines
   const { user, isLoading: authLoading } = useAuth();
 
+  // Get user's home location for route start/end markers
+  const { profile } = useUserProfile();
+
   // Always load routes - system routes visible to everyone
   const {
     routes,
@@ -90,7 +94,56 @@ export default function MapPage() {
   }, [user, authLoading, getSystemRoutes]);
 
   // Combine routes: use all routes for logged-in users, only system routes for guests
-  const displayRoutes = user ? routes : systemRoutes;
+  const baseRoutes = user ? routes : systemRoutes;
+
+  // Extend user route geometries to connect to home location
+  // This ensures the polyline visually connects to the home marker
+  const displayRoutes = useMemo(() => {
+    if (!profile?.home_latitude || !profile?.home_longitude) {
+      return baseRoutes;
+    }
+
+    return baseRoutes.map((route) => {
+      // Only modify user routes (not system routes) with existing geometry
+      if (route.is_system_route || !route.route_geometry) {
+        return route;
+      }
+
+      const geometry = route.route_geometry;
+      // profile.home_longitude/latitude are guaranteed non-null by the useMemo guard above
+      const homeCoord: [number, number] = [
+        profile.home_longitude!,
+        profile.home_latitude!,
+      ]; // GeoJSON is [lng, lat]
+
+      // Prepend home coordinate to the route geometry
+      if (
+        geometry.type === 'LineString' &&
+        Array.isArray(geometry.coordinates)
+      ) {
+        const firstCoord = geometry.coordinates[0] as [number, number];
+        // Check if already starts at home (within ~10 meters)
+        const alreadyAtHome =
+          Math.abs(firstCoord[0] - homeCoord[0]) < 0.0001 &&
+          Math.abs(firstCoord[1] - homeCoord[1]) < 0.0001;
+
+        if (!alreadyAtHome) {
+          return {
+            ...route,
+            route_geometry: {
+              ...geometry,
+              coordinates: [
+                homeCoord,
+                ...(geometry.coordinates as [number, number][]),
+              ],
+            },
+          } as typeof route;
+        }
+      }
+
+      return route;
+    });
+  }, [baseRoutes, profile?.home_latitude, profile?.home_longitude]);
 
   // State for companies on routes (for displaying markers)
   const [routeCompanies, setRouteCompanies] = useState<
@@ -144,10 +197,17 @@ export default function MapPage() {
     fetchAllRouteCompanies();
   }, [routes, routesLoading, getRouteCompanies]);
 
-  // Convert route companies to map markers
+  // Convert route companies to map markers - ONLY for the active route
   const companyMarkers: MapMarker[] = useMemo(() => {
+    if (!activeRouteId) return [];
+
     return routeCompanies
-      .filter((rc) => rc.company.latitude && rc.company.longitude)
+      .filter(
+        (rc) =>
+          rc.route_id === activeRouteId && // Only show companies for active route
+          rc.company.latitude &&
+          rc.company.longitude
+      )
       .map((rc) => ({
         id: `company-${rc.id}`,
         position: [rc.company.latitude!, rc.company.longitude!] as Position,
@@ -156,7 +216,83 @@ export default function MapPage() {
           ? ('next-ride' as const)
           : ('active-route' as const),
       }));
-  }, [routeCompanies]);
+  }, [routeCompanies, activeRouteId]);
+
+  // Create HOME location marker for active route (Feature 046/047)
+  // For USER routes: show user's home location as start/end point
+  // For SYSTEM routes (trails): show the trail's start/end points
+  const routeEndpointMarkers: MapMarker[] = useMemo(() => {
+    if (!activeRouteId) return [];
+
+    const activeRoute = displayRoutes.find((r) => r.id === activeRouteId);
+    if (!activeRoute) return [];
+
+    const markers: MapMarker[] = [];
+
+    // For USER routes (non-system): use user's home location
+    if (
+      !activeRoute.is_system_route &&
+      profile?.home_latitude &&
+      profile?.home_longitude
+    ) {
+      markers.push({
+        id: `home-${activeRoute.id}`,
+        position: [profile.home_latitude, profile.home_longitude] as Position,
+        popup: profile.home_address || 'Home',
+        variant: 'start-point' as const,
+      });
+
+      logger.info('Home marker created for user route', {
+        activeRouteId,
+        routeName: activeRoute.name,
+        homeAddress: profile.home_address,
+        lat: profile.home_latitude,
+        lng: profile.home_longitude,
+      });
+    }
+    // For SYSTEM routes (trails): use the route's start/end coordinates
+    else if (activeRoute.is_system_route) {
+      if (activeRoute.start_latitude && activeRoute.start_longitude) {
+        markers.push({
+          id: `start-${activeRoute.id}`,
+          position: [
+            activeRoute.start_latitude,
+            activeRoute.start_longitude,
+          ] as Position,
+          popup: activeRoute.start_address || 'Trail Start',
+          variant: 'start-point' as const,
+        });
+      }
+
+      if (activeRoute.end_latitude && activeRoute.end_longitude) {
+        const isSameAsStart =
+          activeRoute.start_latitude === activeRoute.end_latitude &&
+          activeRoute.start_longitude === activeRoute.end_longitude;
+
+        if (!isSameAsStart) {
+          markers.push({
+            id: `end-${activeRoute.id}`,
+            position: [
+              activeRoute.end_latitude,
+              activeRoute.end_longitude,
+            ] as Position,
+            popup: activeRoute.end_address || 'Trail End',
+            variant: 'end-point' as const,
+          });
+        }
+      }
+
+      logger.info('Trail endpoint markers created', {
+        activeRouteId,
+        routeName: activeRoute.name,
+        hasStart: !!activeRoute.start_latitude,
+        hasEnd: !!activeRoute.end_latitude,
+        markerCount: markers.length,
+      });
+    }
+
+    return markers;
+  }, [activeRouteId, displayRoutes, profile]);
 
   const {
     position,
@@ -323,6 +459,7 @@ export default function MapPage() {
           markers={[
             ...demoMarkers,
             ...companyMarkers,
+            ...routeEndpointMarkers,
             ...(userLocation
               ? [
                   {

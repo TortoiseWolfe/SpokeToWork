@@ -12,6 +12,7 @@ const mockMap = {
   getZoom: vi.fn(() => 13),
   panTo: vi.fn(),
   setView: vi.fn(),
+  flyTo: vi.fn(), // MapLibre GL method for animated pan/zoom
   getCenter: vi.fn(() => ({ lat: 51.505, lng: -0.09 })),
 };
 

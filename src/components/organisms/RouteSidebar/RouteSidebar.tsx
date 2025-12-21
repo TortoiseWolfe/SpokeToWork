@@ -62,7 +62,8 @@ export default function RouteSidebar({
   const [sortBy, setSortBy] = useState<SortOption>('updated_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filterActive, setFilterActive] = useState(false);
-  const [showSystemRoutes, setShowSystemRoutes] = useState(true);
+  // DEPRECATED: System trails hidden - Feature 048 cancelled
+  const [showSystemRoutes] = useState(false);
 
   // Sort and filter routes
   const displayedRoutes = useMemo(() => {
@@ -227,6 +228,7 @@ export default function RouteSidebar({
           >
             Name {sortBy === 'name' && (sortDirection === 'desc' ? '↓' : '↑')}
           </button>
+          {/* DEPRECATED: System trails toggle - Feature 048 cancelled
           <button
             onClick={() => setShowSystemRoutes((prev) => !prev)}
             className={`btn btn-xs ${showSystemRoutes ? 'btn-ghost' : 'btn-secondary'}`}
@@ -234,6 +236,7 @@ export default function RouteSidebar({
           >
             {showSystemRoutes ? 'Hide Trails' : 'Show Trails'}
           </button>
+          */}
         </div>
       </div>
 
@@ -278,13 +281,7 @@ export default function RouteSidebar({
       {/* Feature 047 US2: Fixed footer - stays in place while route list scrolls */}
       <div className="border-base-300 text-base-content/60 flex-shrink-0 border-t p-3 text-sm">
         {displayedRoutes.length} route{displayedRoutes.length !== 1 ? 's' : ''}
-        {!showSystemRoutes &&
-          routes.filter((r) => r.is_system_route).length > 0 && (
-            <span>
-              {' '}
-              ({routes.filter((r) => r.is_system_route).length} trails hidden)
-            </span>
-          )}
+        {/* DEPRECATED: System trails count - Feature 048 cancelled */}
       </div>
     </aside>
   );

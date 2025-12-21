@@ -1613,6 +1613,7 @@ ${rows}
                 );
               }
             }}
+            generateRouteGeometry={generateRouteGeometry}
           />
         </div>
       </main>

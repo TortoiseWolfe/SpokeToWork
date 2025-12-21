@@ -14,6 +14,7 @@ vi.mock('@/hooks/useRoutes', () => ({
 }));
 
 // Default mock data
+// NOTE: System routes (is_system_route: true) are deprecated and hidden by default
 const defaultMockData = {
   routes: [
     {
@@ -31,7 +32,7 @@ const defaultMockData = {
       name: 'Cleveland GreenWay',
       color: '#10B981',
       distance_miles: 4.2,
-      is_system_route: true,
+      is_system_route: true, // System route - hidden by default in sidebar
       is_active: true,
       description: 'Paved multi-use trail',
       updated_at: '2025-01-01T09:00:00Z',
@@ -68,14 +69,15 @@ describe('RouteSidebar', () => {
   it('renders route list', () => {
     render(<RouteSidebar />);
 
+    // Only user routes shown - system routes hidden by default
     expect(screen.getByText('Morning Loop')).toBeInTheDocument();
-    expect(screen.getByText('Cleveland GreenWay')).toBeInTheDocument();
   });
 
   it('displays route count in footer', () => {
     render(<RouteSidebar />);
 
-    expect(screen.getByText(/2 routes/)).toBeInTheDocument();
+    // Only counts visible routes (system routes hidden)
+    expect(screen.getByText(/1 route/)).toBeInTheDocument();
   });
 
   it('shows active route indicator', () => {
@@ -84,7 +86,9 @@ describe('RouteSidebar', () => {
     expect(screen.getByText('Planning')).toBeInTheDocument();
   });
 
-  it('shows system route badge', () => {
+  // DEPRECATED: System routes hidden - Feature 048 cancelled
+  // Trail badge only shows for system routes which are now hidden by default
+  it.skip('shows system route badge', () => {
     render(<RouteSidebar />);
 
     expect(screen.getByText('Trail')).toBeInTheDocument();
@@ -123,7 +127,9 @@ describe('RouteSidebar', () => {
     );
   });
 
-  it('can hide system routes (trails)', async () => {
+  // DEPRECATED: System routes toggle removed - Feature 048 cancelled
+  // System routes are now hidden by default with no toggle
+  it.skip('can hide system routes (trails)', async () => {
     const user = userEvent.setup();
     render(<RouteSidebar />);
 
@@ -138,8 +144,8 @@ describe('RouteSidebar', () => {
   it('displays distance for routes', () => {
     render(<RouteSidebar />);
 
+    // Only user routes visible (system routes hidden)
     expect(screen.getByText('5.2 mi')).toBeInTheDocument();
-    expect(screen.getByText('4.2 mi')).toBeInTheDocument();
   });
 
   it('displays route description', () => {
@@ -303,12 +309,6 @@ describe('RouteSidebar auto-open drawer callback (US1)', () => {
     // Morning Loop is the active route (id: '1' matches activeRouteId)
     const activeRoute = screen.getByRole('listitem', { name: /morning loop/i });
     expect(activeRoute).toHaveAttribute('aria-current', 'true');
-
-    // Cleveland GreenWay is not active - should not have aria-current
-    const inactiveRoute = screen.getByRole('listitem', {
-      name: /cleveland greenway/i,
-    });
-    expect(inactiveRoute).not.toHaveAttribute('aria-current');
   });
 });
 
@@ -347,9 +347,8 @@ describe('RouteSidebar does not render inline company preview (US3)', () => {
       screen.getByRole('list', { name: /route list/i })
     ).toBeInTheDocument();
 
-    // Should have route items
+    // Should have user route items (system routes hidden)
     expect(screen.getByText('Morning Loop')).toBeInTheDocument();
-    expect(screen.getByText('Cleveland GreenWay')).toBeInTheDocument();
 
     // Should NOT have any inline company preview content
     expect(screen.queryByText(/click a marker/i)).not.toBeInTheDocument();
@@ -367,12 +366,9 @@ describe('RouteSidebar tooltip for truncated names (US4)', () => {
   it('route names have title attribute with full name (FR-005)', () => {
     render(<RouteSidebar />);
 
-    // Each route name should have a title attribute for native tooltip fallback
+    // User route names should have a title attribute for native tooltip fallback
     const morningLoopHeading = screen.getByText('Morning Loop');
     expect(morningLoopHeading).toHaveAttribute('title', 'Morning Loop');
-
-    const greenWayHeading = screen.getByText('Cleveland GreenWay');
-    expect(greenWayHeading).toHaveAttribute('title', 'Cleveland GreenWay');
   });
 
   it('route names have DaisyUI tooltip wrapper with data-tip', () => {
@@ -380,14 +376,13 @@ describe('RouteSidebar tooltip for truncated names (US4)', () => {
 
     // Find the tooltip wrappers with data-tip attribute
     const tooltipWrappers = document.querySelectorAll('[data-tip]');
-    expect(tooltipWrappers.length).toBeGreaterThanOrEqual(2);
+    expect(tooltipWrappers.length).toBeGreaterThanOrEqual(1);
 
-    // Verify the tooltip content matches route names
+    // Verify the tooltip content matches user route names
     const dataTips = Array.from(tooltipWrappers).map((el) =>
       el.getAttribute('data-tip')
     );
     expect(dataTips).toContain('Morning Loop');
-    expect(dataTips).toContain('Cleveland GreenWay');
   });
 
   it('route names have truncate class for text overflow ellipsis', () => {
@@ -402,7 +397,7 @@ describe('RouteSidebar tooltip for truncated names (US4)', () => {
 
     // Find tooltip wrapper with delay class
     const tooltipWrappers = document.querySelectorAll('.tooltip');
-    expect(tooltipWrappers.length).toBeGreaterThanOrEqual(2);
+    expect(tooltipWrappers.length).toBeGreaterThanOrEqual(1);
 
     // At least one should have the delay class
     const hasDelayClass = Array.from(tooltipWrappers).some((el) =>
@@ -463,8 +458,8 @@ describe('RouteSidebar independent scrolling (US2)', () => {
   it('maintains fixed footer outside scroll container', () => {
     render(<RouteSidebar />);
 
-    // Footer shows route count
-    const footer = screen.getByText(/2 routes/);
+    // Footer shows visible route count (system routes hidden)
+    const footer = screen.getByText(/1 route/);
     expect(footer).toBeInTheDocument();
 
     // Footer should have flex-shrink-0 to prevent shrinking

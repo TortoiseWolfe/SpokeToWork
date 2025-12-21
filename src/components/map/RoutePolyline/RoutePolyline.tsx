@@ -83,8 +83,8 @@ function getLayerPaint(
 
   return {
     'line-color': customColor ?? (isActive ? activeColor : baseColor),
-    'line-width': customWeight ?? (isActive ? 10 : 6), // 10px active vs 6px inactive
-    'line-opacity': isActive ? 1 : 0.85,
+    'line-width': customWeight ?? (isActive ? 10 : 4), // 10px active vs 4px inactive (reduced from 6)
+    'line-opacity': isActive ? 1 : 0.25, // Inactive routes much less visible (reduced from 0.85)
   };
 }
 

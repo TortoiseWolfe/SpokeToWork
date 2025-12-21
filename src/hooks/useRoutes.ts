@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/client';
 import { RouteService, createRouteService } from '@/lib/routes/route-service';
 import { getBicycleRoute } from '@/lib/routing/osrm-service';
 import { createLogger } from '@/lib/logger';
+import { useActiveRoute } from '@/contexts/ActiveRouteContext';
 import type {
   BicycleRoute,
   BicycleRouteCreate,
@@ -126,9 +127,15 @@ export function useRoutes(options: UseRoutesOptions = {}): UseRoutesReturn {
   const { filters, sort, skip = false, refetchOnFocus = true } = options;
 
   const [routes, setRoutes] = useState<BicycleRoute[]>([]);
-  const [activeRouteId, setActiveRouteId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(!skip);
   const [error, setError] = useState<Error | null>(null);
+
+  // Use shared context for active route (fixes cross-page state isolation)
+  const {
+    activeRouteId,
+    setActiveRoute: contextSetActiveRoute,
+    clearActiveRoute: contextClearActiveRoute,
+  } = useActiveRoute();
 
   const serviceRef = useRef<RouteService | null>(null);
   const fetchingRef = useRef(false);
@@ -185,30 +192,11 @@ export function useRoutes(options: UseRoutesOptions = {}): UseRoutesReturn {
     [cacheKey, filters, sort, getService]
   );
 
-  // Fetch active route
-  const fetchActiveRoute = useCallback(async () => {
-    try {
-      const service = getService();
-      const active = await service.getActiveRoute();
-
-      activeRouteCache = {
-        data: active,
-        timestamp: Date.now(),
-        key: 'active',
-      };
-
-      setActiveRouteId(active?.route_id ?? null);
-    } catch (err) {
-      console.error('Failed to fetch active route:', err);
-    }
-  }, [getService]);
-
-  // Initial fetch
+  // Initial fetch (active route is now managed by ActiveRouteContext)
   useEffect(() => {
     if (skip) return;
     fetchRoutes();
-    fetchActiveRoute();
-  }, [skip, fetchRoutes, fetchActiveRoute]);
+  }, [skip, fetchRoutes]);
 
   // Refetch on window focus
   useEffect(() => {
@@ -230,12 +218,11 @@ export function useRoutes(options: UseRoutesOptions = {}): UseRoutesReturn {
     activeRouteCache = null;
   }, []);
 
-  // Refetch
+  // Refetch (active route is managed by ActiveRouteContext)
   const refetch = useCallback(async () => {
     invalidateCache();
     await fetchRoutes(true);
-    await fetchActiveRoute();
-  }, [invalidateCache, fetchRoutes, fetchActiveRoute]);
+  }, [invalidateCache, fetchRoutes]);
 
   // Route CRUD operations
   const createRoute = useCallback(
@@ -368,23 +355,19 @@ export function useRoutes(options: UseRoutesOptions = {}): UseRoutesReturn {
     await service.clearAllNextRide();
   }, [getService]);
 
-  // Active Route operations
+  // Active Route operations (delegated to ActiveRouteContext for shared state)
   const setActiveRoute = useCallback(
     async (routeId: string): Promise<void> => {
-      const service = getService();
-      await service.setActiveRoute(routeId);
-      setActiveRouteId(routeId);
+      await contextSetActiveRoute(routeId);
       activeRouteCache = null;
     },
-    [getService]
+    [contextSetActiveRoute]
   );
 
   const clearActiveRoute = useCallback(async (): Promise<void> => {
-    const service = getService();
-    await service.clearActiveRoute();
-    setActiveRouteId(null);
+    await contextClearActiveRoute();
     activeRouteCache = null;
-  }, [getService]);
+  }, [contextClearActiveRoute]);
 
   // Limits
   const checkRouteLimits = useCallback(async (): Promise<LimitCheckResult> => {
@@ -411,30 +394,76 @@ export function useRoutes(options: UseRoutesOptions = {}): UseRoutesReturn {
     async (routeId: string): Promise<void> => {
       try {
         const service = getService();
-        const companies = await service.getRouteCompanies(routeId);
 
-        // Need at least 2 companies to generate a route
-        if (companies.length < 2) {
-          logger.info('Not enough companies to generate route', {
-            routeId,
-            count: companies.length,
-          });
+        // Fetch route to get start/end coordinates
+        const route = await service.getRouteById(routeId);
+        if (!route) {
+          logger.error('Route not found for geometry generation', { routeId });
           return;
         }
 
-        // Get coordinates in sequence order
-        const waypoints = companies
+        const companies = await service.getRouteCompanies(routeId);
+
+        // Build waypoints: [start] + [companies] + [end]
+        const waypoints: [number, number][] = [];
+
+        // Add start point if exists (home location)
+        if (route.start_latitude && route.start_longitude) {
+          waypoints.push([route.start_latitude, route.start_longitude]);
+          logger.debug('Added start point to waypoints', {
+            lat: route.start_latitude,
+            lng: route.start_longitude,
+          });
+        }
+
+        // Add company waypoints in sequence order
+        const companyWaypoints = companies
           .sort((a, b) => a.sequence_order - b.sequence_order)
           .filter((c) => c.company.latitude && c.company.longitude)
           .map(
             (c) =>
               [c.company.latitude!, c.company.longitude!] as [number, number]
           );
+        waypoints.push(...companyWaypoints);
 
+        // Add end point if exists and is different from start (or for non-round-trip routes)
+        if (route.end_latitude && route.end_longitude) {
+          const endSameAsStart =
+            route.end_latitude === route.start_latitude &&
+            route.end_longitude === route.start_longitude;
+
+          // For round-trip routes, only add end if different from start
+          // For non-round-trip, always add end
+          if (!route.is_round_trip || !endSameAsStart) {
+            waypoints.push([route.end_latitude, route.end_longitude]);
+            logger.debug('Added end point to waypoints', {
+              lat: route.end_latitude,
+              lng: route.end_longitude,
+            });
+          } else if (route.is_round_trip && endSameAsStart) {
+            // Round-trip back to start - add start point again at end
+            waypoints.push([route.start_latitude!, route.start_longitude!]);
+            logger.debug('Added return to start for round-trip');
+          }
+        } else if (
+          route.is_round_trip &&
+          route.start_latitude &&
+          route.start_longitude
+        ) {
+          // Round-trip with no explicit end - return to start
+          waypoints.push([route.start_latitude, route.start_longitude]);
+          logger.debug(
+            'Added return to start for round-trip (no explicit end)'
+          );
+        }
+
+        // Need at least 2 waypoints to generate a route
         if (waypoints.length < 2) {
-          logger.warn('Not enough companies with coordinates', {
+          logger.info('Not enough waypoints to generate route', {
             routeId,
-            waypointsCount: waypoints.length,
+            count: waypoints.length,
+            hasStart: !!(route.start_latitude && route.start_longitude),
+            companiesWithCoords: companyWaypoints.length,
           });
           return;
         }

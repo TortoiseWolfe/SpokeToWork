@@ -1,7 +1,7 @@
 name: Quarterly Dependency Review
 description: Track quarterly dependency maintenance and security review
-title: "chore(deps): Q[X] [YEAR] Dependency Review"
-labels: ["dependencies", "maintenance"]
+title: 'chore(deps): Q[X] [YEAR] Dependency Review'
+labels: ['dependencies', 'maintenance']
 body:
   - type: markdown
     attributes:

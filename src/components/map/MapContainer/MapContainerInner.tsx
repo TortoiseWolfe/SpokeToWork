@@ -16,8 +16,18 @@ import { BikeRoutesLayer } from '@/components/map/BikeRoutesLayer';
 
 /**
  * Marker variant for different display styles
+ * - default: Plain dot
+ * - next-ride: Ping animation + eye icon
+ * - active-route: Pulse animation + building icon
+ * - start-point: Home/start marker (green flag)
+ * - end-point: Destination marker (checkered flag)
  */
-export type MarkerVariant = 'default' | 'next-ride' | 'active-route';
+export type MarkerVariant =
+  | 'default'
+  | 'next-ride'
+  | 'active-route'
+  | 'start-point'
+  | 'end-point';
 
 export interface MapMarker {
   position: [number, number]; // [lat, lng]
@@ -52,6 +62,10 @@ const getMarkerColor = (variant: MarkerVariant = 'default'): string => {
       return '#FF6B35'; // Bright orange - high visibility on both backgrounds
     case 'active-route':
       return '#E63946'; // Bright red - stands out on light and dark maps
+    case 'start-point':
+      return '#22C55E'; // Green - indicates starting point/home
+    case 'end-point':
+      return '#8B5CF6'; // Purple - indicates destination/finish
     default:
       return '#3b82f6'; // Default blue
   }
@@ -61,6 +75,8 @@ const getMarkerColor = (variant: MarkerVariant = 'default'): string => {
  * Custom marker component for different variants
  * - next-ride: Ping animation + eye icon (24px)
  * - active-route: Pulse animation + building icon (28px)
+ * - start-point: Home/flag icon (32px) - green
+ * - end-point: Checkered flag icon (32px) - purple
  * - default: Plain dot (20px)
  */
 const CustomMarker: React.FC<{
@@ -70,6 +86,8 @@ const CustomMarker: React.FC<{
   const color = getMarkerColor(marker.variant);
   const isNextRide = marker.variant === 'next-ride';
   const isActiveRoute = marker.variant === 'active-route';
+  const isStartPoint = marker.variant === 'start-point';
+  const isEndPoint = marker.variant === 'end-point';
 
   return (
     <div
@@ -78,13 +96,76 @@ const CustomMarker: React.FC<{
       role="button"
       tabIndex={0}
       aria-label={marker.popup || 'Map marker'}
+      data-testid={
+        isStartPoint ? 'start-marker' : isEndPoint ? 'end-marker' : undefined
+      }
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           onClick?.();
         }
       }}
     >
-      {isNextRide ? (
+      {isStartPoint ? (
+        <div className="relative" data-testid="start-marker-inner">
+          {/* Glow effect for start point */}
+          <div
+            className="absolute -inset-1 animate-pulse rounded-full opacity-40"
+            style={{
+              backgroundColor: color,
+              boxShadow: `0 0 8px 4px ${color}`,
+            }}
+          />
+          <div
+            className="relative flex h-8 w-8 items-center justify-center rounded-full border-[3px] border-white"
+            style={{
+              backgroundColor: color,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.4), 0 0 0 2px rgba(0,0,0,0.2)',
+            }}
+          >
+            {/* Home/flag icon for start point */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4 text-white drop-shadow-sm"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+            </svg>
+          </div>
+        </div>
+      ) : isEndPoint ? (
+        <div className="relative" data-testid="end-marker-inner">
+          {/* Glow effect for end point */}
+          <div
+            className="absolute -inset-1 animate-pulse rounded-full opacity-40"
+            style={{
+              backgroundColor: color,
+              boxShadow: `0 0 8px 4px ${color}`,
+            }}
+          />
+          <div
+            className="relative flex h-8 w-8 items-center justify-center rounded-full border-[3px] border-white"
+            style={{
+              backgroundColor: color,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.4), 0 0 0 2px rgba(0,0,0,0.2)',
+            }}
+          >
+            {/* Flag icon for end/destination point */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4 text-white drop-shadow-sm"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </div>
+        </div>
+      ) : isNextRide ? (
         <div className="relative">
           <div
             className="absolute inset-0 animate-ping rounded-full opacity-50"

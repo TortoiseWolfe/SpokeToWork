@@ -52,13 +52,11 @@ const mockRouteCompany = {
 
 // Stable mock functions
 const mockCreateRoute = vi.fn().mockResolvedValue(mockRoute);
-const mockUpdateRoute = vi
-  .fn()
-  .mockResolvedValue({
-    ...mockRoute,
-    name: 'Updated Mock Route',
-    description: 'Updated description',
-  });
+const mockUpdateRoute = vi.fn().mockResolvedValue({
+  ...mockRoute,
+  name: 'Updated Mock Route',
+  description: 'Updated description',
+});
 const mockDeleteRoute = vi.fn().mockResolvedValue(undefined);
 const mockAddCompanyToRoute = vi.fn().mockResolvedValue(mockRouteCompany);
 const mockRemoveCompanyFromRoute = vi.fn().mockResolvedValue(undefined);

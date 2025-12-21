@@ -24,6 +24,8 @@ export interface UseRouteOptimizationOptions {
   onSuccess?: () => void;
   /** Callback when an error occurs */
   onError?: (error: Error) => void;
+  /** Callback to regenerate route geometry after optimization */
+  generateRouteGeometry?: (routeId: string) => Promise<void>;
 }
 
 export interface UseRouteOptimizationReturn {
@@ -54,7 +56,7 @@ export interface UseRouteOptimizationReturn {
 export function useRouteOptimization(
   options: UseRouteOptimizationOptions = {}
 ): UseRouteOptimizationReturn {
-  const { onSuccess, onError } = options;
+  const { onSuccess, onError, generateRouteGeometry } = options;
 
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -178,6 +180,16 @@ export function useRouteOptimization(
 
       logger.info('Optimization applied successfully', { routeId });
 
+      // Regenerate route geometry with new company order
+      // This updates the route_geometry and distance_miles in the database
+      if (generateRouteGeometry) {
+        logger.info('Regenerating route geometry after optimization', {
+          routeId,
+        });
+        await generateRouteGeometry(routeId);
+        logger.info('Route geometry regenerated', { routeId });
+      }
+
       // Close modal and reset
       reset();
       onSuccess?.();
@@ -190,7 +202,7 @@ export function useRouteOptimization(
     } finally {
       setIsApplying(false);
     }
-  }, [routeId, result, reset, onSuccess, onError]);
+  }, [routeId, result, reset, onSuccess, onError, generateRouteGeometry]);
 
   return {
     isOpen,

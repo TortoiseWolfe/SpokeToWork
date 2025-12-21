@@ -25,7 +25,7 @@ services:
       - 8.8.8.8
       - 1.1.1.1
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000/']  # Internal container port
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/'] # Internal container port
       interval: 30s
       timeout: 10s
       retries: 3
