@@ -13,6 +13,8 @@ import AccountDeletionModal from '@/components/molecular/AccountDeletionModal';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { validateDisplayName, validateBio } from '@/lib/profile/validation';
 import { createLogger } from '@/lib/logger/logger';
+import { keyManagementService } from '@/services/messaging/key-service';
+import { KeyMismatchError, ConnectionError } from '@/types/messaging';
 
 const logger = createLogger('components:auth:AccountSettings');
 
@@ -50,6 +52,7 @@ function AccountSettings({ className = '' }: AccountSettingsProps) {
     }
   }, [profile]);
 
+  const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   // Feature 038: Split error/success states for profile and password forms (FR-003)
@@ -145,27 +148,30 @@ function AccountSettings({ className = '' }: AccountSettingsProps) {
       return;
     }
 
+    // Feature 049: Require current password for key rotation
+    if (!currentPassword) {
+      setPasswordError('Current password is required');
+      return;
+    }
+
     setLoading(true);
 
-    const { error: updateError } = await supabase.auth.updateUser({
-      password,
-    });
+    try {
+      // Feature 049: Step 1 - Verify current password by deriving keys
+      await keyManagementService.deriveKeys(currentPassword);
 
-    setLoading(false);
+      // Feature 049: Step 2 - Rotate keys with new password
+      await keyManagementService.rotateKeys(password);
 
-    if (updateError) {
-      // Log failed password change (T035)
-      if (user) {
-        await logAuthEvent({
-          user_id: user.id,
-          event_type: 'password_change',
-          success: false,
-          error_message: updateError.message,
-        });
+      // Feature 049: Step 3 - Only now update Supabase auth password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password,
+      });
+
+      if (updateError) {
+        throw updateError;
       }
 
-      setPasswordError(updateError.message);
-    } else {
       // Log successful password change (T035)
       if (user) {
         await logAuthEvent({
@@ -176,10 +182,34 @@ function AccountSettings({ className = '' }: AccountSettingsProps) {
 
       setPasswordSuccess(true);
       // Feature 038 FR-014: Password fields NOT cleared on failure, but cleared on success
+      setCurrentPassword('');
       setPassword('');
       setConfirmPassword('');
       // Feature 038 FR-013: Auto-dismiss success message after 3 seconds
       setTimeout(() => setPasswordSuccess(false), 3000);
+    } catch (error) {
+      // Feature 049: Handle specific key management errors
+      if (error instanceof KeyMismatchError) {
+        setPasswordError('Current password is incorrect');
+      } else if (error instanceof ConnectionError) {
+        setPasswordError('Failed to update encryption keys. Please try again.');
+      } else {
+        const err = error as Error;
+        setPasswordError(err.message || 'Failed to change password');
+      }
+
+      // Log failed password change (T035)
+      if (user) {
+        const err = error as Error;
+        await logAuthEvent({
+          user_id: user.id,
+          event_type: 'password_change',
+          success: false,
+          error_message: err.message || 'Unknown error',
+        });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -368,6 +398,20 @@ function AccountSettings({ className = '' }: AccountSettingsProps) {
       <form onSubmit={handleChangePassword} className="card bg-base-200">
         <div className="card-body">
           <h3 className="card-title">Change Password</h3>
+          {/* Feature 049: Current password required for key rotation */}
+          <div className="form-control">
+            <label htmlFor="current-password-input" className="label">
+              <span className="label-text">Current Password</span>
+            </label>
+            <input
+              id="current-password-input"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="input input-bordered min-h-11"
+              disabled={loading || isUpdatingProfile}
+            />
+          </div>
           <div className="form-control">
             <label htmlFor="new-password-input" className="label">
               <span className="label-text">New Password</span>

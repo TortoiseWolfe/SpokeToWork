@@ -5,6 +5,16 @@ import AccountSettings from './AccountSettings';
 // Create mock functions we can spy on
 const mockRefetch = vi.fn();
 const mockRefreshSession = vi.fn();
+const mockDeriveKeys = vi.fn();
+const mockRotateKeys = vi.fn();
+
+// Feature 049: Mock key management service
+vi.mock('@/services/messaging/key-service', () => ({
+  keyManagementService: {
+    deriveKeys: (password: string) => mockDeriveKeys(password),
+    rotateKeys: (password: string) => mockRotateKeys(password),
+  },
+}));
 
 // Mock the useUserProfile hook to return a loaded state
 vi.mock('@/hooks/useUserProfile', () => ({
@@ -122,5 +132,125 @@ describe('AccountSettings', () => {
     expect(
       screen.queryByText('Failed to update profile. Please try again.')
     ).not.toBeInTheDocument();
+  });
+
+  // Feature 049: Tests for current password field and key rotation
+  describe('Password Change with Key Rotation (Feature 049)', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      mockDeriveKeys.mockResolvedValue({ publicKeyJwk: {}, salt: '' });
+      mockRotateKeys.mockResolvedValue(true);
+    });
+
+    it('renders current password field', () => {
+      render(<AccountSettings />);
+      expect(screen.getByLabelText(/current password/i)).toBeInTheDocument();
+    });
+
+    it('requires current password before allowing password change', async () => {
+      render(<AccountSettings />);
+
+      // Fill only new password fields
+      fireEvent.change(screen.getByLabelText(/new password/i), {
+        target: { value: 'NewSecurePass123!' },
+      });
+      fireEvent.change(screen.getByLabelText(/confirm password/i), {
+        target: { value: 'NewSecurePass123!' },
+      });
+
+      // Submit without current password
+      fireEvent.click(screen.getByRole('button', { name: /change password/i }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/current password is required/i)
+        ).toBeInTheDocument();
+      });
+
+      // Key services should not be called
+      expect(mockDeriveKeys).not.toHaveBeenCalled();
+      expect(mockRotateKeys).not.toHaveBeenCalled();
+    });
+
+    it('calls deriveKeys with current password before rotating', async () => {
+      render(<AccountSettings />);
+
+      fireEvent.change(screen.getByLabelText(/current password/i), {
+        target: { value: 'OldPassword123!' },
+      });
+      fireEvent.change(screen.getByLabelText(/new password/i), {
+        target: { value: 'NewSecurePass123!' },
+      });
+      fireEvent.change(screen.getByLabelText(/confirm password/i), {
+        target: { value: 'NewSecurePass123!' },
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /change password/i }));
+
+      await waitFor(() => {
+        expect(mockDeriveKeys).toHaveBeenCalledWith('OldPassword123!');
+        expect(mockRotateKeys).toHaveBeenCalledWith('NewSecurePass123!');
+      });
+    });
+
+    it('shows error when current password is incorrect', async () => {
+      // Import the error class to throw it
+      const { KeyMismatchError } = await import('@/types/messaging');
+      mockDeriveKeys.mockRejectedValue(new KeyMismatchError());
+
+      render(<AccountSettings />);
+
+      fireEvent.change(screen.getByLabelText(/current password/i), {
+        target: { value: 'WrongPassword!' },
+      });
+      fireEvent.change(screen.getByLabelText(/new password/i), {
+        target: { value: 'NewSecurePass123!' },
+      });
+      fireEvent.change(screen.getByLabelText(/confirm password/i), {
+        target: { value: 'NewSecurePass123!' },
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /change password/i }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/current password is incorrect/i)
+        ).toBeInTheDocument();
+      });
+
+      // rotateKeys should NOT be called if deriveKeys fails
+      expect(mockRotateKeys).not.toHaveBeenCalled();
+    });
+
+    it('clears all password fields on successful password change', async () => {
+      render(<AccountSettings />);
+
+      const currentPasswordInput = screen.getByLabelText(/current password/i);
+      const newPasswordInput = screen.getByLabelText(/new password/i);
+      const confirmPasswordInput = screen.getByLabelText(/confirm password/i);
+
+      fireEvent.change(currentPasswordInput, {
+        target: { value: 'OldPassword123!' },
+      });
+      fireEvent.change(newPasswordInput, {
+        target: { value: 'NewSecurePass123!' },
+      });
+      fireEvent.change(confirmPasswordInput, {
+        target: { value: 'NewSecurePass123!' },
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /change password/i }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/password changed successfully/i)
+        ).toBeInTheDocument();
+      });
+
+      // All fields should be cleared
+      expect(currentPasswordInput).toHaveValue('');
+      expect(newPasswordInput).toHaveValue('');
+      expect(confirmPasswordInput).toHaveValue('');
+    });
   });
 });
