@@ -19,6 +19,10 @@ Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6 
 - ❌ NEVER assume a phase is "good enough" - complete it fully
 - ❌ NEVER proceed past a checkpoint without user confirmation
 - ❌ NEVER use your own judgment to skip phases - only explicit `--skip-X` flags allow skipping
+- ❌ NEVER generate a checklist (Phase 4) without first asking clarifying questions
+- ❌ NEVER claim "no issues found" in Phase 6 without running all 6 detection passes with evidence
+- ❌ NEVER write a quick summary instead of the full required outputs for each phase
+- ❌ NEVER mark a phase "complete" if you skipped required steps
 
 **REQUIRED AT START:**
 
@@ -198,44 +202,67 @@ Type "continue" to proceed to Phase 4 (Requirements Checklist).
 
 ## PHASE 4: Requirements Quality Checklist
 
+**⚠️ THIS PHASE IS MANDATORY - NOT A FORMALITY ⚠️**
+
+**YOU MUST ASK CLARIFYING QUESTIONS BEFORE GENERATING THE CHECKLIST.**
+
 **REQUIRED ACTIONS:**
 
 1. Run: `.specify/scripts/bash/check-prerequisites.sh --json`
 2. Read spec.md and plan.md
-3. Generate `docs/specs/<feature>/checklists/requirements.md`:
+
+3. **ASK CLARIFYING QUESTIONS** (use AskUserQuestion tool):
+   You MUST ask at least 2 questions about:
+   - **Domain focus**: "What domain should this checklist focus on?" (ux, api, security, performance, etc.)
+   - **Depth level**: "Is this a lightweight pre-commit check or formal release gate?"
+   - **Audience**: "Who will use this? (Author self-review, PR reviewer, QA, Release gate)"
+   - **Risk areas**: "Which risk areas need mandatory gating checks?"
+
+   **DO NOT SKIP THIS STEP.** If you find yourself generating a checklist without asking questions first, STOP and go back.
+
+4. Generate `docs/specs/<feature>/checklists/<domain>.md`:
    - Items test REQUIREMENT QUALITY, not implementation
-   - Categories: Completeness, Clarity, Consistency, Measurability
+   - Categories: Completeness, Clarity, Consistency, Measurability, Coverage, Edge Cases
    - Format: `- [ ] CHK001: <question> [Category, Spec §X]`
+   - Generate for ALL audiences (Author, Reviewer, QA, Release)
 
-**CORRECT checklist items:**
+**CORRECT checklist items (test the REQUIREMENTS, not implementation):**
 
-- ✅ "Are error handling requirements defined for all failure modes?"
-- ✅ "Is 'fast loading' quantified with specific thresholds?"
-- ✅ "Can success criteria be objectively measured?"
+- ✅ "Are error handling requirements defined for all failure modes?" [Completeness]
+- ✅ "Is 'fast loading' quantified with specific thresholds?" [Clarity, Spec §NFR-1]
+- ✅ "Can success criteria be objectively measured?" [Measurability]
+- ✅ "Are edge cases documented for empty/null states?" [Coverage, Gap]
 
 **WRONG checklist items (these test implementation, not requirements):**
 
 - ❌ "Verify the button is blue"
 - ❌ "Test that the API returns 200"
+- ❌ "Confirm the page loads in under 2 seconds"
 
 **REQUIRED OUTPUTS:**
 
-- [ ] `docs/specs/<feature>/checklists/requirements.md` exists
-- [ ] At least 10 checklist items
-- [ ] All items reference spec sections
+- [ ] Asked at least 2 clarifying questions before generating
+- [ ] `docs/specs/<feature>/checklists/<domain>.md` exists
+- [ ] At least 15 checklist items across multiple categories
+- [ ] Items reference spec sections or use [Gap] markers
+- [ ] Covers all 4 audiences (Author, Reviewer, QA, Release)
 
 **CHECKPOINT 4:**
 
 ```
 Phase 4 COMPLETE.
 
+Questions asked: <N>
 Checklist: <path>
 Items: <N> across <N> categories
+Audiences covered: Author, Reviewer, QA, Release
 
 Type "continue" to proceed to Phase 5 (Task Generation).
 ```
 
 **HARD STOP. DO NOT PROCEED WITHOUT USER CONFIRMATION.**
+
+**SELF-CHECK: Did you ask clarifying questions? If not, GO BACK.**
 
 ---
 
@@ -307,40 +334,92 @@ Type "continue" to proceed to Phase 6 (Consistency Analysis).
 
 ## PHASE 6: Consistency Analysis
 
+**⚠️ THIS PHASE IS MANDATORY - NOT A FORMALITY ⚠️**
+
+**YOU MUST RUN FULL DETECTION PASSES AND ITERATE UNTIL ZERO ISSUES.**
+
 **REQUIRED ACTIONS:**
 
 1. Run: `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`
 2. Load: spec.md, plan.md, tasks.md, constitution
-3. Check for issues:
-   - Duplicate requirements
-   - Ambiguous terms remaining
-   - Requirements without tasks
-   - Tasks without requirements
-   - Constitution violations
-   - Terminology inconsistencies
 
-4. **FIX ALL ISSUES FOUND** - do not just report them
-5. Re-run checks until zero issues remain
+3. **RUN ALL 6 DETECTION PASSES** (you must check ALL of these):
+
+   **A. Duplication Detection:**
+   - Scan for near-duplicate requirements across spec sections
+   - Identify redundant tasks that do the same thing
+   - List findings with line numbers
+
+   **B. Ambiguity Detection:**
+   - Flag vague adjectives: fast, scalable, secure, intuitive, robust, simple, easy
+   - Flag unresolved placeholders: TODO, TBD, ???, NEEDS CLARIFICATION
+   - List each ambiguous term with location
+
+   **C. Underspecification Detection:**
+   - Requirements missing measurable outcomes
+   - User stories missing acceptance criteria
+   - Tasks referencing undefined components
+
+   **D. Constitution Alignment:**
+   - Check EVERY requirement against constitution principles
+   - Flag violations as CRITICAL
+   - List principle violated and offending requirement
+
+   **E. Coverage Gaps:**
+   - List ALL requirements that have ZERO tasks
+   - List ALL tasks that map to NO requirement
+   - Check NFRs have corresponding tasks
+
+   **F. Inconsistency Detection:**
+   - Terminology drift (same concept, different names)
+   - Data entity mismatches between spec and plan
+   - Task ordering contradictions
+
+4. **PRODUCE ANALYSIS REPORT** with tables:
+   - Issues table with ID, Category, Severity, Location, Summary, Recommendation
+   - Coverage table mapping requirements to tasks
+   - Metrics: total requirements, total tasks, coverage %, issue counts
+
+5. **FIX ALL ISSUES FOUND** - Apply remediations for EVERY issue:
+   - Merge duplicates
+   - Replace vague terms with specific metrics
+   - Add missing tasks for uncovered requirements
+   - Fix constitution violations
+   - Normalize terminology
+
+6. **RE-RUN ALL DETECTION PASSES** after fixes
+7. **ITERATE until analysis shows ZERO issues**
+
+**DO NOT SKIP DETECTION PASSES.** If you find yourself writing "no issues found" without listing what you checked, STOP and actually run the detection passes.
 
 **REQUIRED OUTPUTS:**
 
-- [ ] All artifacts are consistent
-- [ ] Zero unresolved issues
-- [ ] Files updated if fixes were needed
+- [ ] Ran all 6 detection passes with specific findings
+- [ ] Produced analysis report with tables
+- [ ] Applied remediations for all issues
+- [ ] Re-verified until zero issues
+- [ ] Files updated with fixes
 
 **CHECKPOINT 6:**
 
 ```
 Phase 6 COMPLETE.
 
+Detection passes run: 6/6
 Issues found: <N>
 Issues fixed: <N>
+Iterations: <N>
 Remaining: 0
+
+Coverage: <N>% of requirements have tasks
+Unmapped tasks: 0
 
 All artifacts consistent. Type "continue" to proceed to Phase 7 (GitHub Issues) or Phase 8 (Implementation).
 ```
 
 **HARD STOP. DO NOT PROCEED WITHOUT USER CONFIRMATION.**
+
+**SELF-CHECK: Did you run all 6 detection passes with specific findings? If you just wrote "all clear" without checking, GO BACK.**
 
 ---
 
@@ -370,16 +449,37 @@ Type "continue" to proceed to Phase 8 (Implementation).
 
 ## PHASE 8: Implementation
 
-**BEFORE YOU START - VERIFY:**
+**⚠️ BEFORE YOU START - MANDATORY VERIFICATION ⚠️**
+
+**You MUST verify phases 4 and 6 were done properly. Read the checklist and analysis files.**
 
 ```
+PHASE 4 VERIFICATION (read the checklist file):
+- [ ] Checklist file exists at checklists/<domain>.md
+- [ ] Checklist has 15+ items (not just a few quick ones)
+- [ ] Items test REQUIREMENT QUALITY (not implementation behavior)
+- [ ] Items have [Category] and [Spec §X] or [Gap] markers
+- [ ] Multiple categories covered (Completeness, Clarity, Consistency, etc.)
+
+If Phase 4 was rushed (few items, no markers, tests implementation):
+→ STOP and re-run Phase 4 with clarifying questions
+
+PHASE 6 VERIFICATION (check the analysis was thorough):
+- [ ] All 6 detection passes were run with specific findings listed
+- [ ] Coverage table exists mapping requirements to tasks
+- [ ] Issues were identified and fixed (not just "all clear")
+- [ ] Zero issues remaining after remediation
+
+If Phase 6 was skipped or superficial:
+→ STOP and re-run Phase 6 with full detection passes
+
 Required artifacts exist:
 - [ ] spec.md
 - [ ] plan.md
 - [ ] tasks.md
-- [ ] checklists/requirements.md
+- [ ] checklists/<domain>.md (with 15+ items)
 
-If ANY are missing, STOP and go back to the missing phase.
+If ANY are missing or inadequate, STOP and go back to the missing phase.
 ```
 
 **REQUIRED ACTIONS:**
@@ -458,3 +558,22 @@ If a phase fails:
 3. **Implementation is Phase 8** - if you're writing code before then, you skipped phases
 4. **Use TodoWrite** - track phase progress so you don't lose your place
 5. **When in doubt, STOP and ASK** - don't assume you can skip ahead
+
+## COMMON MISTAKES TO AVOID
+
+**Phase 4 mistakes:**
+
+- ❌ Generating a checklist without asking clarifying questions first
+- ❌ Creating only 5-10 items when 15+ are required
+- ❌ Writing items that test implementation ("verify button works") instead of requirements ("are button requirements specified?")
+- ❌ Not using [Category] and [Spec §X] markers
+
+**Phase 6 mistakes:**
+
+- ❌ Writing "no issues found" without actually running detection passes
+- ❌ Doing a quick visual scan instead of systematic detection
+- ❌ Not producing the required analysis report with tables
+- ❌ Not iterating until zero issues remain
+- ❌ Treating it as a checkbox to tick instead of a real analysis
+
+**If you catch yourself doing any of these, STOP and do the phase properly.**

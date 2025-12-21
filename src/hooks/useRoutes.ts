@@ -11,7 +11,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { RouteService, createRouteService } from '@/lib/routes/route-service';
-import { getBicycleRoute } from '@/lib/routing/osrm-service';
+import { getBicycleRoute } from '@/lib/routing/routing-service';
 import { createLogger } from '@/lib/logger';
 import { useActiveRoute } from '@/contexts/ActiveRouteContext';
 import type {
@@ -473,13 +473,19 @@ export function useRoutes(options: UseRoutesOptions = {}): UseRoutesReturn {
           waypointCount: waypoints.length,
         });
 
-        // Call OSRM to get bicycle route
+        // Call routing service (ORS primary, OSRM fallback)
         const result = await getBicycleRoute(waypoints);
 
         if (!result) {
-          logger.error('Failed to get bicycle route from OSRM', { routeId });
+          logger.error('Failed to get bicycle route', { routeId });
           return;
         }
+
+        logger.info('Route generated', {
+          routeId,
+          service: result.service,
+          distanceMiles: result.distanceMiles.toFixed(2),
+        });
 
         // Update route with new geometry
         await service.updateRoute({

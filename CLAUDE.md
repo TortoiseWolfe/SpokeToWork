@@ -472,6 +472,9 @@ WHERE name ILIKE '%steph%' OR contact_name ILIKE '%steph%';
 
 ## Active Technologies
 
+- TypeScript 5.9, React 19, Next.js 15 + Native fetch API, existing routing service pattern (048-openrouteservice-routing)
+- N/A (external API calls) (048-openrouteservice-routing)
+
 - TypeScript 5.9, React 19, Next.js 15 + `maplibre-gl`, `react-map-gl` (replacing `react-leaflet`, `leaflet`) (045-map-font-legibility)
 - Existing Supabase PostgreSQL for route data; IndexedDB (Dexie) for tile caching (045-map-font-legibility)
 
