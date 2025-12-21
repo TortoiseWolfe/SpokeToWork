@@ -12,15 +12,10 @@ jobs:
     name: E2E Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    continue-on-error: true # Allow CI to pass even if E2E tests fail
-
     strategy:
       fail-fast: false
       matrix:
-        # Start with just Chromium to save resources
-        # Uncomment others once tests are passing
-        browser: [chromium]
-        # browser: [chromium, firefox, webkit]
+        browser: [chromium, firefox, webkit]
 
     steps:
       - name: Checkout code
@@ -55,6 +50,7 @@ jobs:
           NEXT_PUBLIC_EMAILJS_PUBLIC_KEY: ${{ secrets.EMAILJS_PUBLIC_KEY }}
           NEXT_PUBLIC_EMAILJS_SERVICE_ID: ${{ secrets.EMAILJS_SERVICE_ID }}
           NEXT_PUBLIC_EMAILJS_TEMPLATE_ID: ${{ secrets.EMAILJS_TEMPLATE_ID }}
+          NEXT_PUBLIC_ORS_API_KEY: ${{ secrets.NEXT_PUBLIC_ORS_API_KEY }}
 
       - name: Debug - Check build output
         run: |
