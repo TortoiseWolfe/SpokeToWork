@@ -70,6 +70,7 @@ RUN apt-get update && apt-get install -y \
     libhyphen0 \
     libmanette-0.2-0 \
     libwebpdemux2 \
+    gstreamer1.0-libav \
     # Missing Playwright dependencies from validation
     libgtk-4-1 \
     libatomic1 \
