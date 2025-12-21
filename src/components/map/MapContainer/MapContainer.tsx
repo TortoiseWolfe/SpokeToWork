@@ -6,6 +6,7 @@ import type { MapRef } from 'react-map-gl/maplibre';
 import { DEFAULT_MAP_CONFIG } from '@/utils/map-utils';
 import { LocationButton } from '@/components/map/LocationButton';
 import type { MapTheme } from '@/hooks/useMapTheme';
+import type { MapMarker } from './MapContainerInner';
 
 export interface MapContainerProps {
   center?: [number, number]; // [lat, lng]
@@ -13,12 +14,7 @@ export interface MapContainerProps {
   height?: string;
   width?: string;
   showUserLocation?: boolean;
-  markers?: Array<{
-    position: [number, number]; // [lat, lng]
-    popup?: string;
-    id: string;
-    variant?: 'default' | 'next-ride' | 'active-route';
-  }>;
+  markers?: MapMarker[];
   onLocationFound?: (position: GeolocationPosition) => void;
   onLocationError?: (error: GeolocationPositionError) => void;
   onMapReady?: (map: MapRef) => void;

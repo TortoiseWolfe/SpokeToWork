@@ -108,9 +108,7 @@ export class CompanyQueueAdapter extends BaseOfflineQueue<CompanyQueueItem> {
    * Note: Uses 'any' cast because 'companies' table may not be in generated types.
    * This adapter is designed for multi-tenant company features (Feature 011/012).
    */
-  private async checkForConflict(
-    item: CompanyQueueItem
-  ): Promise<{
+  private async checkForConflict(item: CompanyQueueItem): Promise<{
     local: Record<string, unknown>;
     server: Record<string, unknown>;
   } | null> {

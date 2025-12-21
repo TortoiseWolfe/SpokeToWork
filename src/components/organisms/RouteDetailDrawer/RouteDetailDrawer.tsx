@@ -168,6 +168,8 @@ export interface RouteDetailDrawerProps {
   onToggleNextRide?: (routeCompanyId: string) => void;
   /** Callback when companies are reordered */
   onReorder?: (data: RouteCompanyReorder) => void;
+  /** Callback to regenerate route geometry (for optimization) */
+  generateRouteGeometry?: (routeId: string) => Promise<void>;
   /** Additional CSS classes */
   className?: string;
   /** Test ID for testing */
@@ -190,6 +192,7 @@ export default function RouteDetailDrawer({
   onRemoveCompany,
   onToggleNextRide,
   onReorder,
+  generateRouteGeometry,
   className = '',
   testId = 'route-detail-drawer',
 }: RouteDetailDrawerProps) {
@@ -198,6 +201,7 @@ export default function RouteDetailDrawer({
 
   // Route optimization hook
   const optimization = useRouteOptimization({
+    generateRouteGeometry,
     onSuccess: () => {
       // Trigger parent to refetch companies by calling onReorder
       if (route && onReorder) {

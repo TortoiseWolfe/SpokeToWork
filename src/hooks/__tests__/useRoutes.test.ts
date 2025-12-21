@@ -103,6 +103,26 @@ vi.mock('@/lib/routes/route-service', () => ({
   })),
 }));
 
+// Mock active route context state
+let mockActiveRouteId: string | null = null;
+const mockContextSetActiveRoute = vi.fn(async (routeId: string) => {
+  mockActiveRouteId = routeId;
+});
+const mockContextClearActiveRoute = vi.fn(async () => {
+  mockActiveRouteId = null;
+});
+
+// Mock ActiveRouteContext
+vi.mock('@/contexts/ActiveRouteContext', () => ({
+  useActiveRoute: () => ({
+    activeRouteId: mockActiveRouteId,
+    isLoading: false,
+    setActiveRoute: mockContextSetActiveRoute,
+    clearActiveRoute: mockContextClearActiveRoute,
+    refresh: vi.fn(),
+  }),
+}));
+
 // Import after mocks
 import { useRoutes, __resetCacheForTesting } from '../useRoutes';
 
@@ -110,6 +130,7 @@ describe('useRoutes', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     __resetCacheForTesting();
+    mockActiveRouteId = null; // Reset context state
 
     mockGetRoutes.mockResolvedValue(mockRoutes);
     mockGetActiveRoute.mockResolvedValue(null);
@@ -248,12 +269,13 @@ describe('useRoutes', () => {
         await result.current.setActiveRoute('route-1');
       });
 
-      expect(mockSetActiveRoute).toHaveBeenCalledWith('route-1');
-      expect(result.current.activeRouteId).toBe('route-1');
+      // Uses context mock (not service mock) after refactor
+      expect(mockContextSetActiveRoute).toHaveBeenCalledWith('route-1');
     });
 
     it('should clear active route', async () => {
-      mockGetActiveRoute.mockResolvedValue({ route_id: 'route-1' });
+      // Set initial active route in context mock
+      mockActiveRouteId = 'route-1';
 
       const { result } = renderHook(() => useRoutes());
 
@@ -265,8 +287,8 @@ describe('useRoutes', () => {
         await result.current.clearActiveRoute();
       });
 
-      expect(mockClearActiveRoute).toHaveBeenCalled();
-      expect(result.current.activeRouteId).toBeNull();
+      // Uses context mock (not service mock) after refactor
+      expect(mockContextClearActiveRoute).toHaveBeenCalled();
     });
   });
 
@@ -411,7 +433,9 @@ describe('useRoutes', () => {
     });
 
     it('should return company IDs from active route', async () => {
-      mockGetActiveRoute.mockResolvedValue({ route_id: 'route-1' });
+      // Set active route in context BEFORE rendering hook
+      mockActiveRouteId = 'route-1';
+
       mockGetRouteCompanies.mockResolvedValue([
         {
           id: 'rc-1',
@@ -435,11 +459,6 @@ describe('useRoutes', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Set active route first
-      await act(async () => {
-        await result.current.setActiveRoute('route-1');
-      });
-
       let ids: Set<string> = new Set();
       await act(async () => {
         ids = await result.current.getActiveRouteCompanyIds();
@@ -453,18 +472,14 @@ describe('useRoutes', () => {
     });
 
     it('should return empty Set on error', async () => {
-      mockGetActiveRoute.mockResolvedValue({ route_id: 'route-1' });
+      // Set active route in context BEFORE rendering hook
+      mockActiveRouteId = 'route-1';
       mockGetRouteCompanies.mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useRoutes());
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
-      });
-
-      // Set active route first
-      await act(async () => {
-        await result.current.setActiveRoute('route-1');
       });
 
       let ids: Set<string> = new Set();

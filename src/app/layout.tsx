@@ -12,6 +12,7 @@ import { ConsentModal } from '@/components/privacy/ConsentModal';
 import GoogleAnalytics from '@/components/atomic/GoogleAnalytics';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { ActiveRouteProvider } from '@/contexts/ActiveRouteContext';
 import { projectConfig } from '@/config/project.config';
 import {
   generateMetadata,
@@ -121,18 +122,20 @@ export default function RootLayout({
         <ConsentProvider>
           <GoogleAnalytics />
           <AuthProvider>
-            <AccessibilityProvider>
-              <GlobalNav />
-              <CountdownBanner />
-              <ErrorBoundary level="page">
-                <main className="min-h-0 flex-1 overflow-hidden">
-                  {children}
-                </main>
-              </ErrorBoundary>
-              <Footer />
-              <CookieConsent />
-              <ConsentModal />
-            </AccessibilityProvider>
+            <ActiveRouteProvider>
+              <AccessibilityProvider>
+                <GlobalNav />
+                <CountdownBanner />
+                <ErrorBoundary level="page">
+                  <main className="min-h-0 flex-1 overflow-hidden">
+                    {children}
+                  </main>
+                </ErrorBoundary>
+                <Footer />
+                <CookieConsent />
+                <ConsentModal />
+              </AccessibilityProvider>
+            </ActiveRouteProvider>
           </AuthProvider>
         </ConsentProvider>
       </body>
