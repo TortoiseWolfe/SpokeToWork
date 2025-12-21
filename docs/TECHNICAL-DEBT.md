@@ -48,7 +48,7 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 **Issue**: Private keys stored as plaintext JWK in IndexedDB, vulnerable to physical device access
 **Mitigations in Place**: HTTPS, browser same-origin policy, CSP headers
 **Recommended Fix**: Implement passphrase-based encryption of IndexedDB entries
-**SpecKit Spec**: `docs/specs/048-indexeddb-encryption/spec.md`
+**SpecKit Spec**: `specs/049-indexeddb-encryption/spec.md`
 
 ### Security: Test Credential Fallbacks
 
@@ -65,6 +65,7 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 **Files**: `src/components/auth/OAuthButtons/OAuthButtons.tsx`, `src/lib/auth/oauth-state.ts`
 **Issue**: Custom CSRF tokens exist but aren't used; relies on Supabase PKCE instead
 **Recommended Fix**: Either use custom tokens consistently or remove dead code
+**SpecKit Spec**: `specs/050-oauth-state-cleanup/spec.md`
 
 ### Performance: Missing Memoization in List Components
 
@@ -75,7 +76,7 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 - `src/components/organisms/ConnectionManager/ConnectionManager.tsx`
   **Issue**: Event handlers not wrapped in `useCallback`, causing child re-renders
   **Recommended Fix**: Add `useCallback` to handlers passed to child components
-  **SpecKit Spec**: `docs/specs/049-performance-optimization/spec.md`
+  **SpecKit Spec**: `specs/051-performance-memoization/spec.md`
 
 ### Performance: Polling Instead of Realtime
 
@@ -87,7 +88,7 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 - `src/lib/supabase/client.ts:131` (30s connection check)
   **Issue**: Timer-based polling when Supabase realtime could be used
   **Recommended Fix**: Replace with Supabase realtime subscriptions
-  **SpecKit Spec**: `docs/specs/049-performance-optimization/spec.md`
+  **SpecKit Spec**: `specs/052-realtime-subscriptions/spec.md`
 
 ### Performance: Duplicate Event Listeners
 
@@ -95,7 +96,7 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 **Files**: 4 files with online/offline listeners, 5+ with click-outside patterns
 **Issue**: Same global events listened to in multiple places
 **Recommended Fix**: Create unified hooks: `useOnlineStatus`, `useClickOutside`, `useVisibilityChange`
-**SpecKit Spec**: `docs/specs/049-performance-optimization/spec.md`
+**SpecKit Spec**: `specs/053-unified-event-hooks/spec.md`
 
 ---
 
@@ -208,16 +209,17 @@ All are legitimate and properly documented:
 
 Specs are numbered in recommended execution order based on dependency analysis.
 
-| Spec Number | Title                             | Priority | Status       |
-| ----------- | --------------------------------- | -------- | ------------ |
-| 045         | Dead Code Cleanup                 | P2       | **COMPLETE** |
-| 046         | Dependency Infrastructure Updates | P2       | **COMPLETE** |
-| 047         | Test Security Hardening           | P1       | Open         |
-| 048         | IndexedDB Encryption              | P1       | Open         |
-| 049         | Performance Optimization          | P1       | Open         |
-| 050         | Code Consolidation                | P2       | Open         |
-| 051         | CI Test Memory Optimization       | P1       | **COMPLETE** |
-| 052         | Test Coverage Expansion           | P2       | Open         |
+| Spec Number | Title                          | Priority | Status       |
+| ----------- | ------------------------------ | -------- | ------------ |
+| 045         | Map Font Legibility (MapLibre) | P1       | **COMPLETE** |
+| 046         | Route Optimization             | P1       | **COMPLETE** |
+| 047         | Route Sidebar UX               | P1       | **COMPLETE** |
+| 048         | OpenRouteService Routing       | P1       | **COMPLETE** |
+| 049         | IndexedDB Encryption           | P1       | Open         |
+| 050         | OAuth State Cleanup            | P1       | Open         |
+| 051         | Performance Memoization        | P1       | Open         |
+| 052         | Realtime Subscriptions         | P1       | Open         |
+| 053         | Unified Event Hooks            | P1       | Open         |
 
 ### Spec 051 Progress (2025-12-13) - COMPLETE
 

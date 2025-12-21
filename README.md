@@ -5,6 +5,63 @@
 
 A Progressive Web App for in-person job hunting. Track companies and generate optimized bicycle routes.
 
+---
+
+## 🔴 P1 Priority Specs (Security & Performance)
+
+These are tracked issues from our code review. Run `/speckit.workflow` with the spec path to implement.
+
+### Security Issues
+
+**049 - IndexedDB Private Key Encryption**
+
+```
+/speckit.workflow specs/049-indexeddb-encryption
+```
+
+> Private keys stored as plaintext in IndexedDB. Needs passphrase-based encryption.
+> [View Spec](specs/049-indexeddb-encryption/spec.md)
+
+**050 - OAuth State Token Cleanup**
+
+```
+/speckit.workflow specs/050-oauth-state-cleanup
+```
+
+> Dead CSRF token code exists alongside Supabase PKCE. Remove or consolidate.
+> [View Spec](specs/050-oauth-state-cleanup/spec.md)
+
+### Performance Issues
+
+**051 - Component Memoization**
+
+```
+/speckit.workflow specs/051-performance-memoization
+```
+
+> Event handlers not wrapped in useCallback, causing unnecessary re-renders.
+> [View Spec](specs/051-performance-memoization/spec.md)
+
+**052 - Replace Polling with Realtime**
+
+```
+/speckit.workflow specs/052-realtime-subscriptions
+```
+
+> Timer-based polling (5-30s intervals) should use Supabase Realtime subscriptions.
+> [View Spec](specs/052-realtime-subscriptions/spec.md)
+
+**053 - Unified Browser Event Hooks**
+
+```
+/speckit.workflow specs/053-unified-event-hooks
+```
+
+> Duplicate event listeners (online/offline, click-outside, visibility). Consolidate into hooks.
+> [View Spec](specs/053-unified-event-hooks/spec.md)
+
+---
+
 ## 🚀 Live Demos
 
 - **Main App**: [https://TortoiseWolfe.github.io/SpokeToWork/](https://TortoiseWolfe.github.io/SpokeToWork/)
