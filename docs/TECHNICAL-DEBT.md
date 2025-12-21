@@ -209,21 +209,48 @@ All are legitimate and properly documented:
 
 Specs are numbered in recommended execution order based on dependency analysis.
 
-| Spec Number | Title                          | Priority | Status       |
-| ----------- | ------------------------------ | -------- | ------------ |
-| 045         | Map Font Legibility (MapLibre) | P1       | **COMPLETE** |
-| 046         | Route Optimization             | P1       | **COMPLETE** |
-| 047         | Route Sidebar UX               | P1       | **COMPLETE** |
-| 048         | OpenRouteService Routing       | P1       | **COMPLETE** |
-| 049         | IndexedDB Encryption           | P1       | Open         |
-| 050         | OAuth State Cleanup            | P1       | Open         |
-| 051         | Performance Memoization        | P1       | Open         |
-| 052         | Realtime Subscriptions         | P1       | Open         |
-| 053         | Unified Event Hooks            | P1       | Open         |
-| 054         | Code Consolidation             | P2       | Open         |
-| 055         | Test Coverage Expansion        | P2       | Open         |
+### Feature Specs (specs/ directory)
 
-### Spec 051 Progress (2025-12-13) - COMPLETE
+| Spec | Title                          | Priority | Status       |
+| ---- | ------------------------------ | -------- | ------------ |
+| 041  | Bicycle Route Planning         | P1       | **COMPLETE** |
+| 042  | Test Memory Optimization       | P1       | **COMPLETE** |
+| 043  | Fix CI OOM                     | P1       | **COMPLETE** |
+| 044  | Simplify Next Ride             | P1       | **COMPLETE** |
+| 045  | Map Font Legibility (MapLibre) | P1       | **COMPLETE** |
+| 046  | Route Optimization             | P1       | **COMPLETE** |
+| 047  | Route Sidebar UX               | P1       | **COMPLETE** |
+| 048  | OpenRouteService Routing       | P1       | **COMPLETE** |
+
+### Code Review Remediation Specs (P1 Security & Performance)
+
+| Spec | Title                   | Priority | Status |
+| ---- | ----------------------- | -------- | ------ |
+| 049  | IndexedDB Encryption    | P1       | Open   |
+| 050  | OAuth State Cleanup     | P1       | Open   |
+| 051  | Performance Memoization | P1       | Open   |
+| 052  | Realtime Subscriptions  | P1       | Open   |
+| 053  | Unified Event Hooks     | P1       | Open   |
+
+### Code Review Remediation Specs (P2 Quality)
+
+| Spec | Title                   | Priority | Status |
+| ---- | ----------------------- | -------- | ------ |
+| 054  | Code Consolidation      | P2       | Open   |
+| 055  | Test Coverage Expansion | P2       | Open   |
+
+### Historical Code Review Items (Pre-Feature Numbering)
+
+These were completed before the current spec numbering system:
+
+| Item                              | Priority | Status       | Notes                                  |
+| --------------------------------- | -------- | ------------ | -------------------------------------- |
+| Dead Code Cleanup                 | P2       | **COMPLETE** | Removed unused code, placeholder tests |
+| Dependency Infrastructure Updates | P2       | **COMPLETE** | Updated build tooling                  |
+| Test Security Hardening           | P1       | **COMPLETE** | Removed hardcoded test credentials     |
+| CI Test Memory Optimization       | P1       | **COMPLETE** | Fixed OOM in accessibility tests       |
+
+### Spec 042/043 Progress (2025-12-13) - COMPLETE
 
 All P0 and P1 requirements complete. 93/93 accessibility tests pass in CI.
 
