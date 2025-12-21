@@ -60,6 +60,26 @@ These are tracked issues from our code review. Run `/speckit.workflow` with the 
 > Duplicate event listeners (online/offline, click-outside, visibility). Consolidate into hooks.
 > [View Spec](specs/053-unified-event-hooks/spec.md)
 
+### P2 Code Quality Issues
+
+**054 - Code Consolidation**
+
+```
+/speckit.workflow specs/054-code-consolidation
+```
+
+> Duplicate implementations (offline queue, audit logger, email validation, rate limiter).
+> [View Spec](specs/054-code-consolidation/spec.md)
+
+**055 - Test Coverage Expansion**
+
+```
+/speckit.workflow specs/055-test-coverage
+```
+
+> ~54% coverage in lib/services/hooks. Critical payment and auth files untested.
+> [View Spec](specs/055-test-coverage/spec.md)
+
 ---
 
 ## 🚀 Live Demos

@@ -110,14 +110,14 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 - `src/services/messaging/offline-queue-service.ts` (Dexie for messages)
 - `src/lib/payments/offline-queue.ts` (Dexie for payments)
   **Recommended Fix**: Create unified abstraction in `src/lib/offline-queue/`
-  **SpecKit Spec**: `docs/specs/050-code-consolidation/spec.md`
+  **SpecKit Spec**: `specs/054-code-consolidation/spec.md`
 
 #### Audit Logger (2 implementations)
 
 - `src/lib/auth/audit-logger.ts` (functional)
 - `src/services/auth/audit-logger.ts` (OOP class)
   **Recommended Fix**: Consolidate into single OOP pattern
-  **SpecKit Spec**: `docs/specs/050-code-consolidation/spec.md`
+  **SpecKit Spec**: `specs/054-code-consolidation/spec.md`
 
 #### Email Validation (3 implementations)
 
@@ -125,14 +125,14 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 - `src/lib/messaging/validation.ts`
 - `src/lib/validation/patterns.ts`
   **Recommended Fix**: Use auth version everywhere
-  **SpecKit Spec**: `docs/specs/050-code-consolidation/spec.md`
+  **SpecKit Spec**: `specs/054-code-consolidation/spec.md`
 
 #### Rate Limiting (2 implementations)
 
 - `src/lib/auth/rate-limiter.ts` (client-side localStorage)
 - `src/lib/auth/rate-limit-check.ts` (server-side RPC)
   **Recommended Fix**: Document use cases or remove client version
-  **SpecKit Spec**: `docs/specs/050-code-consolidation/spec.md`
+  **SpecKit Spec**: `specs/054-code-consolidation/spec.md`
 
 ### Code Quality: Dead Code & Stubs - COMPLETE
 
@@ -182,7 +182,7 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 - And 5 more...
 
 **Overall Coverage**: ~54% of lib/services/hooks files have tests
-**SpecKit Spec**: `docs/specs/052-test-coverage/spec.md`
+**SpecKit Spec**: `specs/055-test-coverage/spec.md`
 
 ---
 
@@ -220,6 +220,8 @@ Specs are numbered in recommended execution order based on dependency analysis.
 | 051         | Performance Memoization        | P1       | Open         |
 | 052         | Realtime Subscriptions         | P1       | Open         |
 | 053         | Unified Event Hooks            | P1       | Open         |
+| 054         | Code Consolidation             | P2       | Open         |
+| 055         | Test Coverage Expansion        | P2       | Open         |
 
 ### Spec 051 Progress (2025-12-13) - COMPLETE
 
