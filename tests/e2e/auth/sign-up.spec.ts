@@ -32,7 +32,7 @@ test.describe('Sign-up E2E Tests (Feature 027)', () => {
   test('should complete sign-up with valid credentials', async ({ page }) => {
     // Use a simple email format that Supabase accepts
     const timestamp = Date.now();
-    const testEmail = `test-signup-${timestamp}@example.com`;
+    const testEmail = `test-signup-${timestamp}@mailinator.com`;
     createdEmails.push(testEmail);
 
     await page.goto('/sign-up');

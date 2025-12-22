@@ -10,7 +10,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Protected Routes E2E', () => {
-  const testEmail = `e2e-protected-${Date.now()}@example.com`;
+  const testEmail = `e2e-protected-${Date.now()}@mailinator.com`;
   const testPassword = 'ValidPass123!';
 
   test('should redirect unauthenticated users to sign-in', async ({ page }) => {
@@ -60,7 +60,7 @@ test.describe('Protected Routes E2E', () => {
 
   test('should enforce RLS policies on payment access', async ({ page }) => {
     // Step 1: Create first user
-    const user1Email = `e2e-rls-1-${Date.now()}@example.com`;
+    const user1Email = `e2e-rls-1-${Date.now()}@mailinator.com`;
     await page.goto('/sign-up');
     await page.getByLabel('Email').fill(user1Email);
     await page.getByLabel('Password', { exact: true }).fill(testPassword);
@@ -77,7 +77,7 @@ test.describe('Protected Routes E2E', () => {
     await page.waitForURL(/\/sign-in/);
 
     // Step 4: Create second user
-    const user2Email = `e2e-rls-2-${Date.now()}@example.com`;
+    const user2Email = `e2e-rls-2-${Date.now()}@mailinator.com`;
     await page.goto('/sign-up');
     await page.getByLabel('Email').fill(user2Email);
     await page.getByLabel('Password', { exact: true }).fill(testPassword);
@@ -194,7 +194,7 @@ test.describe('Protected Routes E2E', () => {
     await page.goto('/sign-up');
     await page
       .getByLabel('Email')
-      .fill(`delete-test-${Date.now()}@example.com`);
+      .fill(`delete-test-${Date.now()}@mailinator.com`);
     await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByLabel('Confirm Password').fill(testPassword);
     await page.getByRole('button', { name: 'Sign Up' }).click();

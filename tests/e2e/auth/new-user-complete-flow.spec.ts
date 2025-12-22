@@ -184,7 +184,7 @@ test.describe('New User Complete Flow', () => {
   test('Complete new user journey: signup -> companies -> signout', async ({
     page,
   }) => {
-    const testEmail = `e2e-new-user-${Date.now()}@example.com`;
+    const testEmail = `e2e-new-user-${Date.now()}@mailinator.com`;
     let testUserId: string | null = null;
 
     try {

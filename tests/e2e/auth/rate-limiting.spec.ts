@@ -12,7 +12,7 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('Rate Limiting - User Experience', () => {
-  const testEmail = `ratelimit-test-${Date.now()}@example.com`;
+  const testEmail = `ratelimit-test-${Date.now()}@mailinator.com`;
   const testPassword = 'WrongPassword123!';
 
   test.beforeEach(async ({ page }) => {
@@ -75,7 +75,7 @@ test.describe('Rate Limiting - User Experience', () => {
   });
 
   test('should show remaining time until unlock', async ({ page }) => {
-    const uniqueEmail = `ratelimit-timer-${Date.now()}@example.com`;
+    const uniqueEmail = `ratelimit-timer-${Date.now()}@mailinator.com`;
 
     // Trigger rate limit
     for (let i = 0; i < 5; i++) {
@@ -98,8 +98,8 @@ test.describe('Rate Limiting - User Experience', () => {
   test('should allow different users to sign in independently', async ({
     page,
   }) => {
-    const blockedEmail = `blocked-${Date.now()}@example.com`;
-    const allowedEmail = `allowed-${Date.now()}@example.com`;
+    const blockedEmail = `blocked-${Date.now()}@mailinator.com`;
+    const allowedEmail = `allowed-${Date.now()}@mailinator.com`;
 
     // Block first user
     for (let i = 0; i < 5; i++) {
@@ -135,7 +135,7 @@ test.describe('Rate Limiting - User Experience', () => {
   test('should track sign-up and sign-in attempts separately', async ({
     page,
   }) => {
-    const email = `separate-limits-${Date.now()}@example.com`;
+    const email = `separate-limits-${Date.now()}@mailinator.com`;
 
     // Exhaust sign-in attempts
     for (let i = 0; i < 5; i++) {
@@ -173,7 +173,7 @@ test.describe('Rate Limiting - User Experience', () => {
   test('should show clear error message with actionable information', async ({
     page,
   }) => {
-    const email = `clear-message-${Date.now()}@example.com`;
+    const email = `clear-message-${Date.now()}@mailinator.com`;
 
     // Trigger rate limit
     for (let i = 0; i < 5; i++) {
@@ -206,7 +206,7 @@ test.describe('Rate Limiting - User Experience', () => {
 
 test.describe('Rate Limiting - Password Reset', () => {
   test('should rate limit password reset requests', async ({ page }) => {
-    const email = `password-reset-${Date.now()}@example.com`;
+    const email = `password-reset-${Date.now()}@mailinator.com`;
 
     await page.goto('/forgot-password');
 
