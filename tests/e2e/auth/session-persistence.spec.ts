@@ -17,7 +17,7 @@ test.describe('Session Persistence E2E', () => {
     // Create test user
     await page.goto('/sign-up');
     await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByLabel('Confirm Password').fill(testPassword);
     await page.getByRole('button', { name: 'Sign Up' }).click();
     await page.waitForURL(/\/(verify-email|profile)/);
@@ -33,7 +33,7 @@ test.describe('Session Persistence E2E', () => {
     // Sign in with Remember Me
     await page.goto('/sign-in');
     await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByLabel('Remember Me').check();
     await page.getByRole('button', { name: 'Sign In' }).click();
 
@@ -72,7 +72,7 @@ test.describe('Session Persistence E2E', () => {
     // Sign in WITHOUT Remember Me
     await page.goto('/sign-in');
     await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     // Do NOT check Remember Me
     await page.getByRole('button', { name: 'Sign In' }).click();
 
@@ -95,7 +95,7 @@ test.describe('Session Persistence E2E', () => {
     // Sign in
     await page.goto('/sign-in');
     await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByRole('button', { name: 'Sign In' }).click();
     await page.waitForURL(/\/(profile|verify-email)/);
 
@@ -136,7 +136,7 @@ test.describe('Session Persistence E2E', () => {
     // Sign in with Remember Me
     await page.goto('/sign-in');
     await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByLabel('Remember Me').check();
     await page.getByRole('button', { name: 'Sign In' }).click();
     await page.waitForURL(/\/(profile|verify-email)/);
@@ -164,7 +164,7 @@ test.describe('Session Persistence E2E', () => {
     // Sign in
     await page.goto('/sign-in');
     await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByRole('button', { name: 'Sign In' }).click();
     await page.waitForURL(/\/(profile|verify-email)/);
 
@@ -208,7 +208,7 @@ test.describe('Session Persistence E2E', () => {
     // Sign in on page 1
     await page1.goto('/sign-in');
     await page1.getByLabel('Email').fill(testEmail);
-    await page1.getByLabel('Password').fill(testPassword);
+    await page1.getByLabel('Password', { exact: true }).fill(testPassword);
     await page1.getByRole('button', { name: 'Sign In' }).click();
     await page1.waitForURL(/\/(profile|verify-email)/);
 
@@ -236,7 +236,7 @@ test.describe('Session Persistence E2E', () => {
     // Sign in
     await page.goto('/sign-in');
     await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByRole('button', { name: 'Sign In' }).click();
     await page.waitForURL(/\/(profile|verify-email)/);
 
@@ -262,7 +262,7 @@ test.describe('Session Persistence E2E', () => {
     // For demonstration, test the refresh mechanism
     await page.goto('/sign-in');
     await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByRole('button', { name: 'Sign In' }).click();
     await page.waitForURL(/\/(profile|verify-email)/);
 
