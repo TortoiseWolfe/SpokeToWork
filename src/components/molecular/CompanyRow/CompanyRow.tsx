@@ -1,6 +1,6 @@
 'use client';
 
-import React, { memo } from 'react';
+import React, { memo, useRef } from 'react';
 import type {
   Company,
   CompanyWithApplications,
@@ -125,6 +125,13 @@ function CompanyRowComponent({
   className = '',
   testId = 'company-row',
 }: CompanyRowProps) {
+  // Feature 051: Render counter for E2E verification of memoization
+  // Only tracked in development/test mode
+  const renderCount = useRef(0);
+  if (process.env.NODE_ENV !== 'production') {
+    renderCount.current += 1;
+  }
+
   const handleRowClick = () => {
     if (onClick) onClick(company);
   };
@@ -159,6 +166,9 @@ function CompanyRowComponent({
   return (
     <tr
       data-testid={testId}
+      data-render-count={
+        process.env.NODE_ENV !== 'production' ? renderCount.current : undefined
+      }
       className={`hover cursor-pointer ${isSelected ? 'active' : ''} ${!company.is_active ? 'opacity-60' : ''} ${className}`}
       onClick={handleRowClick}
     >

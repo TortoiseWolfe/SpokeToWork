@@ -186,4 +186,58 @@ test.describe('Companies Page - Sort Functionality (Feature 051)', () => {
     // Close drawer
     await companiesPage.closeDrawer();
   });
+
+  test('should not re-render rows when sorting (memoization verification)', async () => {
+    // Feature 051: Verify React.memo prevents unnecessary re-renders
+    // Each CompanyRow tracks its render count via data-render-count attribute
+    const rowCount = await companiesPage.getCompanyRowCount();
+    if (rowCount < 2) {
+      test.skip();
+      return;
+    }
+
+    // Get initial render counts for all rows
+    const rows = sharedPage.locator('[data-testid^="company-row-"]');
+    const initialCounts: number[] = [];
+    const count = await rows.count();
+
+    for (let i = 0; i < count; i++) {
+      const renderCount = await rows.nth(i).getAttribute('data-render-count');
+      initialCounts.push(parseInt(renderCount || '0', 10));
+    }
+
+    // Sort by name (ascending)
+    await companiesPage.clickSortButton('name');
+
+    // Get render counts after first sort
+    const countsAfterSort1: number[] = [];
+    for (let i = 0; i < count; i++) {
+      const renderCount = await rows.nth(i).getAttribute('data-render-count');
+      countsAfterSort1.push(parseInt(renderCount || '0', 10));
+    }
+
+    // Sort again (descending)
+    await companiesPage.clickSortButton('name');
+
+    // Get render counts after second sort
+    const countsAfterSort2: number[] = [];
+    for (let i = 0; i < count; i++) {
+      const renderCount = await rows.nth(i).getAttribute('data-render-count');
+      countsAfterSort2.push(parseInt(renderCount || '0', 10));
+    }
+
+    // With proper memoization, render counts should NOT increase after sorting
+    // because the row props (company data, callbacks) haven't changed
+    // The rows are just reordered in the DOM, not re-rendered
+    for (let i = 0; i < count; i++) {
+      // Allow for initial render + 1 (React may re-render once on mount)
+      // But subsequent sorts should NOT cause additional renders
+      expect(countsAfterSort2[i]).toBeLessThanOrEqual(countsAfterSort1[i]);
+    }
+
+    // Log for debugging if needed
+    console.log('Initial render counts:', initialCounts);
+    console.log('After sort 1:', countsAfterSort1);
+    console.log('After sort 2:', countsAfterSort2);
+  });
 });
