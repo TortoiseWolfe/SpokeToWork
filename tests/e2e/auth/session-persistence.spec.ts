@@ -10,7 +10,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Session Persistence E2E', () => {
-  const testEmail = `e2e-session-${Date.now()}@example.com`;
+  const testEmail = `e2e-session-${Date.now()}@mailinator.com`;
   const testPassword = 'ValidPass123!';
 
   test.beforeEach(async ({ page }) => {

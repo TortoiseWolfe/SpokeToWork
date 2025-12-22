@@ -5,7 +5,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Brute Force Prevention - REQ-SEC-003', () => {
-  const testEmail = `brute-force-test-${Date.now()}@example.com`;
+  const testEmail = `brute-force-test-${Date.now()}@mailinator.com`;
   const wrongPassword = 'WrongPassword123!';
 
   test('should lockout after 5 failed login attempts', async ({ page }) => {
@@ -92,7 +92,7 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
   });
 
   test('should show remaining attempts counter', async ({ page }) => {
-    const uniqueEmail = `attempts-test-${Date.now()}@example.com`;
+    const uniqueEmail = `attempts-test-${Date.now()}@mailinator.com`;
 
     await page.goto('/sign-in');
 
@@ -118,8 +118,8 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
   });
 
   test('should track different users independently', async ({ browser }) => {
-    const userA = `user-a-${Date.now()}@example.com`;
-    const userB = `user-b-${Date.now()}@example.com`;
+    const userA = `user-a-${Date.now()}@mailinator.com`;
+    const userB = `user-b-${Date.now()}@mailinator.com`;
 
     const contextA = await browser.newContext();
     const pageA = await contextA.newPage();
@@ -159,7 +159,7 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
   test('should track different attempt types independently', async ({
     page,
   }) => {
-    const email = `types-test-${Date.now()}@example.com`;
+    const email = `types-test-${Date.now()}@mailinator.com`;
 
     // Lock out sign_in attempts
     await page.goto('/sign-in');
@@ -189,7 +189,7 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
   test('should not bypass rate limiting by clearing localStorage', async ({
     page,
   }) => {
-    const email = `bypass-test-${Date.now()}@example.com`;
+    const email = `bypass-test-${Date.now()}@mailinator.com`;
 
     await page.goto('/sign-in');
 
@@ -216,7 +216,7 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
   });
 
   test('should display lockout expiration time', async ({ page }) => {
-    const email = `lockout-time-${Date.now()}@example.com`;
+    const email = `lockout-time-${Date.now()}@mailinator.com`;
 
     await page.goto('/sign-in');
 

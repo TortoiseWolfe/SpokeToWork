@@ -57,7 +57,7 @@ export function getAdminClient(): SupabaseClient | null {
  * @returns TestUser object with id, email, password
  *
  * @example
- * const user = await createTestUser('test@example.com', 'Password123!');
+ * const user = await createTestUser('test@mailinator.com', 'Password123!');
  * // user is now created and email-confirmed
  * await deleteTestUser(user.id);
  */
@@ -254,7 +254,7 @@ export function isAdminClientAvailable(): boolean {
  * Generate a unique test email
  */
 export function generateTestEmail(prefix = 'e2e-test'): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@mailinator.com`;
 }
 
 /**
