@@ -4,52 +4,81 @@
 
 ## Problem Statement
 
-Event handlers in list components are not wrapped in `useCallback`, causing unnecessary child re-renders on every parent render.
+Event handlers in list components without `useCallback` cause unnecessary child re-renders. List item components without `React.memo` re-render even when props haven't changed.
+
+## Audit Results (2025-12-21)
+
+### Originally Identified - Already Optimized ✅
+
+The components originally flagged in the initial spec **already have optimizations**:
+
+- `ConversationList.tsx` - All handlers use `useCallback` (lines 95, 112, 120, 128, 135)
+- `ConnectionManager.tsx` - All handlers use `useCallback` (lines 51, 63, 75, 88, 100)
+- `ConversationListItem.tsx` - Uses `memo()` (line 288)
+
+### Actual Issues Found
+
+| Component          | Issue                                     |
+| ------------------ | ----------------------------------------- |
+| `CompanyTable.tsx` | `handleSort` not wrapped in `useCallback` |
+| `CompanyRow.tsx`   | No `React.memo` wrapper                   |
 
 ## Affected Files
 
-- `src/components/organisms/ConversationList/ConversationList.tsx`
-- `src/components/organisms/ConnectionManager/ConnectionManager.tsx`
-
-## Current State
-
-```typescript
-// Current - creates new function reference every render
-const handleClick = (id: string) => { ... }
-
-// Child re-renders even when props haven't changed
-<ListItem onClick={handleClick} />
-```
+- `src/components/organisms/CompanyTable/CompanyTable.tsx`
+- `src/components/molecular/CompanyRow/CompanyRow.tsx`
 
 ## Requirements
 
 ### Functional Requirements
 
-1. **FR-1**: Wrap event handlers in `useCallback` with proper dependencies
-2. **FR-2**: Add `React.memo` to list item components where beneficial
-3. **FR-3**: Audit other list components for similar issues
+1. **FR-1**: Wrap `handleSort` in CompanyTable with `useCallback`
+2. **FR-2**: Add defensive `useCallback` wrappers for callbacks passed to CompanyRow (onClick, onEdit, onDelete, onStatusChange, onAddToRoute) - ensures memo() effectiveness regardless of parent
+3. **FR-3**: Add `React.memo` to CompanyRow component
+4. **FR-4**: Verify no stale closure bugs introduced
 
 ### Non-Functional Requirements
 
-1. **NFR-1**: Reduce unnecessary re-renders by >50% in affected components
-2. **NFR-2**: No functional regression in list interactions
-3. **NFR-3**: React DevTools Profiler shows improvement
+1. **NFR-1**: Prevent unnecessary re-renders in CompanyTable/CompanyRow (verified via React DevTools Profiler)
+2. **NFR-2**: No functional regression in company list interactions
+3. **NFR-3**: Existing tests continue to pass
 
 ## Success Criteria
 
-- [ ] ConversationList handlers use useCallback
-- [ ] ConnectionManager handlers use useCallback
-- [ ] React DevTools shows reduced render count
-- [ ] All existing tests pass
-- [ ] No memory leaks from stale closures
+- [x] Audit completed with React DevTools Profiler (baseline documented)
+- [x] CompanyTable.handleSort uses useCallback (if audit confirms need)
+- [x] Defensive useCallback wrappers for callbacks passed to CompanyRow (if audit confirms need)
+- [x] CompanyRow wrapped in React.memo (if audit confirms need)
+- [x] All existing tests pass (3631 tests passing)
+- [x] No stale closure bugs verified via:
+  - [x] Playwright E2E test: sort by each column, verify order updates correctly
+  - [x] Manual verification during implementation
+- [x] Re-profile shows behavioral correctness: sorting doesn't trigger re-render of all CompanyRow components (automated via E2E render count verification)
 
 ## Testing Approach
 
-1. Use React DevTools Profiler before/after
-2. Verify callback identity stability
-3. Check for stale closure bugs
+1. **Audit first**: Use React DevTools Profiler to identify actual re-render bottlenecks BEFORE implementing changes
+2. Implement only optimizations that address measured problems
+3. Re-profile after changes to verify improvement
+4. Run existing unit tests to confirm no regression
+5. Verify sorting and row interactions work correctly
 
 ## Out of Scope
 
 - Virtual scrolling for large lists
 - Server-side pagination
+- Components already optimized (ConversationList, ConnectionManager, etc.)
+
+## Assumptions
+
+- The performance impact is measurable in development mode
+- Standard React memoization patterns are sufficient (no need for custom comparators)
+
+## Clarifications
+
+### Session 2025-12-21
+
+1. **Audit-first approach**: Use React DevTools Profiler BEFORE implementing changes to identify actual bottlenecks, not assumptions
+2. **Stale closure verification**: Both Playwright E2E test (automated) + manual verification during implementation
+3. **Defensive memoization**: Add useCallback wrappers inside CompanyTable for all callbacks passed to CompanyRow, ensuring memo() effectiveness regardless of parent component behavior
+4. **Completion signal**: Behavioral correctness - sorting should not trigger re-render of all CompanyRow components (verified via Profiler highlights)

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { memo, useRef } from 'react';
 import type {
   Company,
   CompanyWithApplications,
@@ -108,9 +108,12 @@ function getCompanyId(company: CompanyType): string {
  * - Priority indicator
  * - Quick action buttons
  *
+ * FR-3: Wrapped with React.memo to prevent unnecessary re-renders
+ * when props haven't changed (works with defensive useCallback in CompanyTable)
+ *
  * @category molecular
  */
-export default function CompanyRow({
+function CompanyRowComponent({
   company,
   onClick,
   onEdit,
@@ -122,6 +125,13 @@ export default function CompanyRow({
   className = '',
   testId = 'company-row',
 }: CompanyRowProps) {
+  // Feature 051: Render counter for E2E verification of memoization
+  // Only tracked in development/test mode
+  const renderCount = useRef(0);
+  if (process.env.NODE_ENV !== 'production') {
+    renderCount.current += 1;
+  }
+
   const handleRowClick = () => {
     if (onClick) onClick(company);
   };
@@ -156,6 +166,9 @@ export default function CompanyRow({
   return (
     <tr
       data-testid={testId}
+      data-render-count={
+        process.env.NODE_ENV !== 'production' ? renderCount.current : undefined
+      }
       className={`hover cursor-pointer ${isSelected ? 'active' : ''} ${!company.is_active ? 'opacity-60' : ''} ${className}`}
       onClick={handleRowClick}
     >
@@ -443,3 +456,9 @@ export default function CompanyRow({
     </tr>
   );
 }
+
+// FR-3: Export with React.memo wrapper
+const CompanyRow = memo(CompanyRowComponent);
+CompanyRow.displayName = 'CompanyRow';
+
+export default CompanyRow;
