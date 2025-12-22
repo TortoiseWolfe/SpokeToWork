@@ -1,7 +1,7 @@
 /**
  * Seed Job Applications for Cleveland, TN Job Search
  *
- * Run with: docker compose exec spoketowork npx tsx scripts/seed-job-applications.ts --user-email=JonPohlner@gmail.com
+ * Run with: docker compose exec spoketowork npx tsx scripts/seed-job-applications.ts --user-email=jonpohlner@gmail.com
  *
  * Uses Management API to bypass RLS and seed job applications for a user.
  */
