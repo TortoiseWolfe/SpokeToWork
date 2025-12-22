@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { useColorblindMode } from '@/hooks/useColorblindMode';
+import { useClickOutside } from '@/hooks/useClickOutside';
 import { ColorblindType, COLORBLIND_LABELS } from '@/utils/colorblind';
 
 export interface ColorblindToggleProps {
@@ -14,25 +15,21 @@ export const ColorblindToggle: React.FC<ColorblindToggleProps> = ({
   const { mode, setColorblindMode, patternsEnabled, togglePatterns } =
     useColorblindMode();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = useState(false);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        // Close the dropdown by removing focus
-        const activeElement = document.activeElement as HTMLElement;
-        if (activeElement && dropdownRef.current.contains(activeElement)) {
-          activeElement.blur();
-        }
+  // FR-007: Use unified click-outside hook
+  useClickOutside(
+    dropdownRef,
+    () => {
+      setIsOpen(false);
+      // Close DaisyUI dropdown by removing focus
+      const activeElement = document.activeElement as HTMLElement;
+      if (activeElement && dropdownRef.current?.contains(activeElement)) {
+        activeElement.blur();
       }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    },
+    isOpen
+  );
 
   const colorblindOptions = [
     { value: ColorblindType.NONE, label: 'No Correction Needed' },
@@ -94,6 +91,7 @@ export const ColorblindToggle: React.FC<ColorblindToggleProps> = ({
         }
         aria-label="Color Vision Assistance"
         title="Color vision assistance"
+        onFocus={() => setIsOpen(true)}
       >
         <IconComponent className="h-4 w-4 sm:h-5 sm:w-5" />
         {!isCompact && <span className="hidden sm:inline">Color Vision</span>}
