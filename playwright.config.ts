@@ -59,6 +59,8 @@ export default defineConfig({
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: process.env.BASE_URL || 'http://localhost:3000',
+    /* Pre-seed localStorage with cookie consent to prevent banner blocking */
+    storageState: './tests/e2e/fixtures/storage-state.json',
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
     /* Take screenshot on every failure */

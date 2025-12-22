@@ -1,5 +1,6 @@
 /**
  * E2E Test: Protected Routes (T067)
+ * Updated: 062-fix-e2e-auth
  *
  * Tests protected route access, RLS policy enforcement, and cascade delete:
  * - Verify protected routes redirect unauthenticated users
@@ -16,19 +17,16 @@ import {
   generateTestEmail,
   DEFAULT_TEST_PASSWORD,
 } from '../utils/test-user-factory';
+import { loginAndVerify } from '../utils/auth-helpers';
 
 test.describe('Protected Routes E2E', () => {
-  let testUser: { id: string; email: string; password: string } | null = null;
-  const testPassword = DEFAULT_TEST_PASSWORD || 'ValidPass123!';
+  let testUser: { id: string; email: string; password: string };
 
   test.beforeAll(async () => {
     // Create test user with email pre-confirmed via admin API
+    // Note: createTestUser now throws on failure (fail-fast pattern)
     const email = generateTestEmail('e2e-protected');
-    testUser = await createTestUser(email, testPassword);
-
-    if (!testUser) {
-      console.error('Failed to create test user - some tests will be skipped');
-    }
+    testUser = await createTestUser(email, DEFAULT_TEST_PASSWORD);
   });
 
   test.afterAll(async () => {
@@ -54,19 +52,11 @@ test.describe('Protected Routes E2E', () => {
   test('should allow authenticated users to access protected routes', async ({
     page,
   }) => {
-    if (!testUser) {
-      test.skip();
-      return;
-    }
-
-    // Sign in with pre-confirmed user
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(testUser.email);
-    await page.getByLabel('Password', { exact: true }).fill(testUser.password);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-
-    // Wait for redirect to profile
-    await page.waitForURL(/\/profile/);
+    // Sign in with pre-confirmed user using robust helper
+    await loginAndVerify(page, {
+      email: testUser.email,
+      password: testUser.password,
+    });
 
     // Access protected routes
     const protectedRoutes = [
@@ -92,21 +82,15 @@ test.describe('Protected Routes E2E', () => {
     const user1Email = generateTestEmail('e2e-rls-1');
     const user2Email = generateTestEmail('e2e-rls-2');
 
-    const user1 = await createTestUser(user1Email, testPassword);
-    const user2 = await createTestUser(user2Email, testPassword);
-
-    if (!user1 || !user2) {
-      test.skip();
-      return;
-    }
+    const user1 = await createTestUser(user1Email, DEFAULT_TEST_PASSWORD);
+    const user2 = await createTestUser(user2Email, DEFAULT_TEST_PASSWORD);
 
     try {
-      // Sign in as user 1
-      await page.goto('/sign-in');
-      await page.getByLabel('Email').fill(user1.email);
-      await page.getByLabel('Password', { exact: true }).fill(user1.password);
-      await page.getByRole('button', { name: 'Sign In' }).click();
-      await page.waitForURL(/\/profile/);
+      // Sign in as user 1 using robust helper
+      await loginAndVerify(page, {
+        email: user1.email,
+        password: user1.password,
+      });
 
       // Access payment demo and verify user's own data
       await page.goto('/payment-demo');
@@ -144,8 +128,10 @@ test.describe('Protected Routes E2E', () => {
     // Sign up with new user (creates unverified user)
     await page.goto('/sign-up');
     await page.getByLabel('Email').fill(unverifiedEmail);
-    await page.getByLabel('Password', { exact: true }).fill(testPassword);
-    await page.getByLabel('Confirm Password').fill(testPassword);
+    await page
+      .getByLabel('Password', { exact: true })
+      .fill(DEFAULT_TEST_PASSWORD);
+    await page.getByLabel('Confirm Password').fill(DEFAULT_TEST_PASSWORD);
     await page.getByRole('button', { name: 'Sign Up' }).click();
 
     // Should be redirected to verify-email page
@@ -172,17 +158,11 @@ test.describe('Protected Routes E2E', () => {
   });
 
   test('should preserve session across page navigation', async ({ page }) => {
-    if (!testUser) {
-      test.skip();
-      return;
-    }
-
-    // Sign in with pre-confirmed user
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(testUser.email);
-    await page.getByLabel('Password', { exact: true }).fill(testUser.password);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await page.waitForURL(/\/profile/);
+    // Sign in with pre-confirmed user using robust helper
+    await loginAndVerify(page, {
+      email: testUser.email,
+      password: testUser.password,
+    });
 
     // Navigate between protected routes
     await page.goto('/profile');
@@ -202,17 +182,11 @@ test.describe('Protected Routes E2E', () => {
   });
 
   test('should handle session expiration gracefully', async ({ page }) => {
-    if (!testUser) {
-      test.skip();
-      return;
-    }
-
-    // Sign in
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(testUser.email);
-    await page.getByLabel('Password', { exact: true }).fill(testUser.password);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await page.waitForURL(/\/profile/);
+    // Sign in using robust helper
+    await loginAndVerify(page, {
+      email: testUser.email,
+      password: testUser.password,
+    });
 
     // Clear session storage to simulate expired session
     await page.evaluate(() => {
@@ -231,11 +205,6 @@ test.describe('Protected Routes E2E', () => {
   test('should redirect to intended URL after authentication', async ({
     page,
   }) => {
-    if (!testUser) {
-      test.skip();
-      return;
-    }
-
     // Attempt to access protected route while unauthenticated
     await page.goto('/account');
     await page.waitForURL(/\/sign-in/);
@@ -258,21 +227,16 @@ test.describe('Protected Routes E2E', () => {
   }) => {
     // Create a dedicated user for deletion test
     const deleteTestEmail = generateTestEmail('delete-test');
-    const deleteUser = await createTestUser(deleteTestEmail, testPassword);
+    const deleteUser = await createTestUser(
+      deleteTestEmail,
+      DEFAULT_TEST_PASSWORD
+    );
 
-    if (!deleteUser) {
-      test.skip();
-      return;
-    }
-
-    // Sign in as the user to be deleted
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(deleteUser.email);
-    await page
-      .getByLabel('Password', { exact: true })
-      .fill(deleteUser.password);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await page.waitForURL(/\/profile/);
+    // Sign in as the user to be deleted using robust helper
+    await loginAndVerify(page, {
+      email: deleteUser.email,
+      password: deleteUser.password,
+    });
 
     // Navigate to account settings
     await page.goto('/account');

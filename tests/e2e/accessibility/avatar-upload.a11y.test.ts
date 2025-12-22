@@ -1,5 +1,6 @@
 /**
  * Accessibility Test: Avatar Upload Component
+ * Updated: 062-fix-e2e-auth
  *
  * Tests WCAG 2.1 AA compliance for avatar upload interface:
  * - Keyboard navigation (Tab, Enter, Escape)
@@ -12,22 +13,40 @@
  * Prerequisites:
  * - Pa11y configured (see .pa11yci.js)
  * - Test server running (pnpm run dev)
- * - Test user authenticated
+ * - Uses createTestUser for dynamic user creation
  */
 
 import { test, expect } from '@playwright/test';
+import {
+  createTestUser,
+  deleteTestUser,
+  generateTestEmail,
+  DEFAULT_TEST_PASSWORD,
+} from '../utils/test-user-factory';
+import { loginAndVerify } from '../utils/auth-helpers';
 
 test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
-  test.beforeEach(async ({ page }) => {
-    // Authenticate test user
-    const testEmail = process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com';
-    const testPassword = process.env.TEST_USER_PRIMARY_PASSWORD!;
+  let testUser: { id: string; email: string; password: string };
 
-    await page.goto('/sign-in');
-    await page.fill('input[type="email"]', testEmail);
-    await page.fill('input[type="password"]', testPassword);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/\/(profile|verify-email)/, { timeout: 10000 });
+  test.beforeAll(async () => {
+    // Create test user with email pre-confirmed via admin API
+    const email = generateTestEmail('e2e-a11y-avatar');
+    testUser = await createTestUser(email, DEFAULT_TEST_PASSWORD);
+  });
+
+  test.afterAll(async () => {
+    // Clean up test user
+    if (testUser) {
+      await deleteTestUser(testUser.id);
+    }
+  });
+
+  test.beforeEach(async ({ page }) => {
+    // Authenticate test user using robust helper
+    await loginAndVerify(page, {
+      email: testUser.email,
+      password: testUser.password,
+    });
 
     // Navigate to Account Settings
     await page.goto('/account');

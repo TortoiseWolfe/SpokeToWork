@@ -5,3 +5,5 @@
  */
 
 export * from './test-user-factory';
+export * from './auth-helpers';
+export * from './consent-helpers';
