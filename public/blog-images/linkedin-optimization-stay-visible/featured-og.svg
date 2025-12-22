@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0077B5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#005885;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg-gradient)"/>
+
+  <!-- Grid pattern -->
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" stroke-width="0.5" opacity="0.1"/>
+  </pattern>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+
+  <!-- Decorative circles -->
+  <circle cx="1050" cy="150" r="80" fill="white" opacity="0.05"/>
+  <circle cx="150" cy="500" r="60" fill="white" opacity="0.05"/>
+  <circle cx="1100" cy="550" r="40" fill="white" opacity="0.03"/>
+
+  <!-- Series badge -->
+  <rect x="480" y="60" width="240" height="36" rx="18" fill="white" opacity="0.2"/>
+  <text x="600" y="85" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="white">
+    LINKEDIN SERIES • PART 4
+  </text>
+
+  <!-- Main Title -->
+  <text x="600" y="180" font-family="Arial, sans-serif" font-size="48" font-weight="bold" text-anchor="middle" fill="white">
+    Stay Visible on LinkedIn
+  </text>
+
+  <!-- Subtitle -->
+  <text x="600" y="240" font-family="Arial, sans-serif" font-size="28" text-anchor="middle" fill="white" opacity="0.9">
+    Networking, Posting &amp; Engagement
+  </text>
+
+  <!-- Feature boxes -->
+  <g transform="translate(100, 300)">
+    <rect x="0" y="0" width="230" height="140" rx="12" fill="white" opacity="0.15"/>
+    <text x="115" y="55" font-family="Arial, sans-serif" font-size="48" text-anchor="middle" fill="white">🍐</text>
+    <text x="115" y="95" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="white">PEAR Framework</text>
+    <text x="115" y="118" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="white" opacity="0.8">Who to connect with</text>
+  </g>
+
+  <g transform="translate(360, 300)">
+    <rect x="0" y="0" width="230" height="140" rx="12" fill="white" opacity="0.15"/>
+    <text x="115" y="55" font-family="Arial, sans-serif" font-size="48" text-anchor="middle" fill="white">☕</text>
+    <text x="115" y="95" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="white">Coffee Chats</text>
+    <text x="115" y="118" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="white" opacity="0.8">Build relationships</text>
+  </g>
+
+  <g transform="translate(620, 300)">
+    <rect x="0" y="0" width="230" height="140" rx="12" fill="white" opacity="0.15"/>
+    <text x="115" y="55" font-family="Arial, sans-serif" font-size="48" text-anchor="middle" fill="white">📢</text>
+    <text x="115" y="95" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="white">Post 2-3x Weekly</text>
+    <text x="115" y="118" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="white" opacity="0.8">Show your work</text>
+  </g>
+
+  <g transform="translate(880, 300)">
+    <rect x="0" y="0" width="230" height="140" rx="12" fill="white" opacity="0.15"/>
+    <text x="115" y="55" font-family="Arial, sans-serif" font-size="48" text-anchor="middle" fill="white">💬</text>
+    <text x="115" y="95" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="white">Add Value</text>
+    <text x="115" y="118" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="white" opacity="0.8">No "great post!"</text>
+  </g>
+
+  <!-- Tagline -->
+  <text x="600" y="510" font-family="Arial, sans-serif" font-size="22" text-anchor="middle" fill="white" opacity="0.85">
+    70-85% of roles filled through networking • 10-15 min/day
+  </text>
+
+  <!-- Bottom badge -->
+  <text x="600" y="585" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" fill="white" opacity="0.6">
+    SpokeToWork
+  </text>
+</svg>

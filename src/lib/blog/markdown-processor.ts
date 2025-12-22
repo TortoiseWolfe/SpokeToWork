@@ -413,6 +413,35 @@ export class MarkdownProcessor {
     // Convert links (after images to avoid conflicts)
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 
+    // Convert tables
+    html = html.replace(
+      /(?:^|\n)(\|.+\|)\n(\|[-:| ]+\|)\n((?:\|.+\|\n?)+)/gm,
+      (match, headerRow, separatorRow, bodyRows) => {
+        // Parse header cells
+        const headers = headerRow
+          .split('|')
+          .filter((cell: string) => cell.trim())
+          .map((cell: string) => `<th>${cell.trim()}</th>`)
+          .join('');
+
+        // Parse body rows
+        const rows = bodyRows
+          .trim()
+          .split('\n')
+          .map((row: string) => {
+            const cells = row
+              .split('|')
+              .filter((cell: string) => cell.trim())
+              .map((cell: string) => `<td>${cell.trim()}</td>`)
+              .join('');
+            return `<tr>${cells}</tr>`;
+          })
+          .join('\n');
+
+        return `<table class="table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
+      }
+    );
+
     // Convert line breaks to paragraphs
     const blocks = html.split(/\n\n+/);
     const processedBlocks = blocks.map((block) => {
@@ -428,6 +457,7 @@ export class MarkdownProcessor {
         trimmed.startsWith('<li') ||
         trimmed.startsWith('<pre') ||
         trimmed.startsWith('<code') ||
+        trimmed.startsWith('<table') ||
         trimmed.includes(CODE_PLACEHOLDER) // Check if it contains placeholder
       ) {
         return trimmed;

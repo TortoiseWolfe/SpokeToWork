@@ -1,83 +1,151 @@
 # E2E Test Failure Analysis Report
 
-**Generated**: 2024-12-22
+**Generated**: 2025-12-22
 **Test Results Path**: test-results/
-**Total Failures**: 49 unique failures (111 with retries)
+**Total Failures**: 98 unique failures (181 with retries)
 
 ## Executive Summary
 
-| Category      | Failures | Primary Root Cause    |
-| ------------- | -------- | --------------------- |
-| auth          | 61       | EMAIL_DOMAIN_REJECTED |
-| accessibility | 50       | AUTH_DEPENDENCY       |
+| Category      | Failures | Primary Root Cause                |
+| ------------- | -------- | --------------------------------- |
+| auth          | 89       | AUTH_FAILURE / VERIFY_EMAIL       |
+| accessibility | 50       | ELEMENT_MISSING / AUTH_DEPENDENCY |
+| companies     | 23       | ELEMENT_MISSING                   |
+| avatar        | 16       | ELEMENT_MISSING                   |
+| blog          | 3        | INVALID_CREDENTIALS               |
 
-**CRITICAL FINDING**: The password selector fix (`{ exact: true }`) worked - password fields are now being filled correctly. However, a **new blocking issue** has been identified.
+## Severity Breakdown
+
+| Severity | Count | Description                          |
+| -------- | ----- | ------------------------------------ |
+| CRITICAL | 29    | Core auth flows broken               |
+| HIGH     | 39    | Accessibility tests blocked by auth  |
+| MEDIUM   | 23    | Companies tests - element mismatches |
+| LOW      | 7     | Blog screenshot tests - wrong creds  |
 
 ## Root Cause Analysis
 
-### EMAIL_DOMAIN_REJECTED (Primary - ~99% of auth failures)
+### AUTH_FAILURE (~30 tests)
 
-**Pattern**: Supabase rejects `@example.com` domain as invalid
+**Pattern**: Tests expect authenticated state but page shows "Sign In" link or stuck at "Verify Your Email"
 
 **Evidence from error-context.md**:
 
 ```yaml
-- alert [ref=e72]:
-    - generic [ref=e73]: Email address "e2e-protected-1766427463635@example.com" is invalid
+- heading "Sign In" [level=1] # Expected authenticated page
+- link "Sign In" [ref=e17] # Unauthenticated state
 ```
 
-**Why**: `example.com` is a reserved domain per RFC 2606. Supabase's email validation rejects it because emails cannot actually be delivered to this domain.
+**Affected Files**:
 
-**Affected Test Files** (all generate dynamic `@example.com` emails):
+- `tests/e2e/auth/protected-routes.spec.ts`
+- `tests/e2e/auth/session-persistence.spec.ts`
+- `tests/e2e/auth/complete-flows.spec.ts`
+- `tests/e2e/auth/new-user-complete-flow.spec.ts`
 
-- `tests/e2e/auth/protected-routes.spec.ts` (13 instances)
-- `tests/e2e/auth/session-persistence.spec.ts` (1 instance)
-- `tests/e2e/auth/user-registration.spec.ts` (3 instances)
-- `tests/e2e/auth/complete-flows.spec.ts` (4 instances)
-- `tests/e2e/auth/rate-limiting.spec.ts` (6 instances)
-- `tests/e2e/auth/new-user-complete-flow.spec.ts` (1 instance)
-- `tests/e2e/auth/sign-up.spec.ts` (1 instance)
+**Probable Causes**:
 
-### AUTH_DEPENDENCY (Accessibility failures)
+1. Email domain fix (`@mailinator.com`) applied but not yet pushed to CI
+2. Session not persisting between page navigations
+3. Tests stuck at "Verify Your Email" page
 
-**Pattern**: Accessibility tests depend on auth tests passing first
+### EMAIL_VERIFICATION_STUCK (~15 tests)
 
-**Evidence**: Avatar upload accessibility tests show **authenticated user on Account Settings page** - these tests CAN work once auth is fixed.
+**Pattern**: User registered but stuck at email verification page
 
-## Previous Fix Verified ✅
-
-The password selector fix from commit `2b58b05` is **working**:
-
-**Before**:
+**Evidence**:
 
 ```yaml
-- textbox "Password":
-    - /placeholder: ••••••••
-  # NO text value - password was NOT filled
+- heading "Verify Your Email" [level=1]
+- paragraph: Check your inbox for a verification link
 ```
 
-**After**:
+**Probable Cause**:
+Dynamic test users created without `email_confirmed_at` set via Supabase admin API
+
+### INVALID_CREDENTIALS (3 tests)
+
+**Pattern**: Blog screenshot tests using wrong credentials
+
+**Evidence**:
 
 ```yaml
-- textbox "Password":
-    - /placeholder: ••••••••
-    - text: ValidPass123! # ✅ Password IS filled!
+- alert [ref=e45]:
+    - generic [ref=e46]: Invalid login credentials
+- textbox "Email": text: JonPohlner+testb@gmail.com
 ```
 
-## Recommended Fix
+**Affected Files**:
 
-Replace `@example.com` with a real test domain that Supabase accepts.
+- `tests/e2e/blog/capture-blog-screenshots.spec.ts`
 
-**Option 1**: Use `@mailinator.com` (disposable email service)
-**Option 2**: Use project-specific test domain from environment variables
+**Fix**: Tests should use TEST_USER_PRIMARY_EMAIL/PASSWORD from env vars
 
-## Action Plan
+### ELEMENT_MISSING (~50 tests)
+
+**Pattern**: Expected elements not found or wrong selectors
+
+**Categories**:
+
+1. **Accessibility tests** - Looking for elements on authenticated pages (blocked by auth)
+2. **Avatar upload tests** - Modal/crop interactions not matching selectors
+3. **Companies tests** - CRUD operations with different drawer/form structure
+
+## Test File Health Summary
+
+| Test File                                | Total | Failing | Health   |
+| ---------------------------------------- | ----- | ------- | -------- |
+| auth/protected-routes.spec.ts            | 9     | 9       | CRITICAL |
+| auth/session-persistence.spec.ts         | 4     | 4       | CRITICAL |
+| auth/complete-flows.spec.ts              | 4     | 4       | CRITICAL |
+| auth/rate-limiting.spec.ts               | 7     | 7       | CRITICAL |
+| accessibility/avatar-upload.a11y.test.ts | ~20   | ~20     | HIGH     |
+| companies/companies-crud.spec.ts         | ~23   | ~23     | MEDIUM   |
+| blog/capture-blog-screenshots.spec.ts    | 3     | 3       | LOW      |
+
+## Previous Fixes Applied
+
+### Fix 1: Password Selector (`{ exact: true }`) ✅ WORKING
+
+Commit `2b58b05` - Password fields now being filled correctly
+
+### Fix 2: Email Domain (`@mailinator.com`) ✅ APPLIED
+
+Commit `3bdb032` - Replaced `@example.com` with `@mailinator.com`
+
+**Status**: Applied locally but NOT YET PUSHED to CI
+
+## Recommended Action Plan
 
 ### Immediate (CRITICAL)
 
-1. Fix email domain - replace `@example.com` with accepted domain
-2. Test locally before pushing
+1. **Push email domain fix to remote** - Triggers CI with `@mailinator.com` emails
 
-### After Auth Fixed
+   ```bash
+   git push
+   ```
 
-3. Accessibility tests should pass automatically
+2. **Monitor CI results** - Expect auth failures to drop significantly
+
+### Short-term (HIGH)
+
+3. **Fix blog screenshot test credentials** - Use env vars for test user
+4. **Review accessibility test auth setup** - May pass after auth fixed
+
+### Medium-term (MEDIUM)
+
+5. **Companies CRUD selectors** - Review drawer/form element matching
+6. **Avatar upload modal** - Check crop modal selector updates
+
+### Verification Steps
+
+After push, run:
+
+```bash
+/analyze-e2e
+```
+
+Expected improvement:
+
+- AUTH_FAILURE: 89 → ~10 (remaining may need additional fixes)
+- accessibility: 50 → ~5 (auth-dependent tests should pass)
