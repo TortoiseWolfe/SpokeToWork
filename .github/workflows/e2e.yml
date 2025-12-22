@@ -65,7 +65,10 @@ jobs:
       - name: Start server
         run: |
           # Serve static files from out directory at root
-          npx serve -s out -l 3000 --single &
+          # Note: Removed --single flag - Next.js static export has pre-rendered pages
+          # for each route, so we want serve to return the actual /sign-in/index.html
+          # instead of falling back to root index.html
+          npx serve out -l 3000 &
           sleep 5
           npx wait-on http://localhost:3000 --timeout 60000
         env:
