@@ -472,6 +472,9 @@ WHERE name ILIKE '%steph%' OR contact_name ILIKE '%steph%';
 
 ## Active Technologies
 
+- TypeScript 5.9, Node.js 22 + Playwright 1.57, @supabase/supabase-js (062-fix-e2e-auth)
+- localStorage (cookie consent), Supabase Auth (sessions) (062-fix-e2e-auth)
+
 - TypeScript 5.9, React 19, Next.js 15 + Supabase Auth (PKCE built-in), @supabase/supabase-js (050-oauth-state-cleanup)
 - Supabase PostgreSQL (removing `oauth_states` table) (050-oauth-state-cleanup)
 

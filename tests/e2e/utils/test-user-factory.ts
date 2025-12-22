@@ -1,6 +1,6 @@
 /**
  * Test User Factory - Dynamic user creation for E2E tests
- * Feature: 027-signup-e2e-tests
+ * Feature: 027-signup-e2e-tests, 062-fix-e2e-auth
  *
  * Uses Supabase admin API to:
  * - Create users dynamically in tests
@@ -8,9 +8,32 @@
  * - Clean up users after tests
  *
  * This enables self-contained E2E tests that don't rely on pre-seeded users.
+ *
+ * FAIL-FAST BEHAVIOR (062-fix-e2e-auth):
+ * This module throws immediately if required environment variables are missing.
+ * This prevents silent failures and makes configuration issues obvious.
  */
 
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
+
+// ============================================================================
+// FAIL-FAST VALIDATION (062-fix-e2e-auth)
+// Validate required environment variables at module load time
+// ============================================================================
+const REQUIRED_ENV_VARS = [
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'NEXT_PUBLIC_SUPABASE_URL',
+] as const;
+
+for (const varName of REQUIRED_ENV_VARS) {
+  if (!process.env[varName]) {
+    throw new Error(
+      `TEST_USER_FACTORY: Missing required ${varName}.\n` +
+        `This is required for dynamic test user creation via Supabase Admin API.\n` +
+        `Check .env locally or GitHub Secrets in CI.`
+    );
+  }
+}
 
 export interface TestUser {
   id: string;
@@ -23,20 +46,16 @@ let adminClient: SupabaseClient | null = null;
 /**
  * Get or create the Supabase admin client
  * Uses SUPABASE_SERVICE_ROLE_KEY for admin operations
+ *
+ * NOTE: Env vars are validated at module load (fail-fast).
+ * This function is guaranteed to return a valid client.
  */
-export function getAdminClient(): SupabaseClient | null {
+export function getAdminClient(): SupabaseClient {
   if (adminClient) return adminClient;
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    console.warn(
-      'Test User Factory: SUPABASE_SERVICE_ROLE_KEY not configured. ' +
-        'Dynamic user creation will not work.'
-    );
-    return null;
-  }
+  // These are guaranteed to exist due to fail-fast validation above
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
   adminClient = createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
@@ -69,12 +88,8 @@ export async function createTestUser(
     createProfile?: boolean;
     metadata?: Record<string, unknown>;
   }
-): Promise<TestUser | null> {
+): Promise<TestUser> {
   const client = getAdminClient();
-  if (!client) {
-    console.error('createTestUser: Admin client not available');
-    return null;
-  }
 
   // Check if user already exists
   const { data: existingUsers } = await client.auth.admin.listUsers();
@@ -94,16 +109,13 @@ export async function createTestUser(
   });
 
   if (error) {
-    console.error(
-      `createTestUser: Failed to create user ${email}:`,
-      error.message
+    throw new Error(
+      `createTestUser: Failed to create user ${email}: ${error.message}`
     );
-    return null;
   }
 
   if (!data.user) {
-    console.error(`createTestUser: No user returned for ${email}`);
-    return null;
+    throw new Error(`createTestUser: No user returned for ${email}`);
   }
 
   console.log(`createTestUser: Created user ${email} with id ${data.user.id}`);
@@ -131,7 +143,6 @@ export async function createUserProfile(
   username: string
 ): Promise<boolean> {
   const client = getAdminClient();
-  if (!client) return false;
 
   // Check if profile already exists
   const { data: existing } = await client
@@ -176,7 +187,6 @@ export async function createUserProfile(
  */
 export async function deleteTestUser(userId: string): Promise<boolean> {
   const client = getAdminClient();
-  if (!client) return false;
 
   try {
     // Clean up messaging data
@@ -219,7 +229,6 @@ export async function deleteTestUser(userId: string): Promise<boolean> {
  */
 export async function deleteTestUserByEmail(email: string): Promise<boolean> {
   const client = getAdminClient();
-  if (!client) return false;
 
   const { data: users } = await client.auth.admin.listUsers();
   const user = users?.users?.find((u) => u.email === email);
@@ -237,7 +246,6 @@ export async function deleteTestUserByEmail(email: string): Promise<boolean> {
  */
 export async function getUserByEmail(email: string): Promise<User | null> {
   const client = getAdminClient();
-  if (!client) return null;
 
   const { data: users } = await client.auth.admin.listUsers();
   return users?.users?.find((u) => u.email === email) || null;
@@ -245,9 +253,11 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 
 /**
  * Check if admin client is available
+ * NOTE: With fail-fast validation, this always returns true.
+ * Kept for backwards compatibility.
  */
 export function isAdminClientAvailable(): boolean {
-  return getAdminClient() !== null;
+  return true; // Fail-fast validation guarantees this
 }
 
 /**

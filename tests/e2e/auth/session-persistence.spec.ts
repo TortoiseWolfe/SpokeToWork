@@ -1,5 +1,6 @@
 /**
  * E2E Test: Session Persistence (T068)
+ * Updated: 062-fix-e2e-auth
  *
  * Tests session management and persistence:
  * - Verify Remember Me extends session to 30 days
@@ -16,21 +17,16 @@ import {
   generateTestEmail,
   DEFAULT_TEST_PASSWORD,
 } from '../utils/test-user-factory';
+import { loginAndVerify } from '../utils/auth-helpers';
 
 test.describe('Session Persistence E2E', () => {
-  let testUser: { id: string; email: string; password: string } | null = null;
+  let testUser: { id: string; email: string; password: string };
 
   test.beforeAll(async () => {
     // Create test user with email pre-confirmed via admin API
+    // Note: createTestUser now throws on failure (fail-fast pattern)
     const email = generateTestEmail('e2e-session');
-    const password = DEFAULT_TEST_PASSWORD || 'ValidPass123!';
-    testUser = await createTestUser(email, password);
-
-    if (!testUser) {
-      console.error(
-        'Failed to create test user - tests will use fallback sign-up flow'
-      );
-    }
+    testUser = await createTestUser(email, DEFAULT_TEST_PASSWORD);
   });
 
   test.afterAll(async () => {
@@ -43,11 +39,6 @@ test.describe('Session Persistence E2E', () => {
   test('should extend session duration with Remember Me checked', async ({
     page,
   }) => {
-    if (!testUser) {
-      test.skip();
-      return;
-    }
-
     // Sign in with Remember Me
     await page.goto('/sign-in');
     await page.getByLabel('Email').fill(testUser.email);
@@ -92,11 +83,6 @@ test.describe('Session Persistence E2E', () => {
   });
 
   test('should use short session without Remember Me', async ({ page }) => {
-    if (!testUser) {
-      test.skip();
-      return;
-    }
-
     // Sign in WITHOUT Remember Me
     await page.goto('/sign-in');
     await page.getByLabel('Email').fill(testUser.email);
@@ -124,11 +110,6 @@ test.describe('Session Persistence E2E', () => {
   test('should automatically refresh token before expiration', async ({
     page,
   }) => {
-    if (!testUser) {
-      test.skip();
-      return;
-    }
-
     // Sign in
     await page.goto('/sign-in');
     await page.getByLabel('Email').fill(testUser.email);
@@ -168,11 +149,6 @@ test.describe('Session Persistence E2E', () => {
   test('should persist session across browser restarts', async ({
     browser,
   }) => {
-    if (!testUser) {
-      test.skip();
-      return;
-    }
-
     // Create persistent context
     const context = await browser.newContext({
       storageState: undefined, // Start fresh
@@ -207,11 +183,6 @@ test.describe('Session Persistence E2E', () => {
   });
 
   test('should clear session on sign out', async ({ page }) => {
-    if (!testUser) {
-      test.skip();
-      return;
-    }
-
     // Sign in
     await page.goto('/sign-in');
     await page.getByLabel('Email').fill(testUser.email);
@@ -251,11 +222,6 @@ test.describe('Session Persistence E2E', () => {
   test('should handle concurrent tab sessions correctly', async ({
     browser,
   }) => {
-    if (!testUser) {
-      test.skip();
-      return;
-    }
-
     // Create two tabs with same user
     const context = await browser.newContext();
     const page1 = await context.newPage();
@@ -289,11 +255,6 @@ test.describe('Session Persistence E2E', () => {
   test('should refresh session automatically on page reload', async ({
     page,
   }) => {
-    if (!testUser) {
-      test.skip();
-      return;
-    }
-
     // Sign in
     await page.goto('/sign-in');
     await page.getByLabel('Email').fill(testUser.email);
@@ -317,11 +278,6 @@ test.describe('Session Persistence E2E', () => {
   });
 
   test('should expire session after maximum duration', async ({ page }) => {
-    if (!testUser) {
-      test.skip();
-      return;
-    }
-
     // Note: This test would require mocking time or waiting for real expiry
     // In a real test, we would:
     // 1. Sign in without Remember Me (1 hour session)
