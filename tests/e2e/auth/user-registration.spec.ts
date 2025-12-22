@@ -25,7 +25,7 @@ test.describe('User Registration E2E', () => {
 
     // Step 2: Fill sign-up form
     await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByLabel('Confirm Password').fill(testPassword);
 
     // Step 3: Check Remember Me (optional)
@@ -75,7 +75,7 @@ test.describe('User Registration E2E', () => {
 
     // Fill with invalid email
     await page.getByLabel('Email').fill('not-an-email');
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByLabel('Confirm Password').fill(testPassword);
 
     // Submit form
@@ -90,7 +90,7 @@ test.describe('User Registration E2E', () => {
 
     // Fill with weak password
     await page.getByLabel('Email').fill(`${Date.now()}@example.com`);
-    await page.getByLabel('Password').fill('weak');
+    await page.getByLabel('Password', { exact: true }).fill('weak');
     await page.getByLabel('Confirm Password').fill('weak');
 
     // Submit form
@@ -107,7 +107,7 @@ test.describe('User Registration E2E', () => {
 
     // Fill with mismatched passwords
     await page.getByLabel('Email').fill(`${Date.now()}@example.com`);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByLabel('Confirm Password').fill('DifferentPass123!');
 
     // Submit form
