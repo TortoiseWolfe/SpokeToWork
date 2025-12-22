@@ -30,13 +30,9 @@ These are tracked issues from our code review. Run `/speckit.workflow` with the 
 > ~~Event handlers not wrapped in useCallback, causing unnecessary re-renders.~~ Added useCallback to CompanyTable.handleSort + defensive wrappers for callbacks. CompanyRow wrapped with React.memo. E2E tests verify memoization prevents re-renders.
 > [View Spec](specs/051-performance-memoization/spec.md)
 
-**052 - Replace Polling with Realtime**
+~~**052 - Replace Polling with Realtime**~~ ✅ **VERIFIED COMPLETE**
 
-```
-/speckit.workflow specs/052-realtime-subscriptions
-```
-
-> Timer-based polling (5-30s intervals) should use Supabase Realtime subscriptions.
+> ~~Timer-based polling (5-30s intervals) should use Supabase Realtime subscriptions.~~ Audit confirmed: Payment status uses Supabase Realtime (`postgres_changes`), connection/offline queue use browser events. No polling intervals found.
 > [View Spec](specs/052-realtime-subscriptions/spec.md)
 
 **053 - Unified Browser Event Hooks**
