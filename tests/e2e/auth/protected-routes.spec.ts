@@ -32,7 +32,7 @@ test.describe('Protected Routes E2E', () => {
     // Step 1: Sign up
     await page.goto('/sign-up');
     await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByLabel('Confirm Password').fill(testPassword);
     await page.getByRole('button', { name: 'Sign Up' }).click();
 
@@ -63,7 +63,7 @@ test.describe('Protected Routes E2E', () => {
     const user1Email = `e2e-rls-1-${Date.now()}@example.com`;
     await page.goto('/sign-up');
     await page.getByLabel('Email').fill(user1Email);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByLabel('Confirm Password').fill(testPassword);
     await page.getByRole('button', { name: 'Sign Up' }).click();
     await page.waitForURL(/\/(verify-email|profile)/);
@@ -80,7 +80,7 @@ test.describe('Protected Routes E2E', () => {
     const user2Email = `e2e-rls-2-${Date.now()}@example.com`;
     await page.goto('/sign-up');
     await page.getByLabel('Email').fill(user2Email);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByLabel('Confirm Password').fill(testPassword);
     await page.getByRole('button', { name: 'Sign Up' }).click();
     await page.waitForURL(/\/(verify-email|profile)/);
@@ -99,7 +99,7 @@ test.describe('Protected Routes E2E', () => {
     // Sign up with new user
     await page.goto('/sign-up');
     await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByLabel('Confirm Password').fill(testPassword);
     await page.getByRole('button', { name: 'Sign Up' }).click();
 
@@ -121,7 +121,7 @@ test.describe('Protected Routes E2E', () => {
     // Sign up and sign in
     await page.goto('/sign-up');
     await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByLabel('Confirm Password').fill(testPassword);
     await page.getByRole('button', { name: 'Sign Up' }).click();
     await page.waitForURL(/\/(verify-email|profile)/);
@@ -144,7 +144,7 @@ test.describe('Protected Routes E2E', () => {
     // Sign up
     await page.goto('/sign-up');
     await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByLabel('Confirm Password').fill(testPassword);
     await page.getByRole('button', { name: 'Sign Up' }).click();
     await page.waitForURL(/\/(verify-email|profile)/);
@@ -172,7 +172,7 @@ test.describe('Protected Routes E2E', () => {
 
     // Sign in
     await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByRole('button', { name: 'Sign In' }).click();
 
     // Note: If redirect-after-auth is implemented, should redirect to /account
@@ -195,7 +195,7 @@ test.describe('Protected Routes E2E', () => {
     await page
       .getByLabel('Email')
       .fill(`delete-test-${Date.now()}@example.com`);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByLabel('Confirm Password').fill(testPassword);
     await page.getByRole('button', { name: 'Sign Up' }).click();
     await page.waitForURL(/\/(verify-email|profile)/);

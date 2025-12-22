@@ -3,39 +3,38 @@ import { BasePage } from './BasePage';
 
 /**
  * Page Object Model for the Homepage
+ * Updated to match current SpokeToWork homepage structure
  */
 export class HomePage extends BasePage {
-  // Selectors
+  // Selectors - updated for current homepage
   readonly selectors = {
     // Header elements
     logo: 'a[href="/"]',
-    skipLink: 'a[href="#game-demo"], a[href="#main"]',
+    skipLink: 'a[href="#main-content"]',
 
     // Hero section
     heroTitle: 'h1',
-    heroDescription: 'text=/Next.js.*template/i',
-    progressBadge: '.badge.badge-success',
+    heroSection: 'section[aria-label="Welcome hero"]',
 
-    // Navigation buttons
-    browseThemesButton: 'text=Browse Themes',
-    exploreComponentsButton: 'text=Explore Components',
-    viewSourceButton: 'text=View Source',
+    // Navigation buttons (primary)
+    readBlogButton: 'a:has-text("Read Blog")',
+    viewStorybookButton: 'a:has-text("View Storybook")',
+    browseThemesButton: 'a:has-text("Browse Themes")',
 
-    // Game demo section
-    gameDemoSection: '#game-demo',
-    gameTitle: 'h1:has-text("Captain, Ship & Crew")',
-    startGameButton: 'button:has-text("Start Game")',
-    rollButton: 'button:has-text("Roll")',
-    diceContainer: '.dice-container',
+    // Secondary navigation
+    companiesLink: 'a[href="/companies"]',
+    mapLink: 'a[href="/map"]',
+    scheduleLink: 'a[href="/schedule"]',
+    contactLink: 'a[href="/contact"]',
+    messagesLink: 'a[href="/messages"]',
 
-    // Footer navigation
-    statusDashboardLink: 'text=Status Dashboard',
-    accessibilityLink: 'text=Accessibility',
-    githubLink: 'a[href*="github.com"]',
-
-    // Feature cards
+    // Feature cards section
+    featureCardsSection: 'section[aria-label="Key features"]',
     featureCard: '.card',
     featureTitle: '.card-title',
+
+    // Footer navigation
+    footerLinks: 'footer a',
   };
 
   constructor(page: Page) {
@@ -57,10 +56,11 @@ export class HomePage extends BasePage {
   }
 
   /**
-   * Get the progress badge text
+   * Navigate to the blog page
    */
-  async getProgressBadgeText(): Promise<string> {
-    return await this.getText(this.selectors.progressBadge);
+  async navigateToBlog() {
+    await this.clickWithRetry(this.selectors.readBlogButton);
+    await this.expectURL(/.*blog/);
   }
 
   /**
@@ -72,64 +72,26 @@ export class HomePage extends BasePage {
   }
 
   /**
-   * Navigate to the components page
+   * Navigate to the companies page
    */
-  async navigateToComponents() {
-    await this.clickWithRetry(this.selectors.exploreComponentsButton);
-    await this.expectURL(/.*components/);
+  async navigateToCompanies() {
+    await this.clickWithRetry(this.selectors.companiesLink);
+    await this.expectURL(/.*companies/);
   }
 
   /**
-   * Navigate to the status dashboard
+   * Navigate to the map page
    */
-  async navigateToStatus() {
-    await this.clickWithRetry(this.selectors.statusDashboardLink);
-    await this.expectURL(/.*status/);
+  async navigateToMap() {
+    await this.clickWithRetry(this.selectors.mapLink);
+    await this.expectURL(/.*map/);
   }
 
   /**
-   * Navigate to the accessibility page
+   * Check if the feature cards section is visible
    */
-  async navigateToAccessibility() {
-    await this.clickWithRetry(this.selectors.accessibilityLink);
-    await this.expectURL(/.*accessibility/);
-  }
-
-  /**
-   * Check if the game demo section is visible
-   */
-  async isGameDemoVisible(): Promise<boolean> {
-    return await this.isVisible(this.selectors.gameDemoSection);
-  }
-
-  /**
-   * Play the dice game
-   * @param rolls - Number of times to roll the dice
-   */
-  async playDiceGame(rolls: number = 1) {
-    // Scroll to game section
-    const gameSection = this.page.locator(this.selectors.gameDemoSection);
-    await gameSection.scrollIntoViewIfNeeded();
-
-    // Check if we need to start the game first
-    const startButton = this.page.locator(this.selectors.startGameButton);
-    if (await startButton.isVisible().catch(() => false)) {
-      await startButton.click();
-      await this.page.waitForTimeout(500); // Wait for game to initialize
-    }
-
-    // Now roll the dice
-    const rollButton = this.page.locator(this.selectors.rollButton);
-    for (let i = 0; i < rolls; i++) {
-      // Wait for roll button to be available
-      await rollButton
-        .waitFor({ state: 'visible', timeout: 5000 })
-        .catch(() => {});
-      if (await rollButton.isVisible()) {
-        await rollButton.click();
-        await this.page.waitForTimeout(1000); // Wait for dice animation
-      }
-    }
+  async isFeatureCardsSectionVisible(): Promise<boolean> {
+    return await this.isVisible(this.selectors.featureCardsSection);
   }
 
   /**
@@ -155,19 +117,19 @@ export class HomePage extends BasePage {
     // Wait a moment for navigation
     await this.page.waitForTimeout(500);
 
-    // Verify navigation to game demo
-    const gameDemo = this.page.locator(this.selectors.gameDemoSection);
-    return await gameDemo.isVisible();
+    // Verify navigation to main content
+    const mainContent = this.page.locator('#main-content');
+    return await mainContent.isVisible();
   }
 
   /**
-   * Open GitHub repository in new tab
-   * @returns The new page object for the GitHub tab
+   * Open Storybook in new tab
+   * @returns The new page object for the Storybook tab
    */
-  async openGitHubRepo() {
+  async openStorybook() {
     const [newPage] = await Promise.all([
       this.page.context().waitForEvent('page'),
-      this.clickWithRetry(this.selectors.viewSourceButton),
+      this.clickWithRetry(this.selectors.viewStorybookButton),
     ]);
 
     await newPage.waitForLoadState();
@@ -175,43 +137,17 @@ export class HomePage extends BasePage {
   }
 
   /**
-   * Get the count of dice currently displayed
-   */
-  async getDiceCount(): Promise<number> {
-    // Try multiple possible selectors for dice
-    const diceSelectors = [
-      `${this.selectors.diceContainer} .die`,
-      '.die',
-      '[data-testid*="die"]',
-      '.dice',
-      'svg[class*="die"]',
-    ];
-
-    for (const selector of diceSelectors) {
-      const dice = this.page.locator(selector);
-      const count = await dice.count();
-      if (count > 0) return count;
-    }
-
-    return 0;
-  }
-
-  /**
    * Check if the homepage hero section is visible
    */
   async isHeroSectionVisible(): Promise<boolean> {
-    const title = await this.isVisible(this.selectors.heroTitle);
-    const description = await this.isVisible(this.selectors.heroDescription);
-    const badge = await this.isVisible(this.selectors.progressBadge);
-
-    return title && description && badge;
+    return await this.isVisible(this.selectors.heroSection);
   }
 
   /**
    * Get all navigation link texts from the footer
    */
   async getFooterNavigationLinks(): Promise<string[]> {
-    return await this.getAllText('footer a');
+    return await this.getAllText(this.selectors.footerLinks);
   }
 
   /**
@@ -221,38 +157,20 @@ export class HomePage extends BasePage {
     // Check title
     await this.page.waitForSelector(this.selectors.heroTitle);
 
-    // Check critical elements
+    // Check hero section visible
     const heroVisible = await this.isHeroSectionVisible();
     if (!heroVisible) {
-      throw new Error('Homepage hero section not fully visible');
+      throw new Error('Homepage hero section not visible');
     }
 
     // Check navigation buttons
+    const blogButton = await this.isVisible(this.selectors.readBlogButton);
     const themesButton = await this.isVisible(
       this.selectors.browseThemesButton
     );
-    const componentsButton = await this.isVisible(
-      this.selectors.exploreComponentsButton
-    );
 
-    if (!themesButton || !componentsButton) {
+    if (!blogButton || !themesButton) {
       throw new Error('Navigation buttons not visible');
     }
-  }
-
-  /**
-   * Get the current game score if displayed
-   */
-  async getGameScore(): Promise<string | null> {
-    const scoreElement = this.page
-      .locator('.score, [data-testid="score"]')
-      .first();
-    const isVisible = await scoreElement.isVisible().catch(() => false);
-
-    if (isVisible) {
-      return await scoreElement.textContent();
-    }
-
-    return null;
   }
 }
