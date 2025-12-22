@@ -25,13 +25,9 @@ These are tracked issues from our code review. Run `/speckit.workflow` with the 
 
 ### Performance Issues
 
-**051 - Component Memoization**
+~~**051 - Component Memoization**~~ ✅ **FIXED**
 
-```
-/speckit.workflow specs/051-performance-memoization
-```
-
-> Event handlers not wrapped in useCallback, causing unnecessary re-renders.
+> ~~Event handlers not wrapped in useCallback, causing unnecessary re-renders.~~ Added useCallback to CompanyTable.handleSort + defensive wrappers for callbacks. CompanyRow wrapped with React.memo. E2E tests verify memoization prevents re-renders.
 > [View Spec](specs/051-performance-memoization/spec.md)
 
 **052 - Replace Polling with Realtime**
