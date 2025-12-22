@@ -1,39 +1,45 @@
 # SpokeToWork - Job Hunting by Bicycle
 
-[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue)](https://github.com/TortoiseWolfe/SpokeToWork)
-[![Stars](https://img.shields.io/github/stars/TortoiseWolfe/SpokeToWork?style=social)](https://github.com/TortoiseWolfe/SpokeToWork)
+Track companies, plan bicycle routes, find work locally.
 
-A Progressive Web App for in-person job hunting. Track companies and generate optimized bicycle routes.
+**[Try it →](https://SpokeToWork.com/)**
 
----
+## What It Does
 
-## 🔴 P1 Priority Specs (Security & Performance)
+| Feature            | Description                                               |
+| ------------------ | --------------------------------------------------------- |
+| 🏢 Track Companies | Maintain target employers with status, priority, contacts |
+| 🚴 Plan Routes     | Optimized bicycle routes connecting multiple companies    |
+| 💬 Secure Messages | End-to-end encrypted communication                        |
+| 📅 Schedule        | Calendar integration for interviews                       |
+| 📱 Works Offline   | PWA that syncs when back online                           |
 
-These are tracked issues from our code review. Run `/speckit.workflow` with the spec path to implement.
+## Quick Links
 
-### Security Issues
+- **App**: [SpokeToWork.com](https://SpokeToWork.com/)
+- **Storybook**: [SpokeToWork.com/storybook](https://SpokeToWork.com/storybook/)
+- **Status**: [SpokeToWork.com/status](https://SpokeToWork.com/status)
 
-~~**049 - IndexedDB Private Key Encryption**~~ ✅ **FIXED**
+## Tech Stack
 
-> ~~Private keys stored as plaintext in IndexedDB.~~ Keys are now derived in-memory only (Argon2id), never stored. Password change triggers key rotation.
-> [View Spec](specs/049-indexeddb-encryption/spec.md)
+Next.js 15 • React 19 • TypeScript • Tailwind CSS 4 • Supabase • PWA
 
-**050 - OAuth State Token Cleanup** ✅ FIXED
+## For Contributors
 
-> ~~Dead CSRF token code exists alongside Supabase PKCE.~~ Removed unused oauth-state.ts (520 lines) and oauth_states table. Supabase PKCE handles OAuth CSRF protection.
-> [View Spec](specs/050-oauth-state-cleanup/spec.md)
+Docker required. All commands run inside container.
 
-### Performance Issues
+```bash
+docker compose up                           # Start dev
+docker compose exec spoketowork pnpm test   # Run tests
+```
 
-~~**051 - Component Memoization**~~ ✅ **FIXED**
+See [CLAUDE.md](./CLAUDE.md) for full development documentation.
 
-> ~~Event handlers not wrapped in useCallback, causing unnecessary re-renders.~~ Added useCallback to CompanyTable.handleSort + defensive wrappers for callbacks. CompanyRow wrapped with React.memo. E2E tests verify memoization prevents re-renders.
-> [View Spec](specs/051-performance-memoization/spec.md)
+## Lighthouse Scores
 
-~~**052 - Replace Polling with Realtime**~~ ✅ **VERIFIED COMPLETE**
+Performance 92 • Accessibility 98 • Best Practices 95 • SEO 100 • PWA 92
 
-> ~~Timer-based polling (5-30s intervals) should use Supabase Realtime subscriptions.~~ Audit confirmed: Payment status uses Supabase Realtime (`postgres_changes`), connection/offline queue use browser events. No polling intervals found.
-> [View Spec](specs/052-realtime-subscriptions/spec.md)
+## Technical Debt
 
 **053 - Unified Browser Event Hooks**
 
@@ -43,8 +49,6 @@ These are tracked issues from our code review. Run `/speckit.workflow` with the 
 
 > Duplicate event listeners (online/offline, click-outside, visibility). Consolidate into hooks.
 > [View Spec](specs/053-unified-event-hooks/spec.md)
-
-### P2 Code Quality Issues
 
 **054 - Code Consolidation**
 
@@ -66,254 +70,6 @@ These are tracked issues from our code review. Run `/speckit.workflow` with the 
 
 ---
 
-## 🚀 Live Demos
+## License
 
-- **Main App**: [https://SpokeToWork.com/](https://SpokeToWork.com/)
-- **Storybook**: [https://SpokeToWork.com/storybook/](https://SpokeToWork.com/storybook/)
-- **Status Dashboard**: [https://SpokeToWork.com/status](https://SpokeToWork.com/status)
-
-## ✨ Key Features
-
-- 🎨 **32 DaisyUI Themes** - Light/dark variants with persistent selection
-- 📱 **Progressive Web App** - Installable with offline support
-- 🧩 **Component Library** - Atomic design with Storybook documentation
-- ♿ **Accessibility** - WCAG AA compliant, colorblind assistance
-- 🔒 **Privacy Compliance** - GDPR-ready cookie consent system
-- 🧪 **Testing Suite** - Comprehensive unit tests with 65% coverage (3,425 tests), E2E test suite, accessibility testing
-- 📊 **Real-time Monitoring** - Web Vitals, Lighthouse scores, health checks
-- 🚀 **CI/CD Pipeline** - GitHub Actions with automated deployment
-
-## 🛠️ Tech Stack
-
-- **Next.js 15.5** / **React 19** / **TypeScript 5**
-- **Tailwind CSS 4** + **DaisyUI** (beta)
-- **Vitest** / **Playwright** / **Pa11y**
-- **Docker** / **GitHub Actions** / **pnpm 10.16.1**
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Docker and Docker Compose installed
-- Git configured
-
-### Docker Development (MANDATORY)
-
-This project **REQUIRES Docker** for development to ensure consistency across all environments.
-
-```bash
-# 1. Use this template on GitHub (your project name is auto-detected!)
-# 2. Clone YOUR new repository
-git clone https://github.com/YOUR_USERNAME/YOUR_PROJECT_NAME.git
-cd YOUR_PROJECT_NAME
-
-# 3. Create and configure .env file (REQUIRED)
-cp .env.example .env
-
-# Edit .env to add your services (all optional except UID/GID):
-# - Google Analytics ID
-# - EmailJS/Web3Forms credentials
-# - Calendar integration URLs
-# - Author information
-# See .env.example for all available options
-
-# 4. Start Docker development environment
-docker compose up     # Start everything (first build takes 5-10 minutes)
-
-# Development is now running at http://localhost:3000
-```
-
-### Common Docker Commands
-
-```bash
-# Run commands inside container
-docker compose exec spoketowork pnpm run dev         # Dev server
-docker compose exec spoketowork pnpm test            # Run tests
-docker compose exec spoketowork pnpm run storybook   # Storybook
-
-# Clean restart if needed
-docker compose down
-docker compose up --build
-```
-
-**NOTE**: Local pnpm/npm commands are NOT supported. All development MUST use Docker.
-
-## 🔐 GitHub Actions Secrets
-
-To enable CI/CD deployment and full functionality, add these secrets to your repository at **Settings → Secrets and variables → Actions → Repository secrets**:
-
-### Author Information
-
-```
-NEXT_PUBLIC_AUTHOR_AVATAR
-```
-
-```
-NEXT_PUBLIC_AUTHOR_BIO
-```
-
-```
-NEXT_PUBLIC_AUTHOR_GITHUB
-```
-
-```
-NEXT_PUBLIC_AUTHOR_LINKEDIN
-```
-
-```
-NEXT_PUBLIC_AUTHOR_NAME
-```
-
-```
-NEXT_PUBLIC_AUTHOR_ROLE
-```
-
-```
-NEXT_PUBLIC_AUTHOR_TWITCH
-```
-
-```
-NEXT_PUBLIC_AUTHOR_TWITTER
-```
-
-### Calendar Integration
-
-```
-NEXT_PUBLIC_CALENDAR_PROVIDER
-```
-
-```
-NEXT_PUBLIC_CALENDAR_URL
-```
-
-### Site Configuration
-
-```
-NEXT_PUBLIC_DEPLOY_URL
-```
-
-```
-NEXT_PUBLIC_DISQUS_SHORTNAME
-```
-
-```
-NEXT_PUBLIC_PAGESPEED_API_KEY
-```
-
-```
-NEXT_PUBLIC_SITE_URL
-```
-
-```
-NEXT_PUBLIC_SOCIAL_PLATFORMS
-```
-
-### Supabase (Public)
-
-```
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-```
-
-```
-NEXT_PUBLIC_SUPABASE_URL
-```
-
-### Supabase (Private - Server Only)
-
-```
-SUPABASE_ACCESS_TOKEN
-```
-
-```
-SUPABASE_DB_PASSWORD
-```
-
-```
-SUPABASE_PROJECT_REF
-```
-
-```
-SUPABASE_SERVICE_ROLE_KEY
-```
-
-### Testing
-
-```
-TEST_USER_PRIMARY_PASSWORD
-```
-
-## ⚙️ Auto-Configuration
-
-The project automatically detects your repository name and owner from git remote URL at build time:
-
-- **Project name**: Detected from repository name
-- **Owner**: Detected from GitHub username
-- **Base path**: Configured for GitHub Pages deployment
-- **PWA manifest**: Generated with your project name
-
-**Troubleshooting**:
-
-- If auto-detection fails, ensure you have a git remote: `git remote -v`
-- Override with environment variables in `.env` if needed
-- Check `src/config/project-detected.ts` after build to see detected values
-
-## 📚 Documentation
-
-- **Developer Guide**: See [CLAUDE.md](./CLAUDE.md) for comprehensive development documentation
-- **Component Creation**: [docs/CREATING_COMPONENTS.md](./docs/CREATING_COMPONENTS.md)
-- **PRP/SpecKit Workflow**: [docs/prp-docs/SPECKIT-PRP-GUIDE.md](./docs/prp-docs/SPECKIT-PRP-GUIDE.md) - Quick reference for feature development
-- **Testing Guide**: [docs/project/TESTING.md](./docs/project/TESTING.md)
-- **Contributing**: [docs/project/CONTRIBUTING.md](./docs/project/CONTRIBUTING.md)
-- **Security**: [docs/project/SECURITY.md](./docs/project/SECURITY.md)
-- **Changelog**: [docs/project/CHANGELOG.md](./docs/project/CHANGELOG.md)
-
-## 🎯 Project Status
-
-**Version 0.3.5** - Sprint 3.5 Complete ✅ | 12 of 14 PRPs completed
-
-| Category      | Completed                                         | Remaining         |
-| ------------- | ------------------------------------------------- | ----------------- |
-| Foundation    | Component Structure, E2E Testing                  | PRP Methodology   |
-| Accessibility | WCAG AA, Colorblind Mode, Font Switcher           | -                 |
-| Privacy       | Cookie Consent, Google Analytics                  | -                 |
-| Forms         | Web3Forms Integration, EmailJS, PWA Sync          | -                 |
-| Features      | Calendar Integration, Geolocation Map             | Visual Regression |
-| Tech Debt     | Sprint 3.5: All 46 tasks complete (2025-09-19) ✨ | -                 |
-
-See [docs/prp-docs/PRP-STATUS.md](./docs/prp-docs/PRP-STATUS.md) for detailed progress.
-
-## 🏆 Lighthouse Scores
-
-[![WCAG 2.1 AA Compliant](https://img.shields.io/badge/WCAG%202.1-AA%20Compliant-success)](https://www.w3.org/WAI/WCAG21/quickref/)
-
-- **Performance**: 92/100
-- **Accessibility**: 98/100
-- **Best Practices**: 95/100
-- **SEO**: 100/100
-- **PWA**: 92/100
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing`)
-3. Run tests in Docker (`docker compose exec spoketowork pnpm test`)
-4. Commit changes (`git commit -m 'Add feature'`)
-5. Push and open a PR
-
-## 📄 License
-
-MIT - See [LICENSE](./LICENSE) for details
-
----
-
-## 🔧 Specs
-
-### Upcoming
-
-- [ ] **055-tbd** - _To be determined_
-
-See [docs/TECHNICAL-DEBT.md](./docs/TECHNICAL-DEBT.md) for technical debt tracking.
-
----
-
-**For Template Users**: Your project name is automatically detected from your new repository! No manual configuration needed. See [docs/TEMPLATE-GUIDE.md](./docs/TEMPLATE-GUIDE.md) for details.
+MIT - See [LICENSE](./LICENSE)
