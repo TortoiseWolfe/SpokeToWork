@@ -355,45 +355,6 @@ export type Database = {
           },
         ];
       };
-      oauth_states: {
-        Row: {
-          id: string;
-          state_token: string;
-          provider: string;
-          session_id: string | null;
-          return_url: string | null;
-          ip_address: string | null;
-          user_agent: string | null;
-          used: boolean;
-          created_at: string;
-          expires_at: string;
-        };
-        Insert: {
-          id?: string;
-          state_token: string;
-          provider: string;
-          session_id?: string | null;
-          return_url?: string | null;
-          ip_address?: string | null;
-          user_agent?: string | null;
-          used?: boolean;
-          created_at?: string;
-          expires_at?: string;
-        };
-        Update: {
-          id?: string;
-          state_token?: string;
-          provider?: string;
-          session_id?: string | null;
-          return_url?: string | null;
-          ip_address?: string | null;
-          user_agent?: string | null;
-          used?: boolean;
-          created_at?: string;
-          expires_at?: string;
-        };
-        Relationships: [];
-      };
       rate_limit_attempts: {
         Row: {
           id: string;

@@ -63,13 +63,19 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 **Fix Applied**: Tests now require env vars, fail fast if missing
 **SpecKit Spec**: `docs/specs/047-test-security/spec.md`
 
-### Security: OAuth State Inconsistency
+### Security: OAuth State Inconsistency - ✅ FIXED
 
-**Severity**: MEDIUM
-**Files**: `src/components/auth/OAuthButtons/OAuthButtons.tsx`, `src/lib/auth/oauth-state.ts`
-**Issue**: Custom CSRF tokens exist but aren't used; relies on Supabase PKCE instead
-**Recommended Fix**: Either use custom tokens consistently or remove dead code
-**SpecKit Spec**: `specs/050-oauth-state-cleanup/spec.md`
+**Severity**: MEDIUM → RESOLVED
+**Files**: `src/components/auth/OAuthButtons/OAuthButtons.tsx`
+**Issue**: Custom CSRF tokens existed but weren't used; relied on Supabase PKCE instead
+**Status**: ✅ FIXED - Dead code removed (Feature 050, 2025-12-21)
+**Fix Applied**:
+
+- Removed `src/lib/auth/oauth-state.ts` (210 lines)
+- Removed `src/lib/auth/__tests__/oauth-state.test.ts` (309 lines)
+- Dropped `oauth_states` database table
+- Updated SECURITY-ARCHITECTURE.md to document Supabase PKCE
+  **SpecKit Spec**: `specs/050-oauth-state-cleanup/spec.md`
 
 ### Performance: Missing Memoization in List Components
 
@@ -228,13 +234,13 @@ Specs are numbered in recommended execution order based on dependency analysis.
 
 ### Code Review Remediation Specs (P1 Security & Performance)
 
-| Spec | Title                   | Priority | Status |
-| ---- | ----------------------- | -------- | ------ |
-| 049  | IndexedDB Encryption    | P1       | Open   |
-| 050  | OAuth State Cleanup     | P1       | Open   |
-| 051  | Performance Memoization | P1       | Open   |
-| 052  | Realtime Subscriptions  | P1       | Open   |
-| 053  | Unified Event Hooks     | P1       | Open   |
+| Spec | Title                   | Priority | Status       |
+| ---- | ----------------------- | -------- | ------------ |
+| 049  | IndexedDB Encryption    | P1       | **COMPLETE** |
+| 050  | OAuth State Cleanup     | P1       | **COMPLETE** |
+| 051  | Performance Memoization | P1       | Open         |
+| 052  | Realtime Subscriptions  | P1       | Open         |
+| 053  | Unified Event Hooks     | P1       | Open         |
 
 ### Code Review Remediation Specs (P2 Quality)
 

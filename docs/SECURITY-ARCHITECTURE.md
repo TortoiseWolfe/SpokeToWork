@@ -71,21 +71,25 @@ User encryption keys are derived from passwords using Argon2id:
 
 ### OAuth Security
 
-OAuth flows include CSRF protection via state tokens:
+OAuth flows use **Supabase PKCE** (Proof Key for Code Exchange) for CSRF protection:
 
-1. Generate UUID v4 state token (`crypto.randomUUID()`)
-2. Store state in database with:
-   - Session ID (from sessionStorage)
-   - Return URL
-   - User agent
-   - Provider type
-   - 5-minute expiration
-3. On callback:
-   - Verify token exists and not used
-   - Verify session ID matches (CSRF check)
-   - Mark token as used
+1. User initiates OAuth via `signInWithOAuth()`
+2. Supabase generates:
+   - `code_verifier`: Random cryptographic string
+   - `code_challenge`: SHA-256 hash of the verifier
+3. `code_challenge` sent to OAuth provider (GitHub/Google)
+4. `code_verifier` stored in browser `sessionStorage`
+5. On callback, Supabase validates verifier matches challenge
+6. Session established only if validation passes
 
-**File**: `src/lib/auth/oauth-state.ts`
+**Why PKCE over custom state tokens**:
+
+- Industry standard (RFC 7636)
+- Cryptographic binding (SHA-256) vs simple UUID comparison
+- Built into Supabase Auth, maintained by Supabase team
+- Automatic handling - no custom code required
+
+**File**: `src/components/auth/OAuthButtons/OAuthButtons.tsx`
 
 ### Password Requirements
 
