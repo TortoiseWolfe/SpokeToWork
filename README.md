@@ -63,16 +63,20 @@ All P1/P2 technical debt specs complete. See [docs/TECHNICAL-DEBT.md](./docs/TEC
 
 ## E2E Test Remediation
 
-**Status**: 51 unique failures (27 CRITICAL auth, 24 HIGH accessibility)
+**Status**: 125 unique failures (27 CRITICAL, 65 HIGH, 24 MEDIUM, 9 LOW)
 
-**Root Cause**: Authentication not working in CI - all tests stuck at unauthenticated home page.
+**Root Causes**:
+
+- AUTH_FAILURE (51%): Tests show "Sign In" link when authenticated state expected
+- STATE_DEPENDENT (26%): Tests assume data from previous runs
+- OVERLAY_BLOCKING (16%): Cookie consent banner visible in 95% of failures
 
 **Analysis Report**: [docs/specs/e2e-remediation/analysis-report.md](./docs/specs/e2e-remediation/analysis-report.md)
 
 To start the remediation workflow:
 
 ```bash
-/speckit.workflow Fix E2E test failures - 51 unique failures (27 CRITICAL auth, 24 HIGH accessibility) all caused by AUTH_FAILURE in CI. Primary fix: verify GitHub Secrets for test user credentials. See docs/specs/e2e-remediation/analysis-report.md
+/speckit.workflow Fix E2E test failures: 27 CRITICAL (auth failures blocking 51% of tests), 65 HIGH (feature-specific). Primary root cause is authentication not persisting - tests show "Sign In" link when auth expected. Secondary issue is cookie banner blocking 95% of tests. See docs/specs/e2e-remediation/analysis-report.md
 ```
 
 ## License
