@@ -41,13 +41,9 @@ Performance 92 • Accessibility 98 • Best Practices 95 • SEO 100 • PWA 92
 
 ## Technical Debt
 
-**053 - Unified Browser Event Hooks**
+~~**053 - Unified Browser Event Hooks**~~ ✅ **COMPLETE**
 
-```
-/speckit.workflow specs/053-unified-event-hooks
-```
-
-> Duplicate event listeners (online/offline, click-outside, visibility). Consolidate into hooks.
+> ~~Duplicate event listeners (online/offline, click-outside, visibility). Consolidate into hooks.~~ Created `useOnlineStatus`, `useClickOutside`, `useVisibilityChange` hooks. Migrated 3 components.
 > [View Spec](specs/053-unified-event-hooks/spec.md)
 
 **054 - Code Consolidation**

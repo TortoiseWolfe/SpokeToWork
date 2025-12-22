@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { useFontFamily } from '@/hooks/useFontFamily';
+import { useClickOutside } from '@/hooks/useClickOutside';
 
 export interface FontSwitcherProps {
   className?: string;
@@ -23,21 +24,15 @@ export const FontSwitcher: React.FC<FontSwitcherProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-        setFocusedIndex(-1);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  // FR-007: Use unified click-outside hook
+  useClickOutside(
+    dropdownRef,
+    () => {
+      setIsOpen(false);
+      setFocusedIndex(-1);
+    },
+    isOpen
+  );
 
   const handleFontSelect = (fontId: string) => {
     setFontFamily(fontId);
