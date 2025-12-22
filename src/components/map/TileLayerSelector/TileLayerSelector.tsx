@@ -9,6 +9,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import type { MapTileProvider } from '@/types/route';
+import { useClickOutside } from '@/hooks/useClickOutside';
 
 export interface TileLayerSelectorProps {
   /** Available tile providers */
@@ -42,20 +43,8 @@ export default function TileLayerSelector({
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  // FR-007: Use unified click-outside hook
+  useClickOutside(dropdownRef, () => setIsOpen(false), isOpen);
 
   // Close dropdown on Escape key
   useEffect(() => {
