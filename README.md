@@ -18,13 +18,9 @@ These are tracked issues from our code review. Run `/speckit.workflow` with the 
 > ~~Private keys stored as plaintext in IndexedDB.~~ Keys are now derived in-memory only (Argon2id), never stored. Password change triggers key rotation.
 > [View Spec](specs/049-indexeddb-encryption/spec.md)
 
-**050 - OAuth State Token Cleanup**
+**050 - OAuth State Token Cleanup** ✅ FIXED
 
-```
-/speckit.workflow specs/050-oauth-state-cleanup
-```
-
-> Dead CSRF token code exists alongside Supabase PKCE. Remove or consolidate.
+> ~~Dead CSRF token code exists alongside Supabase PKCE.~~ Removed unused oauth-state.ts (520 lines) and oauth_states table. Supabase PKCE handles OAuth CSRF protection.
 > [View Spec](specs/050-oauth-state-cleanup/spec.md)
 
 ### Performance Issues
@@ -80,9 +76,9 @@ These are tracked issues from our code review. Run `/speckit.workflow` with the 
 
 ## 🚀 Live Demos
 
-- **Main App**: [https://TortoiseWolfe.github.io/SpokeToWork/](https://TortoiseWolfe.github.io/SpokeToWork/)
-- **Storybook**: [https://TortoiseWolfe.github.io/SpokeToWork/storybook/](https://TortoiseWolfe.github.io/SpokeToWork/storybook/)
-- **Status Dashboard**: [https://TortoiseWolfe.github.io/SpokeToWork/status](https://TortoiseWolfe.github.io/SpokeToWork/status)
+- **Main App**: [https://SpokeToWork.com/](https://SpokeToWork.com/)
+- **Storybook**: [https://SpokeToWork.com/storybook/](https://SpokeToWork.com/storybook/)
+- **Status Dashboard**: [https://SpokeToWork.com/status](https://SpokeToWork.com/status)
 
 ## ✨ Key Features
 
