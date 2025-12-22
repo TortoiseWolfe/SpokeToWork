@@ -106,6 +106,13 @@ const BLOG_EXPECTATIONS = {
   },
 };
 
+import {
+  createTestUser,
+  deleteTestUser,
+  generateTestEmail,
+  DEFAULT_TEST_PASSWORD,
+} from '../utils/test-user-factory';
+
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
 // Supabase admin client for data cleanup
@@ -129,17 +136,8 @@ const SCREENSHOT_DIR = path.join(
   'public/blog-images/getting-started-job-hunt-companion'
 );
 
-// Use SECONDARY test user for clean demo screenshots
-const testEmail = process.env.TEST_USER_SECONDARY_EMAIL;
-const testPassword = process.env.TEST_USER_SECONDARY_PASSWORD;
-
-if (!testEmail || !testPassword) {
-  throw new Error(
-    'TEST_USER_SECONDARY_EMAIL and TEST_USER_SECONDARY_PASSWORD must be set in .env'
-  );
-}
-
-const TEST_USER = { email: testEmail, password: testPassword };
+// Test user will be created dynamically with email confirmed
+let TEST_USER: { id: string; email: string; password: string } | null = null;
 
 // Community Kitchen - soup kitchen as starting point (home location)
 // Coordinates for Chattanooga, TN (pre-geocoded to avoid API rate limits)
@@ -190,6 +188,17 @@ test.describe.serial('Blog Screenshot Capture with Accuracy Audit', () => {
   let page: Page;
 
   test.beforeAll(async ({ browser }) => {
+    // Create test user with email pre-confirmed via admin API
+    const email = generateTestEmail('e2e-blog-screenshots');
+    const password = DEFAULT_TEST_PASSWORD || 'ValidPass123!';
+    TEST_USER = await createTestUser(email, password);
+
+    if (!TEST_USER) {
+      throw new Error('Failed to create test user for blog screenshot tests');
+    }
+
+    console.log(`✅ Created test user: ${TEST_USER.email}`);
+
     // Ensure screenshot directory exists
     if (!fs.existsSync(SCREENSHOT_DIR)) {
       fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
@@ -252,16 +261,16 @@ test.describe.serial('Blog Screenshot Capture with Accuracy Audit', () => {
       }
     });
 
-    // Sign in with SECONDARY test user
+    // Sign in with test user
     await page.goto(`${BASE_URL}/sign-in`);
     await page.fill('input[type="email"]', TEST_USER.email);
     await page.fill('input[type="password"]', TEST_USER.password);
     await page.click('button[type="submit"]');
 
-    // Wait for redirect
-    await page.waitForURL(/\/(profile|companies|account)/, { timeout: 15000 });
+    // Wait for redirect (should go to profile, not verify-email)
+    await page.waitForURL(/\/profile/, { timeout: 15000 });
 
-    console.log('✅ Signed in as SECONDARY test user');
+    console.log('✅ Signed in as test user');
 
     // FLUSH ALL DATA for clean screenshots
     if (adminClient) {
@@ -269,7 +278,7 @@ test.describe.serial('Blog Screenshot Capture with Accuracy Audit', () => {
 
       // Get user ID from auth.users
       const { data: authData } = await adminClient.auth.admin.listUsers();
-      const user = authData?.users?.find((u) => u.email === TEST_USER.email);
+      const user = authData?.users?.find((u) => u.email === TEST_USER?.email);
 
       if (user) {
         const userId = user.id;
@@ -379,6 +388,12 @@ test.describe.serial('Blog Screenshot Capture with Accuracy Audit', () => {
 
   test.afterAll(async () => {
     await context?.close();
+
+    // Clean up test user
+    if (TEST_USER) {
+      await deleteTestUser(TEST_USER.id);
+      console.log('🧹 Deleted test user');
+    }
   });
 
   test('1. Audit & Capture Home Location Settings', async () => {
