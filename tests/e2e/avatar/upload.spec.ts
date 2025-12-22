@@ -8,28 +8,58 @@
  * - Remove avatar
  * - Validation error handling
  *
+ * Uses createTestUser with email_confirm: true to avoid email verification issues.
+ *
  * Prerequisites:
- * - Test user authenticated
- * - Account Settings page accessible at /account-settings
+ * - Supabase service role key configured
+ * - Account Settings page accessible at /account
  * - Test fixtures available at e2e/fixtures/avatars/
  */
 
 import { test, expect } from '@playwright/test';
 import path from 'path';
+import {
+  createTestUser,
+  deleteTestUser,
+  generateTestEmail,
+  DEFAULT_TEST_PASSWORD,
+} from '../utils/test-user-factory';
+
+let testUser: { id: string; email: string; password: string } | null = null;
 
 test.describe('Avatar Upload Flow', () => {
-  test.beforeEach(async ({ page }) => {
-    // Authenticate test user
-    const testEmail = process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com';
-    const testPassword = process.env.TEST_USER_PRIMARY_PASSWORD!;
+  test.beforeAll(async () => {
+    // Create test user with email pre-confirmed via admin API
+    const email = generateTestEmail('e2e-avatar');
+    const password = DEFAULT_TEST_PASSWORD || 'ValidPass123!';
+    testUser = await createTestUser(email, password);
 
+    if (!testUser) {
+      throw new Error('Failed to create test user for avatar upload tests');
+    }
+  });
+
+  test.afterAll(async () => {
+    // Clean up test user
+    if (testUser) {
+      await deleteTestUser(testUser.id);
+    }
+  });
+
+  test.beforeEach(async ({ page }) => {
+    if (!testUser) {
+      test.skip();
+      return;
+    }
+
+    // Sign in with pre-confirmed test user
     await page.goto('/sign-in');
-    await page.fill('input[type="email"]', testEmail);
-    await page.fill('input[type="password"]', testPassword);
+    await page.fill('input[type="email"]', testUser.email);
+    await page.fill('input[type="password"]', testUser.password);
     await page.click('button[type="submit"]');
 
-    // Wait for redirect to profile or verify-email after sign-in
-    await page.waitForURL(/\/(profile|verify-email)/, { timeout: 10000 });
+    // Wait for redirect to profile (should NOT go to verify-email)
+    await page.waitForURL(/\/profile/, { timeout: 10000 });
 
     // Navigate to Account Settings
     await page.goto('/account');

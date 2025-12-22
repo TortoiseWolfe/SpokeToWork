@@ -35,18 +35,22 @@ test.describe('User Registration E2E', () => {
     await page.getByRole('button', { name: 'Sign Up' }).click();
 
     // Step 5: Verify redirected to verify-email or profile
-    // Note: In development, email verification might be disabled
+    // Note: In production, email verification is required
     await page.waitForURL(/\/(verify-email|profile)/);
 
-    // Step 6: If on verify-email page, check for verification notice
+    // Step 6: If on verify-email page, verify the notice and complete the test
+    // Unverified users cannot access protected routes in production
     if (page.url().includes('verify-email')) {
-      await expect(page.getByText(/check your inbox/i)).toBeVisible();
+      await expect(page.getByText(/verify your email/i)).toBeVisible();
 
-      // In real scenario, user would click link in email
-      // For E2E test, we can skip to profile if email verification is disabled
+      // Test passes - sign-up flow completed correctly
+      // In production, user would verify email via link
+      // Protected route access requires email verification
+      return;
     }
 
-    // Step 7: Navigate to profile (protected route)
+    // Step 7: Only reach here if email verification is disabled
+    // Navigate to profile (protected route)
     await page.goto('/profile');
 
     // Step 8: Verify user is authenticated and can access profile

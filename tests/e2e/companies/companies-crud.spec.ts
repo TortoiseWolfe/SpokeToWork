@@ -6,22 +6,21 @@
  * - Edit existing application
  * - Delete application with confirmation
  * - Cancel operations
+ *
+ * Uses createTestUser with email_confirm: true to avoid email verification issues.
  */
 
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { CompaniesPage } from '../pages/CompaniesPage';
+import {
+  createTestUser,
+  deleteTestUser,
+  generateTestEmail,
+  DEFAULT_TEST_PASSWORD,
+} from '../utils/test-user-factory';
 
-// Test user credentials from env (required)
-const testEmail =
-  process.env.TEST_USER_EMAIL || process.env.TEST_USER_PRIMARY_EMAIL;
-const testPassword =
-  process.env.TEST_USER_PASSWORD || process.env.TEST_USER_PRIMARY_PASSWORD;
-
-if (!testEmail || !testPassword) {
-  throw new Error('TEST_USER_EMAIL and TEST_USER_PASSWORD must be set in .env');
-}
-
-const TEST_USER = { email: testEmail, password: testPassword };
+// Test user will be created dynamically with email confirmed
+let TEST_USER: { id: string; email: string; password: string } | null = null;
 
 test.describe('Companies Page - Application CRUD', () => {
   // Shared context and page for all tests - sign in once
@@ -31,6 +30,15 @@ test.describe('Companies Page - Application CRUD', () => {
   const testPositionPrefix = 'E2E Test Position';
 
   test.beforeAll(async ({ browser }) => {
+    // Create test user with email pre-confirmed via admin API
+    const email = generateTestEmail('e2e-companies-crud');
+    const password = DEFAULT_TEST_PASSWORD || 'ValidPass123!';
+    TEST_USER = await createTestUser(email, password);
+
+    if (!TEST_USER) {
+      throw new Error('Failed to create test user for companies CRUD tests');
+    }
+
     // Create a shared context and page
     sharedContext = await browser.newContext();
     sharedPage = await sharedContext.newPage();
@@ -50,6 +58,11 @@ test.describe('Companies Page - Application CRUD', () => {
     }
 
     await sharedContext?.close();
+
+    // Clean up test user
+    if (TEST_USER) {
+      await deleteTestUser(TEST_USER.id);
+    }
   });
 
   test.beforeEach(async () => {
