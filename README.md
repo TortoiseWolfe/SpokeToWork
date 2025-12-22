@@ -46,13 +46,9 @@ Performance 92 • Accessibility 98 • Best Practices 95 • SEO 100 • PWA 92
 > ~~Duplicate event listeners (online/offline, click-outside, visibility). Consolidate into hooks.~~ Created `useOnlineStatus`, `useClickOutside`, `useVisibilityChange` hooks. Migrated 3 components.
 > [View Spec](specs/053-unified-event-hooks/spec.md)
 
-**054 - Code Consolidation**
+~~**054 - Code Consolidation**~~ ✅ **COMPLETE**
 
-```
-/speckit.workflow specs/054-code-consolidation
-```
-
-> Duplicate implementations (offline queue, audit logger, email validation, rate limiter).
+> ~~Duplicate implementations (offline queue, audit logger, email validation, rate limiter).~~ All consolidated: offline queue has adapters, email validation delegates to auth, dead code removed.
 > [View Spec](specs/054-code-consolidation/spec.md)
 
 **055 - Test Coverage Expansion**
