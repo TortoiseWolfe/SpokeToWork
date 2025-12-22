@@ -357,7 +357,7 @@ test.describe('Flow 1: Email/Password Signup → Welcome Message', () => {
   test('New user sign-in triggers key initialization and welcome message', async ({
     page,
   }) => {
-    const testEmail = `e2e-flow1-${Date.now()}@example.com`;
+    const testEmail = `e2e-flow1-${Date.now()}@mailinator.com`;
     let testUserId: string | null = null;
 
     try {
@@ -429,7 +429,7 @@ test.describe('Flow 1: Email/Password Signup → Welcome Message', () => {
 
 test.describe('Flow 4: Account Deletion', () => {
   test('Account deletion removes all user data', async ({ page }) => {
-    const testEmail = `e2e-flow4-${Date.now()}@example.com`;
+    const testEmail = `e2e-flow4-${Date.now()}@mailinator.com`;
     let testUserId: string | null = null;
 
     try {
@@ -530,7 +530,7 @@ test.describe('Flow 4: Account Deletion', () => {
   });
 
   test('Cannot sign in with deleted account', async ({ page }) => {
-    const testEmail = `e2e-deleted-${Date.now()}@example.com`;
+    const testEmail = `e2e-deleted-${Date.now()}@mailinator.com`;
     let testUserId: string | null = null;
 
     try {
@@ -586,7 +586,7 @@ test.describe('Flow 4: Account Deletion', () => {
 
 test.describe('Flow 5: Sign Out and Sign Back In', () => {
   test('Sign out clears session, sign in restores access', async ({ page }) => {
-    const testEmail = `e2e-flow5-${Date.now()}@example.com`;
+    const testEmail = `e2e-flow5-${Date.now()}@mailinator.com`;
     let testUserId: string | null = null;
 
     try {
