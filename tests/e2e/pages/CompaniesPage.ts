@@ -525,6 +525,96 @@ export class CompaniesPage extends BasePage {
   }
 
   /**
+   * Click a sort button by column name
+   * Feature 051: Used to verify sort functionality after memoization
+   */
+  async clickSortButton(
+    columnName:
+      | 'name'
+      | 'zip_code'
+      | 'status'
+      | 'priority'
+      | 'applications'
+      | 'website'
+  ) {
+    // Map column names to button text
+    const buttonTextMap: Record<string, string> = {
+      name: 'Company',
+      zip_code: 'Zip',
+      status: 'Status',
+      priority: 'Priority',
+      applications: 'Apps',
+      website: 'Website',
+    };
+
+    const buttonText = buttonTextMap[columnName] || columnName;
+    const sortButton = this.page
+      .locator('thead button.btn-ghost.btn-xs')
+      .filter({ hasText: buttonText })
+      .first();
+    await sortButton.click();
+    // Wait for table to re-render
+    await this.page.waitForTimeout(100);
+  }
+
+  /**
+   * Get all company names from the table in order
+   * Feature 051: Used to verify sort order after memoization
+   */
+  async getCompanyNames(): Promise<string[]> {
+    const rows = this.page.locator('[data-testid^="company-row-"]');
+    const count = await rows.count();
+    const names: string[] = [];
+
+    for (let i = 0; i < count; i++) {
+      const row = rows.nth(i);
+      // Get the company name from the first cell's div with font-bold class
+      const nameElement = row.locator('td:first-child .font-bold').first();
+      const text = await nameElement.textContent();
+      if (text) {
+        // Strip any badge text (Far, Inactive, etc.)
+        names.push(text.split(/\s+/)[0]);
+      }
+    }
+
+    return names;
+  }
+
+  /**
+   * Get the current sort direction indicator for a column
+   * Returns 'asc', 'desc', or null if not sorted by this column
+   */
+  async getSortDirection(
+    columnName:
+      | 'name'
+      | 'zip_code'
+      | 'status'
+      | 'priority'
+      | 'applications'
+      | 'website'
+  ): Promise<'asc' | 'desc' | null> {
+    const buttonTextMap: Record<string, string> = {
+      name: 'Company',
+      zip_code: 'Zip',
+      status: 'Status',
+      priority: 'Priority',
+      applications: 'Apps',
+      website: 'Website',
+    };
+
+    const buttonText = buttonTextMap[columnName] || columnName;
+    const sortButton = this.page
+      .locator('thead button.btn-ghost.btn-xs')
+      .filter({ hasText: buttonText })
+      .first();
+
+    const buttonContent = await sortButton.textContent();
+    if (buttonContent?.includes('↑')) return 'asc';
+    if (buttonContent?.includes('↓')) return 'desc';
+    return null;
+  }
+
+  /**
    * Delete all test applications created during E2E tests.
    * Uses the authenticated user's session to delete via UI.
    * This ensures cleanup works without requiring service role key.

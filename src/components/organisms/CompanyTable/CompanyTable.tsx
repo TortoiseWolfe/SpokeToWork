@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import CompanyRow from '@/components/molecular/CompanyRow';
 import CompanyFilters from '@/components/molecular/CompanyFilters';
 import type {
@@ -225,13 +225,42 @@ export default function CompanyTable({
     return sorted;
   }, [filteredCompanies, sort]);
 
-  const handleSort = (field: CompanySort['field']) => {
+  // FR-1: Wrap handleSort in useCallback (uses functional setSort, so empty deps)
+  const handleSort = useCallback((field: CompanySort['field']) => {
     setSort((prev) => ({
       field,
       direction:
         prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc',
     }));
-  };
+  }, []);
+
+  // FR-2: Defensive useCallback wrappers for callbacks passed to CompanyRow
+  // Ensures memo() effectiveness regardless of parent component behavior
+  const handleCompanyClick = useCallback(
+    (company: CompanyType) => onCompanyClick?.(company),
+    [onCompanyClick]
+  );
+
+  const handleEdit = useCallback(
+    (company: CompanyType) => onEdit?.(company),
+    [onEdit]
+  );
+
+  const handleDelete = useCallback(
+    (company: CompanyType) => onDelete?.(company),
+    [onDelete]
+  );
+
+  const handleStatusChange = useCallback(
+    (company: Company, status: CompanyStatus) =>
+      onStatusChange?.(company, status),
+    [onStatusChange]
+  );
+
+  const handleAddToRoute = useCallback(
+    (company: CompanyType) => onAddToRoute?.(company),
+    [onAddToRoute]
+  );
 
   const SortIcon = ({ field }: { field: CompanySort['field'] }) => {
     if (sort.field !== field) return null;
@@ -412,11 +441,11 @@ export default function CompanyTable({
                   <CompanyRow
                     key={companyId}
                     company={company}
-                    onClick={onCompanyClick}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                    onStatusChange={onStatusChange}
-                    onAddToRoute={onAddToRoute}
+                    onClick={handleCompanyClick}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onStatusChange={handleStatusChange}
+                    onAddToRoute={handleAddToRoute}
                     isOnActiveRoute={isOnActiveRoute}
                     testId={`company-row-${companyId}`}
                   />

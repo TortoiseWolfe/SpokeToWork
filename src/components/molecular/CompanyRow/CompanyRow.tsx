@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import type {
   Company,
   CompanyWithApplications,
@@ -108,9 +108,12 @@ function getCompanyId(company: CompanyType): string {
  * - Priority indicator
  * - Quick action buttons
  *
+ * FR-3: Wrapped with React.memo to prevent unnecessary re-renders
+ * when props haven't changed (works with defensive useCallback in CompanyTable)
+ *
  * @category molecular
  */
-export default function CompanyRow({
+function CompanyRowComponent({
   company,
   onClick,
   onEdit,
@@ -443,3 +446,9 @@ export default function CompanyRow({
     </tr>
   );
 }
+
+// FR-3: Export with React.memo wrapper
+const CompanyRow = memo(CompanyRowComponent);
+CompanyRow.displayName = 'CompanyRow';
+
+export default CompanyRow;
