@@ -53,7 +53,7 @@ The components originally flagged in the initial spec **already have optimizatio
 - [x] No stale closure bugs verified via:
   - [x] Playwright E2E test: sort by each column, verify order updates correctly
   - [x] Manual verification during implementation
-- [ ] Re-profile shows behavioral correctness: sorting doesn't trigger re-render of all CompanyRow components (only header/state changes highlighted, not row list)
+- [x] Re-profile shows behavioral correctness: sorting doesn't trigger re-render of all CompanyRow components (automated via E2E render count verification)
 
 ## Testing Approach
 
