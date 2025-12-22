@@ -61,6 +61,20 @@ Performance 92 • Accessibility 98 • Best Practices 95 • SEO 100 • PWA 92
 
 All P1/P2 technical debt specs complete. See [docs/TECHNICAL-DEBT.md](./docs/TECHNICAL-DEBT.md) for future items.
 
+## E2E Test Remediation
+
+**Status**: 51 unique failures (27 CRITICAL auth, 24 HIGH accessibility)
+
+**Root Cause**: Authentication not working in CI - all tests stuck at unauthenticated home page.
+
+**Analysis Report**: [docs/specs/e2e-remediation/analysis-report.md](./docs/specs/e2e-remediation/analysis-report.md)
+
+To start the remediation workflow:
+
+```bash
+/speckit.workflow Fix E2E test failures - 51 unique failures (27 CRITICAL auth, 24 HIGH accessibility) all caused by AUTH_FAILURE in CI. Primary fix: verify GitHub Secrets for test user credentials. See docs/specs/e2e-remediation/analysis-report.md
+```
+
 ## License
 
 MIT - See [LICENSE](./LICENSE)

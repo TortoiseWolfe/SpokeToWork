@@ -20,9 +20,9 @@ test.describe('Protected Routes E2E', () => {
     for (const route of protectedRoutes) {
       await page.goto(route);
 
-      // Verify redirected to sign-in
-      await page.waitForURL('/sign-in');
-      await expect(page).toHaveURL('/sign-in');
+      // Verify redirected to sign-in (use regex to allow query params like ?returnUrl=)
+      await page.waitForURL(/\/sign-in/);
+      await expect(page).toHaveURL(/\/sign-in/);
     }
   });
 
@@ -74,7 +74,7 @@ test.describe('Protected Routes E2E', () => {
 
     // Step 3: Sign out
     await page.getByRole('button', { name: 'Sign Out' }).click();
-    await page.waitForURL('/sign-in');
+    await page.waitForURL(/\/sign-in/);
 
     // Step 4: Create second user
     const user2Email = `e2e-rls-2-${Date.now()}@example.com`;
@@ -159,8 +159,8 @@ test.describe('Protected Routes E2E', () => {
     await page.goto('/profile');
 
     // Verify redirected to sign-in
-    await page.waitForURL('/sign-in');
-    await expect(page).toHaveURL('/sign-in');
+    await page.waitForURL(/\/sign-in/);
+    await expect(page).toHaveURL(/\/sign-in/);
   });
 
   test('should redirect to intended URL after authentication', async ({
@@ -168,7 +168,7 @@ test.describe('Protected Routes E2E', () => {
   }) => {
     // Attempt to access protected route while unauthenticated
     await page.goto('/account');
-    await page.waitForURL('/sign-in');
+    await page.waitForURL(/\/sign-in/);
 
     // Sign in
     await page.getByLabel('Email').fill(testEmail);
@@ -214,8 +214,8 @@ test.describe('Protected Routes E2E', () => {
       await page.getByRole('button', { name: /confirm/i }).click();
 
       // Verify redirected to sign-in
-      await page.waitForURL('/sign-in');
-      await expect(page).toHaveURL('/sign-in');
+      await page.waitForURL(/\/sign-in/);
+      await expect(page).toHaveURL(/\/sign-in/);
     }
   });
 });

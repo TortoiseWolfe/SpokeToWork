@@ -24,7 +24,7 @@ test.describe('Session Persistence E2E', () => {
 
     // Sign out to test sign-in with Remember Me
     await page.getByRole('button', { name: 'Sign Out' }).click();
-    await page.waitForURL('/sign-in');
+    await page.waitForURL(/\/sign-in/);
   });
 
   test('should extend session duration with Remember Me checked', async ({
@@ -176,7 +176,7 @@ test.describe('Session Persistence E2E', () => {
 
     // Sign out
     await page.getByRole('button', { name: 'Sign Out' }).click();
-    await page.waitForURL('/sign-in');
+    await page.waitForURL(/\/sign-in/);
 
     // Verify session cleared from storage
     const afterSignOut = await page.evaluate(() =>
@@ -193,8 +193,8 @@ test.describe('Session Persistence E2E', () => {
 
     // Verify cannot access protected routes
     await page.goto('/profile');
-    await page.waitForURL('/sign-in');
-    await expect(page).toHaveURL('/sign-in');
+    await page.waitForURL(/\/sign-in/);
+    await expect(page).toHaveURL(/\/sign-in/);
   });
 
   test('should handle concurrent tab sessions correctly', async ({
@@ -219,13 +219,13 @@ test.describe('Session Persistence E2E', () => {
 
     // Sign out on page 1
     await page1.getByRole('button', { name: 'Sign Out' }).click();
-    await page1.waitForURL('/sign-in');
+    await page1.waitForURL(/\/sign-in/);
 
     // Page 2 should detect sign out (if using realtime sync)
     // Note: This depends on implementation - may require page reload
     await page2.reload();
-    await page2.waitForURL('/sign-in');
-    await expect(page2).toHaveURL('/sign-in');
+    await page2.waitForURL(/\/sign-in/);
+    await expect(page2).toHaveURL(/\/sign-in/);
 
     await context.close();
   });
