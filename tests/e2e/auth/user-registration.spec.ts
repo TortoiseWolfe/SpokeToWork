@@ -63,9 +63,9 @@ test.describe('User Registration E2E', () => {
     // Step 10: Sign out
     await page.getByRole('button', { name: 'Sign Out' }).click();
 
-    // Step 11: Verify redirected to sign-in
-    await page.waitForURL('/sign-in');
-    await expect(page).toHaveURL('/sign-in');
+    // Step 11: Verify redirected to sign-in (use regex to allow query params)
+    await page.waitForURL(/\/sign-in/);
+    await expect(page).toHaveURL(/\/sign-in/);
 
     // Clean up: Delete test user (would need admin API or manual cleanup)
   });
@@ -124,7 +124,7 @@ test.describe('User Registration E2E', () => {
     await page.getByRole('link', { name: /already have an account/i }).click();
 
     // Verify navigated to sign-in
-    await expect(page).toHaveURL('/sign-in');
+    await expect(page).toHaveURL(/\/sign-in/);
   });
 
   test('should display OAuth buttons on sign-up page', async ({ page }) => {
