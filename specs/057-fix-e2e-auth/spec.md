@@ -144,3 +144,15 @@ All required test users exist and are confirmed:
 - `test-user-b@example.com` - Secondary (confirmed)
 - `test-user-c@example.com` - Tertiary (confirmed)
 - `admin@spoketowork.com` - Admin (confirmed)
+
+**Q3: Identity Records Fix (2025-12-22)**
+
+Additional root cause discovered: `auth.identities` records had inconsistent `email_verified: false` in `identity_data` JSON despite users having `email_confirmed_at` set in `auth.users`.
+
+**Issue**: The tertiary user `test-user-c@example.com` had NEVER signed in (`last_sign_in_at: null`) despite being "confirmed".
+
+**Resolution**:
+
+1. Updated `identity_data.email_verified` to `true` for all test users
+2. Reset passwords to match `.env` file values
+3. Verified all three test users can now authenticate via Supabase Auth API
