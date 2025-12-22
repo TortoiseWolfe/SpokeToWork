@@ -47,7 +47,7 @@ async function cleanupOrphanedE2EUsers(): Promise<void> {
   try {
     // Count orphaned users first
     const countResult = (await executeSQL(
-      `SELECT COUNT(*) as count FROM auth.users WHERE email LIKE 'e2e-%@example.com'`
+      `SELECT COUNT(*) as count FROM auth.users WHERE email LIKE 'e2e-%@mailinator.com'`
     )) as { count: string }[];
 
     const count = parseInt(countResult[0]?.count || '0', 10);
@@ -62,13 +62,13 @@ async function cleanupOrphanedE2EUsers(): Promise<void> {
     // Delete dependent records first
     await executeSQL(`
       DELETE FROM user_company_tracking WHERE user_id IN (
-        SELECT id FROM auth.users WHERE email LIKE 'e2e-%@example.com'
+        SELECT id FROM auth.users WHERE email LIKE 'e2e-%@mailinator.com'
       )
     `);
 
     await executeSQL(`
       DELETE FROM user_encryption_keys WHERE user_id IN (
-        SELECT id FROM auth.users WHERE email LIKE 'e2e-%@example.com'
+        SELECT id FROM auth.users WHERE email LIKE 'e2e-%@mailinator.com'
       )
     `);
 
@@ -76,32 +76,32 @@ async function cleanupOrphanedE2EUsers(): Promise<void> {
       DELETE FROM messages WHERE conversation_id IN (
         SELECT c.id FROM conversations c
         JOIN auth.users u ON (c.participant_1_id = u.id OR c.participant_2_id = u.id)
-        WHERE u.email LIKE 'e2e-%@example.com'
+        WHERE u.email LIKE 'e2e-%@mailinator.com'
       )
     `);
 
     await executeSQL(`
       DELETE FROM conversations WHERE participant_1_id IN (
-        SELECT id FROM auth.users WHERE email LIKE 'e2e-%@example.com'
+        SELECT id FROM auth.users WHERE email LIKE 'e2e-%@mailinator.com'
       ) OR participant_2_id IN (
-        SELECT id FROM auth.users WHERE email LIKE 'e2e-%@example.com'
+        SELECT id FROM auth.users WHERE email LIKE 'e2e-%@mailinator.com'
       )
     `);
 
     await executeSQL(`
       DELETE FROM user_profiles WHERE id IN (
-        SELECT id FROM auth.users WHERE email LIKE 'e2e-%@example.com'
+        SELECT id FROM auth.users WHERE email LIKE 'e2e-%@mailinator.com'
       )
     `);
 
     await executeSQL(`
       DELETE FROM auth.identities WHERE user_id IN (
-        SELECT id FROM auth.users WHERE email LIKE 'e2e-%@example.com'
+        SELECT id FROM auth.users WHERE email LIKE 'e2e-%@mailinator.com'
       )
     `);
 
     await executeSQL(`
-      DELETE FROM auth.users WHERE email LIKE 'e2e-%@example.com'
+      DELETE FROM auth.users WHERE email LIKE 'e2e-%@mailinator.com'
     `);
 
     console.log(`✓ Cleaned up ${count} orphaned e2e-* users`);
