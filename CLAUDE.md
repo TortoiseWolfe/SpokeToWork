@@ -472,6 +472,9 @@ WHERE name ILIKE '%steph%' OR contact_name ILIKE '%steph%';
 
 ## Active Technologies
 
+- TypeScript 5.9, React 19, Next.js 15 + Supabase Auth (PKCE built-in), @supabase/supabase-js (050-oauth-state-cleanup)
+- Supabase PostgreSQL (removing `oauth_states` table) (050-oauth-state-cleanup)
+
 - TypeScript 5.9, React 19, Next.js 15 + Native fetch API, existing routing service pattern (048-openrouteservice-routing)
 - N/A (external API calls) (048-openrouteservice-routing)
 
