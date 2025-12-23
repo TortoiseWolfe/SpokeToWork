@@ -6,6 +6,8 @@ These are **instruction files** that tell Claude how to generate artifacts for t
 
 ## Available Commands
 
+### SpecKit Workflow Commands
+
 ### `/plan`
 
 **File**: `plan.md`
@@ -34,6 +36,63 @@ These are **instruction files** that tell Claude how to generate artifacts for t
 
 **File**: `specify.md`
 **Purpose**: Initialize a spec-kit project (rarely used, project already initialized)
+
+---
+
+### CI/E2E Analysis Commands
+
+### `/fetch-ci`
+
+**File**: `fetch-ci.md`
+**Purpose**: Download E2E test artifacts from GitHub Actions CI
+**Creates**:
+
+- test-results-ci/ directory with extracted artifacts
+
+**Usage**: After CI fails, tell Claude: "/fetch-ci" to download the latest failed run's artifacts
+
+**Flags**:
+
+- `--run <id>` - Specific workflow run ID
+- `--branch <name>` - Filter by branch
+- `--all` - Download all artifacts (not just playwright-report)
+
+### `/analyze-e2e`
+
+**File**: `analyze-e2e.md`
+**Purpose**: Analyze E2E test failures and generate remediation report
+**Creates**:
+
+- docs/specs/e2e-remediation/analysis-report.md
+
+**Usage**: After running E2E tests locally or downloading CI artifacts
+
+**Flags**:
+
+- `--ci` - Analyze test-results-ci/ (CI artifacts)
+- `--path <dir>` - Custom directory
+- `--category <name>` - Filter by category (auth, accessibility, etc.)
+
+---
+
+### CI Workflow Example
+
+```bash
+# 1. CI fails with E2E test errors
+
+# 2. Download CI artifacts
+/fetch-ci
+
+# 3. Analyze failures
+/analyze-e2e --ci
+
+# 4. Review report at docs/specs/e2e-remediation/analysis-report.md
+
+# 5. Fix issues based on root cause analysis
+
+# 6. Commit and push
+/commit
+```
 
 ## How They Work
 

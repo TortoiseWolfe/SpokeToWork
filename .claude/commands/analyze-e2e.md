@@ -11,6 +11,29 @@ $ARGUMENTS
 Parse for:
 
 - `--category <name>` - Analyze only specific category (auth, accessibility, messaging, etc.)
+- `--ci` - Use test-results-ci/ directory (CI artifacts from /fetch-ci)
+- `--path <dir>` - Use custom directory path
+
+---
+
+## PHASE 0: Determine Results Directory
+
+**REQUIRED ACTIONS:**
+
+1. Set results directory based on flags:
+   - If `--ci`: `RESULTS_DIR=test-results-ci`
+   - If `--path <dir>`: `RESULTS_DIR=<dir>`
+   - Default: `RESULTS_DIR=test-results`
+
+2. Check if directory exists:
+   ```bash
+   ls -la $RESULTS_DIR/ 2>/dev/null | head -5
+   ```
+
+**If directory missing and default:**
+
+- Check for CI artifacts: `ls -la test-results-ci/ 2>/dev/null`
+- If CI artifacts exist, suggest: "Found CI artifacts. Run `/analyze-e2e --ci` to analyze them."
 
 ---
 
@@ -18,33 +41,44 @@ Parse for:
 
 **REQUIRED ACTIONS:**
 
-1. Check if test-results directory exists and has content:
+1. Check if results directory has content:
 
    ```bash
-   ls -la test-results/ 2>/dev/null | head -5
+   ls -la $RESULTS_DIR/ 2>/dev/null | head -5
    ```
 
-2. Count total failure directories:
+2. Detect results format:
+   - **HTML Report format** (from CI): Has `index.html` and `data/` directory with `.md` snapshots
+   - **Directory format** (from local): Has failure directories like `auth-test-name-chromium/`
+
+3. For HTML Report format (CI artifacts):
 
    ```bash
-   ls -d test-results/*/ 2>/dev/null | wc -l
+   # Count page snapshots
+   find $RESULTS_DIR/data -name "*.md" 2>/dev/null | wc -l
+
+   # List unique test names from snapshots
+   ls $RESULTS_DIR/data/*.md 2>/dev/null | xargs -I{} basename {} .md | sort -u | head -20
    ```
 
-3. Identify unique test failures (excluding retries):
+4. For Directory format (local):
 
    ```bash
-   ls test-results/ | sed 's/-chromium.*$//' | sed 's/-firefox.*$//' | sed 's/-webkit.*$//' | sort -u | wc -l
+   # Count failure directories
+   ls -d $RESULTS_DIR/*/ 2>/dev/null | wc -l
+
+   # Identify unique test failures (excluding retries)
+   ls $RESULTS_DIR/ | sed 's/-chromium.*$//' | sed 's/-firefox.*$//' | sed 's/-webkit.*$//' | sort -u | wc -l
+
+   # Count failures by category
+   ls $RESULTS_DIR/ | cut -d'-' -f1 | sort | uniq -c | sort -rn
    ```
 
-4. Count failures by category (extract first word before hyphen):
-   ```bash
-   ls test-results/ | cut -d'-' -f1 | sort | uniq -c | sort -rn
-   ```
+**If results directory is empty or missing:**
 
-**If test-results/ is empty or missing:**
-
-- Report: "No test failures found in test-results/. Run E2E tests first."
-- Suggest: `docker compose exec spoketowork pnpm exec playwright test`
+- Report: "No test failures found in $RESULTS_DIR/."
+- Suggest local: `docker compose exec spoketowork pnpm exec playwright test`
+- Suggest CI: `/fetch-ci` to download CI artifacts
 - STOP execution.
 
 **REQUIRED OUTPUT:**
