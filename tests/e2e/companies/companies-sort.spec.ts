@@ -23,21 +23,21 @@ if (!testEmail || !testPassword) {
 }
 
 const TEST_USER = { email: testEmail, password: testPassword };
+const AUTH_FILE = 'tests/e2e/fixtures/storage-state-auth.json';
 
 test.describe('Companies Page - Sort Functionality (Feature 051)', () => {
-  // Shared context and page for all tests - sign in once
+  // Shared context and page for all tests - reuse auth state
   let sharedContext: BrowserContext;
   let sharedPage: Page;
   let companiesPage: CompaniesPage;
 
   test.beforeAll(async ({ browser }) => {
-    // Create a shared context and page
-    sharedContext = await browser.newContext();
+    // Create context with pre-authenticated state - NO login needed
+    sharedContext = await browser.newContext({
+      storageState: AUTH_FILE,
+    });
     sharedPage = await sharedContext.newPage();
     companiesPage = new CompaniesPage(sharedPage);
-
-    // Sign in once for all tests
-    await companiesPage.signIn(TEST_USER.email, TEST_USER.password);
   });
 
   test.afterAll(async () => {

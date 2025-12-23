@@ -20,14 +20,40 @@ const TEST_USER_2 = {
 };
 
 /**
+ * Handle the ReAuthModal that appears when session is restored
+ * but encryption keys need to be unlocked.
+ */
+async function handleReAuthModal(page: Page, password: string) {
+  try {
+    // Wait for the ReAuth modal to appear (with short timeout)
+    const reAuthDialog = page.getByRole('dialog', {
+      name: /re-authentication required/i,
+    });
+
+    // Wait for it to be visible
+    await reAuthDialog.waitFor({ state: 'visible', timeout: 5000 });
+
+    // Fill password and unlock
+    const passwordInput = page.getByRole('textbox', { name: /password/i });
+    await passwordInput.fill(password);
+    await page.getByRole('button', { name: /unlock messages/i }).click();
+
+    // Wait for modal to close
+    await reAuthDialog.waitFor({ state: 'hidden', timeout: 10000 });
+  } catch {
+    // Modal didn't appear or already handled - continue
+  }
+}
+
+/**
  * Sign in helper function
  */
 async function signIn(page: Page, email: string, password: string) {
   await page.goto('/sign-in');
-  await page.fill('input[name="email"]', email);
-  await page.fill('input[name="password"]', password);
+  await page.fill('#email', email);
+  await page.fill('#password', password);
   await page.click('button[type="submit"]');
-  await page.waitForURL('/'); // Wait for redirect to home page
+  await page.waitForURL(/.*\/profile/, { timeout: 15000 }); // Wait for redirect to profile page
 }
 
 /**
@@ -38,7 +64,8 @@ async function setupConversation(
   page2: Page
 ): Promise<string | null> {
   // User 1: Navigate to connections page and send friend request if not already connected
-  await page1.goto('/messages/connections');
+  await page1.goto('/messages?tab=connections');
+  await handleReAuthModal(page1, TEST_USER_1.password);
 
   // Check if already connected
   const alreadyConnected = await page1
@@ -61,7 +88,8 @@ async function setupConversation(
     }
 
     // User 2: Accept friend request
-    await page2.goto('/messages/connections');
+    await page2.goto('/messages?tab=connections');
+    await handleReAuthModal(page2, TEST_USER_2.password);
     await page2.click('button:has-text("Pending Received")');
 
     const acceptButton = page2.locator(
@@ -75,7 +103,9 @@ async function setupConversation(
 
   // Both users navigate to messages page
   await page1.goto('/messages');
+  await handleReAuthModal(page1, TEST_USER_1.password);
   await page2.goto('/messages');
+  await handleReAuthModal(page2, TEST_USER_2.password);
 
   // User 1: Click on conversation with User 2
   const conversationLink = page1.locator(

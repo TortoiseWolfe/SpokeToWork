@@ -11,33 +11,23 @@
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { CompaniesPage } from '../pages/CompaniesPage';
 
-// Test user credentials from env (required)
-const testEmail =
-  process.env.TEST_USER_EMAIL || process.env.TEST_USER_PRIMARY_EMAIL;
-const testPassword =
-  process.env.TEST_USER_PASSWORD || process.env.TEST_USER_PRIMARY_PASSWORD;
-
-if (!testEmail || !testPassword) {
-  throw new Error('TEST_USER_EMAIL and TEST_USER_PASSWORD must be set in .env');
-}
-
-const TEST_USER = { email: testEmail, password: testPassword };
+// Uses shared auth state from auth.setup.ts - no direct login needed
+const AUTH_FILE = 'tests/e2e/fixtures/storage-state-auth.json';
 
 test.describe('Companies Page - Status Changes', () => {
-  // Shared context and page for all tests - sign in once
+  // Shared context and page for all tests - reuse auth state
   let sharedContext: BrowserContext;
   let sharedPage: Page;
   let companiesPage: CompaniesPage;
   const testPositionPrefix = 'E2E Status Test';
 
   test.beforeAll(async ({ browser }) => {
-    // Create a shared context and page
-    sharedContext = await browser.newContext();
+    // Create context with pre-authenticated state - NO login needed
+    sharedContext = await browser.newContext({
+      storageState: AUTH_FILE,
+    });
     sharedPage = await sharedContext.newPage();
     companiesPage = new CompaniesPage(sharedPage);
-
-    // Sign in once for all tests
-    await companiesPage.signIn(TEST_USER.email, TEST_USER.password);
 
     // Clean up test applications from previous runs using authenticated session
     await companiesPage.cleanupTestApplications([testPositionPrefix]);

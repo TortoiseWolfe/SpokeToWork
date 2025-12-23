@@ -55,10 +55,7 @@ async function mockGeolocation(
 
 test.describe('Geolocation Map Page', () => {
   test.beforeEach(async ({ page }) => {
-    // Clear all cookies and localStorage
-    await page.context().clearCookies();
     await page.goto('/map');
-    await page.evaluate(() => localStorage.clear());
     await dismissBanner(page);
   });
 

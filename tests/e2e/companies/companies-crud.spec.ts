@@ -12,40 +12,24 @@
 
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { CompaniesPage } from '../pages/CompaniesPage';
-import {
-  createTestUser,
-  deleteTestUser,
-  generateTestEmail,
-  DEFAULT_TEST_PASSWORD,
-} from '../utils/test-user-factory';
+// Uses shared auth state - no test user creation needed
 
-// Test user will be created dynamically with email confirmed
-let TEST_USER: { id: string; email: string; password: string } | null = null;
+const AUTH_FILE = 'tests/e2e/fixtures/storage-state-auth.json';
 
 test.describe('Companies Page - Application CRUD', () => {
-  // Shared context and page for all tests - sign in once
+  // Shared context and page for all tests - reuse auth state
   let sharedContext: BrowserContext;
   let sharedPage: Page;
   let companiesPage: CompaniesPage;
   const testPositionPrefix = 'E2E Test Position';
 
   test.beforeAll(async ({ browser }) => {
-    // Create test user with email pre-confirmed via admin API
-    const email = generateTestEmail('e2e-companies-crud');
-    const password = DEFAULT_TEST_PASSWORD || 'ValidPass123!';
-    TEST_USER = await createTestUser(email, password);
-
-    if (!TEST_USER) {
-      throw new Error('Failed to create test user for companies CRUD tests');
-    }
-
-    // Create a shared context and page
-    sharedContext = await browser.newContext();
+    // Create context with pre-authenticated state - NO login needed
+    sharedContext = await browser.newContext({
+      storageState: AUTH_FILE,
+    });
     sharedPage = await sharedContext.newPage();
     companiesPage = new CompaniesPage(sharedPage);
-
-    // Sign in once for all tests
-    await companiesPage.signIn(TEST_USER.email, TEST_USER.password);
 
     // Clean up test applications from previous runs using authenticated session
     await companiesPage.cleanupTestApplications([testPositionPrefix]);
@@ -58,11 +42,6 @@ test.describe('Companies Page - Application CRUD', () => {
     }
 
     await sharedContext?.close();
-
-    // Clean up test user
-    if (TEST_USER) {
-      await deleteTestUser(TEST_USER.id);
-    }
   });
 
   test.beforeEach(async () => {

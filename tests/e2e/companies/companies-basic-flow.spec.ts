@@ -24,20 +24,21 @@ if (!testEmail || !testPassword) {
 
 const TEST_USER = { email: testEmail, password: testPassword };
 
+const AUTH_FILE = 'tests/e2e/fixtures/storage-state-auth.json';
+
 test.describe('Companies Page - Basic Flow', () => {
-  // Shared context and page for all tests - sign in once
+  // Shared context and page for all tests - reuse auth state
   let sharedContext: BrowserContext;
   let sharedPage: Page;
   let companiesPage: CompaniesPage;
 
   test.beforeAll(async ({ browser }) => {
-    // Create a shared context and page
-    sharedContext = await browser.newContext();
+    // Create context with pre-authenticated state - NO login needed
+    sharedContext = await browser.newContext({
+      storageState: AUTH_FILE,
+    });
     sharedPage = await sharedContext.newPage();
     companiesPage = new CompaniesPage(sharedPage);
-
-    // Sign in once for all tests
-    await companiesPage.signIn(TEST_USER.email, TEST_USER.password);
   });
 
   test.afterAll(async () => {
@@ -53,8 +54,10 @@ test.describe('Companies Page - Basic Flow', () => {
   test('should redirect to sign-in when not authenticated', async ({
     browser,
   }) => {
-    // This test needs a fresh context without auth
-    const freshContext = await browser.newContext();
+    // This test needs a fresh context without auth - explicitly clear storage state
+    const freshContext = await browser.newContext({
+      storageState: { cookies: [], origins: [] },
+    });
     const freshPage = await freshContext.newPage();
 
     // Attempt to access companies page without authentication

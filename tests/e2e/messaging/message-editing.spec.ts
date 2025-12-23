@@ -36,7 +36,7 @@ async function signIn(page: Page, email: string, password: string) {
  * Navigate to conversation helper
  */
 async function navigateToConversation(page: Page) {
-  await page.goto('/messages/connections');
+  await page.goto('/messages?tab=connections');
 
   // Find first accepted connection and click to open conversation
   const firstConnection = page

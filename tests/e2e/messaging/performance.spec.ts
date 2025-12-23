@@ -34,7 +34,7 @@ test.describe('Virtual Scrolling Performance', () => {
     page,
   }) => {
     // Navigate to messages page
-    await page.goto('/messages/connections');
+    await page.goto('/messages?tab=connections');
 
     // Create a test connection (simplified - assumes helper exists)
     // In real implementation, would use ConnectionService to establish connection
