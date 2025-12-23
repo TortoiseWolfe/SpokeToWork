@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { validatePassword } from '@/lib/auth/password-validator';
+import { usePasswordBreachCheck } from '@/hooks/usePasswordBreachCheck';
+import PasswordStrengthIndicator from '@/components/atomic/PasswordStrengthIndicator';
 
 export interface ResetPasswordFormProps {
   /** Callback on success */
@@ -26,6 +28,13 @@ export default function ResetPasswordForm({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Check password against breach databases (HIBP)
+  const {
+    isBreached,
+    warning: breachWarning,
+    isChecking: isCheckingBreach,
+  } = usePasswordBreachCheck(password);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +85,36 @@ export default function ResetPasswordForm({
           required
           disabled={loading}
         />
+        {/* Password strength indicator */}
+        <div className="mt-2">
+          <PasswordStrengthIndicator password={password} />
+        </div>
+        {/* Password breach warning (HIBP) */}
+        {isCheckingBreach && password.length >= 8 && (
+          <div className="text-base-content/60 mt-1 text-sm">
+            <span className="loading loading-spinner loading-xs mr-1"></span>
+            Checking password security...
+          </div>
+        )}
+        {isBreached && !isCheckingBreach && (
+          <div className="alert alert-warning mt-2 py-2 text-sm" role="alert">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5 shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+            <span>{breachWarning}</span>
+          </div>
+        )}
       </div>
 
       <div className="form-control">
