@@ -2,205 +2,160 @@
 
 **Generated**: 2025-12-23
 **Test Results Path**: test-results-ci/
-**CI Run**: https://github.com/TortoiseWolfe/SpokeToWork/actions/runs/20464717989
-**Total Traces**: 51 failed tests (153 page snapshots)
+**CI Run**: https://github.com/TortoiseWolfe/SpokeToWork/actions/runs/20468368455
+**Head SHA**: a909a67
+**Total Snapshots**: 492 page snapshots
 
 ## Executive Summary
 
-| Category           | Failures | Primary Root Cause            |
-| ------------------ | -------- | ----------------------------- |
-| Mobile Responsive  | 15+      | HORIZONTAL_SCROLL             |
-| Element Visibility | 12+      | TIMEOUT / ELEMENT_NOT_VISIBLE |
-| Touch Targets      | 4+       | TOUCH_TARGET_SIZE             |
-| Navigation         | 6+       | TIMEOUT                       |
-| Other              | 14       | Various                       |
+| Category        | Status                      | Notes                                |
+| --------------- | --------------------------- | ------------------------------------ |
+| Authentication  | 363/492 (74%) authenticated | Auth working for majority of tests   |
+| 404 Pages       | 42 snapshots                | Tests hitting non-existent pages     |
+| Unauthenticated | 129 snapshots               | Tests running before auth or no auth |
 
-**Auth Status**: 129/153 snapshots (84%) show authenticated state - auth is working!
+**Previous Fix Applied**: Commit `870007c` addressed horizontal scroll and timeout issues but tests still failing.
 
 ## Severity Breakdown
 
-| Severity | Count | Description                                |
-| -------- | ----- | ------------------------------------------ |
-| HIGH     | 11    | Horizontal scroll issues at 320px viewport |
-| HIGH     | 12    | Timeout errors on element interactions     |
-| MEDIUM   | 6     | Element visibility failures                |
-| MEDIUM   | 4     | Touch target size violations               |
-| LOW      | 3     | JSON parse errors                          |
-| LOW      | 14    | Other failures                             |
+| Severity | Count | Description                                    |
+| -------- | ----- | ---------------------------------------------- |
+| HIGH     | 42    | 404 errors - tests navigating to missing pages |
+| MEDIUM   | 129   | Unauthenticated state - may be intentional     |
+| LOW      | ~     | Various element visibility/timing issues       |
 
-## Error Category Analysis
+## Root Cause Analysis
 
-### HORIZONTAL_SCROLL (11 tests) - HIGH
+### 404_PAGE_ERRORS (42 tests) - HIGH
 
-**Pattern**: Elements overflow viewport at 320px width
+**Pattern**: Tests navigating to pages that return 404
 
-**Example Errors**:
+**Evidence from snapshots**:
 
-- `Horizontal scroll detected (scrollWidth: 603px, viewport: 428px)`
-- `10 elements overflow viewport at 320px`
-- `Horizontal scroll detected on /blog at 320px: scrollWidth 348px > clientWidth 320px`
+- Page shows "404" heading
+- "Page Not Found" message visible
+- Tests may be targeting old routes or features not deployed
 
-**Affected Test Files**:
+**Affected Areas**:
 
-- `tests/e2e/tests/mobile-horizontal-scroll.spec.ts`
-- `tests/e2e/tests/mobile-navigation.spec.ts`
-- `tests/e2e/tests/blog-mobile-ux-*.spec.ts`
-
-**Root Cause**: UI components not properly constrained to viewport width at smallest breakpoints.
+- `/docs/` route tests
+- Component-specific pages
+- Feature pages not in production build
 
 **Fix Strategy**:
 
-1. Audit CSS for fixed-width elements
-2. Add `overflow-x: hidden` where appropriate
-3. Use `max-width: 100%` on problematic containers
-4. Test at 320px viewport specifically
+1. Verify which pages exist in production build
+2. Update test URLs to match current route structure
+3. Skip tests for features not yet deployed
 
 ---
 
-### TIMEOUT (12 tests) - HIGH
+### AUTH_STATE_VARIATION (129 tests) - MEDIUM
 
-**Pattern**: Locator interactions timeout after 10s
+**Pattern**: 129 snapshots show unauthenticated state (Sign In/Sign Up visible)
 
-**Example Errors**:
+**Context**:
 
-- `TimeoutError: locator.click: Timeout 10000ms exceeded`
-- `TimeoutError: page.click: Timeout 10000ms exceeded. waiting for locator('a:has-text("Components")')`
-- `waiting for locator('text=Explore Components')`
-
-**Affected Test Files**:
-
-- `tests/e2e/tests/cross-page-navigation.spec.ts`
-- `tests/e2e/tests/homepage.spec.ts`
-
-**Root Cause**: Elements not becoming interactable in time, possibly due to:
-
-1. Slow page load in CI
-2. Elements hidden/covered by other elements
-3. Missing elements on certain pages
+- 363 snapshots (74%) show authenticated state with user "jonpohlner"
+- This indicates auth is working correctly for most tests
+- Unauthenticated tests may be:
+  1. Intentionally testing public pages
+  2. Running before auth setup completes
+  3. Tests that don't require authentication
 
 **Fix Strategy**:
 
-1. Add explicit `waitFor` before interactions
-2. Increase timeouts for CI environment
-3. Verify element selectors match current UI
-4. Check if elements are conditionally rendered
+1. Review which tests should require auth
+2. Ensure auth setup runs before authenticated tests
+3. No action needed for intentionally public page tests
 
 ---
 
-### ELEMENT_NOT_VISIBLE (6 tests) - MEDIUM
+### HORIZONTAL_SCROLL (Previous Issue)
 
-**Pattern**: Expected elements not visible when test runs
+**Status**: Fix applied in commit `870007c`
 
-**Example Errors**:
+**Changes Made**:
 
-- `expect(locator).toBeVisible() failed - Locator: locator('#game-demo')`
-- `expect(locator).toBeVisible() failed - Locator: locator('h1').filter({ hasText: /Component/i })`
-- `expect(locator).toBeVisible() failed - Locator: locator('.card').first()`
+- Added `overflow-x: hidden` to html/body in `globals.css`
+- Added overflow constraints to GlobalNav container
+- Updated navigation and homepage tests
 
-**Affected Test Files**:
-
-- `tests/e2e/tests/homepage.spec.ts`
-- `tests/e2e/tests/accessibility.spec.ts`
-
-**Root Cause**: UI changes or conditional rendering not accounted for in tests.
-
-**Fix Strategy**:
-
-1. Update selectors to match current DOM
-2. Add proper waits for dynamic content
-3. Use more stable selectors (data-testid)
+**Verification Needed**: Check if horizontal scroll tests pass in this run.
 
 ---
 
-### TOUCH_TARGET_SIZE (4 tests) - MEDIUM
+### TIMEOUT (Previous Issue)
 
-**Pattern**: Interactive elements smaller than 44px minimum
+**Status**: Fix applied in commit `870007c`
 
-**Example Errors**:
+**Changes Made**:
 
-- `Navigation button width must be >= 44px`
-- `Button 0 not visible at 320px`
+- Updated cross-page-navigation tests to use direct URL navigation
+- Updated homepage tests to match current page structure
+- Simplified theme persistence and external link tests
 
-**Affected Test Files**:
-
-- `tests/e2e/tests/mobile-buttons.spec.ts`
-- `tests/e2e/tests/mobile-touch-targets.spec.ts`
-- `tests/e2e/tests/blog-touch-targets.spec.ts`
-
-**Root Cause**: Mobile UI elements don't meet WCAG touch target requirements.
-
-**Fix Strategy**:
-
-1. Ensure all interactive elements have `min-h-11 min-w-11` (44px)
-2. Add padding to small buttons/links
-3. Review navigation component sizing
-
----
-
-### JSON_PARSE (3 tests) - LOW
-
-**Pattern**: Unexpected HTML instead of JSON response
-
-**Example Errors**:
-
-- `SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON`
-
-**Root Cause**: API calls returning HTML error pages instead of JSON.
-
-**Fix Strategy**:
-
-1. Check API endpoints for proper error handling
-2. Ensure content-type headers are correct
-3. May be 404 pages or server errors
+**Verification Needed**: Check if timeout tests pass in this run.
 
 ---
 
 ## Test File Health Summary
 
-| Test File                        | Category   | Issues                       |
-| -------------------------------- | ---------- | ---------------------------- |
-| mobile-horizontal-scroll.spec.ts | Mobile     | HORIZONTAL_SCROLL            |
-| mobile-navigation.spec.ts        | Mobile     | HORIZONTAL_SCROLL, TIMEOUT   |
-| mobile-buttons.spec.ts           | Mobile     | TOUCH_TARGET_SIZE            |
-| mobile-touch-targets.spec.ts     | Mobile     | TOUCH_TARGET_SIZE            |
-| cross-page-navigation.spec.ts    | Navigation | TIMEOUT                      |
-| blog-mobile-ux-\*.spec.ts        | Mobile     | HORIZONTAL_SCROLL            |
-| homepage.spec.ts                 | Core       | ELEMENT_NOT_VISIBLE, TIMEOUT |
+| Test Category   | Snapshots | Auth Rate | Health   |
+| --------------- | --------- | --------- | -------- |
+| Authenticated   | 363       | 100%      | GOOD     |
+| Unauthenticated | 129       | 0%        | REVIEW   |
+| 404 Pages       | 42        | N/A       | CRITICAL |
 
 ## Recommended Action Plan
 
-### Immediate (HIGH Priority)
+### Immediate (CRITICAL)
 
-1. **Fix horizontal scroll at 320px**
-   - Audit navbar/header components for fixed widths
-   - Check blog page layouts
-   - Add viewport constraints to overflow containers
+1. **Fix 404 test routes** - Identify which tests target non-existent pages
+   - Check `/docs/` route existence
+   - Verify component demo pages exist
+   - Update or skip tests for missing pages
 
-2. **Increase timeouts for CI**
-   - Add `test.setTimeout(30000)` for navigation tests
-   - Use `page.waitForLoadState('networkidle')` before assertions
+### Short-term (HIGH)
 
-### Short-term (MEDIUM Priority)
+2. **Review unauthenticated tests** - Determine which need auth
+   - Separate public page tests from authenticated tests
+   - Ensure auth setup completes before auth-required tests
 
-3. **Update touch targets to 44px minimum**
-   - Review mobile navigation buttons
-   - Add `min-h-11 min-w-11` class to small interactive elements
+### Medium-term (MEDIUM)
 
-4. **Update element selectors**
-   - Replace fragile selectors with data-testid
-   - Add waits for dynamic content
+3. **Verify previous fixes** - Confirm horizontal scroll and timeout fixes work
+   - Run local tests at 320px viewport
+   - Check cross-page navigation timing
 
-### Long-term (LOW Priority)
+### Long-term (LOW)
 
-5. **Improve test stability**
-   - Add retry logic for flaky assertions
-   - Implement visual regression testing
-   - Add test stability monitoring
+4. **Test stability improvements**
+   - Add retry logic for flaky network operations
+   - Improve element wait strategies
+   - Add test categorization (public vs authenticated)
+
+---
+
+## Files to Review
+
+1. `tests/e2e/tests/mobile-horizontal-scroll.spec.ts` - Horizontal scroll tests
+2. `tests/e2e/tests/cross-page-navigation.spec.ts` - Navigation timeout tests
+3. `tests/e2e/tests/homepage.spec.ts` - Homepage element tests
+4. `src/config/test-viewports.ts` - Viewport configurations
+
+---
 
 ## Next Steps
 
-Run the SpecKit workflow to fix these issues:
+Open HTML report to see detailed failures:
 
 ```bash
-/speckit.workflow Fix E2E test failures - 11 HORIZONTAL_SCROLL, 12 TIMEOUT, 6 ELEMENT_NOT_VISIBLE issues affecting mobile responsive tests
+open test-results-ci/index.html
+```
+
+Or run E2E tests locally to verify fixes:
+
+```bash
+docker compose exec spoketowork pnpm exec playwright test --project=chromium
 ```
