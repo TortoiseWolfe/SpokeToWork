@@ -8,9 +8,15 @@ import { test, expect, devices } from '@playwright/test';
  * See PRP-016: Mobile-First Visual Testing Methodology
  */
 
-// Device configuration at file scope (not inside describe)
+// Device configuration - spread only viewport/touch settings, not defaultBrowserType
+// This allows the test to run with any browser project (chromium, firefox, webkit)
+const Pixel5 = devices['Pixel 5'];
 test.use({
-  ...devices['Pixel 5'],
+  viewport: Pixel5.viewport,
+  deviceScaleFactor: Pixel5.deviceScaleFactor,
+  isMobile: Pixel5.isMobile,
+  hasTouch: Pixel5.hasTouch,
+  userAgent: Pixel5.userAgent,
 });
 
 test.describe('Blog Post Mobile UX - Pixel 5', () => {
