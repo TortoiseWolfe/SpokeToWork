@@ -156,7 +156,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
+        run: |
+          # Always install chromium (required for auth setup project)
+          pnpm exec playwright install --with-deps chromium
+          # Install matrix browser if different from chromium
+          if [ "${{ matrix.browser }}" != "chromium" ]; then
+            pnpm exec playwright install --with-deps ${{ matrix.browser }}
+          fi
 
       - name: Download build
         uses: actions/download-artifact@v4
