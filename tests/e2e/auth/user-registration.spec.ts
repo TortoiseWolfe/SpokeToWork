@@ -6,6 +6,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { signOut } from '../utils/auth-helpers';
 
 test.describe('User Registration E2E', () => {
   const testEmail = `e2e-registration-${Date.now()}@mailinator.com`;
@@ -65,11 +66,7 @@ test.describe('User Registration E2E', () => {
     ).toBeVisible();
 
     // Step 10: Sign out
-    await page.getByRole('button', { name: 'Sign Out' }).click();
-
-    // Step 11: Verify redirected to sign-in (use regex to allow query params)
-    await page.waitForURL(/\/sign-in/);
-    await expect(page).toHaveURL(/\/sign-in/);
+    await signOut(page);
 
     // Clean up: Delete test user (would need admin API or manual cleanup)
   });
