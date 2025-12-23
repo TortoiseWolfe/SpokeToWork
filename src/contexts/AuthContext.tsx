@@ -52,9 +52,21 @@ export interface AuthState {
   retryCount: number;
 }
 
+export interface AuthOptions {
+  rememberMe?: boolean;
+}
+
 export interface AuthContextType extends AuthState {
-  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    options?: AuthOptions
+  ) => Promise<{ error: Error | null }>;
+  signIn: (
+    email: string,
+    password: string,
+    options?: AuthOptions
+  ) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
   retry: () => Promise<void>;
@@ -176,8 +188,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    options?: AuthOptions
+  ) => {
     try {
+      // Store remember me preference for session persistence
+      if (options?.rememberMe !== undefined) {
+        localStorage.setItem('auth_remember_me', String(options.rememberMe));
+      }
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -191,8 +212,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (
+    email: string,
+    password: string,
+    options?: AuthOptions
+  ) => {
     try {
+      // Store remember me preference for session persistence
+      if (options?.rememberMe !== undefined) {
+        localStorage.setItem('auth_remember_me', String(options.rememberMe));
+      }
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,

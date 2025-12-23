@@ -83,7 +83,9 @@ export default function SignUpForm({
 
     setLoading(true);
 
-    const { error: signUpError } = await signUp(email, password);
+    const { error: signUpError } = await signUp(email, password, {
+      rememberMe,
+    });
 
     setLoading(false);
 

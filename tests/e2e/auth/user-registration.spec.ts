@@ -30,7 +30,7 @@ test.describe('User Registration E2E', () => {
     await page.getByLabel('Confirm Password').fill(testPassword);
 
     // Step 3: Check Remember Me (optional)
-    await page.getByLabel('Remember Me').check();
+    await page.getByLabel('Remember me').check();
 
     // Step 4: Submit sign-up form
     await page.getByRole('button', { name: 'Sign Up' }).click();

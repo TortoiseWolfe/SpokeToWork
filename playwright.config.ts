@@ -59,8 +59,7 @@ export default defineConfig({
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: process.env.BASE_URL || 'http://localhost:3000',
-    /* Pre-seed localStorage with cookie consent to prevent banner blocking */
-    storageState: './tests/e2e/fixtures/storage-state.json',
+    /* Note: storageState is set per-project (setup uses base, others use authenticated) */
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
     /* Take screenshot on every failure */
@@ -81,26 +80,64 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
+    // Auth setup - runs once, saves authenticated state
+    {
+      name: 'setup',
+      testMatch: /auth\.setup\.ts/,
+      use: {
+        // Use base storage state (cookie consent only)
+        storageState: './tests/e2e/fixtures/storage-state.json',
+      },
+    },
+
+    // Unauthenticated tests (signup, login flows) - no auth dependency
+    {
+      name: 'chromium-noauth',
+      testMatch: /auth\/(sign-up|user-registration|complete-flows)\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: './tests/e2e/fixtures/storage-state.json',
+      },
+    },
+
+    // Browser projects depend on setup, use authenticated state
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      testIgnore: /auth\/(sign-up|user-registration|complete-flows)\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: './tests/e2e/fixtures/storage-state-auth.json',
+      },
+      dependencies: ['setup'],
     },
 
     {
       name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      use: {
+        ...devices['Desktop Firefox'],
+        storageState: './tests/e2e/fixtures/storage-state-auth.json',
+      },
+      dependencies: ['setup'],
     },
 
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: {
+        ...devices['Desktop Safari'],
+        storageState: './tests/e2e/fixtures/storage-state-auth.json',
+      },
+      dependencies: ['setup'],
     },
 
     /* Mobile-first test viewports (PRP-017) */
     ...TEST_VIEWPORTS.filter((v) => v.category === 'mobile').map(
       (viewport) => ({
         name: `Mobile - ${viewport.name}`,
-        use: createDeviceConfig(viewport),
+        use: {
+          ...createDeviceConfig(viewport),
+          storageState: './tests/e2e/fixtures/storage-state-auth.json',
+        },
+        dependencies: ['setup'],
       })
     ),
 
@@ -108,7 +145,11 @@ export default defineConfig({
     ...TEST_VIEWPORTS.filter((v) => v.category === 'tablet').map(
       (viewport) => ({
         name: `Tablet - ${viewport.name}`,
-        use: createDeviceConfig(viewport),
+        use: {
+          ...createDeviceConfig(viewport),
+          storageState: './tests/e2e/fixtures/storage-state-auth.json',
+        },
+        dependencies: ['setup'],
       })
     ),
 

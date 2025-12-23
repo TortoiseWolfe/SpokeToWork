@@ -43,7 +43,7 @@ test.describe('Session Persistence E2E', () => {
     await page.goto('/sign-in');
     await page.getByLabel('Email').fill(testUser.email);
     await page.getByLabel('Password', { exact: true }).fill(testUser.password);
-    await page.getByLabel('Remember Me').check();
+    await page.getByLabel('Remember me').check();
     await page.getByRole('button', { name: 'Sign In' }).click();
 
     // Verify session created - should go to profile (not verify-email)
@@ -156,7 +156,7 @@ test.describe('Session Persistence E2E', () => {
     await page.goto('/sign-in');
     await page.getByLabel('Email').fill(testUser.email);
     await page.getByLabel('Password', { exact: true }).fill(testUser.password);
-    await page.getByLabel('Remember Me').check();
+    await page.getByLabel('Remember me').check();
     await page.getByRole('button', { name: 'Sign In' }).click();
     await page.waitForURL(/\/profile/);
 

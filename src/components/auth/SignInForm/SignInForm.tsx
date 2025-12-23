@@ -35,6 +35,7 @@ export default function SignInForm({
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [remainingAttempts, setRemainingAttempts] = useState<number | null>(
     null
   );
@@ -83,7 +84,9 @@ export default function SignInForm({
     setRemainingAttempts(rateLimit.remaining);
     setLoading(true);
 
-    const { error: signInError } = await signIn(email, password);
+    const { error: signInError } = await signIn(email, password, {
+      rememberMe,
+    });
 
     setLoading(false);
 
@@ -251,6 +254,19 @@ export default function SignInForm({
           required
           disabled={loading}
         />
+      </div>
+
+      <div className="form-control">
+        <label className="label cursor-pointer justify-start gap-2">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            className="checkbox min-h-11 min-w-11"
+            disabled={loading}
+          />
+          <span className="label-text">Remember me</span>
+        </label>
       </div>
 
       {error && (

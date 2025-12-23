@@ -36,17 +36,25 @@ test.describe('Protected Routes E2E', () => {
     }
   });
 
-  test('should redirect unauthenticated users to sign-in', async ({ page }) => {
-    // Attempt to access protected routes without authentication
-    const protectedRoutes = ['/profile', '/account', '/payment-demo'];
+  // Tests that need UNAUTHENTICATED state - use base storage (no auth)
+  test.describe('Unauthenticated access', () => {
+    test.use({ storageState: './tests/e2e/fixtures/storage-state.json' });
 
-    for (const route of protectedRoutes) {
-      await page.goto(route);
+    test('should redirect unauthenticated users to sign-in', async ({
+      page,
+    }) => {
+      // Attempt to access protected routes without authentication
+      const protectedRoutes = ['/profile', '/account', '/payment-demo'];
 
-      // Verify redirected to sign-in (use regex to allow query params like ?returnUrl=)
-      await page.waitForURL(/\/sign-in/);
-      await expect(page).toHaveURL(/\/sign-in/);
-    }
+      for (const route of protectedRoutes) {
+        await page.goto(route, { waitUntil: 'networkidle' });
+
+        // Wait for client-side redirect - protected routes redirect via AuthGuard
+        // Use longer timeout since redirect happens client-side after hydration
+        await page.waitForURL(/\/sign-in/, { timeout: 15000 });
+        await expect(page).toHaveURL(/\/sign-in/);
+      }
+    });
   });
 
   test('should allow authenticated users to access protected routes', async ({
@@ -78,51 +86,56 @@ test.describe('Protected Routes E2E', () => {
     await signOut(page);
   });
 
-  test('should enforce RLS policies on payment access', async ({ page }) => {
-    // Create two test users for RLS testing
-    const user1Email = generateTestEmail('e2e-rls-1');
-    const user2Email = generateTestEmail('e2e-rls-2');
+  // RLS test needs fresh users, start unauthenticated
+  test.describe('RLS enforcement', () => {
+    test.use({ storageState: './tests/e2e/fixtures/storage-state.json' });
 
-    const user1 = await createTestUser(user1Email, DEFAULT_TEST_PASSWORD);
-    const user2 = await createTestUser(user2Email, DEFAULT_TEST_PASSWORD);
+    test('should enforce RLS policies on payment access', async ({ page }) => {
+      // Create two test users for RLS testing
+      const user1Email = generateTestEmail('e2e-rls-1');
+      const user2Email = generateTestEmail('e2e-rls-2');
 
-    try {
-      // Sign in as user 1 using robust helper
-      await loginAndVerify(page, {
-        email: user1.email,
-        password: user1.password,
-      });
+      const user1 = await createTestUser(user1Email, DEFAULT_TEST_PASSWORD);
+      const user2 = await createTestUser(user2Email, DEFAULT_TEST_PASSWORD);
 
-      // Access payment demo and verify user's own data
-      await page.goto('/payment-demo');
-      // Wait for page to load, then verify user's email appears on page
-      await page.waitForLoadState('networkidle');
-      const pageContent = await page.content();
-      expect(pageContent).toContain(user1.email);
+      try {
+        // Sign in as user 1 using robust helper
+        await loginAndVerify(page, {
+          email: user1.email,
+          password: user1.password,
+        });
 
-      // Sign out
-      await signOut(page);
+        // Access payment demo and verify user's own data
+        await page.goto('/payment-demo');
+        // Wait for page to load, then verify user's email appears on page
+        await page.waitForLoadState('networkidle');
+        const pageContent = await page.content();
+        expect(pageContent).toContain(user1.email);
 
-      // Sign in as user 2 - navigate to sign-in page first
-      await page.goto('/sign-in');
-      await page.getByLabel('Email').fill(user2.email);
-      await page.getByLabel('Password', { exact: true }).fill(user2.password);
-      await page.getByRole('button', { name: 'Sign In' }).click();
-      await page.waitForURL(/\/profile/);
+        // Sign out
+        await signOut(page);
 
-      // Verify user 2 sees their own email, not user 1's
-      await page.goto('/payment-demo');
-      await page.waitForLoadState('networkidle');
-      const user2PageContent = await page.content();
-      expect(user2PageContent).toContain(user2.email);
-      expect(user2PageContent).not.toContain(user1.email);
+        // Sign in as user 2 - navigate to sign-in page first
+        await page.goto('/sign-in');
+        await page.getByLabel('Email').fill(user2.email);
+        await page.getByLabel('Password', { exact: true }).fill(user2.password);
+        await page.getByRole('button', { name: 'Sign In' }).click();
+        await page.waitForURL(/\/profile/);
 
-      // RLS policy prevents user 2 from seeing user 1's payment data
-    } finally {
-      // Clean up both test users
-      await deleteTestUser(user1.id);
-      await deleteTestUser(user2.id);
-    }
+        // Verify user 2 sees their own email, not user 1's
+        await page.goto('/payment-demo');
+        await page.waitForLoadState('networkidle');
+        const user2PageContent = await page.content();
+        expect(user2PageContent).toContain(user2.email);
+        expect(user2PageContent).not.toContain(user1.email);
+
+        // RLS policy prevents user 2 from seeing user 1's payment data
+      } finally {
+        // Clean up both test users
+        await deleteTestUser(user1.id);
+        await deleteTestUser(user2.id);
+      }
+    });
   });
 
   test('should show email verification notice for unverified users', async ({
@@ -208,24 +221,31 @@ test.describe('Protected Routes E2E', () => {
     await expect(page).toHaveURL(/\/sign-in/);
   });
 
-  test('should redirect to intended URL after authentication', async ({
-    page,
-  }) => {
-    // Attempt to access protected route while unauthenticated
-    await page.goto('/account');
-    await page.waitForURL(/\/sign-in/);
+  // Test that needs UNAUTHENTICATED start state
+  test.describe('Redirect after auth', () => {
+    test.use({ storageState: './tests/e2e/fixtures/storage-state.json' });
 
-    // Sign in
-    await page.getByLabel('Email').fill(testUser.email);
-    await page.getByLabel('Password', { exact: true }).fill(testUser.password);
-    await page.getByRole('button', { name: 'Sign In' }).click();
+    test('should redirect to intended URL after authentication', async ({
+      page,
+    }) => {
+      // Attempt to access protected route while unauthenticated
+      await page.goto('/account');
+      await page.waitForURL(/\/sign-in/);
 
-    // Note: If redirect-after-auth is implemented, should redirect to /account
-    // Otherwise, redirects to default (profile)
-    await page.waitForURL(/\/(account|profile)/);
+      // Sign in
+      await page.getByLabel('Email').fill(testUser.email);
+      await page
+        .getByLabel('Password', { exact: true })
+        .fill(testUser.password);
+      await page.getByRole('button', { name: 'Sign In' }).click();
 
-    // Sign out
-    await signOut(page);
+      // Note: If redirect-after-auth is implemented, should redirect to /account
+      // Otherwise, redirects to default (profile)
+      await page.waitForURL(/\/(account|profile)/);
+
+      // Sign out
+      await signOut(page);
+    });
   });
 
   test('should verify cascade delete removes related records', async ({

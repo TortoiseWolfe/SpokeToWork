@@ -1,41 +1,128 @@
 # E2E Test Failure Analysis Report
 
-**Generated**: 2025-12-22 (Updated)
+**Generated**: 2025-12-22 (Latest Run)
 **Test Results Path**: test-results/
-**Total Failures**: 125 unique failures (215 with retries)
+**Total Failures**: 143 unique failures (235 with retries)
 
 ## Executive Summary
 
-| Category      | Failures | Primary Root Cause             |
-| ------------- | -------- | ------------------------------ |
-| auth          | 87       | AUTH_FAILURE                   |
-| accessibility | 50       | AUTH_FAILURE / ELEMENT_MISSING |
-| companies     | 41       | AUTH_FAILURE / STATE_DEPENDENT |
-| blog          | 18       | TIMEOUT / OVERLAY_BLOCKING     |
-| avatar        | 15       | AUTH_FAILURE                   |
-| map           | 2        | STATE_DEPENDENT                |
-| debug         | 2        | STATE_DEPENDENT                |
+| Category      | Failures | Primary Root Cause                     |
+| ------------- | -------- | -------------------------------------- |
+| companies     | 26       | STATE_DEPENDENT / DATA_EXPECTATIONS    |
+| accessibility | 24       | ELEMENT_MISSING / MODAL_NOT_OPENING    |
+| auth          | 45       | MISSING_UI_FEATURE / TEST_EXPECTATIONS |
+| map           | 24       | KEYBOARD_NAV / VISUAL_ISSUES           |
+| avatar        | 9        | MODAL_NOT_OPENING                      |
+| blog          | 6        | TIMEOUT / CAPTURE_ISSUES               |
+| messaging     | 1        | STATE_DEPENDENT                        |
+| debug         | 2        | STATE_DEPENDENT                        |
 
-## Root Cause Analysis Summary
+## Root Cause Analysis Summary (Updated)
 
-| Root Cause       | Count | % of Total |
-| ---------------- | ----- | ---------- |
-| AUTH_FAILURE     | 62    | 50%        |
-| STATE_DEPENDENT  | 33    | 26%        |
-| OVERLAY_BLOCKING | 20    | 16%        |
-| SELECTOR_INVALID | 6     | 5%         |
-| FLAKY_TIMING     | 4     | 3%         |
+| Root Cause                | Count | % of Total |
+| ------------------------- | ----- | ---------- |
+| MISSING_UI_FEATURE        | ~40   | 28%        |
+| TEST_EXPECTATION_MISMATCH | ~35   | 24%        |
+| MODAL_NOT_OPENING         | ~23   | 16%        |
+| STATE_DEPENDENT           | ~25   | 17%        |
+| COOKIE_BANNER_BLOCKING    | ~15   | 10%        |
+| FLAKY_TIMING              | ~5    | 3%         |
 
-**Key Finding**: 62 of 121 failures (51%) show "Sign In" link in page snapshot, indicating tests are NOT authenticated when they should be.
+**Key Finding (Updated)**: Many tests now PASS authentication (showing "User account menu") but fail on:
 
-## Severity Breakdown
+1. **Missing UI features** - Tests expect "Remember Me" on sign-in, rate limiting UI
+2. **Text mismatches** - "Profile" vs "Your Profile" (FIXED), similar issues remain
+3. **Modal not opening** - Avatar crop modal tests fail to trigger modal
 
-| Severity | Count | Description                            |
-| -------- | ----- | -------------------------------------- |
-| CRITICAL | 27    | Core auth flows broken, blocks testing |
-| HIGH     | 65    | Consistent failures, specific features |
-| MEDIUM   | 24    | State-dependent or timing issues       |
-| LOW      | 9     | Known flaky tests, env-specific        |
+## Severity Breakdown (Updated 2025-12-22)
+
+| Severity | Count | Description                                         |
+| -------- | ----- | --------------------------------------------------- |
+| CRITICAL | 0     | Auth flows now working after selector/timeout fixes |
+| HIGH     | 40    | Missing UI features tests expect but don't exist    |
+| MEDIUM   | 65    | Test expectation mismatches, modal issues           |
+| LOW      | 38    | State-dependent, timing, visual comparison issues   |
+
+---
+
+## NEW FINDINGS (2025-12-22 Latest Run)
+
+### Issue 1: "Remember Me" Checkbox Missing on Sign-In Page
+
+**Tests affected**: 8+ tests in `session-persistence.spec.ts`
+**Root cause**: Tests look for "Remember Me" on sign-in, but it only exists on sign-up
+
+**Evidence from page snapshot** (`auth-session-persistence-S-27f25`):
+
+```yaml
+# Sign-In page structure:
+- heading "Sign In" [level=1]
+- textbox "Email"
+- textbox "Password"
+- button "Sign In"
+- link "Forgot password?"
+# NO Remember Me checkbox!
+```
+
+**Sign-Up page HAS it**:
+
+```yaml
+# Sign-Up page structure:
+- checkbox "Remember me" [ref=e63]
+- generic [ref=e64]: Remember me
+```
+
+**Fix options**:
+
+1. Add "Remember Me" to Sign-In form (feature work)
+2. Update tests to only check Remember Me on sign-up
+
+### Issue 2: Rate Limiting UI Not Implemented
+
+**Tests affected**: 21 (7 unique tests × 3 retries)
+**Root cause**: No rate limiting feedback in UI
+
+**Evidence** (`auth-rate-limiting-Rate-Li-13404`):
+
+```yaml
+# Reset Password page:
+- heading "Reset Password" [level=1]
+- textbox "Email"
+- button "Send Reset Link"
+# NO "Too many attempts" message, NO disabled button, NO countdown
+```
+
+**Fix**: Skip tests or implement rate limiting UI
+
+### Issue 3: Avatar Crop Modal Not Opening
+
+**Tests affected**: 14+ accessibility tests
+**Root cause**: File upload not triggering modal, or modal not rendering
+
+**Evidence** (`accessibility-avatar-uploa-69fc9`):
+
+```yaml
+# Account Settings page (user IS authenticated):
+- generic "User account menu" [ref=e25] # User IS logged in
+- button "Upload avatar" [active]
+# Modal should appear after upload but doesn't
+```
+
+### Issue 4: Companies Tests - User IS Authenticated
+
+**Important discovery**: Companies tests show "User account menu" = authenticated!
+
+**Evidence** (`companies-companies-sort-C-82b08`):
+
+```yaml
+- generic "User account menu" [ref=e25]
+  - img "Test User's avatar" [ref=e28] # HAS AVATAR = logged in
+- heading "Companies" [level=1]
+- 'Active route: First Route'
+- 5 companies visible
+```
+
+These tests fail on **data expectations** or **specific assertions**, NOT auth.
 
 ---
 
@@ -237,69 +324,64 @@ test.beforeEach(async ({ page }) => {
 
 ---
 
-## Recommended Action Plan
+## Recommended Action Plan (Updated 2025-12-22)
 
-### Immediate (CRITICAL - Do First)
+### COMPLETED
 
-1. **Fix authentication flow in E2E tests**
-   - Problem: 51% of failures show "Sign In" link when auth expected
-   - Solution: Ensure `createTestUser()` returns user with `email_confirmed_at` set
-   - Files to check:
-     - `tests/e2e/utils/test-user-factory.ts`
-     - `tests/e2e/accessibility/avatar-upload.a11y.test.ts` (lines 22-30)
+1. **Fixed auth-helpers selectors** (commit c333510)
+   - Changed `getByRole('generic')` to `locator('[aria-label="User account menu"]')`
+   - Increased elementTimeout from 5000ms to 15000ms
+   - Result: Auth detection now works correctly
 
-2. **Add cookie banner dismissal to test setup**
-   - Problem: 115/121 failures show cookie banner visible
-   - Solution: Add banner dismissal in global `beforeEach` or Playwright fixture
-   - Files to modify:
-     - `playwright.config.ts` or
-     - `tests/e2e/fixtures/` (create if needed)
+2. **Fixed protected-routes.spec.ts** (commit 7a7b75e)
+   - Fixed heading "Profile" → "Your Profile"
+   - Fixed URL trailing slash handling with regex
+   - Added signOut() helper with promo banner dismissal
+   - Result: All 8 protected-routes tests now PASS
 
-3. **Verify TEST_USER environment variables**
-   - Check `.env` has valid credentials
-   - Verify user exists in Supabase with matching password
-   - Ensure `email_confirmed_at` is set (not NULL)
+### Immediate (HIGH - Do Next)
 
-### Short-term (HIGH - Fix This Week)
+1. **Skip rate-limiting tests** (21 failures)
+   - Problem: Tests expect rate limit UI that doesn't exist
+   - Solution: Add `.skip()` until rate limiting UI is implemented
+   - File: `tests/e2e/auth/rate-limiting.spec.ts`
+   - Impact: -21 failures immediately
 
-4. **Update selector strategies in accessibility tests**
-   - Use more stable selectors: `data-testid`, `aria-label`
-   - Add explicit `waitFor` before assertions
-   - Files: `tests/e2e/accessibility/*.spec.ts`
+2. **Fix Remember Me tests** (8 failures)
+   - Problem: Tests check for "Remember Me" on /sign-in, only exists on /sign-up
+   - Options:
+     a. Add Remember Me checkbox to SignInForm (feature work)
+     b. Update tests to use sign-up page (test fix)
+   - File: `tests/e2e/auth/session-persistence.spec.ts`
 
-5. **Fix companies test state dependencies**
-   - Seed test data in `beforeAll`
-   - Use unique test user per spec file
-   - Clean up in `afterAll`
+3. **Fix avatar modal tests** (14+ failures)
+   - Problem: Crop modal not appearing after file upload
+   - Investigation needed: Is file input being triggered correctly?
+   - File: `tests/e2e/accessibility/avatar-upload.a11y.test.ts`
 
-6. **Add retry configuration for map tests**
-   - Map tile loading is inherently slow
-   - Increase timeout or add retry annotations
-   - File: `tests/e2e/map.spec.ts`
+### Short-term (MEDIUM)
 
-### Medium-term (MEDIUM - Fix This Sprint)
+4. **Add cookie banner dismissal to test setup**
+   - Problem: Cookie banner visible in most test screenshots
+   - Solution: Dismiss in global beforeEach or Playwright fixture
+   - Partial fix exists in signOut() helper
 
-7. **Improve test isolation**
+5. **Fix companies test data expectations**
+   - Problem: Tests expect specific company counts, render tracking
+   - Solution: Seed known data before tests
+   - Files: `tests/e2e/companies/*.spec.ts`
+
+### Long-term (LOW - Technical Debt)
+
+6. **Improve test isolation**
    - Each test should create its own user
    - Use `test.describe.parallel()` where safe
    - Avoid shared state between tests
 
-8. **Add proper wait conditions**
-   - Replace `waitForTimeout` with `waitForSelector`
-   - Use `networkidle` only where appropriate
-   - Add retry assertions with `toPass()`
-
-### Long-term (LOW - Technical Debt)
-
-9. **Implement proper test fixtures**
-   - Create Playwright fixtures for common setup
+7. **Implement proper Playwright fixtures**
+   - Create fixtures for common setup (auth, cookie banner)
    - Share authenticated state via storage state
    - Reduce test setup time
-
-10. **Add test stability monitoring**
-    - Track flaky test patterns
-    - Quarantine known flaky tests
-    - Set up test result dashboards
 
 ---
 

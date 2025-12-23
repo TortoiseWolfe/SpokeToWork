@@ -49,6 +49,7 @@ next-env.d.ts
 # playwright
 test-results/
 playwright-report/
+tests/e2e/fixtures/storage-state-auth.json
 
 # pnpm
 .pnpm-store/
