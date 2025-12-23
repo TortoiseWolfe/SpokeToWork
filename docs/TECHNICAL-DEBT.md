@@ -612,3 +612,19 @@ The following TODO comments are part of code generation templates and are intent
    - Used to simulate incomplete component structures
 
 These TODOs should remain as they are part of the tooling infrastructure.
+
+## Mobile Device Test Coverage (Low Priority)
+
+**Current coverage:**
+
+- iPhone 12 (390×844) - 6 tests
+- Pixel 5 (393×851) - 1 test
+- iPad Mini landscape (1024×768) - 1 test
+
+**Future expansion candidates:**
+
+- Galaxy S21 (360×800) - smaller Android
+- iPhone 14 Pro (393×852) - newer iOS
+- iPad Pro 11 (834×1194) - larger tablet
+
+**Note:** All mobile tests now run on all 3 browsers (chromium, firefox, webkit) after the `defaultBrowserType` fix in commit `61d39e3`.
