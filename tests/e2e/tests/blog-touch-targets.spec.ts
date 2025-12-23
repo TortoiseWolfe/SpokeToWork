@@ -9,9 +9,15 @@ import { TOUCH_TARGET_STANDARDS } from '@/config/touch-targets';
  * This test should FAIL initially (TDD RED phase)
  */
 
-// Device configuration at file scope (not inside describe)
+// Device configuration - spread only viewport/touch settings, not defaultBrowserType
+// This allows the test to run with any browser project (chromium, firefox, webkit)
+const iPhone12 = devices['iPhone 12'];
 test.use({
-  ...devices['iPhone 12'],
+  viewport: iPhone12.viewport,
+  deviceScaleFactor: iPhone12.deviceScaleFactor,
+  isMobile: iPhone12.isMobile,
+  hasTouch: iPhone12.hasTouch,
+  userAgent: iPhone12.userAgent,
 });
 
 const MINIMUM = TOUCH_TARGET_STANDARDS.AAA.minWidth;

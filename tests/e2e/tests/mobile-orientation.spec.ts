@@ -7,11 +7,27 @@
  * This test should FAIL initially if layout switches incorrectly (TDD RED phase)
  */
 
-import { test, expect, devices } from '@playwright/test';
+import { test, expect, devices, BrowserContextOptions } from '@playwright/test';
+
+// Helper to extract only viewport/touch settings, not defaultBrowserType
+// This allows tests to run with any browser project (chromium, firefox, webkit)
+function getDeviceConfig(
+  device: (typeof devices)[keyof typeof devices]
+): BrowserContextOptions {
+  return {
+    viewport: device.viewport,
+    deviceScaleFactor: device.deviceScaleFactor,
+    isMobile: device.isMobile,
+    hasTouch: device.hasTouch,
+    userAgent: device.userAgent,
+  };
+}
 
 test.describe('Mobile Orientation Detection', () => {
   test('iPhone 12 portrait uses mobile styles', async ({ browser }) => {
-    const context = await browser.newContext({ ...devices['iPhone 12'] });
+    const context = await browser.newContext(
+      getDeviceConfig(devices['iPhone 12'])
+    );
     const page = await context.newPage();
 
     await page.goto('/');
@@ -47,7 +63,7 @@ test.describe('Mobile Orientation Detection', () => {
   }) => {
     // This is the KEY test: landscape mobile should NOT switch to tablet layout
     const context = await browser.newContext({
-      ...devices['iPhone 12'],
+      ...getDeviceConfig(devices['iPhone 12']),
       viewport: { width: 844, height: 390 }, // Landscape: width > height
     });
     const page = await context.newPage();
@@ -85,9 +101,9 @@ test.describe('Mobile Orientation Detection', () => {
 
   test('Tablet landscape uses tablet/desktop layout', async ({ browser }) => {
     // iPad Mini landscape should use tablet layout
-    const context = await browser.newContext({
-      ...devices['iPad Mini landscape'],
-    });
+    const context = await browser.newContext(
+      getDeviceConfig(devices['iPad Mini landscape'])
+    );
     const page = await context.newPage();
 
     await page.goto('/');
@@ -106,7 +122,9 @@ test.describe('Mobile Orientation Detection', () => {
   test('Orientation change triggers responsive adjustments', async ({
     browser,
   }) => {
-    const context = await browser.newContext({ ...devices['iPhone 12'] });
+    const context = await browser.newContext(
+      getDeviceConfig(devices['iPhone 12'])
+    );
     const page = await context.newPage();
 
     await page.goto('/');
