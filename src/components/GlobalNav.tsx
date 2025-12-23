@@ -142,9 +142,9 @@ function GlobalNavComponent() {
   ];
 
   return (
-    <nav className="border-base-300 bg-base-100/95 sticky top-0 z-50 border-b shadow-sm backdrop-blur-md">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
+    <nav className="border-base-300 bg-base-100/95 sticky top-0 z-50 w-full max-w-full overflow-hidden border-b shadow-sm backdrop-blur-md">
+      <div className="container mx-auto max-w-full overflow-hidden px-4">
+        <div className="flex h-16 w-full max-w-full items-center justify-between overflow-hidden">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
             <Link
@@ -183,7 +183,7 @@ function GlobalNavComponent() {
           </nav>
 
           {/* Right Section: Auth, Theme & PWA - Mobile-first spacing (PRP-017 T025) */}
-          <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2">
+          <div className="flex min-w-0 flex-shrink items-center gap-0.5 overflow-hidden sm:gap-1 md:gap-2">
             {/* Companies Icon (authenticated users only) */}
             {user && (
               <Link
