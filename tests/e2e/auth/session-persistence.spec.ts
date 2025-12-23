@@ -17,7 +17,7 @@ import {
   generateTestEmail,
   DEFAULT_TEST_PASSWORD,
 } from '../utils/test-user-factory';
-import { loginAndVerify } from '../utils/auth-helpers';
+import { loginAndVerify, signOut } from '../utils/auth-helpers';
 
 test.describe('Session Persistence E2E', () => {
   let testUser: { id: string; email: string; password: string };
@@ -78,8 +78,7 @@ test.describe('Session Persistence E2E', () => {
     expect(localStorage).toContain('refresh_token');
 
     // Sign out for next test
-    await page.getByRole('button', { name: 'Sign Out' }).click();
-    await page.waitForURL(/\/sign-in/);
+    await signOut(page);
   });
 
   test('should use short session without Remember Me', async ({ page }) => {
@@ -103,8 +102,7 @@ test.describe('Session Persistence E2E', () => {
     expect(sessionStorage).toBeDefined();
 
     // Sign out
-    await page.getByRole('button', { name: 'Sign Out' }).click();
-    await page.waitForURL(/\/sign-in/);
+    await signOut(page);
   });
 
   test('should automatically refresh token before expiration', async ({
@@ -142,8 +140,7 @@ test.describe('Session Persistence E2E', () => {
     await expect(page.getByText(testUser.email)).toBeVisible();
 
     // Sign out
-    await page.getByRole('button', { name: 'Sign Out' }).click();
-    await page.waitForURL(/\/sign-in/);
+    await signOut(page);
   });
 
   test('should persist session across browser restarts', async ({
@@ -196,9 +193,8 @@ test.describe('Session Persistence E2E', () => {
     );
     expect(beforeSignOut).toContain('supabase');
 
-    // Sign out
-    await page.getByRole('button', { name: 'Sign Out' }).click();
-    await page.waitForURL(/\/sign-in/);
+    // Sign out (with verify: false since we verify manually below)
+    await signOut(page, { verify: false });
 
     // Verify session cleared from storage
     const afterSignOut = await page.evaluate(() =>
@@ -239,9 +235,8 @@ test.describe('Session Persistence E2E', () => {
     await expect(page2).toHaveURL('/profile');
     await expect(page2.getByText(testUser.email)).toBeVisible();
 
-    // Sign out on page 1
-    await page1.getByRole('button', { name: 'Sign Out' }).click();
-    await page1.waitForURL(/\/sign-in/);
+    // Sign out on page 1 (using signOut helper with page1)
+    await signOut(page1, { verify: false });
 
     // Page 2 should detect sign out (if using realtime sync)
     // Note: This depends on implementation - may require page reload
@@ -273,8 +268,7 @@ test.describe('Session Persistence E2E', () => {
     await expect(page).toHaveURL('/account');
 
     // Sign out
-    await page.getByRole('button', { name: 'Sign Out' }).click();
-    await page.waitForURL(/\/sign-in/);
+    await signOut(page);
   });
 
   test('should expire session after maximum duration', async ({ page }) => {
