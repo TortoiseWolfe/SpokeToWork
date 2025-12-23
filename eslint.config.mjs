@@ -27,6 +27,7 @@ const eslintConfig = [
       'storybook-static/**',
       'playwright-report/**',
       'test-results/**',
+      'test-results-ci/**',
       '.pnpm-store/**',
       'dist/**',
       'public/mockServiceWorker.js',
