@@ -15,8 +15,34 @@
  * - ConnectionManager component exists
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+/**
+ * Handle the ReAuthModal that appears when session is restored
+ * but encryption keys need to be unlocked.
+ */
+async function handleReAuthModal(page: Page, password: string) {
+  try {
+    // Wait for the ReAuth modal to appear (with short timeout)
+    const reAuthDialog = page.getByRole('dialog', {
+      name: /re-authentication required/i,
+    });
+
+    // Wait for it to be visible
+    await reAuthDialog.waitFor({ state: 'visible', timeout: 5000 });
+
+    // Fill password and unlock
+    const passwordInput = page.getByRole('textbox', { name: /password/i });
+    await passwordInput.fill(password);
+    await page.getByRole('button', { name: /unlock messages/i }).click();
+
+    // Wait for modal to close
+    await reAuthDialog.waitFor({ state: 'hidden', timeout: 10000 });
+  } catch {
+    // Modal didn't appear or already handled - continue
+  }
+}
 
 // Test users - use PRIMARY and TERTIARY from standardized test fixtures
 const USER_A = {
@@ -24,9 +50,12 @@ const USER_A = {
   password: process.env.TEST_USER_PRIMARY_PASSWORD!,
 };
 
+const USER_B_EMAIL =
+  process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com';
 const USER_B = {
-  username: 'testuser-b', // Search uses username, not email
-  email: process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com',
+  // display_name is derived from email prefix (see test-user-factory.ts)
+  displayName: USER_B_EMAIL.split('@')[0],
+  email: USER_B_EMAIL,
   password: process.env.TEST_USER_TERTIARY_PASSWORD!,
 };
 
@@ -42,6 +71,63 @@ const getAdminClient = (): SupabaseClient | null => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   return adminClient;
+};
+
+const getUserIds = async (
+  client: SupabaseClient
+): Promise<{ userAId: string | null; userBId: string | null }> => {
+  const { data: authUsers } = await client.auth.admin.listUsers();
+  let userAId: string | null = null;
+  let userBId: string | null = null;
+
+  if (authUsers?.users) {
+    for (const user of authUsers.users) {
+      if (user.email === USER_A.email) userAId = user.id;
+      if (user.email === USER_B.email) userBId = user.id;
+    }
+  }
+
+  return { userAId, userBId };
+};
+
+/**
+ * Ensure user_profiles records exist for both test users
+ * Required for user search to work (searches by display_name)
+ */
+const ensureUserProfiles = async (client: SupabaseClient): Promise<void> => {
+  const { userAId, userBId } = await getUserIds(client);
+
+  if (!userAId || !userBId) {
+    console.warn('ensureUserProfiles: Could not find user IDs');
+    return;
+  }
+
+  // Upsert profile for User A
+  const displayNameA = USER_A.email.split('@')[0];
+  const { error: errorA } = await client.from('user_profiles').upsert({
+    id: userAId,
+    username: displayNameA,
+    display_name: displayNameA,
+    updated_at: new Date().toISOString(),
+  });
+  if (errorA) {
+    console.warn('Failed to upsert User A profile:', errorA.message);
+  } else {
+    console.log('Ensured profile for User A:', displayNameA);
+  }
+
+  // Upsert profile for User B
+  const { error: errorB } = await client.from('user_profiles').upsert({
+    id: userBId,
+    username: USER_B.displayName,
+    display_name: USER_B.displayName,
+    updated_at: new Date().toISOString(),
+  });
+  if (errorB) {
+    console.warn('Failed to upsert User B profile:', errorB.message);
+  } else {
+    console.log('Ensured profile for User B:', USER_B.displayName);
+  }
 };
 
 const cleanupConnections = async (): Promise<void> => {
@@ -67,6 +153,12 @@ test.describe('Friend Request Flow', () => {
   test.beforeEach(async () => {
     // Clean up any existing connections between test users
     await cleanupConnections();
+
+    // Ensure user profiles exist for search to work
+    const client = getAdminClient();
+    if (client) {
+      await ensureUserProfiles(client);
+    }
   });
 
   test('User A sends friend request and User B accepts', async ({
@@ -91,13 +183,14 @@ test.describe('Friend Request Flow', () => {
       await pageA.waitForURL(/.*\/profile/, { timeout: 15000 });
 
       // ===== STEP 2: User A navigates to connections page =====
-      await pageA.goto('/messages/connections');
-      await expect(pageA).toHaveURL(/.*\/messages\/connections/);
+      await pageA.goto('/messages?tab=connections');
+      await handleReAuthModal(pageA, USER_A.password);
+      await expect(pageA).toHaveURL(/.*\/messages\/?\?.*tab=connections/);
 
       // ===== STEP 3: User A searches for User B by username =====
       const searchInput = pageA.locator('#user-search-input');
       await expect(searchInput).toBeVisible({ timeout: 5000 });
-      await searchInput.fill(USER_B.username);
+      await searchInput.fill(USER_B.displayName);
       await searchInput.press('Enter');
 
       // Wait for search results
@@ -129,8 +222,9 @@ test.describe('Friend Request Flow', () => {
       await pageB.waitForURL(/.*\/profile/, { timeout: 15000 });
 
       // ===== STEP 6: User B navigates to connections page =====
-      await pageB.goto('/messages/connections');
-      await expect(pageB).toHaveURL(/.*\/messages\/connections/);
+      await pageB.goto('/messages?tab=connections');
+      await handleReAuthModal(pageB, USER_B.password);
+      await expect(pageB).toHaveURL(/.*\/messages\/?\?.*tab=connections/);
 
       // ===== STEP 7: User B sees pending request in "Received" tab =====
       const receivedTab = pageB.getByRole('tab', {
@@ -156,24 +250,28 @@ test.describe('Friend Request Flow', () => {
       ).toBeHidden({ timeout: 10000 });
 
       // ===== STEP 9: Verify connection appears in "Accepted" tab for User B =====
+      // Reload to get fresh data after accepting
+      await pageB.reload();
+      await handleReAuthModal(pageB, USER_B.password);
       const acceptedTab = pageB.getByRole('tab', { name: /accepted/i });
       await acceptedTab.click({ force: true });
       await pageB.waitForTimeout(1000);
 
-      // Connection should now appear
+      // Connection should now appear (uses same testid as pending, just different tab)
       const acceptedConnection = pageB.locator(
-        '[data-testid="accepted-connection"]'
+        '[data-testid="connection-request"]'
       );
       await expect(acceptedConnection.first()).toBeVisible({ timeout: 5000 });
 
       // ===== STEP 10: Verify connection appears in User A's "Accepted" tab =====
       await pageA.reload();
+      await handleReAuthModal(pageA, USER_A.password);
       const acceptedTabA = pageA.getByRole('tab', { name: /accepted/i });
       await acceptedTabA.click({ force: true });
       await pageA.waitForTimeout(1000);
 
       const acceptedConnectionA = pageA.locator(
-        '[data-testid="accepted-connection"]'
+        '[data-testid="connection-request"]'
       );
       await expect(acceptedConnectionA.first()).toBeVisible({ timeout: 5000 });
     } finally {
@@ -202,11 +300,13 @@ test.describe('Friend Request Flow', () => {
       await pageB.click('button[type="submit"]');
       await pageB.waitForURL(/.*\/profile/, { timeout: 15000 });
 
-      await pageB.goto('/messages/connections');
+      await pageB.goto('/messages?tab=connections');
+      await handleReAuthModal(pageB, USER_B.password);
       const searchInput = pageB.locator('#user-search-input');
       await expect(searchInput).toBeVisible({ timeout: 5000 });
-      // Search for User A by username (testuser which is PRIMARY user's username)
-      await searchInput.fill('testuser');
+      // Search for User A by displayName (derived from email prefix)
+      const displayNameA = USER_A.email.split('@')[0];
+      await searchInput.fill(displayNameA);
       await searchInput.press('Enter');
       await pageB.waitForSelector(
         '[data-testid="search-results"], .alert-error',
@@ -227,7 +327,8 @@ test.describe('Friend Request Flow', () => {
       await pageA.click('button[type="submit"]');
       await pageA.waitForURL(/.*\/profile/, { timeout: 15000 });
 
-      await pageA.goto('/messages/connections');
+      await pageA.goto('/messages?tab=connections');
+      await handleReAuthModal(pageA, USER_A.password);
       const receivedTab = pageA.getByRole('tab', {
         name: /pending received|received/i,
       });
@@ -265,10 +366,11 @@ test.describe('Friend Request Flow', () => {
     await page.waitForURL(/.*\/profile/, { timeout: 15000 });
 
     // Send friend request to User B
-    await page.goto('/messages/connections');
+    await page.goto('/messages?tab=connections');
+    await handleReAuthModal(page, USER_A.password);
     const searchInput = page.locator('#user-search-input');
     await expect(searchInput).toBeVisible({ timeout: 5000 });
-    await searchInput.fill(USER_B.username);
+    await searchInput.fill(USER_B.displayName);
     await searchInput.press('Enter');
     await page.waitForSelector('[data-testid="search-results"], .alert-error', {
       timeout: 15000,
@@ -311,12 +413,13 @@ test.describe('Friend Request Flow', () => {
     await page.click('button[type="submit"]');
     await page.waitForURL(/.*\/profile/, { timeout: 15000 });
 
-    await page.goto('/messages/connections');
+    await page.goto('/messages?tab=connections');
+    await handleReAuthModal(page, USER_A.password);
 
     // Send first request
     const searchInput = page.locator('#user-search-input');
     await expect(searchInput).toBeVisible({ timeout: 5000 });
-    await searchInput.fill(USER_B.username);
+    await searchInput.fill(USER_B.displayName);
     await searchInput.press('Enter');
     await page.waitForSelector('[data-testid="search-results"], .alert-error', {
       timeout: 15000,
@@ -332,7 +435,7 @@ test.describe('Friend Request Flow', () => {
 
     // Search again and verify button state changed
     await searchInput.clear();
-    await searchInput.fill(USER_B.username);
+    await searchInput.fill(USER_B.displayName);
     await searchInput.press('Enter');
     await page.waitForSelector('[data-testid="search-results"], .alert-error', {
       timeout: 15000,
@@ -361,7 +464,8 @@ test.describe('Accessibility', () => {
     await page.click('button[type="submit"]');
     await page.waitForURL(/.*\/profile/, { timeout: 15000 });
 
-    await page.goto('/messages/connections');
+    await page.goto('/messages?tab=connections');
+    await handleReAuthModal(page, USER_A.password);
 
     // Verify keyboard navigation
     await page.keyboard.press('Tab');
@@ -391,7 +495,8 @@ test.describe('Accessibility', () => {
     await page.click('button[type="submit"]');
     await page.waitForURL(/.*\/profile/, { timeout: 15000 });
 
-    await page.goto('/messages/connections');
+    await page.goto('/messages?tab=connections');
+    await handleReAuthModal(page, USER_A.password);
     await page.waitForLoadState('networkidle');
 
     // Verify all tabs are keyboard accessible

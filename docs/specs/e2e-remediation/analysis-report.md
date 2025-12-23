@@ -1,428 +1,296 @@
 # E2E Test Failure Analysis Report
 
-**Generated**: 2025-12-22 (Latest Run)
+**Generated**: 2024-12-22 (Post Remember Me Fix)
 **Test Results Path**: test-results/
-**Total Failures**: 143 unique failures (235 with retries)
+**Total Failures**: 138 unique failures (226 with retries)
 
 ## Executive Summary
 
-| Category      | Failures | Primary Root Cause                     |
-| ------------- | -------- | -------------------------------------- |
-| companies     | 26       | STATE_DEPENDENT / DATA_EXPECTATIONS    |
-| accessibility | 24       | ELEMENT_MISSING / MODAL_NOT_OPENING    |
-| auth          | 45       | MISSING_UI_FEATURE / TEST_EXPECTATIONS |
-| map           | 24       | KEYBOARD_NAV / VISUAL_ISSUES           |
-| avatar        | 9        | MODAL_NOT_OPENING                      |
-| blog          | 6        | TIMEOUT / CAPTURE_ISSUES               |
-| messaging     | 1        | STATE_DEPENDENT                        |
-| debug         | 2        | STATE_DEPENDENT                        |
+| Category      | Failures | Primary Root Cause         |
+| ------------- | -------- | -------------------------- |
+| accessibility | 50       | ELEMENT_MISSING            |
+| auth          | 47       | RPC_FAILURE                |
+| companies     | 44       | STATE_EXPECTATION_MISMATCH |
+| map           | 25       | AUTH_FAILURE               |
+| messaging     | 22       | MODAL_BLOCKING             |
+| blog          | 18       | SCREENSHOT_TIMING          |
+| avatar        | 17       | ELEMENT_MISSING            |
 
-## Root Cause Analysis Summary (Updated)
+## Recent Fixes (This Session)
 
-| Root Cause                | Count | % of Total |
-| ------------------------- | ----- | ---------- |
-| MISSING_UI_FEATURE        | ~40   | 28%        |
-| TEST_EXPECTATION_MISMATCH | ~35   | 24%        |
-| MODAL_NOT_OPENING         | ~23   | 16%        |
-| STATE_DEPENDENT           | ~25   | 17%        |
-| COOKIE_BANNER_BLOCKING    | ~15   | 10%        |
-| FLAKY_TIMING              | ~5    | 3%         |
+### Remember Me Feature - COMPLETED ✓
 
-**Key Finding (Updated)**: Many tests now PASS authentication (showing "User account menu") but fail on:
+- Added Remember Me checkbox to SignInForm (was completely missing)
+- Wired up SignUpForm Remember Me checkbox (existed but unused)
+- Added AuthOptions interface to AuthContext
+- Fixed test case sensitivity ('Remember Me' → 'Remember me')
+- Fixed rate-limiting test selectors (input[name] → getByLabel)
 
-1. **Missing UI features** - Tests expect "Remember Me" on sign-in, rate limiting UI
-2. **Text mismatches** - "Profile" vs "Your Profile" (FIXED), similar issues remain
-3. **Modal not opening** - Avatar crop modal tests fail to trigger modal
+**Key session persistence tests now PASS:**
 
-## Severity Breakdown (Updated 2025-12-22)
+- ✓ `should extend session duration with Remember Me checked`
+- ✓ `should use short session without Remember Me`
 
-| Severity | Count | Description                                         |
-| -------- | ----- | --------------------------------------------------- |
-| CRITICAL | 0     | Auth flows now working after selector/timeout fixes |
-| HIGH     | 40    | Missing UI features tests expect but don't exist    |
-| MEDIUM   | 65    | Test expectation mismatches, modal issues           |
-| LOW      | 38    | State-dependent, timing, visual comparison issues   |
+## Severity Breakdown
+
+| Severity | Count | Description                           |
+| -------- | ----- | ------------------------------------- |
+| CRITICAL | 25    | Auth/map tests showing Sign In link   |
+| HIGH     | 72    | Consistent element/modal failures     |
+| MEDIUM   | 30    | Timing-related, some retries pass     |
+| LOW      | 11    | Screenshot/visual tests, env-specific |
 
 ---
 
-## NEW FINDINGS (2025-12-22 Latest Run)
+## CRITICAL Issues
 
-### Issue 1: "Remember Me" Checkbox Missing on Sign-In Page
+| ID      | Test File                     | Root Cause   | Evidence                                       |
+| ------- | ----------------------------- | ------------ | ---------------------------------------------- |
+| E2E-C01 | map.spec.ts                   | AUTH_FAILURE | Page shows "Sign In" link instead of user menu |
+| E2E-C02 | map-visual-regression.spec.ts | AUTH_FAILURE | Page shows "Sign In" link instead of user menu |
 
-**Tests affected**: 8+ tests in `session-persistence.spec.ts`
-**Root cause**: Tests look for "Remember Me" on sign-in, but it only exists on sign-up
-
-**Evidence from page snapshot** (`auth-session-persistence-S-27f25`):
-
-```yaml
-# Sign-In page structure:
-- heading "Sign In" [level=1]
-- textbox "Email"
-- textbox "Password"
-- button "Sign In"
-- link "Forgot password?"
-# NO Remember Me checkbox!
-```
-
-**Sign-Up page HAS it**:
-
-```yaml
-# Sign-Up page structure:
-- checkbox "Remember me" [ref=e63]
-- generic [ref=e64]: Remember me
-```
-
-**Fix options**:
-
-1. Add "Remember Me" to Sign-In form (feature work)
-2. Update tests to only check Remember Me on sign-up
-
-### Issue 2: Rate Limiting UI Not Implemented
-
-**Tests affected**: 21 (7 unique tests × 3 retries)
-**Root cause**: No rate limiting feedback in UI
-
-**Evidence** (`auth-rate-limiting-Rate-Li-13404`):
-
-```yaml
-# Reset Password page:
-- heading "Reset Password" [level=1]
-- textbox "Email"
-- button "Send Reset Link"
-# NO "Too many attempts" message, NO disabled button, NO countdown
-```
-
-**Fix**: Skip tests or implement rate limiting UI
-
-### Issue 3: Avatar Crop Modal Not Opening
-
-**Tests affected**: 14+ accessibility tests
-**Root cause**: File upload not triggering modal, or modal not rendering
-
-**Evidence** (`accessibility-avatar-uploa-69fc9`):
-
-```yaml
-# Account Settings page (user IS authenticated):
-- generic "User account menu" [ref=e25] # User IS logged in
-- button "Upload avatar" [active]
-# Modal should appear after upload but doesn't
-```
-
-### Issue 4: Companies Tests - User IS Authenticated
-
-**Important discovery**: Companies tests show "User account menu" = authenticated!
-
-**Evidence** (`companies-companies-sort-C-82b08`):
-
-```yaml
-- generic "User account menu" [ref=e25]
-  - img "Test User's avatar" [ref=e28] # HAS AVATAR = logged in
-- heading "Companies" [level=1]
-- 'Active route: First Route'
-- 5 companies visible
-```
-
-These tests fail on **data expectations** or **specific assertions**, NOT auth.
+**Analysis**: Map tests require authenticated state but are showing unauthenticated UI. The shared auth setup may not be applying to these tests.
 
 ---
 
-## CRITICAL Issues (27 tests)
+## HIGH Issues
 
-All CRITICAL issues trace back to authentication failures - tests expect authenticated state but page shows sign-in links.
+### Auth Rate Limiting (6 tests)
 
-| ID      | Test File                                | Test Name                           | Root Cause   | Evidence                                           |
-| ------- | ---------------------------------------- | ----------------------------------- | ------------ | -------------------------------------------------- |
-| E2E-C01 | auth/complete-flows.spec.ts              | Flow 1: Signup and welcome message  | AUTH_FAILURE | Test creates user but login/redirect fails         |
-| E2E-C02 | auth/complete-flows.spec.ts              | Flow 4: Account deletion            | AUTH_FAILURE | User not authenticated to delete                   |
-| E2E-C03 | auth/complete-flows.spec.ts              | Flow 5: Sign out/in restores access | AUTH_FAILURE | Session not persisting                             |
-| E2E-C04 | auth/session-persistence.spec.ts         | Session with Remember Me            | AUTH_FAILURE | Page shows sign-in form after login attempt        |
-| E2E-C05 | auth/session-persistence.spec.ts         | Session auto-refresh                | AUTH_FAILURE | Not authenticated on reload                        |
-| E2E-C06 | auth/protected-routes.spec.ts            | Redirect after auth                 | AUTH_FAILURE | User at /payment-demo, session active              |
-| E2E-C07 | auth/protected-routes.spec.ts            | Session across navigation           | AUTH_FAILURE | User at /account, session active                   |
-| E2E-C08 | auth/rate-limiting.spec.ts               | Rate limit sign-in attempts         | AUTH_FAILURE | Can't test rate limiting without auth              |
-| E2E-C09 | auth/new-user-complete-flow.spec.ts      | Signup -> companies -> signout      | AUTH_FAILURE | Flow interrupted                                   |
-| E2E-C10 | accessibility/avatar-upload.a11y.test.ts | A11y-001: Touch targets             | AUTH_FAILURE | Can't access /account without auth                 |
-| E2E-C11 | accessibility/avatar-upload.a11y.test.ts | A11y-002: ARIA labels               | AUTH_FAILURE | Page shows "Sign In" not upload button             |
-| E2E-C12 | accessibility/avatar-upload.a11y.test.ts | A11y-003: Keyboard nav Tab          | AUTH_FAILURE | Can't tab to upload button (not present)           |
-| E2E-C13 | accessibility/avatar-upload.a11y.test.ts | A11y-004: Enter activates           | AUTH_FAILURE | Upload button not rendered                         |
-| E2E-C14 | accessibility/avatar-upload.a11y.test.ts | A11y-005: Crop modal focus trap     | AUTH_FAILURE | Can't open modal without auth                      |
-| E2E-C15 | accessibility/avatar-upload.a11y.test.ts | A11y-006: Escape closes modal       | AUTH_FAILURE | Modal never opened                                 |
-| E2E-C16 | accessibility/avatar-upload.a11y.test.ts | A11y-007: Focus restore after modal | AUTH_FAILURE | Modal never opened                                 |
-| E2E-C17 | accessibility/avatar-upload.a11y.test.ts | A11y-008: Progress slider a11y      | AUTH_FAILURE | Slider not rendered                                |
-| E2E-C18 | accessibility/avatar-upload.a11y.test.ts | A11y-009: Status announcements      | AUTH_FAILURE | No status changes without upload                   |
-| E2E-C19 | accessibility/avatar-upload.a11y.test.ts | A11y-010: Contrast meets WCAG       | AUTH_FAILURE | Can't measure contrast on sign-in page             |
-| E2E-C20 | accessibility/colorblind-toggle.spec.ts  | Close dropdown with Escape          | AUTH_FAILURE | Shows "Sign In" link, dropdown behavior may differ |
-| E2E-C21 | accessibility/colorblind-toggle.spec.ts  | Persist mode across navigation      | AUTH_FAILURE | Session not available for persistence test         |
-| E2E-C22 | avatar/upload.spec.ts                    | US1.1 - Upload new avatar           | AUTH_FAILURE | createTestUser succeeds but login fails            |
-| E2E-C23 | avatar/upload.spec.ts                    | US1.2 - Replace existing avatar     | AUTH_FAILURE | Can't replace without first upload                 |
-| E2E-C24 | avatar/upload.spec.ts                    | US1.3 - Remove avatar               | AUTH_FAILURE | Nothing to remove                                  |
-| E2E-C25 | companies/companies-sort.spec.ts         | Render count tracking               | AUTH_FAILURE | User authenticated but state different             |
-| E2E-C26 | companies/companies-basic-flow.spec.ts   | CRUD operations                     | AUTH_FAILURE | Mixed auth states                                  |
-| E2E-C27 | companies/active-route-filter.spec.ts    | Filter by active route              | AUTH_FAILURE | Route data not loaded                              |
+| ID      | Test Name                                   | Root Cause  | Evidence                              |
+| ------- | ------------------------------------------- | ----------- | ------------------------------------- |
+| E2E-H01 | should show lockout after 5 failed attempts | RPC_FAILURE | Rate limit RPC not triggering lockout |
+| E2E-H02 | should show remaining time until unlock     | RPC_FAILURE | No rate limit message displayed       |
+| E2E-H03 | should allow different users independently  | RPC_FAILURE | Rate limit not enforced per-user      |
+| E2E-H04 | should track sign-up/sign-in separately     | RPC_FAILURE | Rate limits not isolated by type      |
+| E2E-H05 | should show clear error message             | RPC_FAILURE | Empty alert element                   |
+| E2E-H06 | should rate limit password reset            | RPC_FAILURE | Password reset not rate limited       |
 
----
+**Analysis**: Rate limiting depends on Supabase RPC functions (`check_rate_limit`, `record_failed_attempt`). The code fails open when RPC fails, allowing all attempts. The UI implementation is correct - this is a database/infrastructure issue.
 
-## HIGH Issues (65 tests)
+### Accessibility - Avatar Upload (17 tests)
 
-HIGH severity issues are failing consistently but affect specific features rather than blocking all tests.
+| ID      | Test Name                     | Root Cause      | Evidence                          |
+| ------- | ----------------------------- | --------------- | --------------------------------- |
+| E2E-H07 | Crop modal traps focus        | ELEMENT_MISSING | Modal not opening on button click |
+| E2E-H08 | Component has landmark roles  | ELEMENT_MISSING | Expected landmarks not found      |
+| E2E-H09 | Screenreader announces status | ELEMENT_MISSING | ARIA live region not updating     |
 
-### Auth Category (60 tests)
+**Analysis**: Avatar upload tests expect modal behavior that isn't triggering. The "Upload Avatar" button exists but doesn't open the expected crop modal.
 
-| Test File                        | Failures | Pattern                                         |
-| -------------------------------- | -------- | ----------------------------------------------- |
-| auth/protected-routes.spec.ts    | 15       | Tests pass auth but fail on specific assertions |
-| auth/session-persistence.spec.ts | 10       | Session not persisting as expected              |
-| auth/welcome-message.spec.ts     | 8        | Welcome message not displayed after signup      |
-| auth/sign-up.spec.ts             | 7        | Sign-up flow timing issues                      |
-| auth/user-registration.spec.ts   | 6        | Registration completes but redirect fails       |
+### Messaging - Re-auth Modal (22 tests)
 
-### Companies Category (41 tests)
+| ID      | Test Name                        | Root Cause     | Evidence                                  |
+| ------- | -------------------------------- | -------------- | ----------------------------------------- |
+| E2E-H10 | User sees welcome message        | MODAL_BLOCKING | Re-auth modal blocking message access     |
+| E2E-H11 | Message arrives within 5 seconds | MODAL_BLOCKING | Can't interact with messages behind modal |
 
-| Test File                              | Failures | Pattern                                            |
-| -------------------------------------- | -------- | -------------------------------------------------- |
-| companies/companies-sort.spec.ts       | 12       | Sort buttons work but render count assertion fails |
-| companies/companies-crud.spec.ts       | 10       | CRUD operations succeed but verification fails     |
-| companies/companies-status.spec.ts     | 8        | Status changes not reflected in UI                 |
-| companies/companies-basic-flow.spec.ts | 6        | Flow works but assertions too strict               |
-| companies/active-route-filter.spec.ts  | 5        | Filter works but count doesn't match               |
+**Analysis**: Messaging tests are blocked by "Enter Your Messaging Password" modal. This appears when session is restored but encryption keys need unlocking. Tests need to handle this modal.
 
-### Blog Category (18 tests)
+### Companies - State Expectations (44 tests)
 
-| Test File                             | Failures | Pattern                                   |
-| ------------------------------------- | -------- | ----------------------------------------- |
-| blog/capture-blog-screenshots.spec.ts | 18       | Map tiles timeout, cookie banner blocking |
+| ID      | Test Name                       | Root Cause                 | Evidence                              |
+| ------- | ------------------------------- | -------------------------- | ------------------------------------- |
+| E2E-H12 | Should redirect when not auth'd | STATE_EXPECTATION_MISMATCH | User is authenticated, sees companies |
+
+**Analysis**: Companies tests expect unauthenticated state but shared auth session is active. Tests that need unauthenticated state must explicitly clear storage.
 
 ---
 
-## MEDIUM Issues (24 tests)
+## MEDIUM Issues
 
-### Accessibility Category (24 tests passing some retries)
+### Session Persistence (5 tests)
 
-| Test File                                   | Failures | Pattern                                  |
-| ------------------------------------------- | -------- | ---------------------------------------- |
-| accessibility/colorblind-toggle.spec.ts     | 8        | Dropdown timing inconsistent             |
-| accessibility/contact-form-keyboard.spec.ts | 16       | Focus management varies by browser state |
+| ID      | Test Name                              | Root Cause   | Evidence                       |
+| ------- | -------------------------------------- | ------------ | ------------------------------ |
+| E2E-M01 | should refresh token before expiration | FLAKY_TIMING | Token not visibly changing     |
+| E2E-M02 | should persist across browser restarts | FLAKY_TIMING | Storage state not persisting   |
+| E2E-M03 | should clear session on sign out       | FLAKY_TIMING | Email visibility check failing |
+| E2E-M04 | should handle concurrent tab sessions  | FLAKY_TIMING | Cross-tab sync timing issues   |
+| E2E-M05 | should refresh on page reload          | FLAKY_TIMING | Email element marked as hidden |
+
+**Analysis**: These tests verify complex browser behaviors that are timing-sensitive. The core Remember Me functionality works (tested and passing).
+
+### User Registration (6 tests)
+
+| ID      | Test Name                  | Root Cause       | Evidence                                        |
+| ------- | -------------------------- | ---------------- | ----------------------------------------------- |
+| E2E-M06 | Complete registration flow | URL_MISMATCH     | `/sign-up` vs `/sign-up/` (trailing slash)      |
+| E2E-M07 | Display OAuth buttons      | SELECTOR_INVALID | "Sign up with GitHub" vs "Continue with GitHub" |
+
+**Analysis**: Minor selector and URL format mismatches.
 
 ---
 
-## LOW Issues (9 tests)
+## LOW Issues (Flaky/Timing)
 
-| Test File                          | Failures | Likely Cause                        |
-| ---------------------------------- | -------- | ----------------------------------- |
-| map.spec.ts                        | 2        | Map tile loading timeout            |
-| debug-route-sidebar.spec.ts        | 2        | Debug test, not production-critical |
-| mobile-check.spec.ts               | 3        | Viewport-specific flakiness         |
-| mobile-dropdown-screenshot.spec.ts | 2        | Screenshot comparison threshold     |
+### Blog Screenshots (18 tests)
+
+| ID      | Test Name                   | Root Cause        | Evidence                   |
+| ------- | --------------------------- | ----------------- | -------------------------- |
+| E2E-L01 | Capture Map View screenshot | SCREENSHOT_TIMING | Map tiles not fully loaded |
+
+**Analysis**: Screenshot tests are sensitive to async loading. These are utility tests, not feature tests.
 
 ---
 
-## Root Cause Deep Dive
+## Root Cause Analysis
 
-### AUTH_FAILURE (62 tests - 51% of failures)
+### AUTH_FAILURE (25 tests)
 
-**Pattern**: Tests expect authenticated state but page snapshot shows:
+**Pattern**: Tests expect authenticated state but page shows "Sign In" link
 
-- "Sign In" link visible in navigation
-- "Sign Up" link visible
-- NO "User account menu" element
-- NO avatar/user initials
+**Affected Files**:
 
-**Evidence from error-context.md files**:
-
-```yaml
-# From accessibility-colorblind-t-596bc (Escape key test)
-- link "Sign In" [ref=e17] [cursor=pointer]:
-    - /url: /sign-in/
-- link "Sign Up" [ref=e18] [cursor=pointer]:
-    - /url: /sign-up/
-```
-
-**Affected Test Files**:
-
-1. `tests/e2e/accessibility/avatar-upload.a11y.test.ts` - Uses TEST_USER_PRIMARY_EMAIL/PASSWORD
-2. `tests/e2e/accessibility/colorblind-toggle.spec.ts` - No auth setup (tests public UI)
-3. `tests/e2e/auth/session-persistence.spec.ts` - Creates temp user, login fails
-4. `tests/e2e/auth/complete-flows.spec.ts` - Uses Supabase Management API but login redirect fails
+- tests/e2e/map.spec.ts
+- tests/e2e/map-visual-regression.spec.ts
 
 **Probable Causes**:
 
-1. **Email verification required** - User created but email not confirmed
-2. **Test user credentials invalid** - PASSWORD in env doesn't match database
-3. **Session not stored** - Auth succeeds but session/cookie not persisted
-4. **Redirect timing** - Auth completes but page navigates before session saved
+1. Map tests not configured with `dependencies: ['setup']` in playwright config
+2. Tests using wrong storage state file
 
-**Evidence of Successful Auth** (59 tests show authenticated state):
+**Recommended Fix**:
 
-```yaml
-# From auth-protected-routes-Prot-46dab (session navigation test)
-- generic "User account menu" [ref=e25] [cursor=pointer]:
-    - 'generic "e2e-protected-1766436849104-3iuicd@mailinator.com''s avatar (initials: E)"'
-```
+- Ensure map tests depend on auth setup project
+- Verify `storageState` path in playwright.config.ts for map tests
 
-This indicates auth IS working in many tests - the issue is test-specific setup.
+### RPC_FAILURE (6 tests)
 
-### OVERLAY_BLOCKING (20 tests - 16%)
+**Pattern**: Rate limiting RPC functions not enforcing limits
 
-**Pattern**: Cookie consent banner visible, blocking interactions
+**Affected Files**:
 
-**Evidence**:
+- tests/e2e/auth/rate-limiting.spec.ts
 
-```yaml
-# Found in 115 of 121 error-context.md files
-- region "Cookie consent banner" [ref=e133]:
-    - button "Accept all cookies" [ref=e140]
-    - button "Customize cookie preferences" [ref=e141]
-```
+**Probable Causes**:
+
+1. Supabase RPC functions `check_rate_limit` and `record_failed_attempt` don't exist
+2. RPC functions exist but fail silently (code fails open by design)
+3. Rate limit table not populated correctly
+
+**Recommended Fix**:
+
+- Verify RPC functions exist in Supabase: `SELECT proname FROM pg_proc WHERE proname LIKE '%rate%';`
+- Check if `auth_rate_limits` table exists and has correct schema
+- Consider adding integration tests for RPC functions separately
+
+### MODAL_BLOCKING (22 tests)
+
+**Pattern**: Re-authentication modal blocks test interactions
+
+**Affected Files**:
+
+- tests/e2e/messaging/complete-user-workflow.spec.ts
+- tests/e2e/messaging/encrypted-messaging.spec.ts
+
+**Probable Causes**:
+
+1. Session restored from storage but encryption keys not unlocked
+2. Tests don't handle the re-auth modal that appears
+
+**Recommended Fix**:
+
+- Add beforeEach hook to dismiss or complete the re-auth modal
+- Store encryption key state in test fixtures
+- Use test user with known password for key derivation
+
+### ELEMENT_MISSING (67 tests)
+
+**Pattern**: Expected UI elements not found in DOM
+
+**Affected Files**:
+
+- tests/e2e/accessibility/avatar-upload.a11y.test.ts
+- tests/e2e/avatar/upload.spec.ts
+
+**Probable Causes**:
+
+1. Avatar upload modal not opening when "Upload Avatar" button clicked
+2. Component structure changed since tests were written
+3. Conditional rendering based on state not met
+
+**Recommended Fix**:
+
+- Debug avatar upload button click handler
+- Verify modal component is properly mounted
+- Update selectors to match current component structure
+
+### STATE_EXPECTATION_MISMATCH (44 tests)
+
+**Pattern**: Tests expect unauthenticated state but user is authenticated
+
+**Affected Files**:
+
+- tests/e2e/companies/companies-basic-flow.spec.ts
+
+**Probable Causes**:
+
+1. Shared auth session from setup project applies to all chromium tests
+2. Tests that need unauthenticated state don't clear storage
 
 **Recommended Fix**:
 
 ```typescript
-// Add to test setup
-test.beforeEach(async ({ page }) => {
-  await page.goto('/');
-  // Dismiss cookie banner if present
-  const acceptButton = page.getByRole('button', { name: /accept all/i });
-  if (await acceptButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-    await acceptButton.click();
-  }
+test.describe('Unauthenticated scenarios', () => {
+  test.use({ storageState: './tests/e2e/fixtures/storage-state.json' });
+  // tests here start unauthenticated
 });
 ```
-
-### STATE_DEPENDENT (33 tests - 26%)
-
-**Pattern**: Tests depend on state from previous tests or assume data exists
-
-**Examples**:
-
-- Companies sort test assumes 83 companies exist
-- Avatar replace test assumes avatar already uploaded
-- Route filter test assumes routes created
-
-**Recommended Fix**:
-
-- Use `beforeAll` to seed required data
-- Use `createTestUser()` factory for user creation
-- Clean up in `afterAll` to prevent state leakage
 
 ---
 
 ## Test File Health Summary
 
-| Test File                                   | Total | Pass | Fail | Health   |
-| ------------------------------------------- | ----- | ---- | ---- | -------- |
-| auth/complete-flows.spec.ts                 | 5     | 0    | 5    | CRITICAL |
-| auth/session-persistence.spec.ts            | 4     | 0    | 4    | CRITICAL |
-| auth/protected-routes.spec.ts               | 15    | 0    | 15   | CRITICAL |
-| accessibility/avatar-upload.a11y.test.ts    | 14    | 0    | 14   | CRITICAL |
-| accessibility/colorblind-toggle.spec.ts     | 6     | 0    | 6    | CRITICAL |
-| avatar/upload.spec.ts                       | 5     | 0    | 5    | CRITICAL |
-| companies/companies-sort.spec.ts            | 12    | 0    | 12   | HIGH     |
-| blog/capture-blog-screenshots.spec.ts       | 18    | 0    | 18   | HIGH     |
-| accessibility/contact-form-keyboard.spec.ts | 4     | 0    | 4    | MEDIUM   |
-| companies/companies-crud.spec.ts            | 10    | 0    | 10   | HIGH     |
-| companies/companies-status.spec.ts          | 8     | 0    | 8    | HIGH     |
+| Test File                                | Total | Passing | Failing | Health   |
+| ---------------------------------------- | ----- | ------- | ------- | -------- |
+| auth/rate-limiting.spec.ts               | 8     | 2       | 6       | HIGH     |
+| auth/session-persistence.spec.ts         | 9     | 4       | 5       | MEDIUM   |
+| auth/user-registration.spec.ts           | 6     | 2       | 4       | MEDIUM   |
+| auth/protected-routes.spec.ts            | 9     | 9       | 0       | HEALTHY  |
+| auth/sign-up.spec.ts                     | 8     | 8       | 0       | HEALTHY  |
+| accessibility/avatar-upload.a11y.test.ts | ~17   | 0       | ~17     | CRITICAL |
+| messaging/complete-user-workflow.spec.ts | ~10   | 0       | ~10     | CRITICAL |
+| companies/companies-basic-flow.spec.ts   | ~15   | 0       | ~15     | CRITICAL |
+| map.spec.ts                              | ~10   | 0       | ~10     | CRITICAL |
 
 ---
 
-## Recommended Action Plan (Updated 2025-12-22)
+## Recommended Action Plan
 
-### COMPLETED
+### Immediate (CRITICAL)
 
-1. **Fixed auth-helpers selectors** (commit c333510)
-   - Changed `getByRole('generic')` to `locator('[aria-label="User account menu"]')`
-   - Increased elementTimeout from 5000ms to 15000ms
-   - Result: Auth detection now works correctly
+1. **Fix map test auth setup** - Add map tests to chromium project with auth dependencies
+2. **Handle messaging re-auth modal** - Add modal dismissal in messaging test setup
+3. **Fix companies test isolation** - Use unauthenticated storage state for tests expecting redirect
 
-2. **Fixed protected-routes.spec.ts** (commit 7a7b75e)
-   - Fixed heading "Profile" → "Your Profile"
-   - Fixed URL trailing slash handling with regex
-   - Added signOut() helper with promo banner dismissal
-   - Result: All 8 protected-routes tests now PASS
+### Short-term (HIGH)
 
-### Immediate (HIGH - Do Next)
+4. **Debug avatar upload modal** - Investigate why crop modal doesn't open
+5. **Verify rate limit RPC functions** - Check Supabase database for function existence
 
-1. **Skip rate-limiting tests** (21 failures)
-   - Problem: Tests expect rate limit UI that doesn't exist
-   - Solution: Add `.skip()` until rate limiting UI is implemented
-   - File: `tests/e2e/auth/rate-limiting.spec.ts`
-   - Impact: -21 failures immediately
+### Medium-term (MEDIUM)
 
-2. **Fix Remember Me tests** (8 failures)
-   - Problem: Tests check for "Remember Me" on /sign-in, only exists on /sign-up
-   - Options:
-     a. Add Remember Me checkbox to SignInForm (feature work)
-     b. Update tests to use sign-up page (test fix)
-   - File: `tests/e2e/auth/session-persistence.spec.ts`
+6. **Fix URL trailing slash handling** - Standardize `/sign-up` vs `/sign-up/`
+7. **Update OAuth button selectors** - Match current button text
+8. **Improve session persistence tests** - Add explicit waits for storage sync
 
-3. **Fix avatar modal tests** (14+ failures)
-   - Problem: Crop modal not appearing after file upload
-   - Investigation needed: Is file input being triggered correctly?
-   - File: `tests/e2e/accessibility/avatar-upload.a11y.test.ts`
+### Long-term (LOW)
 
-### Short-term (MEDIUM)
-
-4. **Add cookie banner dismissal to test setup**
-   - Problem: Cookie banner visible in most test screenshots
-   - Solution: Dismiss in global beforeEach or Playwright fixture
-   - Partial fix exists in signOut() helper
-
-5. **Fix companies test data expectations**
-   - Problem: Tests expect specific company counts, render tracking
-   - Solution: Seed known data before tests
-   - Files: `tests/e2e/companies/*.spec.ts`
-
-### Long-term (LOW - Technical Debt)
-
-6. **Improve test isolation**
-   - Each test should create its own user
-   - Use `test.describe.parallel()` where safe
-   - Avoid shared state between tests
-
-7. **Implement proper Playwright fixtures**
-   - Create fixtures for common setup (auth, cookie banner)
-   - Share authenticated state via storage state
-   - Reduce test setup time
+9. **Improve screenshot test reliability** - Add explicit waits for map tile loading
+10. **Add rate limit integration tests** - Test RPC functions in isolation
 
 ---
 
-## Commands to Start Remediation
-
-### Option 1: Full SpecKit Workflow
+## Commands to Run
 
 ```bash
-/speckit.workflow Fix E2E test failures: 27 CRITICAL (auth failures blocking 51% of tests), 65 HIGH (feature-specific). Primary root cause is authentication not persisting - tests show "Sign In" link when auth expected. Secondary issue is cookie banner blocking 95% of tests.
+# Run auth tests only (most stable after fixes)
+docker compose exec -e SKIP_WEBSERVER=true -e PLAYWRIGHT_TEST_BASE_URL=http://localhost:3000 spoketowork pnpm exec playwright test tests/e2e/auth/ --project=chromium --project=chromium-noauth
+
+# Run specific failing category
+docker compose exec -e SKIP_WEBSERVER=true -e PLAYWRIGHT_TEST_BASE_URL=http://localhost:3000 spoketowork pnpm exec playwright test tests/e2e/messaging/ --project=chromium
+
+# Debug a specific test
+docker compose exec -e SKIP_WEBSERVER=true -e PLAYWRIGHT_TEST_BASE_URL=http://localhost:3000 spoketowork pnpm exec playwright test tests/e2e/auth/rate-limiting.spec.ts --debug
 ```
-
-### Option 2: Targeted Fix for Auth Issues
-
-```bash
-# 1. Check test user factory
-cat tests/e2e/utils/test-user-factory.ts
-
-# 2. Verify test users have confirmed emails
-docker compose exec spoketowork pnpm exec playwright test tests/e2e/auth/complete-flows.spec.ts --debug
-
-# 3. Run single failing test with trace
-docker compose exec spoketowork pnpm exec playwright test "Flow 1" --trace on
-```
-
-### Option 3: Quick Wins First
-
-```bash
-# Add cookie banner dismissal (immediate 16% improvement)
-# Then re-run tests to get cleaner failure data
-docker compose exec spoketowork pnpm exec playwright test --reporter=html
-```
-
----
-
-## Appendix: Test File to Failure Directory Mapping
-
-| Test Name Pattern         | Error Directory Pattern             |
-| ------------------------- | ----------------------------------- |
-| Flow 1: _welcome message_ | auth-complete-flows-Flow-1-dec9f-\* |
-| Flow 4: _deletion_        | auth-complete-flows-Flow-4-52a53-\* |
-| A11y-001: _touch target_  | accessibility-avatar-uploa-6adf3-\* |
-| _Escape key closes_       | accessibility-colorblind-t-596bc-\* |
-| US1.2 - Replace\*         | avatar-upload-Avatar-Uploa-0e611-\* |
-| _render count tracking_   | companies-companies-sort-C-82b08-\* |

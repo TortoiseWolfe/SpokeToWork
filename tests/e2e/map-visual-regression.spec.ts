@@ -40,9 +40,7 @@ async function setTheme(page: Page, theme: 'light' | 'dark') {
 
 test.describe('Map Visual Regression Tests', () => {
   test.beforeEach(async ({ page }) => {
-    await page.context().clearCookies();
     await page.goto('/map');
-    await page.evaluate(() => localStorage.clear());
     await dismissBanner(page);
     await waitForMapLoad(page);
   });

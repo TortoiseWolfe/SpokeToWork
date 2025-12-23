@@ -17,6 +17,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import path from 'path';
 import {
   createTestUser,
   deleteTestUser,
@@ -24,6 +25,12 @@ import {
   DEFAULT_TEST_PASSWORD,
 } from '../utils/test-user-factory';
 import { loginAndVerify } from '../utils/auth-helpers';
+
+// Test fixture path
+const TEST_IMAGE_PATH = path.join(
+  __dirname,
+  '../fixtures/avatars/valid-500x500.jpg'
+);
 
 test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
   let testUser: { id: string; email: string; password: string };
@@ -138,16 +145,8 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
     await uploadButton.click();
     const fileChooser = await fileChooserPromise;
 
-    // Mock file selection (use data URL to avoid file dependency)
-    const dataUrl = await page.evaluate(() => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 400;
-      canvas.height = 400;
-      const ctx = canvas.getContext('2d')!;
-      ctx.fillStyle = '#3b82f6';
-      ctx.fillRect(0, 0, 400, 400);
-      return canvas.toDataURL('image/jpeg', 0.9);
-    });
+    // Select test image to trigger crop modal
+    await fileChooser.setFiles(TEST_IMAGE_PATH);
 
     // Wait for crop modal
     const cropModal = page.getByRole('dialog', { name: /crop/i });
@@ -185,7 +184,10 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
     const uploadButton = page.getByRole('button', { name: /upload avatar/i });
     const fileChooserPromise = page.waitForEvent('filechooser');
     await uploadButton.click();
-    await fileChooserPromise;
+    const fileChooser = await fileChooserPromise;
+
+    // Select test image to trigger crop modal
+    await fileChooser.setFiles(TEST_IMAGE_PATH);
 
     const cropModal = page.getByRole('dialog', { name: /crop/i });
     await expect(cropModal).toBeVisible({ timeout: 5000 });
@@ -211,7 +213,10 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
     // Open crop modal
     const fileChooserPromise = page.waitForEvent('filechooser');
     await uploadButton.click();
-    await fileChooserPromise;
+    const fileChooser = await fileChooserPromise;
+
+    // Select test image to trigger crop modal
+    await fileChooser.setFiles(TEST_IMAGE_PATH);
 
     const cropModal = page.getByRole('dialog', { name: /crop/i });
     await expect(cropModal).toBeVisible({ timeout: 5000 });
@@ -343,7 +348,10 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
     const uploadButton = page.getByRole('button', { name: /upload avatar/i });
     const fileChooserPromise = page.waitForEvent('filechooser');
     await uploadButton.click();
-    await fileChooserPromise;
+    const fileChooser = await fileChooserPromise;
+
+    // Select test image to trigger crop modal
+    await fileChooser.setFiles(TEST_IMAGE_PATH);
 
     const cropModal = page.getByRole('dialog', { name: /crop/i });
     await expect(cropModal).toBeVisible({ timeout: 5000 });

@@ -3,17 +3,46 @@
  * Feature: 024-add-third-test
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+/**
+ * Handle the ReAuthModal that appears when session is restored
+ * but encryption keys need to be unlocked.
+ */
+async function handleReAuthModal(page: Page, password: string) {
+  try {
+    // Wait for the ReAuth modal to appear (with short timeout)
+    const reAuthDialog = page.getByRole('dialog', {
+      name: /re-authentication required/i,
+    });
+
+    // Wait for it to be visible
+    await reAuthDialog.waitFor({ state: 'visible', timeout: 5000 });
+
+    // Fill password and unlock
+    const passwordInput = page.getByRole('textbox', { name: /password/i });
+    await passwordInput.fill(password);
+    await page.getByRole('button', { name: /unlock messages/i }).click();
+
+    // Wait for modal to close
+    await reAuthDialog.waitFor({ state: 'hidden', timeout: 10000 });
+  } catch {
+    // Modal didn't appear or already handled - continue
+  }
+}
 
 const USER_A = {
   email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
   password: process.env.TEST_USER_PRIMARY_PASSWORD!,
 };
 
+const USER_B_EMAIL =
+  process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com';
 const USER_B = {
-  username: 'testuser-b',
-  email: process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com',
+  // display_name is derived from email prefix (see test-user-factory.ts)
+  displayName: USER_B_EMAIL.split('@')[0],
+  email: USER_B_EMAIL,
   password: process.env.TEST_USER_TERTIARY_PASSWORD!,
 };
 
@@ -52,6 +81,46 @@ const getUserIds = async (
   }
 
   return { userAId, userBId };
+};
+
+/**
+ * Ensure user_profiles records exist for both test users
+ * Required for user search to work (searches by display_name)
+ */
+const ensureUserProfiles = async (client: SupabaseClient): Promise<void> => {
+  const { userAId, userBId } = await getUserIds(client);
+
+  if (!userAId || !userBId) {
+    console.warn('ensureUserProfiles: Could not find user IDs');
+    return;
+  }
+
+  // Upsert profile for User A
+  const displayNameA = USER_A.email.split('@')[0];
+  const { error: errorA } = await client.from('user_profiles').upsert({
+    id: userAId,
+    username: displayNameA,
+    display_name: displayNameA,
+    updated_at: new Date().toISOString(),
+  });
+  if (errorA) {
+    console.warn('Failed to upsert User A profile:', errorA.message);
+  } else {
+    console.log('Ensured profile for User A:', displayNameA);
+  }
+
+  // Upsert profile for User B
+  const { error: errorB } = await client.from('user_profiles').upsert({
+    id: userBId,
+    username: USER_B.displayName,
+    display_name: USER_B.displayName,
+    updated_at: new Date().toISOString(),
+  });
+  if (errorB) {
+    console.warn('Failed to upsert User B profile:', errorB.message);
+  } else {
+    console.log('Ensured profile for User B:', USER_B.displayName);
+  }
 };
 
 const cleanupTestData = async (client: SupabaseClient): Promise<void> => {
@@ -139,6 +208,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
   test.beforeEach(async () => {
     const client = getAdminClient();
     if (client) {
+      await ensureUserProfiles(client);
       await cleanupTestData(client);
     }
   });
@@ -171,18 +241,25 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
 
       // STEP 2: Navigate to connections
       console.log('Step 2: Navigating to connections...');
-      await pageA.goto('/messages/connections');
-      await expect(pageA).toHaveURL(/.*\/messages\/connections/);
-      await expect(pageA.locator('h1')).toContainText('Connections');
-      console.log('Step 2: Connections page loaded');
+      await pageA.goto('/messages?tab=connections');
+
+      // Handle ReAuthModal if it appears (encryption key unlock)
+      await handleReAuthModal(pageA, USER_A.password);
+
+      await expect(pageA).toHaveURL(/.*\/messages\/?\?.*tab=connections/);
+      // Verify connections tab is active (tab has aria-selected="true")
+      await expect(
+        pageA.getByRole('tab', { name: /connections/i, selected: true })
+      ).toBeVisible();
+      console.log('Step 2: Connections tab loaded');
 
       // STEP 3: Search for User B
       console.log(
-        'Step 3: Searching for User B with username: ' + USER_B.username
+        'Step 3: Searching for User B with displayName: ' + USER_B.displayName
       );
       const searchInput = pageA.locator('#user-search-input');
       await expect(searchInput).toBeVisible({ timeout: 5000 });
-      await searchInput.fill(USER_B.username);
+      await searchInput.fill(USER_B.displayName);
       await searchInput.press('Enter');
       console.log('Step 3: Submitted search');
 
@@ -210,10 +287,53 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
         name: /send request/i,
       });
       await expect(sendRequestButton).toBeVisible();
-      await sendRequestButton.click({ force: true });
-      await expect(pageA.getByText(/friend request sent/i)).toBeVisible({
-        timeout: 5000,
-      });
+
+      // Log button state before click
+      const isDisabled = await sendRequestButton.isDisabled();
+      console.log('Step 4: Send Request button disabled:', isDisabled);
+
+      await sendRequestButton.click();
+
+      // Wait for button text to change (indicates request in progress or complete)
+      await pageA.waitForTimeout(2000);
+
+      // Check what's on the page now
+      const pageContent = await pageA
+        .locator('[data-testid="user-search"]')
+        .textContent();
+      console.log(
+        'Step 4: UserSearch content after click:',
+        pageContent?.substring(0, 200)
+      );
+
+      // Look for success message or "Request Sent" button text
+      const successVisible = await pageA
+        .getByText(/friend request sent|request sent/i)
+        .isVisible()
+        .catch(() => false);
+      const errorVisible = await pageA
+        .locator('.alert-error')
+        .isVisible()
+        .catch(() => false);
+
+      if (errorVisible) {
+        const errorText = await pageA.locator('.alert-error').textContent();
+        throw new Error('Friend request failed: ' + errorText);
+      }
+
+      if (!successVisible) {
+        // Check if button changed to "Request Sent"
+        const buttonAfter = pageA.getByRole('button', {
+          name: /request sent/i,
+        });
+        if (await buttonAfter.isVisible().catch(() => false)) {
+          console.log('Step 4: Button shows "Request Sent"');
+        } else {
+          throw new Error(
+            'Friend request: no success/error message and button did not change'
+          );
+        }
+      }
       console.log('Step 4: Friend request sent');
 
       // STEP 5: User B signs in
@@ -228,8 +348,12 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
 
       // STEP 6: User B views pending requests
       console.log('Step 6: User B viewing pending requests...');
-      await pageB.goto('/messages/connections');
-      await expect(pageB).toHaveURL(/.*\/messages\/connections/);
+      await pageB.goto('/messages?tab=connections');
+
+      // Handle ReAuthModal for User B if it appears
+      await handleReAuthModal(pageB, USER_B.password);
+
+      await expect(pageB).toHaveURL(/.*\/messages\/?\?.*tab=connections/);
 
       const receivedTab = pageB.getByRole('tab', {
         name: /pending received|received/i,
@@ -247,10 +371,20 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
         .first();
       await expect(acceptButton).toBeVisible();
       await acceptButton.click({ force: true });
+
+      // Wait for accept button to disappear (indicates action completed)
+      await expect(acceptButton).toBeHidden({ timeout: 10000 });
+
+      // Switch to Accepted tab to verify connection moved there
+      const acceptedTab = pageB.getByRole('tab', { name: /accepted/i });
+      await acceptedTab.click();
+      await pageB.waitForTimeout(500);
+
+      // Verify the connection appears in Accepted tab
       await expect(
         pageB.locator('[data-testid="connection-request"]')
-      ).toBeHidden({ timeout: 10000 });
-      console.log('Step 7: Connection accepted');
+      ).toBeVisible({ timeout: 5000 });
+      console.log('Step 7: Connection accepted and visible in Accepted tab');
 
       // STEP 8: Create conversation and User A sends message
       console.log('Step 8: Creating conversation and sending message...');
@@ -266,6 +400,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
 
       await pageA.goto('/messages?conversation=' + conversationId);
       await pageA.waitForLoadState('networkidle');
+      await handleReAuthModal(pageA, USER_A.password);
 
       testMessage = 'Hello from User A - ' + Date.now();
       const messageInput = pageA.locator(
@@ -285,6 +420,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       console.log('Step 9: User B receiving message...');
       await pageB.goto('/messages?conversation=' + conversationId);
       await pageB.waitForLoadState('networkidle');
+      await handleReAuthModal(pageB, USER_B.password);
       await expect(pageB.getByText(testMessage)).toBeVisible({
         timeout: 10000,
       });
@@ -306,6 +442,10 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       // STEP 11: User A receives reply
       console.log('Step 11: User A receiving reply...');
       await pageA.reload();
+
+      // Handle ReAuthModal after reload (encryption keys need to be unlocked again)
+      await handleReAuthModal(pageA, USER_A.password);
+
       await expect(pageA.getByText(replyMessage)).toBeVisible({
         timeout: 10000,
       });
@@ -375,6 +515,7 @@ test.describe('Conversations Page Loading (Feature 029)', () => {
     // Navigate to conversations page and time it
     const startTime = Date.now();
     await page.goto('/conversations');
+    await handleReAuthModal(page, USER_A.password);
 
     // Wait for page title to load - NOT spinner
     await expect(
@@ -406,6 +547,7 @@ test.describe('Conversations Page Loading (Feature 029)', () => {
     // Navigate to conversations
     await page.goto('/conversations');
     await page.waitForLoadState('networkidle');
+    await handleReAuthModal(page, USER_A.password);
 
     // If error is shown, verify retry button exists
     const errorAlert = page.locator('.alert-error');
