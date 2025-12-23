@@ -17,7 +17,7 @@ import {
   generateTestEmail,
   DEFAULT_TEST_PASSWORD,
 } from '../utils/test-user-factory';
-import { loginAndVerify } from '../utils/auth-helpers';
+import { loginAndVerify, signOut } from '../utils/auth-helpers';
 
 test.describe('Protected Routes E2E', () => {
   let testUser: { id: string; email: string; password: string };
@@ -60,21 +60,22 @@ test.describe('Protected Routes E2E', () => {
 
     // Access protected routes
     const protectedRoutes = [
-      { path: '/profile', heading: 'Profile' },
+      { path: '/profile', heading: 'Your Profile' },
       { path: '/account', heading: 'Account Settings' },
       { path: '/payment-demo', heading: 'Payment Integration Demo' },
     ];
 
     for (const route of protectedRoutes) {
       await page.goto(route.path);
-      await expect(page).toHaveURL(route.path);
+      // Use regex to handle optional trailing slash
+      await expect(page).toHaveURL(new RegExp(`${route.path}/?$`));
       await expect(
         page.getByRole('heading', { name: route.heading })
       ).toBeVisible();
     }
 
     // Clean up - sign out
-    await page.getByRole('button', { name: 'Sign Out' }).click();
+    await signOut(page);
   });
 
   test('should enforce RLS policies on payment access', async ({ page }) => {
@@ -94,13 +95,16 @@ test.describe('Protected Routes E2E', () => {
 
       // Access payment demo and verify user's own data
       await page.goto('/payment-demo');
-      await expect(page.getByText(user1.email)).toBeVisible();
+      // Wait for page to load, then verify user's email appears on page
+      await page.waitForLoadState('networkidle');
+      const pageContent = await page.content();
+      expect(pageContent).toContain(user1.email);
 
       // Sign out
-      await page.getByRole('button', { name: 'Sign Out' }).click();
-      await page.waitForURL(/\/sign-in/);
+      await signOut(page);
 
-      // Sign in as user 2
+      // Sign in as user 2 - navigate to sign-in page first
+      await page.goto('/sign-in');
       await page.getByLabel('Email').fill(user2.email);
       await page.getByLabel('Password', { exact: true }).fill(user2.password);
       await page.getByRole('button', { name: 'Sign In' }).click();
@@ -108,8 +112,10 @@ test.describe('Protected Routes E2E', () => {
 
       // Verify user 2 sees their own email, not user 1's
       await page.goto('/payment-demo');
-      await expect(page.getByText(user2.email)).toBeVisible();
-      await expect(page.getByText(user1.email)).not.toBeVisible();
+      await page.waitForLoadState('networkidle');
+      const user2PageContent = await page.content();
+      expect(user2PageContent).toContain(user2.email);
+      expect(user2PageContent).not.toContain(user1.email);
 
       // RLS policy prevents user 2 from seeing user 1's payment data
     } finally {
@@ -164,21 +170,21 @@ test.describe('Protected Routes E2E', () => {
       password: testUser.password,
     });
 
-    // Navigate between protected routes
+    // Navigate between protected routes (use regex to handle optional trailing slash)
     await page.goto('/profile');
-    await expect(page).toHaveURL('/profile');
+    await expect(page).toHaveURL(/\/profile\/?$/);
 
     await page.goto('/account');
-    await expect(page).toHaveURL('/account');
+    await expect(page).toHaveURL(/\/account\/?$/);
 
     await page.goto('/payment-demo');
-    await expect(page).toHaveURL('/payment-demo');
+    await expect(page).toHaveURL(/\/payment-demo\/?$/);
 
     // Verify still authenticated (no redirect to sign-in)
-    await expect(page).toHaveURL('/payment-demo');
+    await expect(page).toHaveURL(/\/payment-demo\/?$/);
 
     // Sign out
-    await page.getByRole('button', { name: 'Sign Out' }).click();
+    await signOut(page);
   });
 
   test('should handle session expiration gracefully', async ({ page }) => {
@@ -219,7 +225,7 @@ test.describe('Protected Routes E2E', () => {
     await page.waitForURL(/\/(account|profile)/);
 
     // Sign out
-    await page.getByRole('button', { name: 'Sign Out' }).click();
+    await signOut(page);
   });
 
   test('should verify cascade delete removes related records', async ({

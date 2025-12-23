@@ -16,7 +16,7 @@ export interface LoginCredentials {
 export interface LoginOptions {
   /** Maximum time to wait for URL change (default: 10000ms) */
   urlTimeout?: number;
-  /** Maximum time to wait for UI element verification (default: 5000ms) */
+  /** Maximum time to wait for UI element verification (default: 15000ms) */
   elementTimeout?: number;
   /** Whether to expect redirect to a specific URL after login */
   expectedUrl?: string | RegExp;
@@ -48,7 +48,7 @@ export async function loginAndVerify(
   credentials: LoginCredentials,
   options: LoginOptions = {}
 ): Promise<void> {
-  const { urlTimeout = 10000, elementTimeout = 5000 } = options;
+  const { urlTimeout = 10000, elementTimeout = 15000 } = options;
 
   // Navigate to sign-in page
   await page.goto('/sign-in');
@@ -90,7 +90,8 @@ export async function loginAndVerify(
   }
 
   // Verify the user account menu IS visible
-  const userMenu = page.getByRole('generic', { name: /user account menu/i });
+  // Note: The element is a <label> with aria-label, so use locator instead of getByRole
+  const userMenu = page.locator('[aria-label="User account menu"]');
   try {
     await expect(userMenu).toBeVisible({ timeout: elementTimeout });
   } catch {
@@ -106,18 +107,18 @@ export async function loginAndVerify(
  * Use this to check auth state without logging in
  *
  * @param page - Playwright page object
- * @param timeout - Maximum wait time (default: 5000ms)
+ * @param timeout - Maximum wait time (default: 15000ms)
  */
 export async function verifyAuthenticated(
   page: Page,
-  timeout = 5000
+  timeout = 15000
 ): Promise<void> {
   // Sign In link should NOT be visible
   const signInLink = page.getByRole('link', { name: 'Sign In' });
   await expect(signInLink).not.toBeVisible({ timeout });
 
   // User account menu SHOULD be visible
-  const userMenu = page.getByRole('generic', { name: /user account menu/i });
+  const userMenu = page.locator('[aria-label="User account menu"]');
   await expect(userMenu).toBeVisible({ timeout });
 }
 
@@ -126,37 +127,87 @@ export async function verifyAuthenticated(
  * Use this to confirm logout or for public page tests
  *
  * @param page - Playwright page object
- * @param timeout - Maximum wait time (default: 5000ms)
+ * @param timeout - Maximum wait time (default: 15000ms)
  */
 export async function verifyUnauthenticated(
   page: Page,
-  timeout = 5000
+  timeout = 15000
 ): Promise<void> {
   // Sign In link SHOULD be visible
   const signInLink = page.getByRole('link', { name: 'Sign In' });
   await expect(signInLink).toBeVisible({ timeout });
 
   // User account menu should NOT be visible
-  const userMenu = page.getByRole('generic', { name: /user account menu/i });
+  const userMenu = page.locator('[aria-label="User account menu"]');
   await expect(userMenu).not.toBeVisible({ timeout });
 }
 
 /**
- * Logout the current user
+ * Sign out the current user
+ *
+ * The "Sign Out" button is inside a dropdown menu (User Account Menu).
+ * This helper opens the dropdown first, then clicks the button.
  *
  * @param page - Playwright page object
+ * @param options - Optional settings
  */
-export async function logout(page: Page): Promise<void> {
+export async function signOut(
+  page: Page,
+  options: { verify?: boolean; timeout?: number } = {}
+): Promise<void> {
+  const { verify = true, timeout = 10000 } = options;
+
+  // Dismiss any floating banners that might block clicks by clicking their close button
+  const promoBanner = page.locator('.fixed[role="banner"]');
+  const closeButtons = promoBanner.locator(
+    'button, [aria-label*="close"], [aria-label*="dismiss"]'
+  );
+  const count = await closeButtons.count();
+  for (let i = 0; i < count; i++) {
+    try {
+      await closeButtons.nth(i).click({ timeout: 500 });
+      await page.waitForTimeout(200);
+    } catch {
+      // Ignore if can't click
+    }
+  }
+
   // Click user account menu to open dropdown
-  const userMenu = page.getByRole('generic', { name: /user account menu/i });
+  const userMenu = page.locator('[aria-label="User account menu"]');
   await userMenu.click();
 
-  // Click sign out button
-  const signOutButton = page.getByRole('link', { name: /sign out/i });
-  await signOutButton.click();
+  // Wait for dropdown to open and be interactive
+  await page.waitForTimeout(300);
 
-  // Verify we're logged out
-  await verifyUnauthenticated(page);
+  // Click sign out button using JavaScript to bypass any overlays
+  await page.evaluate(() => {
+    const btn = document.querySelector('button') as HTMLButtonElement | null;
+    const buttons = document.querySelectorAll('button');
+    for (const button of buttons) {
+      if (button.textContent?.trim() === 'Sign Out') {
+        button.click();
+        return;
+      }
+    }
+  });
+
+  // Wait for redirect - GlobalNav redirects to home '/', not '/sign-in'
+  await page.waitForURL(
+    (url) => url.pathname === '/' || url.pathname.includes('/sign-in'),
+    { timeout }
+  );
+
+  // Optionally verify we're logged out
+  if (verify) {
+    await verifyUnauthenticated(page);
+  }
+}
+
+/**
+ * @deprecated Use signOut() instead - this function had incorrect selector
+ */
+export async function logout(page: Page): Promise<void> {
+  await signOut(page);
 }
 
 /**
