@@ -3,6 +3,13 @@
 @import '../styles/prism-vscode-dark.css';
 @import '../styles/mobile-first-utilities.css';
 
+/* Prevent horizontal scroll at page level (PRP-017 mobile-first) */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 @theme {
   /* Mobile-first breakpoints (PRP-017) */
   --breakpoint-xs: 20rem; /* 320px - Small phones (minimum supported) */
