@@ -2272,6 +2272,7 @@ RETURNS TABLE (
 )
 LANGUAGE SQL
 STABLE
+SET search_path = public
 AS $$
   SELECT
     ma.id,
@@ -2609,12 +2610,15 @@ WHERE NOT EXISTS (
 
 -- Function to update bicycle_routes.updated_at on changes
 CREATE OR REPLACE FUNCTION update_bicycle_routes_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Trigger for bicycle_routes.updated_at
 DROP TRIGGER IF EXISTS bicycle_routes_updated_at ON bicycle_routes;
@@ -2625,12 +2629,15 @@ CREATE TRIGGER bicycle_routes_updated_at
 
 -- Function to update active_route_planning.last_modified_at on changes
 CREATE OR REPLACE FUNCTION update_active_route_planning_modified()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
   NEW.last_modified_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Trigger for active_route_planning.last_modified_at
 DROP TRIGGER IF EXISTS active_route_planning_modified ON active_route_planning;
@@ -2656,7 +2663,11 @@ CREATE TRIGGER active_route_planning_modified
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION cleanup_old_audit_logs()
-RETURNS TABLE(deleted_count bigint) AS $$
+RETURNS TABLE(deleted_count bigint)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   rows_deleted bigint;
 BEGIN
@@ -2667,7 +2678,7 @@ BEGIN
 
   RETURN QUERY SELECT rows_deleted;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 COMMENT ON FUNCTION cleanup_old_audit_logs() IS 'Deletes auth_audit_logs older than 90 days. Returns count of deleted rows. Call daily via pg_cron or GitHub Action.';
 
