@@ -48,6 +48,10 @@ next-env.d.ts
 
 # playwright
 test-results/
+tests/e2e/__snapshots__/
+tests/e2e/screenshots/
+screenshots/
+mobile-check.png
 playwright-report/
 tests/e2e/fixtures/storage-state-auth.json
 
