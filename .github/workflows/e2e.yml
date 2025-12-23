@@ -99,8 +99,8 @@ jobs:
       - name: Run smoke tests
         run: |
           pnpm exec playwright test \
-            tests/e2e/auth/sign-in.spec.ts \
-            tests/e2e/protected-routes.spec.ts \
+            tests/e2e/auth/protected-routes.spec.ts \
+            tests/e2e/auth/sign-up.spec.ts \
             --project=chromium \
             --reporter=list \
             --timeout=30000
