@@ -13,7 +13,7 @@ categories:
   - career-advice
   - linkedin-series
 excerpt: 'Craft a compelling LinkedIn profile that tells your story. Learn the headline formula, About section structure, and how to showcase skills over duties.'
-featuredImage: /blog-images/linkedin-optimization-tell-your-story/featured-og.svg
+featuredImage: /blog-images/linkedin-optimization-tell-your-story/featured-og.png
 featuredImageAlt: 'LinkedIn profile sections showing headline, about, and experience optimization'
 ogImage: /blog-images/linkedin-optimization-tell-your-story/featured-og.png
 ogTitle: 'LinkedIn: Craft Your Headline, About & Experience'

@@ -14,7 +14,7 @@ categories:
   - career-advice
   - linkedin-series
 excerpt: 'Stay visible on LinkedIn through strategic networking, posting, and engagement. Learn the PEAR framework and how 10-15 minutes daily builds your presence.'
-featuredImage: /blog-images/linkedin-optimization-stay-visible/featured-og.svg
+featuredImage: /blog-images/linkedin-optimization-stay-visible/featured-og.png
 featuredImageAlt: 'LinkedIn networking and engagement strategies'
 ogImage: /blog-images/linkedin-optimization-stay-visible/featured-og.png
 ogTitle: 'LinkedIn: Stay Visible with Networking & Posts'

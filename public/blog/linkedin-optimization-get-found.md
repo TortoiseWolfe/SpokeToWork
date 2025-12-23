@@ -14,7 +14,7 @@ categories:
   - career-advice
   - linkedin-series
 excerpt: 'Learn how recruiters search LinkedIn and optimize your profile to appear in their searches. Master keywords, boolean operators, and the mirroring principle.'
-featuredImage: /blog-images/linkedin-optimization-get-found/featured-og.svg
+featuredImage: /blog-images/linkedin-optimization-get-found/featured-og.png
 featuredImageAlt: 'LinkedIn search optimization showing keyword matching and recruiter search patterns'
 ogImage: /blog-images/linkedin-optimization-get-found/featured-og.png
 ogTitle: 'Get Found: How Recruiters Actually Search LinkedIn'

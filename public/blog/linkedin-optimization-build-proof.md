@@ -14,7 +14,7 @@ categories:
   - career-advice
   - linkedin-series
 excerpt: 'Back up your LinkedIn claims with proof. Learn to optimize your Skills section, showcase projects effectively, and get meaningful recommendations.'
-featuredImage: /blog-images/linkedin-optimization-build-proof/featured-og.svg
+featuredImage: /blog-images/linkedin-optimization-build-proof/featured-og.png
 featuredImageAlt: 'LinkedIn skills, projects, and recommendations sections'
 ogImage: /blog-images/linkedin-optimization-build-proof/featured-og.png
 ogTitle: 'LinkedIn: Build Proof with Skills & Projects'
