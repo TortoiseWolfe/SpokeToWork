@@ -17,21 +17,25 @@
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 
 // ============================================================================
-// FAIL-FAST VALIDATION (062-fix-e2e-auth)
-// Validate required environment variables at module load time
+// LAZY VALIDATION (updated from fail-fast)
+// Validates environment variables when admin functions are actually called,
+// not at module load time. This allows tests that use TEST_USER_PRIMARY_EMAIL
+// to skip admin operations without requiring SUPABASE_SERVICE_ROLE_KEY.
 // ============================================================================
 const REQUIRED_ENV_VARS = [
   'SUPABASE_SERVICE_ROLE_KEY',
   'NEXT_PUBLIC_SUPABASE_URL',
 ] as const;
 
-for (const varName of REQUIRED_ENV_VARS) {
-  if (!process.env[varName]) {
-    throw new Error(
-      `TEST_USER_FACTORY: Missing required ${varName}.\n` +
-        `This is required for dynamic test user creation via Supabase Admin API.\n` +
-        `Check .env locally or GitHub Secrets in CI.`
-    );
+function validateAdminEnvVars(): void {
+  for (const varName of REQUIRED_ENV_VARS) {
+    if (!process.env[varName]) {
+      throw new Error(
+        `TEST_USER_FACTORY: Missing required ${varName}.\n` +
+          `This is required for dynamic test user creation via Supabase Admin API.\n` +
+          `Check .env locally or GitHub Secrets in CI.`
+      );
+    }
   }
 }
 
@@ -47,13 +51,15 @@ let adminClient: SupabaseClient | null = null;
  * Get or create the Supabase admin client
  * Uses SUPABASE_SERVICE_ROLE_KEY for admin operations
  *
- * NOTE: Env vars are validated at module load (fail-fast).
- * This function is guaranteed to return a valid client.
+ * NOTE: Env vars are validated lazily when this function is called.
+ * This allows importing the module without requiring admin credentials.
  */
 export function getAdminClient(): SupabaseClient {
   if (adminClient) return adminClient;
 
-  // These are guaranteed to exist due to fail-fast validation above
+  // Validate env vars when admin client is actually needed
+  validateAdminEnvVars();
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
@@ -252,12 +258,13 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 }
 
 /**
- * Check if admin client is available
- * NOTE: With fail-fast validation, this always returns true.
- * Kept for backwards compatibility.
+ * Check if admin client is available (env vars are configured)
  */
 export function isAdminClientAvailable(): boolean {
-  return true; // Fail-fast validation guarantees this
+  return !!(
+    process.env.SUPABASE_SERVICE_ROLE_KEY &&
+    process.env.NEXT_PUBLIC_SUPABASE_URL
+  );
 }
 
 /**
