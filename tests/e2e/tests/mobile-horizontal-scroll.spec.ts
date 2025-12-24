@@ -26,7 +26,7 @@ test.describe('Horizontal Scroll Detection', () => {
       await page.goto(url);
 
       // Wait for page to fully render
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Check if there's a visible scrollbar by testing if user can scroll
       const canScrollHorizontally = await page.evaluate(() => {
@@ -80,7 +80,7 @@ test.describe('Horizontal Scroll Detection', () => {
 
   test('Images do not cause horizontal overflow', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/blog/countdown-timer-react-tutorial');
+    await page.goto('/blog/message-encryption-security-explained');
 
     const images = await page.locator('img').all();
 
@@ -135,7 +135,7 @@ test.describe('Horizontal Scroll Detection', () => {
 
   test('Pre/code blocks are responsive', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/blog/countdown-timer-react-tutorial');
+    await page.goto('/blog/message-encryption-security-explained');
 
     const codeBlocks = await page.locator('pre, code').all();
 

@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Homepage Navigation', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   });
 
   test('homepage loads with correct title', async ({ page }) => {

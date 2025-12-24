@@ -143,7 +143,7 @@ test.describe('Broken Links Detection', () => {
     try {
       // Navigate to the target URL
       const response = await page.goto(targetUrl, {
-        waitUntil: 'networkidle',
+        waitUntil: 'domcontentloaded',
         timeout: 15000,
       });
 
@@ -249,7 +249,7 @@ test.describe('Broken Links Detection', () => {
     for (const pagePath of pagesToCheck) {
       try {
         const response = await page.goto(pagePath, {
-          waitUntil: 'networkidle',
+          waitUntil: 'domcontentloaded',
           timeout: 10000,
         });
 
@@ -450,7 +450,7 @@ test.describe('Broken Links Detection', () => {
     for (const url of sitemapUrls) {
       try {
         const response = await page.goto(url, {
-          waitUntil: 'networkidle',
+          waitUntil: 'domcontentloaded',
           timeout: 10000,
         });
 
@@ -495,7 +495,7 @@ test.describe('Broken Links Detection', () => {
     for (const link of knownProblematicLinks) {
       try {
         const response = await page.goto(link.path, {
-          waitUntil: 'networkidle',
+          waitUntil: 'domcontentloaded',
           timeout: 10000,
         });
 
