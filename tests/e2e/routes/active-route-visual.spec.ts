@@ -26,6 +26,9 @@ async function dismissBanner(page: Page) {
 test.describe('Map Route Visual Display', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
+  // Mark these tests as slow since they depend on external tile/route loading
+  test.slow();
+
   test('map loads with route polylines visible', async ({ page }) => {
     await page.goto('/map');
     await dismissBanner(page);
@@ -35,7 +38,19 @@ test.describe('Map Route Visual Display', () => {
       state: 'visible',
       timeout: 15000,
     });
-    await page.waitForTimeout(3000); // Wait for GeoJSON to load
+
+    // Wait for map to be fully initialized with retry
+    await expect
+      .poll(
+        async () => {
+          return page.evaluate(() => {
+            const map = (window as any).maplibreMap?.getMap?.();
+            return !!map;
+          });
+        },
+        { timeout: 10000 }
+      )
+      .toBe(true);
 
     // Check map loaded successfully
     const mapExists = await page.evaluate(() => {
@@ -78,7 +93,23 @@ test.describe('Map Route Visual Display', () => {
       state: 'visible',
       timeout: 15000,
     });
-    await page.waitForTimeout(3000);
+
+    // Wait for map and layers to be fully initialized
+    await expect
+      .poll(
+        async () => {
+          return page.evaluate(() => {
+            const map = (window as any).maplibreMap?.getMap?.();
+            if (!map) return false;
+            const style = map.getStyle();
+            const layers = style?.layers || [];
+            // Wait until we have at least some line layers
+            return layers.filter((l: any) => l.type === 'line').length > 0;
+          });
+        },
+        { timeout: 15000 }
+      )
+      .toBe(true);
 
     // Get layer paint properties
     const layerStyles = await page.evaluate(() => {
@@ -101,9 +132,9 @@ test.describe('Map Route Visual Display', () => {
     // Verify at least one line layer exists
     expect(Array.isArray(layerStyles)).toBe(true);
 
-    // Take screenshot for visual verification
+    // Take screenshot for visual verification with worker isolation
     await page.screenshot({
-      path: 'tests/e2e/screenshots/map-routes-display.png',
+      path: `test-results/map-routes-display-${test.info().workerIndex}-${Date.now()}.png`,
       fullPage: false,
     });
   });
@@ -280,9 +311,9 @@ test.describe('Start/End Point Markers (Feature Gap)', () => {
       'Routes have start_latitude/longitude fields but no marker rendering.'
     );
 
-    // Take screenshot
+    // Take screenshot with worker isolation
     await page.screenshot({
-      path: 'tests/e2e/screenshots/start-end-markers-gap.png',
+      path: `test-results/start-end-markers-gap-${test.info().workerIndex}-${Date.now()}.png`,
       fullPage: false,
     });
 
@@ -333,9 +364,9 @@ test.describe('Visual Regression', () => {
     // Wait for routes to render
     await page.waitForTimeout(5000);
 
-    // Capture baseline
+    // Capture baseline with worker isolation
     await page.screenshot({
-      path: 'tests/e2e/screenshots/map-routes-baseline.png',
+      path: `test-results/map-routes-baseline-${test.info().workerIndex}-${Date.now()}.png`,
       fullPage: false,
     });
 

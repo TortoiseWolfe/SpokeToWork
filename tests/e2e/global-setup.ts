@@ -7,39 +7,7 @@
  */
 
 import { FullConfig } from '@playwright/test';
-
-require('dotenv').config();
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
-const PROJECT_REF = SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
-
-async function executeSQL(query: string): Promise<unknown[]> {
-  if (!PROJECT_REF || !ACCESS_TOKEN) {
-    console.log('Skipping cleanup: Missing SUPABASE_URL or ACCESS_TOKEN');
-    return [];
-  }
-
-  const response = await fetch(
-    `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${ACCESS_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ query }),
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.warn(`SQL cleanup warning: ${response.status} - ${errorText}`);
-    return [];
-  }
-
-  return response.json();
-}
+import { executeSQL } from './utils/supabase-admin';
 
 async function cleanupOrphanedE2EUsers(): Promise<void> {
   console.log('🧹 Cleaning up orphaned e2e-* test users...');

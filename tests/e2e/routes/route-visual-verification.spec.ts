@@ -5,31 +5,16 @@
  * 1. Active route changes visual appearance (glow, width)
  * 2. Route connects to home location
  * 3. Switching routes changes the map
+ *
+ * Updated: 062-fix-e2e-auth - Refactored for parallel execution
+ * Uses ({ page }) pattern with test.use({ storageState }) for proper isolation
  */
 
 import { test, expect, type Page } from '@playwright/test';
+import { getAuthStatePath } from '../utils/authenticated-context';
 
-const testEmail =
-  process.env.TEST_USER_EMAIL || process.env.TEST_USER_PRIMARY_EMAIL;
-const testPassword =
-  process.env.TEST_USER_PASSWORD || process.env.TEST_USER_PRIMARY_PASSWORD;
-
-if (!testEmail || !testPassword) {
-  throw new Error('TEST_USER_EMAIL and TEST_USER_PASSWORD must be set');
-}
-
-async function signIn(page: Page) {
-  await page.goto('/sign-in');
-  await page.waitForLoadState('networkidle');
-  const cookieButton = page.getByRole('button', { name: /accept/i });
-  if (await cookieButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-    await cookieButton.click();
-  }
-  await page.fill('#email', testEmail!);
-  await page.fill('#password', testPassword!);
-  await page.getByRole('button', { name: /sign in/i }).click();
-  await page.waitForURL(/\/(companies|dashboard|profile)/, { timeout: 15000 });
-}
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const AUTH_FILE = getAuthStatePath();
 
 async function dismissBanner(page: Page) {
   const btn = page.getByRole('button', { name: 'Dismiss countdown banner' });
@@ -40,11 +25,15 @@ async function dismissBanner(page: Page) {
 }
 
 test.describe('Route Visual Verification', () => {
-  test.use({ viewport: { width: 1280, height: 900 } });
+  // Apply authenticated storage state and desktop viewport
+  test.use({
+    storageState: AUTH_FILE,
+    viewport: { width: 1280, height: 900 },
+  });
 
   test('VERIFY: active route has glow layer on map', async ({ page }) => {
-    await signIn(page);
-    await page.goto('/map');
+    // Auth handled by storage state - go directly to map
+    await page.goto(`${BASE_URL}/map`);
     await dismissBanner(page);
 
     await page.waitForSelector('.maplibregl-canvas', { timeout: 15000 });
@@ -86,9 +75,9 @@ test.describe('Route Visual Verification', () => {
       JSON.stringify(routeInfo.routeDetails, null, 2)
     );
 
-    // Take screenshot
+    // Take screenshot with worker isolation
     await page.screenshot({
-      path: 'tests/e2e/screenshots/route-glow-check.png',
+      path: `test-results/route-glow-check-${test.info().workerIndex}-${Date.now()}.png`,
     });
 
     // ACTUAL TEST: Should have glow layer for active route
@@ -97,8 +86,8 @@ test.describe('Route Visual Verification', () => {
   });
 
   test('VERIFY: active route line is wider (10px vs 6px)', async ({ page }) => {
-    await signIn(page);
-    await page.goto('/map');
+    // Auth handled by storage state - go directly to map
+    await page.goto(`${BASE_URL}/map`);
     await dismissBanner(page);
 
     await page.waitForSelector('.maplibregl-canvas', { timeout: 15000 });
@@ -149,10 +138,8 @@ test.describe('Route Visual Verification', () => {
   });
 
   test('VERIFY: switching routes changes map layers', async ({ page }) => {
-    await signIn(page);
-
-    // Go to companies page
-    await page.goto('/companies');
+    // Auth handled by storage state - go directly to companies
+    await page.goto(`${BASE_URL}/companies`);
     await dismissBanner(page);
     await page.waitForTimeout(2000);
 
@@ -177,7 +164,7 @@ test.describe('Route Visual Verification', () => {
     console.log('Selected first route:', firstRouteName);
 
     // Navigate to map and capture state
-    await page.goto('/map');
+    await page.goto(`${BASE_URL}/map`);
     await dismissBanner(page);
     await page.waitForSelector('.maplibregl-canvas', { timeout: 15000 });
     await page.waitForTimeout(3000);
@@ -200,11 +187,11 @@ test.describe('Route Visual Verification', () => {
       JSON.stringify(firstMapState, null, 2)
     );
     await page.screenshot({
-      path: 'tests/e2e/screenshots/route-switch-before.png',
+      path: `test-results/route-switch-before-${test.info().workerIndex}-${Date.now()}.png`,
     });
 
     // Go back and select second route
-    await page.goto('/companies');
+    await page.goto(`${BASE_URL}/companies`);
     await dismissBanner(page);
     await page.waitForTimeout(2000);
 
@@ -215,7 +202,7 @@ test.describe('Route Visual Verification', () => {
     console.log('Selected second route:', secondRouteName);
 
     // Navigate to map again
-    await page.goto('/map');
+    await page.goto(`${BASE_URL}/map`);
     await dismissBanner(page);
     await page.waitForSelector('.maplibregl-canvas', { timeout: 15000 });
     await page.waitForTimeout(3000);
@@ -238,7 +225,7 @@ test.describe('Route Visual Verification', () => {
       JSON.stringify(secondMapState, null, 2)
     );
     await page.screenshot({
-      path: 'tests/e2e/screenshots/route-switch-after.png',
+      path: `test-results/route-switch-after-${test.info().workerIndex}-${Date.now()}.png`,
     });
 
     // ACTUAL TEST: The active route layer widths should be different
@@ -258,8 +245,8 @@ test.describe('Route Visual Verification', () => {
       }
     });
 
-    await signIn(page);
-    await page.goto('/map');
+    // Auth handled by storage state - go directly to map
+    await page.goto(`${BASE_URL}/map`);
     await dismissBanner(page);
 
     await page.waitForSelector('.maplibregl-canvas', { timeout: 15000 });
@@ -347,8 +334,8 @@ test.describe('Route Visual Verification', () => {
   });
 
   test('VERIFY: home marker visible for user route', async ({ page }) => {
-    await signIn(page);
-    await page.goto('/map');
+    // Auth handled by storage state - go directly to map
+    await page.goto(`${BASE_URL}/map`);
     await dismissBanner(page);
 
     await page.waitForSelector('.maplibregl-canvas', { timeout: 15000 });
@@ -387,7 +374,7 @@ test.describe('Route Visual Verification', () => {
     console.log(JSON.stringify(homeMarker, null, 2));
 
     await page.screenshot({
-      path: 'tests/e2e/screenshots/home-marker-check.png',
+      path: `test-results/home-marker-check-${test.info().workerIndex}-${Date.now()}.png`,
     });
 
     // ACTUAL TEST: Home marker should exist

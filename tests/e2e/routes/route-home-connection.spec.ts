@@ -4,31 +4,16 @@
  * Tests that ACTUALLY verify what the user asked:
  * 1. Route polyline geometry STARTS from user's home location
  * 2. Switching active route changes WHICH ROUTE is visible on the map
+ *
+ * Updated: 062-fix-e2e-auth - Refactored for parallel execution
+ * Uses ({ page }) pattern with test.use({ storageState }) for proper isolation
  */
 
 import { test, expect, type Page } from '@playwright/test';
+import { getAuthStatePath } from '../utils/authenticated-context';
 
-const testEmail =
-  process.env.TEST_USER_EMAIL || process.env.TEST_USER_PRIMARY_EMAIL;
-const testPassword =
-  process.env.TEST_USER_PASSWORD || process.env.TEST_USER_PRIMARY_PASSWORD;
-
-if (!testEmail || !testPassword) {
-  throw new Error('TEST_USER_EMAIL and TEST_USER_PASSWORD must be set');
-}
-
-async function signIn(page: Page) {
-  await page.goto('/sign-in');
-  await page.waitForLoadState('networkidle');
-  const cookieButton = page.getByRole('button', { name: /accept/i });
-  if (await cookieButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-    await cookieButton.click();
-  }
-  await page.fill('#email', testEmail!);
-  await page.fill('#password', testPassword!);
-  await page.getByRole('button', { name: /sign in/i }).click();
-  await page.waitForURL(/\/(companies|dashboard|profile)/, { timeout: 15000 });
-}
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const AUTH_FILE = getAuthStatePath();
 
 async function dismissBanner(page: Page) {
   const btn = page.getByRole('button', { name: 'Dismiss countdown banner' });
@@ -39,13 +24,17 @@ async function dismissBanner(page: Page) {
 }
 
 test.describe('Route Home Connection - REAL VERIFICATION', () => {
-  test.use({ viewport: { width: 1280, height: 900 } });
+  // Apply authenticated storage state and desktop viewport
+  test.use({
+    storageState: AUTH_FILE,
+    viewport: { width: 1280, height: 900 },
+  });
 
   test('BUG CHECK: Does route geometry START at home coordinates?', async ({
     page,
   }) => {
-    await signIn(page);
-    await page.goto('/map');
+    // Auth handled by storage state - go directly to map
+    await page.goto(`${BASE_URL}/map`);
     await dismissBanner(page);
 
     await page.waitForSelector('.maplibregl-canvas', { timeout: 15000 });
@@ -198,8 +187,8 @@ test.describe('Route Home Connection - REAL VERIFICATION', () => {
   test('BUG CHECK: Does switching routes show DIFFERENT polylines?', async ({
     page,
   }) => {
-    await signIn(page);
-    await page.goto('/companies');
+    // Auth handled by storage state - go directly to companies
+    await page.goto(`${BASE_URL}/companies`);
     await dismissBanner(page);
     await page.waitForTimeout(2000);
 
@@ -219,7 +208,7 @@ test.describe('Route Home Connection - REAL VERIFICATION', () => {
     await page.waitForTimeout(500);
 
     // Navigate to map
-    await page.goto('/map');
+    await page.goto(`${BASE_URL}/map`);
     await dismissBanner(page);
     await page.waitForSelector('.maplibregl-canvas', { timeout: 15000 });
     await page.waitForTimeout(3000);
@@ -252,14 +241,14 @@ test.describe('Route Home Connection - REAL VERIFICATION', () => {
     );
 
     // Go back and select second route
-    await page.goto('/companies');
+    await page.goto(`${BASE_URL}/companies`);
     await dismissBanner(page);
     await page.waitForTimeout(2000);
 
     await routeItems.nth(1).click();
     await page.waitForTimeout(500);
 
-    await page.goto('/map');
+    await page.goto(`${BASE_URL}/map`);
     await dismissBanner(page);
     await page.waitForSelector('.maplibregl-canvas', { timeout: 15000 });
     await page.waitForTimeout(3000);

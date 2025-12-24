@@ -204,6 +204,13 @@ Comprehensive code review conducted with 16 parallel analysis agents covering se
 - `public/blog/authentication-supabase-oauth.md:824` - password in example
   **Recommended Fix**: Replace with placeholder text
 
+### Mobile Route Sidebar Toggle - ✅ FIXED
+
+**Date Fixed**: 2025-12-23
+**File**: `src/app/companies/page.tsx:1244-1255`
+**Issue**: The "Routes" button on mobile was toggling classes on `document.querySelector('aside')`, but the `hidden` class was on the parent `<ResizablePanel>` element.
+**Fix Applied**: Changed selector to target `[data-testid="route-sidebar-panel"]`.
+
 ### Skipped Tests (42 in E2E)
 
 All are legitimate and properly documented:

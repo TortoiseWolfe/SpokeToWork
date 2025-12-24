@@ -1244,13 +1244,16 @@ ${rows}
               <button
                 className="btn btn-outline btn-sm lg:hidden"
                 onClick={() => {
-                  // Toggle mobile route panel
-                  const sidebar = document.querySelector('aside');
-                  if (sidebar) {
-                    sidebar.classList.toggle('hidden');
-                    sidebar.classList.toggle('fixed');
-                    sidebar.classList.toggle('inset-0');
-                    sidebar.classList.toggle('z-50');
+                  // Toggle mobile route panel (target the ResizablePanel, not aside)
+                  const panel = document.querySelector(
+                    '[data-testid="route-sidebar-panel"]'
+                  );
+                  if (panel) {
+                    panel.classList.toggle('hidden');
+                    panel.classList.toggle('fixed');
+                    panel.classList.toggle('inset-0');
+                    panel.classList.toggle('z-50');
+                    panel.classList.toggle('bg-base-100');
                   }
                 }}
               >

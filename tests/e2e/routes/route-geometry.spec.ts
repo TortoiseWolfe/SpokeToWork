@@ -5,90 +5,97 @@
  * via the ORS routing service (with OSRM fallback).
  *
  * Updated for MapLibre (migrated from Leaflet in Feature 045).
+ * Updated: 062-fix-e2e-auth - Refactored for parallel execution
+ * Uses ({ page }) pattern with test.use({ storageState }) for proper isolation
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { CompaniesPage } from '../pages/CompaniesPage';
+import { getAuthStatePath } from '../utils/authenticated-context';
+import { waitForMapReady } from '../utils/map-helpers';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const AUTH_FILE = getAuthStatePath();
 
-// Test user credentials from env
-const testEmail =
-  process.env.TEST_USER_EMAIL || process.env.TEST_USER_PRIMARY_EMAIL;
-const testPassword =
-  process.env.TEST_USER_PASSWORD || process.env.TEST_USER_PRIMARY_PASSWORD;
+// Helper to dismiss overlays that might block button clicks
+async function dismissOverlays(page: Page) {
+  const cookieAccept = page.getByRole('button', { name: 'Accept All' });
+  if (await cookieAccept.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await cookieAccept.click();
+    await page.waitForTimeout(300);
+  }
+  const dismissBanner = page.getByRole('button', {
+    name: 'Dismiss countdown banner',
+  });
+  if (await dismissBanner.isVisible({ timeout: 500 }).catch(() => false)) {
+    await dismissBanner.click();
+    await page.waitForTimeout(300);
+  }
+  // Dismiss any warning banners by pressing Escape
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+}
 
-if (!testEmail || !testPassword) {
-  throw new Error('TEST_USER_EMAIL and TEST_USER_PASSWORD must be set in .env');
+// Helper to check if viewport is desktop
+function isDesktopViewport(page: Page): boolean {
+  const viewport = page.viewportSize();
+  return viewport !== null && viewport.width >= 1024;
 }
 
 test.describe('Route Geometry Generation', () => {
+  // Apply authenticated storage state and desktop viewport
+  test.use({
+    storageState: AUTH_FILE,
+    viewport: { width: 1280, height: 900 },
+  });
+
   test('should generate route geometry when adding 2+ companies to a route', async ({
     page,
   }) => {
     const companiesPage = new CompaniesPage(page);
 
-    // Step 1: Sign in
-    await companiesPage.signIn(testEmail, testPassword);
-
-    // Step 2: Navigate to companies page
+    // Navigate to companies page (auth handled by storage state)
     await page.goto(`${BASE_URL}/companies/`);
     await page.waitForLoadState('networkidle');
     await companiesPage.waitForTable();
 
-    // Dismiss any overlays that might block button clicks (cookie consent, banners)
-    const cookieAccept = page.getByRole('button', { name: 'Accept All' });
-    if (await cookieAccept.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await cookieAccept.click();
-      await page.waitForTimeout(300);
-    }
-    const dismissBanner = page.getByRole('button', {
-      name: 'Dismiss countdown banner',
-    });
-    if (await dismissBanner.isVisible({ timeout: 500 }).catch(() => false)) {
-      await dismissBanner.click();
-      await page.waitForTimeout(300);
-    }
-    // Dismiss any warning banners by pressing Escape
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(200);
+    // Dismiss any overlays
+    await dismissOverlays(page);
 
-    // Step 3: Select an existing route (desktop only)
-    const viewport = page.viewportSize();
-    if (viewport && viewport.width >= 1024) {
-      // Wait for routes to load in sidebar
-      await page.waitForTimeout(1000);
-
-      // Click first available route in the sidebar (there should be existing routes)
-      const routeItems = page
-        .locator('aside')
-        .locator('[class*="cursor-pointer"]');
-      const routeCount = await routeItems.count();
-
-      if (routeCount === 0) {
-        console.log('No routes available in sidebar - skipping test');
-        test.skip();
-        return;
-      }
-
-      // Click the first route to select it
-      await routeItems.first().click();
-      await page.waitForTimeout(500);
-
-      // Close the route detail drawer if it opened (it blocks company buttons)
-      const routeDrawer = page.locator('[data-testid="route-detail-drawer"]');
-      if (await routeDrawer.isVisible().catch(() => false)) {
-        // Close by pressing Escape or clicking close button
-        await page.keyboard.press('Escape');
-        await page.waitForTimeout(300);
-      }
-    } else {
-      // Skip on mobile - route sidebar not visible
+    // Skip on mobile - route sidebar not visible
+    if (!isDesktopViewport(page)) {
       test.skip();
       return;
     }
 
-    // Step 4: Find companies with coordinates and add them to route
+    // Wait for routes to load in sidebar
+    await page.waitForTimeout(1000);
+
+    // Click first available route in the sidebar (there should be existing routes)
+    const routeItems = page
+      .locator('aside')
+      .locator('[class*="cursor-pointer"]');
+    const routeCount = await routeItems.count();
+
+    if (routeCount === 0) {
+      console.log('No routes available in sidebar - skipping test');
+      test.skip();
+      return;
+    }
+
+    // Click the first route to select it
+    await routeItems.first().click();
+    await page.waitForTimeout(500);
+
+    // Close the route detail drawer if it opened (it blocks company buttons)
+    const routeDrawer = page.locator('[data-testid="route-detail-drawer"]');
+    if (await routeDrawer.isVisible().catch(() => false)) {
+      // Close by pressing Escape or clicking close button
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+    }
+
+    // Find companies with coordinates and add them to route
     // Look for company rows with "Add to route" buttons (aria-label contains "to route")
     const addToRouteButtons = page.getByRole('button', { name: /to route/i });
     const buttonCount = await addToRouteButtons.count();
@@ -109,22 +116,21 @@ test.describe('Route Geometry Generation', () => {
     await addToRouteButtons.nth(1).click({ force: true });
     await page.waitForTimeout(2000); // Wait for routing service to generate route
 
-    // Step 5: Navigate to map page
+    // Navigate to map page
     await page.goto(`${BASE_URL}/map`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000); // Wait for map and routes to load
+    await waitForMapReady(page); // Use proper map initialization check
 
-    // Step 6: Take screenshot as proof
+    // Take screenshot with worker isolation
     await page.screenshot({
-      path: `test-results/route-geometry-test-${Date.now()}.png`,
+      path: `test-results/route-geometry-test-${test.info().workerIndex}-${Date.now()}.png`,
       fullPage: true,
     });
 
-    // Step 7: Verify map container is visible
+    // Verify map container is visible
     const mapContainer = page.locator('[data-testid="map-container"]');
     await expect(mapContainer).toBeVisible({ timeout: 10000 });
 
-    // Step 8: Verify MapLibre map is rendered (renders to canvas, not SVG)
+    // Verify MapLibre map is rendered (renders to canvas, not SVG)
     // MapLibre uses canvas for WebGL rendering instead of Leaflet's SVG
     const mapApplication = page.getByRole('application', {
       name: /Interactive map/i,
@@ -185,12 +191,7 @@ test.describe('Route Geometry Generation', () => {
   });
 
   test('should display route with geometry on map page', async ({ page }) => {
-    const companiesPage = new CompaniesPage(page);
-
-    // Sign in
-    await companiesPage.signIn(testEmail, testPassword);
-
-    // Go directly to map
+    // Go directly to map (auth handled by storage state)
     await page.goto(`${BASE_URL}/map`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(3000);
