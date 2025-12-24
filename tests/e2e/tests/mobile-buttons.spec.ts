@@ -50,20 +50,42 @@ test.describe('Mobile Button Standards', () => {
     }
   });
 
-  test('Buttons have 8px minimum spacing', async ({ page }) => {
+  test('Button groups have 8px minimum spacing', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
 
-    const buttonGroups = await page.locator('[class*="gap"]').all();
+    // Only check containers that actually contain multiple buttons/links
+    // This is the WCAG requirement for touch target spacing
+    const buttonContainers = await page
+      .locator(
+        '[class*="gap"]:has(button:nth-of-type(2)), [class*="gap"]:has(a:nth-of-type(2))'
+      )
+      .all();
 
-    for (const group of buttonGroups.slice(0, 10)) {
-      const gap = await group.evaluate((el) =>
+    const failures: string[] = [];
+
+    for (const container of buttonContainers.slice(0, 10)) {
+      // Only check if container is visible
+      if (!(await container.isVisible())) continue;
+
+      const gap = await container.evaluate((el) =>
         parseFloat(window.getComputedStyle(el).gap)
       );
 
-      if (gap > 0) {
-        expect(gap, 'Button spacing should be ≥ 8px').toBeGreaterThanOrEqual(8);
+      // Only check containers with actual gap (not 0 or NaN)
+      if (gap > 0 && gap < 8) {
+        const containerClass = await container.getAttribute('class');
+        failures.push(
+          `Container with class "${containerClass?.substring(0, 50)}..." has gap ${gap}px`
+        );
       }
+    }
+
+    if (failures.length > 0) {
+      expect(
+        failures.length,
+        `Button group spacing should be ≥ 8px:\n${failures.join('\n')}`
+      ).toBe(0);
     }
   });
 });

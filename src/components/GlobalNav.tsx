@@ -183,7 +183,8 @@ function GlobalNavComponent() {
           </nav>
 
           {/* Right Section: Auth, Theme & PWA - Mobile-first spacing (PRP-017 T025) */}
-          <div className="flex min-w-0 flex-shrink items-center gap-0.5 sm:gap-1 md:gap-2">
+          {/* gap-2 (8px) required for WCAG touch target spacing */}
+          <div className="flex min-w-0 flex-shrink items-center gap-2">
             {/* Companies Icon (authenticated users only) */}
             {user && (
               <Link
