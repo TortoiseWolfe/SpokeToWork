@@ -1,29 +1,5 @@
 ---
 description: Analyze E2E test failures from test-results folder and generate SpecKit-compatible remediation report
-allowedTools:
-  - Bash(ls:*)
-  - Bash(find:*)
-  - Bash(head:*)
-  - Bash(tail:*)
-  - Bash(wc:*)
-  - Bash(grep:*)
-  - Bash(cat:*)
-  - Bash(mkdir:*)
-  - Bash(python3:*)
-  - Bash(curl:*)
-  - Bash(du:*)
-  - Bash(sort:*)
-  - Bash(uniq:*)
-  - Bash(cut:*)
-  - Bash(sed:*)
-  - Bash(xargs:*)
-  - Bash(cd:*)
-  - Bash(rm:*)
-  - Read
-  - Write
-  - Glob
-  - Grep
-  - WebFetch
 ---
 
 ## User Input
