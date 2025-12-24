@@ -14,9 +14,6 @@
  * - Supabase service role key configured
  * - Account Settings page accessible at /account
  * - Test fixtures available at e2e/fixtures/avatars/
- *
- * SKIPPED IN CI: Avatar upload tests require dynamic server features and
- * authenticated state. These tests pass locally with dev server.
  */
 
 import { test, expect } from '@playwright/test';
@@ -30,12 +27,7 @@ import {
 
 let testUser: { id: string; email: string; password: string } | null = null;
 
-// Skip avatar upload tests in CI - require dynamic server
 test.describe('Avatar Upload Flow', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Avatar upload tests require dynamic server features not available in static export'
-  );
   test.beforeAll(async () => {
     // Create test user with email pre-confirmed via admin API
     const email = generateTestEmail('e2e-avatar');

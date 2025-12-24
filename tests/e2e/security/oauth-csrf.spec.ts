@@ -1,18 +1,10 @@
 // Security Hardening: OAuth CSRF Attack E2E Test
 // Feature 017 - Task T014
 // Purpose: Test OAuth CSRF protection prevents session hijacking
-//
-// SKIPPED IN CI: Security tests require dynamic server features not available
-// in static export. OAuth flow testing needs server-side session management.
 
 import { test, expect } from '@playwright/test';
 
-// Skip security tests in CI - require dynamic server
 test.describe('OAuth CSRF Protection - REQ-SEC-002', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Security tests require dynamic server features not available in static export'
-  );
   test('should reject OAuth callback with modified state parameter', async ({
     page,
     context,

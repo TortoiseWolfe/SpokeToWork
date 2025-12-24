@@ -183,12 +183,7 @@ const COOKIE_CONSENT = {
   method: 'banner_accept_all',
 };
 
-// Skip screenshot capture tests in CI - require user creation and db interaction
 test.describe.serial('Blog Screenshot Capture with Accuracy Audit', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Blog screenshot capture tests skipped in CI - require user creation and database interaction'
-  );
   let context: BrowserContext;
   let page: Page;
 

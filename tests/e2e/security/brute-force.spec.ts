@@ -1,18 +1,10 @@
 // Security Hardening: Brute Force Prevention E2E Test
 // Feature 017 - Task T015
 // Purpose: Test server-side rate limiting prevents brute force attacks
-//
-// SKIPPED IN CI: Security tests require dynamic server features not available
-// in static export. Rate limiting needs server-side session management.
 
 import { test, expect } from '@playwright/test';
 
-// Skip security tests in CI - require dynamic server
 test.describe('Brute Force Prevention - REQ-SEC-003', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Security tests require dynamic server features not available in static export'
-  );
   const testEmail = `brute-force-test-${Date.now()}@mailinator.com`;
   const wrongPassword = 'WrongPassword123!';
 

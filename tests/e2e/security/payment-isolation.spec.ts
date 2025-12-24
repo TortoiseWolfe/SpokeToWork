@@ -1,9 +1,6 @@
 // Security Hardening: Payment Isolation E2E Test
 // Feature 017 - Task T016
 // Purpose: Test end-to-end payment data isolation between users
-//
-// SKIPPED IN CI: Security tests require dynamic server features not available
-// in static export. Payment isolation testing needs server-side RLS.
 
 import { test, expect } from '@playwright/test';
 
@@ -18,12 +15,7 @@ const USER_B = {
   password: process.env.TEST_USER_SECONDARY_PASSWORD!,
 };
 
-// Skip security tests in CI - require dynamic server
 test.describe('Payment Isolation E2E - REQ-SEC-001', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Security tests require dynamic server features not available in static export'
-  );
   test('User A creates payment, User B cannot see it', async ({ browser }) => {
     // User A's browser session
     const contextA = await browser.newContext();

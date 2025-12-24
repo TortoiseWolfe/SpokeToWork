@@ -8,9 +8,6 @@
  * - Verify session persists across browser restarts
  *
  * Uses createTestUser with email_confirm: true to avoid email verification issues.
- *
- * SKIPPED IN CI: Session persistence tests require dynamic server features not available
- * in static export. These tests manipulate browser storage and session tokens.
  */
 
 import { test, expect } from '@playwright/test';
@@ -22,12 +19,7 @@ import {
 } from '../utils/test-user-factory';
 import { loginAndVerify, signOut } from '../utils/auth-helpers';
 
-// Skip session persistence tests in CI - require dynamic server
 test.describe('Session Persistence E2E', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Session persistence tests require dynamic server features not available in static export'
-  );
   let testUser: { id: string; email: string; password: string };
 
   test.beforeAll(async () => {

@@ -1,9 +1,6 @@
 /**
  * Security Test: RLS Policies - T062
  * Tests Row Level Security policies prevent unauthorized access
- *
- * SKIPPED IN CI: Payment feature requires dynamic server features not available
- * in static export. RLS tests need the payment tables to exist.
  */
 
 import { test, expect } from '@playwright/test';
@@ -15,12 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Skip all payment tests in CI - feature requires dynamic server
 test.describe('Row Level Security Policies', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Payment RLS tests require dynamic server features not available in static export'
-  );
   test('should prevent anonymous users from writing to payment_intents', async () => {
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 

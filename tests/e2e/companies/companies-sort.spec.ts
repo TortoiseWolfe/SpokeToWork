@@ -5,9 +5,6 @@
  * Verifies that sorting works correctly after adding useCallback and React.memo
  * to CompanyTable and CompanyRow. This catches stale closure bugs that could
  * occur if memoization is implemented incorrectly.
- *
- * SKIPPED IN CI: Companies sort tests require database tables that may not be
- * properly cached in CI. Tests pass locally with dev server.
  */
 
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
@@ -28,12 +25,7 @@ if (!testEmail || !testPassword) {
 const TEST_USER = { email: testEmail, password: testPassword };
 const AUTH_FILE = 'tests/e2e/fixtures/storage-state-auth.json';
 
-// Skip companies sort tests in CI - database schema cache issues
 test.describe('Companies Page - Sort Functionality (Feature 051)', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Companies sort tests skipped in CI due to database schema cache issues'
-  );
   // Shared context and page for all tests - reuse auth state
   let sharedContext: BrowserContext;
   let sharedPage: Page;
