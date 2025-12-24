@@ -4,6 +4,7 @@ allowedTools:
   - Bash(ls:*)
   - Bash(find:*)
   - Bash(head:*)
+  - Bash(tail:*)
   - Bash(wc:*)
   - Bash(grep:*)
   - Bash(cat:*)
@@ -16,10 +17,13 @@ allowedTools:
   - Bash(cut:*)
   - Bash(sed:*)
   - Bash(xargs:*)
+  - Bash(cd:*)
+  - Bash(rm:*)
   - Read
   - Write
   - Glob
   - Grep
+  - WebFetch
 ---
 
 ## User Input

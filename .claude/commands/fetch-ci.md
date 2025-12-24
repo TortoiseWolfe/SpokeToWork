@@ -10,13 +10,21 @@ allowedTools:
   - Bash(rm:*)
   - Bash(find:*)
   - Bash(head:*)
+  - Bash(tail:*)
+  - Bash(cat:*)
   - Bash(wc:*)
   - Bash(python3:*)
   - Bash(unzip:*)
   - Bash(du:*)
+  - Bash(sed:*)
+  - Bash(xargs:*)
+  - Bash(sort:*)
+  - Bash(cd:*)
   - Read
+  - Write
   - Glob
   - Grep
+  - WebFetch
 ---
 
 ## User Input
