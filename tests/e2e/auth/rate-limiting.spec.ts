@@ -10,17 +10,11 @@ import { test, expect } from '@playwright/test';
  * These tests verify the user experience when rate limiting is triggered.
  * They test the actual UI behavior in a real browser.
  *
- * SKIP IN CI: These tests intentionally trigger Supabase's IP-based rate
- * limiting, which causes cascading failures in other tests running from
- * the same CI runner. Run locally only.
+ * NOTE: These tests run in the 'chromium-noauth' project (no authenticated state)
+ * because they navigate to /sign-in and intentionally trigger failed logins.
  */
 
-// Skip all rate-limiting tests in CI to prevent IP-based rate limit cascade
 test.describe('Rate Limiting - User Experience', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Skipped in CI: triggers IP-based rate limiting that affects other tests'
-  );
   const testEmail = `ratelimit-test-${Date.now()}@mailinator.com`;
   const testPassword = 'WrongPassword123!';
 
