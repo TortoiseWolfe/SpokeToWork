@@ -86,8 +86,8 @@ export const ColorblindToggle: React.FC<ColorblindToggleProps> = ({
         tabIndex={0}
         className={
           isCompact
-            ? 'btn btn-ghost btn-circle btn-xs sm:btn-md'
-            : 'btn btn-ghost gap-2'
+            ? 'btn btn-ghost btn-circle min-h-11 min-w-11'
+            : 'btn btn-ghost min-h-11 min-w-11 gap-2'
         }
         aria-label="Color Vision Assistance"
         title="Color vision assistance"
