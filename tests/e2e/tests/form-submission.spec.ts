@@ -2,326 +2,242 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Form Submission', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to a page with forms
-    await page.goto('/components');
+    // Navigate to contact page which has the ContactForm
+    await page.goto('/contact');
+    await page.waitForLoadState('networkidle');
   });
 
   test('form fields have proper labels and ARIA attributes', async ({
     page,
   }) => {
-    // Look for form fields on the components page
-    const formFields = page.locator('.form-control').first();
+    // ContactForm has name, email, subject, message fields
+    const nameInput = page.locator('#name');
+    const emailInput = page.locator('#email');
 
-    // Check if form exists
-    const formExists = (await formFields.count()) > 0;
+    // Check inputs exist and are visible
+    await expect(nameInput).toBeVisible();
+    await expect(emailInput).toBeVisible();
 
-    if (formExists) {
-      // Check for label
-      const label = formFields.locator('label').first();
-      await expect(label).toBeVisible();
+    // Check inputs have associated labels via htmlFor
+    const nameLabel = page.locator('label[for="name"]');
+    const emailLabel = page.locator('label[for="email"]');
 
-      // Check label has for attribute
-      const forAttr = await label.getAttribute('for');
-      expect(forAttr).toBeTruthy();
+    await expect(nameLabel).toBeAttached();
+    await expect(emailLabel).toBeAttached();
 
-      // Check corresponding input exists
-      const input = page.locator(`#${forAttr}`).first();
-      await expect(input).toBeVisible();
-    }
+    // Check ARIA attributes
+    await expect(nameInput).toHaveAttribute('aria-required', 'true');
+    await expect(emailInput).toHaveAttribute('aria-required', 'true');
   });
 
   test('required fields show indicators', async ({ page }) => {
-    // Look for required field indicators
-    const requiredIndicator = page.locator('.text-error:has-text("*")').first();
-    const hasRequired = (await requiredIndicator.count()) > 0;
+    // ContactForm shows * for required fields
+    const requiredIndicators = page.locator('.label-text-alt.text-error');
+    const count = await requiredIndicators.count();
 
-    if (hasRequired) {
-      await expect(requiredIndicator).toBeVisible();
-      await expect(requiredIndicator).toHaveAttribute('aria-label', 'required');
-    }
+    // Should have at least 4 required indicators (name, email, subject, message)
+    expect(count).toBeGreaterThanOrEqual(4);
   });
 
   test('error messages display correctly', async ({ page }) => {
-    // Look for any input field
-    const input = page
-      .locator('input[type="text"], input[type="email"]')
-      .first();
-    const inputExists = (await input.count()) > 0;
+    // Submit empty form to trigger validation
+    const submitButton = page.locator('button[type="submit"]');
+    await submitButton.click();
 
-    if (inputExists) {
-      // Submit form with empty required field to trigger validation
-      await input.fill('');
-      await input.press('Tab'); // Trigger blur event
+    // Wait for validation
+    await page.waitForTimeout(500);
 
-      // Check for error message with proper ARIA
-      const errorMessage = page.locator('[id$="-error"]').first();
+    // Check that aria-invalid is set on required empty fields
+    const nameInput = page.locator('#name');
+    const ariaInvalid = await nameInput.getAttribute('aria-invalid');
+    expect(ariaInvalid).toBe('true');
 
-      // If form has validation, error should appear
-      const hasError = (await errorMessage.count()) > 0;
-      if (hasError) {
-        await expect(errorMessage).toBeVisible();
-
-        // Check input has aria-invalid
-        const ariaInvalid = await input.getAttribute('aria-invalid');
-        expect(ariaInvalid).toBe('true');
-
-        // Check input has aria-describedby pointing to error
-        const ariaDescribedBy = await input.getAttribute('aria-describedby');
-        expect(ariaDescribedBy).toContain('-error');
-      }
-    }
+    // Check error message appears
+    const errorMessage = page.locator('#name-error');
+    await expect(errorMessage).toBeVisible();
   });
 
   test('form submission with valid data', async ({ page }) => {
-    // Look for a form with submit button
-    const submitButton = page.locator('button[type="submit"]').first();
-    const hasSubmitButton = (await submitButton.count()) > 0;
+    // Fill the contact form with valid data
+    await page.locator('#name').fill('Test User');
+    await page.locator('#email').fill('test@example.com');
+    await page.locator('#subject').fill('Test Subject');
+    await page.locator('#message').fill('This is a test message.');
 
-    if (hasSubmitButton) {
-      // Fill any text inputs
-      const textInputs = page.locator(
-        'input[type="text"], input[type="email"]'
-      );
-      const inputCount = await textInputs.count();
+    const submitButton = page.locator('button[type="submit"]');
 
-      for (let i = 0; i < inputCount; i++) {
-        const input = textInputs.nth(i);
-        const inputType = await input.getAttribute('type');
+    // Verify button is enabled before submission
+    await expect(submitButton).toBeEnabled();
 
-        if (inputType === 'email') {
-          await input.fill('test@example.com');
-        } else {
-          await input.fill('Test Value');
-        }
-      }
+    // Submit form - form uses Web3Forms API which may not be configured in test
+    // Just verify the form submission process starts (button gets disabled/loading)
+    await submitButton.click();
 
-      // Submit form
-      await submitButton.click();
+    // Brief wait for form to start submission
+    await page.waitForTimeout(100);
 
-      // Check for success indication (could be redirect, message, etc.)
-      // This is generic since we don't know specific form behavior
-      await page.waitForTimeout(1000); // Wait for any async operations
-    }
+    // Check form responded to submission attempt
+    // Either enters loading state, shows success/error, or button text changes
+    const buttonText = await submitButton.textContent();
+    const buttonClass = await submitButton.getAttribute('class');
+
+    // Form should react - either loading, sending text, or showing feedback
+    const hasReacted =
+      buttonText?.includes('Sending') ||
+      buttonText?.includes('Queuing') ||
+      buttonClass?.includes('loading') ||
+      (await page.locator('[role="alert"]').count()) > 0;
+
+    expect(hasReacted).toBe(true);
   });
 
-  test('form validation prevents submission with invalid data', async ({
+  test('form validation prevents submission with invalid email', async ({
     page,
   }) => {
-    // Look for email input
-    const emailInput = page.locator('input[type="email"]').first();
-    const hasEmailInput = (await emailInput.count()) > 0;
+    // Fill with invalid email
+    await page.locator('#name').fill('Test User');
+    await page.locator('#email').fill('invalid-email');
+    await page.locator('#subject').fill('Test Subject');
+    await page.locator('#message').fill('This is a test message.');
 
-    if (hasEmailInput) {
-      // Enter invalid email
-      await emailInput.fill('invalid-email');
+    // Try to submit
+    const submitButton = page.locator('button[type="submit"]');
+    await submitButton.click();
 
-      // Try to submit
-      const submitButton = page.locator('button[type="submit"]').first();
-      if ((await submitButton.count()) > 0) {
-        await submitButton.click();
+    // Wait for validation
+    await page.waitForTimeout(500);
 
-        // Check that we're still on the same page (not submitted)
-        await expect(page).toHaveURL(/.*components/);
+    // Email field should show invalid state
+    const emailInput = page.locator('#email');
+    const ariaInvalid = await emailInput.getAttribute('aria-invalid');
+    expect(ariaInvalid).toBe('true');
 
-        // Check for validation error
-        const ariaInvalid = await emailInput.getAttribute('aria-invalid');
-        if (ariaInvalid !== null) {
-          expect(ariaInvalid).toBe('true');
-        }
-      }
-    }
+    // Should still be on contact page
+    await expect(page).toHaveURL(/.*contact/);
   });
 
-  test('help text is properly associated with fields', async ({ page }) => {
-    // Look for help text
-    const helpText = page.locator('[id$="-help"]').first();
-    const hasHelpText = (await helpText.count()) > 0;
+  test('form fields are keyboard accessible', async ({ page }) => {
+    // Verify all form fields can receive focus via keyboard
+    const nameInput = page.locator('#name');
+    const emailInput = page.locator('#email');
+    const subjectInput = page.locator('#subject');
+    const messageInput = page.locator('#message');
 
-    if (hasHelpText) {
-      await expect(helpText).toBeVisible();
+    // Each field should be focusable
+    await nameInput.focus();
+    await expect(nameInput).toBeFocused();
 
-      // Find associated input
-      const helpId = await helpText.getAttribute('id');
-      const fieldName = helpId?.replace('-help', '');
+    await emailInput.focus();
+    await expect(emailInput).toBeFocused();
 
-      if (fieldName) {
-        const input = page.locator(`#${fieldName}`);
-        if ((await input.count()) > 0) {
-          const ariaDescribedBy = await input.getAttribute('aria-describedby');
-          expect(ariaDescribedBy).toContain(helpId);
-        }
-      }
-    }
+    await subjectInput.focus();
+    await expect(subjectInput).toBeFocused();
+
+    await messageInput.focus();
+    await expect(messageInput).toBeFocused();
+
+    // Verify none are excluded from tab order (no negative tabindex)
+    const nameTabIndex = await nameInput.getAttribute('tabindex');
+    const emailTabIndex = await emailInput.getAttribute('tabindex');
+    expect(nameTabIndex === null || parseInt(nameTabIndex) >= 0).toBe(true);
+    expect(emailTabIndex === null || parseInt(emailTabIndex) >= 0).toBe(true);
   });
 
-  test('form fields maintain focus order', async ({ page }) => {
-    // Test tab navigation through form
-    const inputs = page.locator('input, select, textarea, button');
-    const inputCount = await inputs.count();
+  test('message field is a multiline textarea', async ({ page }) => {
+    const messageInput = page.locator('#message');
 
-    if (inputCount > 0) {
-      // Focus first input
-      await inputs.first().focus();
+    // Wait for element and verify it's visible
+    await expect(messageInput).toBeVisible();
 
-      // Tab through elements and verify focus moves forward
-      for (let i = 1; i < Math.min(inputCount, 5); i++) {
-        await page.keyboard.press('Tab');
+    // Verify it's a textarea element (not input) - supports multiline
+    const tagName = await messageInput.evaluate((el) =>
+      el.tagName.toLowerCase()
+    );
+    expect(tagName).toBe('textarea');
 
-        // Check that some element has focus
-        const focusedElement = await page.evaluate(
-          () => document.activeElement?.tagName
-        );
-        expect(['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON', 'A']).toContain(
-          focusedElement
-        );
-      }
-    }
+    // Verify textarea has rows attribute indicating multiline support
+    const rows = await messageInput.getAttribute('rows');
+    expect(parseInt(rows || '1')).toBeGreaterThanOrEqual(3);
+
+    // Verify placeholder text
+    const placeholder = await messageInput.getAttribute('placeholder');
+    expect(placeholder).toBeTruthy();
   });
 
-  test('form data persists on page reload', async ({ page }) => {
-    // Look for text input
-    const textInput = page.locator('input[type="text"]').first();
-    const hasTextInput = (await textInput.count()) > 0;
+  test('submit button responds to form submission', async ({ page }) => {
+    // Fill valid data
+    await page.locator('#name').fill('Test User');
+    await page.locator('#email').fill('test@example.com');
+    await page.locator('#subject').fill('Test Subject');
+    await page.locator('#message').fill('This is a test message.');
 
-    if (hasTextInput) {
-      const testValue = 'Persistence Test Value';
-      await textInput.fill(testValue);
+    const submitButton = page.locator('button[type="submit"]');
 
-      // Some forms may save to localStorage
-      const inputName = await textInput.getAttribute('name');
+    // Button should be enabled initially
+    await expect(submitButton).toBeEnabled();
 
-      if (inputName) {
-        // Check if value is saved to localStorage
-        const savedValue = await page.evaluate((name) => {
-          return localStorage.getItem(`form_${name}`);
-        }, inputName);
+    // Get initial button text
+    const initialText = await submitButton.textContent();
+    expect(initialText).toContain('Send Message');
 
-        // If form implements persistence
-        if (savedValue) {
-          // Reload page
-          await page.reload();
+    // Click submit
+    await submitButton.click();
 
-          // Check if value is restored
-          const currentValue = await textInput.inputValue();
-          expect(currentValue).toBe(testValue);
-        }
-      }
-    }
+    // Brief wait for state change
+    await page.waitForTimeout(200);
+
+    // After click, button should have changed state in some way
+    // Either disabled, showing loading, text changed, or alert appeared
+    const currentText = await submitButton.textContent();
+    const isDisabled = await submitButton.isDisabled();
+    const buttonClass = (await submitButton.getAttribute('class')) || '';
+    const hasAlert = (await page.locator('[role="alert"]').count()) > 0;
+
+    const stateChanged =
+      isDisabled ||
+      buttonClass.includes('loading') ||
+      currentText !== initialText ||
+      hasAlert;
+
+    expect(stateChanged).toBe(true);
   });
 
-  test('form clears on reset button', async ({ page }) => {
-    // Look for reset button
-    const resetButton = page
-      .locator(
-        'button[type="reset"], button:has-text("Reset"), button:has-text("Clear")'
-      )
-      .first();
-    const hasResetButton = (await resetButton.count()) > 0;
+  test('honeypot field is hidden from users', async ({ page }) => {
+    // ContactForm has a honeypot field that should be hidden
+    const honeypotLabel = page.locator('label[for="_gotcha"]');
 
-    if (hasResetButton) {
-      // Fill form fields
-      const inputs = page.locator(
-        'input[type="text"], input[type="email"], textarea'
+    // Should exist but be visually hidden
+    await expect(honeypotLabel).toBeAttached();
+
+    // The parent container should have sr-only or similar
+    const isHidden = await honeypotLabel.evaluate((el) => {
+      const style = window.getComputedStyle(el.parentElement!);
+      return (
+        style.position === 'absolute' ||
+        style.clip === 'rect(0px, 0px, 0px, 0px)' ||
+        el.parentElement?.classList.contains('sr-only') ||
+        style.height === '0px'
       );
-      const inputCount = await inputs.count();
+    });
 
-      for (let i = 0; i < inputCount; i++) {
-        await inputs.nth(i).fill('Test Value');
-      }
-
-      // Click reset
-      await resetButton.click();
-
-      // Check fields are cleared
-      for (let i = 0; i < inputCount; i++) {
-        const value = await inputs.nth(i).inputValue();
-        expect(value).toBe('');
-      }
-    }
+    expect(isHidden).toBe(true);
   });
 
-  test('disabled fields cannot be edited', async ({ page }) => {
-    // Look for disabled input
-    const disabledInput = page
-      .locator('input:disabled, textarea:disabled, select:disabled')
-      .first();
-    const hasDisabledInput = (await disabledInput.count()) > 0;
+  test('form inputs have proper autocomplete attributes', async ({ page }) => {
+    const nameInput = page.locator('#name');
+    const emailInput = page.locator('#email');
 
-    if (hasDisabledInput) {
-      // Try to fill disabled field
-      const isEditable = await disabledInput.isEditable();
-      expect(isEditable).toBe(false);
-
-      // Verify aria-disabled attribute
-      const ariaDisabled = await disabledInput.getAttribute('aria-disabled');
-      if (ariaDisabled !== null) {
-        expect(ariaDisabled).toBe('true');
-      }
-    }
+    // Check autocomplete attributes for accessibility
+    await expect(nameInput).toHaveAttribute('autocomplete', 'name');
+    await expect(emailInput).toHaveAttribute('autocomplete', 'email');
   });
 
-  test('form shows loading state during submission', async ({ page }) => {
-    // Look for form with async submission
-    const form = page.locator('form').first();
-    const hasForm = (await form.count()) > 0;
+  test('form has accessible name', async ({ page }) => {
+    const form = page.locator('form');
+    const ariaLabel = await form.getAttribute('aria-label');
 
-    if (hasForm) {
-      // Set up listener for loading indicators
-      const submitButton = form.locator('button[type="submit"]').first();
-
-      if ((await submitButton.count()) > 0) {
-        // Click and check for loading state
-        const [response] = await Promise.all([
-          page
-            .waitForResponse((response) => response.url().includes('/api/'), {
-              timeout: 5000,
-            })
-            .catch(() => null),
-          submitButton.click(),
-        ]);
-
-        if (response) {
-          // Check for loading indicator (spinner, disabled button, etc.)
-          const isDisabled = await submitButton.isDisabled();
-          const hasSpinner =
-            (await page
-              .locator('.loading, .spinner, [role="status"]')
-              .count()) > 0;
-
-          expect(isDisabled || hasSpinner).toBe(true);
-        }
-      }
-    }
-  });
-
-  test('multi-step form navigation works correctly', async ({ page }) => {
-    // Look for multi-step form indicators
-    const stepIndicators = page.locator('[class*="step"], [data-step]');
-    const hasSteps = (await stepIndicators.count()) > 1;
-
-    if (hasSteps) {
-      // Check for next/previous buttons
-      const nextButton = page.locator('button:has-text("Next")').first();
-      const prevButton = page
-        .locator('button:has-text("Previous"), button:has-text("Back")')
-        .first();
-
-      if ((await nextButton.count()) > 0) {
-        // Click next
-        await nextButton.click();
-
-        // Check step changed
-        await page.waitForTimeout(500);
-
-        // Previous button should now be visible
-        if ((await prevButton.count()) > 0) {
-          await expect(prevButton).toBeVisible();
-
-          // Go back
-          await prevButton.click();
-          await page.waitForTimeout(500);
-        }
-      }
-    }
+    // Form should have accessible label
+    expect(ariaLabel).toBeTruthy();
+    expect(ariaLabel).toContain('Contact');
   });
 });
