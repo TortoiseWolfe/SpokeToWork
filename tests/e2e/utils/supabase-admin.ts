@@ -14,6 +14,15 @@ const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
 const PROJECT_REF = SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
 
 /**
+ * Escape a string for safe SQL interpolation.
+ * Prevents SQL injection by escaping single quotes and backslashes.
+ */
+function escapeSQL(value: string): string {
+  // Escape backslashes first, then single quotes
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "''");
+}
+
+/**
  * Execute SQL via Supabase Management API (bypasses RLS)
  */
 export async function executeSQL(query: string): Promise<unknown[]> {
@@ -66,7 +75,7 @@ export async function ensureTestRoutes(userEmail: string): Promise<void> {
       (SELECT COUNT(*) FROM bicycle_routes br WHERE br.user_id = u.id) as route_count
     FROM auth.users u
     LEFT JOIN user_profiles up ON up.id = u.id
-    WHERE u.email = '${userEmail}'
+    WHERE u.email = '${escapeSQL(userEmail)}'
   `)) as Array<{
     user_id: string;
     home_latitude: number | null;
@@ -130,11 +139,11 @@ export async function ensureTestRoutes(userEmail: string): Promise<void> {
         created_at, updated_at
       )
       SELECT
-        '${user_id}', '${route.name}', '${route.color}', TRUE, FALSE,
+        '${escapeSQL(user_id)}', '${escapeSQL(route.name)}', '${escapeSQL(route.color)}', TRUE, FALSE,
         ${route.startLat}, ${route.startLng}, ${route.endLat}, ${route.endLng},
         NOW(), NOW()
       WHERE NOT EXISTS (
-        SELECT 1 FROM bicycle_routes WHERE user_id = '${user_id}' AND name = '${route.name}'
+        SELECT 1 FROM bicycle_routes WHERE user_id = '${escapeSQL(user_id)}' AND name = '${escapeSQL(route.name)}'
       )
     `);
   }
