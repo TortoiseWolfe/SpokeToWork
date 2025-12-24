@@ -9,11 +9,17 @@ You are an AI illustrator creating flat, mid-century modern, stylized digital il
 
 STYLE CHARACTERISTICS:
 - Flat, geometric shapes with minimal detail
-- Limited color palette: muted earth tones (teal, rust/coral, cream, sage, golden ochre)
-- Subtle paper texture/grain overlay
+- Limited color palette with specific hex values:
+  * Teal: #2D6A6A
+  * Rust/Coral: #C75B39
+  * Cream: #F5F0E6
+  * Sage: #8FA68A
+  * Golden: #D4A84B
+- Subtle paper texture/grain overlay for warmth
 - Soft gradients within shapes, no harsh outlines
 - Stylized human figures with simple features
 - Professional, approachable, optimistic tone
+- Mid-century modern aesthetic (1950s-60s illustration style)
 
 COMPOSITION RULES:
 - Safe Zone: Keep critical elements 20% away from ALL edges
@@ -66,7 +72,9 @@ AVOID:
 ### Image Prompt
 
 ```
-Mid-century modern illustration, 1200x630px, warm earth tones (teal, rust, cream, sage).
+Mid-century modern illustration, 1200x630px.
+
+PALETTE: Teal (#2D6A6A), Rust (#C75B39), Cream (#F5F0E6), Sage (#8FA68A), Golden (#D4A84B). Paper texture grain overlay.
 
 SCENE: A search interface floating in center-left, with connection lines radiating to candidate profile cards on the right.
 
@@ -97,7 +105,9 @@ ATMOSPHERE: Professional but approachable, suggesting discovery and connection. 
 ### Image Prompt
 
 ```
-Mid-century modern illustration, 1200x630px, warm earth tones (teal, rust, cream, sage, golden yellow).
+Mid-century modern illustration, 1200x630px.
+
+PALETTE: Teal (#2D6A6A), Rust (#C75B39), Cream (#F5F0E6), Sage (#8FA68A), Golden (#D4A84B). Paper texture grain overlay.
 
 SCENE: A large stylized profile/document interface with editable sections, someone actively writing/crafting their story.
 
@@ -132,7 +142,9 @@ ATMOSPHERE: Creative, intentional, the craft of personal branding. Paper texture
 ### Image Prompt
 
 ```
-Mid-century modern illustration, 1200x630px, warm earth tones (teal, rust, cream, sage, golden yellow).
+Mid-century modern illustration, 1200x630px.
+
+PALETTE: Teal (#2D6A6A), Rust (#C75B39), Cream (#F5F0E6), Sage (#8FA68A), Golden (#D4A84B). Paper texture grain overlay.
 
 SCENE: A person building/stacking evidence blocks - visual metaphor for accumulating proof and credentials.
 
@@ -170,7 +182,9 @@ ATMOSPHERE: Achievement, credibility, building something substantial. Paper text
 ### Image Prompt
 
 ```
-Mid-century modern illustration, 1200x630px, warm earth tones (teal, rust, cream, sage, golden yellow).
+Mid-century modern illustration, 1200x630px.
+
+PALETTE: Teal (#2D6A6A), Rust (#C75B39), Cream (#F5F0E6), Sage (#8FA68A), Golden (#D4A84B). Paper texture grain overlay.
 
 SCENE: A person at the calm center of a radiating network of engagement - posts, comments, connections flowing outward.
 
@@ -199,22 +213,3 @@ AVOID:
 
 ATMOSPHERE: Connection, presence, being the calm center of professional activity. Paper texture grain.
 ```
-
----
-
-## Style Reference Notes
-
-**Consistent across all 4 images:**
-
-- Mid-century modern aesthetic (1950s-60s illustration style)
-- Limited palette: teal (#2D6A6A), rust/coral (#C75B39), cream (#F5F0E6), sage (#8FA68A), golden (#D4A84B)
-- Paper texture/grain overlay for warmth
-- Flat shapes with subtle gradients, no harsh outlines
-- Diverse representation across the series
-- Professional but approachable tone
-
-**Cropping Safety:**
-
-- All main subjects centered or in lower half
-- Top 15% of image should be background/decorative only
-- Faces never positioned in top third
