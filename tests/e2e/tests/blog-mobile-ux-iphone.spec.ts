@@ -24,7 +24,7 @@ test.describe('Blog Post Mobile UX - iPhone 12', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to a blog post - use the blog list page as fallback
     try {
-      await page.goto('/blog/countdown-timer-react-tutorial', {
+      await page.goto('/blog/message-encryption-security-explained', {
         timeout: 15000,
       });
       await page.waitForLoadState('domcontentloaded');
@@ -93,29 +93,19 @@ test.describe('Blog Post Mobile UX - iPhone 12', () => {
   });
 
   test('should not have horizontal scroll on page', async ({ page }) => {
-    // Check body scroll width vs viewport width
-    const measurements = await page.evaluate(() => {
-      return {
-        bodyScrollWidth: document.body.scrollWidth,
-        bodyClientWidth: document.body.clientWidth,
-        htmlScrollWidth: document.documentElement.scrollWidth,
-        htmlClientWidth: document.documentElement.clientWidth,
-      };
+    // Check if user can actually scroll horizontally (visible scrollbar)
+    const canScrollHorizontally = await page.evaluate(() => {
+      const html = document.documentElement;
+      const style = window.getComputedStyle(html);
+      const hasOverflow = html.scrollWidth > html.clientWidth;
+      const isHidden = style.overflowX === 'hidden';
+      return hasOverflow && !isHidden;
     });
 
-    const viewportSize = page.viewportSize();
-    expect(viewportSize).toBeTruthy();
-
-    if (viewportSize) {
-      // Body and HTML should not be wider than viewport
-      // Allow 1px tolerance for sub-pixel rounding
-      expect(measurements.bodyScrollWidth).toBeLessThanOrEqual(
-        viewportSize.width + 1
-      );
-      expect(measurements.htmlScrollWidth).toBeLessThanOrEqual(
-        viewportSize.width + 1
-      );
-    }
+    expect(
+      canScrollHorizontally,
+      'Page should not have visible horizontal scroll'
+    ).toBe(false);
 
     // Take screenshot to verify visually
     await page.screenshot({

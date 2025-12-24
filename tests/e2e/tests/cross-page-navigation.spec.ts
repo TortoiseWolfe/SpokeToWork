@@ -8,17 +8,17 @@ test.describe('Cross-Page Navigation', () => {
 
     // Navigate to Blog via direct URL (more reliable in CI)
     await page.goto('/blog');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await expect(page).toHaveURL(/\/blog/);
 
     // Navigate to Accessibility
     await page.goto('/accessibility');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await expect(page).toHaveURL(/\/accessibility/);
 
     // Navigate to Status
     await page.goto('/status');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await expect(page).toHaveURL(/\/status/);
 
     // Navigate back to Home via nav link
@@ -29,11 +29,11 @@ test.describe('Cross-Page Navigation', () => {
   test('browser back/forward navigation works', async ({ page }) => {
     // Navigate through multiple pages via direct URLs
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.goto('/blog');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.goto('/accessibility');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Go back
     await page.goBack();
@@ -78,25 +78,25 @@ test.describe('Cross-Page Navigation', () => {
     // Direct navigation to deep pages
     await page.goto('/blog');
     await expect(page).toHaveURL(/\/blog/);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.goto('/accessibility');
     await expect(page).toHaveURL(/\/accessibility/);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.goto('/status');
     await expect(page).toHaveURL(/\/status/);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.goto('/contact');
     await expect(page).toHaveURL(/\/contact/);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   });
 
   test('404 page handles non-existent routes', async ({ page }) => {
     // Navigate to non-existent page
     const response = await page.goto('/non-existent-page', {
-      waitUntil: 'networkidle',
+      waitUntil: 'domcontentloaded',
     });
 
     // Check response status
@@ -117,7 +117,7 @@ test.describe('Cross-Page Navigation', () => {
   test('anchor links within pages work', async ({ page }) => {
     // Navigate to blog page which has anchor links for tags
     await page.goto('/blog');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check for internal anchor links
     const anchorLinks = page.locator('a[href^="#"]');
@@ -135,7 +135,7 @@ test.describe('Cross-Page Navigation', () => {
   test('external links have proper attributes', async ({ page }) => {
     // Check homepage for external links
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Find external links
     const externalLinks = page.locator(
@@ -184,7 +184,7 @@ test.describe('Cross-Page Navigation', () => {
   test('navigation preserves theme selection', async ({ page }) => {
     // Go to homepage first and set dark theme via localStorage
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Set theme via localStorage and apply to DOM
     await page.evaluate(() => {
@@ -197,7 +197,7 @@ test.describe('Cross-Page Navigation', () => {
 
     for (const pagePath of pages) {
       await page.goto(pagePath);
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Theme should persist (loaded from localStorage by GlobalNav)
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
@@ -232,7 +232,7 @@ test.describe('Cross-Page Navigation', () => {
         await page.keyboard.press('Enter');
 
         // Check navigation occurred
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
         const url = page.url();
         expect(url).toBeTruthy();
       }
@@ -330,7 +330,7 @@ test.describe('Cross-Page Navigation', () => {
     } else {
       await page.click('a:has-text("Blog")');
     }
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check scroll position is at top
     const scrollPosition = await page.evaluate(() => window.scrollY);
@@ -340,7 +340,7 @@ test.describe('Cross-Page Navigation', () => {
   test('active navigation item is highlighted', async ({ page }) => {
     // Test on /blog page which is in the main nav
     await page.goto('/blog');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Find navigation link for current page
     const activeLink = page

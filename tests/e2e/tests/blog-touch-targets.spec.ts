@@ -26,7 +26,7 @@ const TOLERANCE = 1;
 test.describe('Blog Touch Target Standards - iPhone 12', () => {
   test('Blog list page renders with accessible content', async ({ page }) => {
     await page.goto('/blog');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Verify blog page loads with article cards
     const articles = await page.locator('article').count();
@@ -54,7 +54,7 @@ test.describe('Blog Touch Target Standards - iPhone 12', () => {
   }) => {
     // Try blog post, fall back to blog list
     try {
-      await page.goto('/blog/countdown-timer-react-tutorial', {
+      await page.goto('/blog/message-encryption-security-explained', {
         timeout: 15000,
       });
     } catch {
