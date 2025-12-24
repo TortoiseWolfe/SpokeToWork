@@ -22,21 +22,22 @@ STYLE CHARACTERISTICS:
 - Mid-century modern aesthetic (1950s-60s illustration style)
 
 COMPOSITION RULES:
-- Safe Zone: Keep critical elements 20% away from ALL edges
-- VERTICAL POSITIONING CRITICAL: Main subjects (especially faces/heads) must be positioned at or BELOW the vertical center line
-- Top 20% of image should contain ONLY background/decorative elements - NEVER faces or critical content
-- When figures are present, their head should be in the CENTER-TO-LOWER portion of the frame
-- Images will be cropped to various aspect ratios (16:9, 4:3, 1:1) - design for the worst-case vertical crop
+- CROPPING WARNING: Blog displays use object-cover CENTER-CROP, removing content from BOTH top AND bottom edges
+- Desktop crops ~25% from top AND ~25% from bottom (h-96 container)
+- Mobile crops ~35% from top AND ~35% from bottom (h-48 container)
+- SAFE ZONE: Only the MIDDLE 50% vertically (25-75% from top) is guaranteed visible
+- Nothing important within 160px of top edge OR bottom edge (of 630px height)
+- All critical content (text, faces, key elements) must be in the CENTER BAND
 - Balance negative space with focal elements
 - Use asymmetric but balanced layouts
 - Layer elements for depth without complexity
 
 FIGURE PLACEMENT:
-- Standing figures: Position so top of head is at 40-50% from top edge
-- Seated figures: Position so top of head is at 45-55% from top edge
-- Action poses: Avoid raised arms, jumping, or reaching up - keeps figures lower
-- Multiple figures: Stagger heights so no head approaches top 20%
-- If no figures: Place key visual elements (icons, text, focal points) in center-to-lower region
+- Standing figures: Position ENTIRE figure in middle 50% band (head at 35-50%, feet at 65-75%)
+- Seated figures: Position so top of head is at 40-55% from top edge
+- CRITICAL: Figures must NOT extend into top 25% OR bottom 25%
+- Multiple figures: All heads between 35-50% from top, all feet above 75% from top
+- If no figures: Place ALL key visual elements (icons, text, focal points) in center band only
 
 REPRESENTATION:
 - Include diverse professionals (age, gender, ethnicity, ability)
@@ -50,9 +51,10 @@ AVOID:
 - Cluttered compositions
 - Stock photo aesthetic
 - Overly corporate/sterile feeling
-- Faces or heads positioned in top third of image
-- Raised arms, jumping, or upward-reaching poses
-- Critical elements within 20% of top edge
+- ANY content in top 25% (will be cropped)
+- ANY content in bottom 25% (will be cropped)
+- Figures standing at bottom edge (legs will be cut off)
+- Text or labels near top or bottom edges
 ```
 
 ---
@@ -61,7 +63,7 @@ AVOID:
 
 **Dimensions:** 1200x630px (16:9 OG standard)
 **Style:** Mid-century modern illustration with muted earth tones, textured grain
-**Composition Rule:** Main subject/figure must be **centered vertically** or in **lower half** - never near top edge (will be cropped on mobile)
+**CRITICAL Composition Rule:** Blog uses `object-cover` CENTER-CROP. Top 25% AND bottom 25% will be cropped. ALL content must be in MIDDLE 50% band (pixels 160-470 from top).
 
 ---
 
@@ -84,14 +86,21 @@ COMPOSITION:
 - Candidate cards (right side, staggered): Simple rectangular cards with minimalist portrait silhouettes and green checkmarks
 
 FIGURE (if included):
-- Positioned in LOWER LEFT corner, viewing from behind
+- Positioned in CENTER-LEFT, viewing from behind (NOT at bottom edge)
+- Figure's waist should be at VERTICAL CENTER of image
 - Simple silhouette with textured hair, one hand raised pointing at interface
 - Minimal detail - figure is observer, not focal point
+- CRITICAL: Figure must be fully within middle 50% band - no legs extending to bottom
+
+CROPPING WARNING:
+- Top 25% and bottom 25% WILL BE CROPPED on blog display
+- Keep figure's head above 35% line, feet above 70% line
+- All UI elements (search bar, cards) must be in middle band
 
 AVOID:
-- Faces near top edge
+- Figure standing at bottom edge (legs will be cut off)
 - Complex facial details
-- Figures in upper portion of image
+- Any content near top or bottom edges
 
 ATMOSPHERE: Professional but approachable, suggesting discovery and connection. Subtle paper texture grain overlay.
 ```
@@ -112,23 +121,30 @@ PALETTE: Teal (#2D6A6A), Rust (#C75B39), Cream (#F5F0E6), Sage (#8FA68A), Golden
 SCENE: A large stylized profile/document interface with editable sections, someone actively writing/crafting their story.
 
 COMPOSITION:
-- Large profile card (center): Taking up 60% of frame, showing stylized sections labeled "Headline", "About", "Experience" as editable text blocks
+- Large profile card (center): Taking up 60% of frame, showing ONLY "About" and "Experience" sections as editable text blocks
+- DO NOT include "Headline" text - it would be cropped off at top
+- Profile card should START at 30% from top edge (not near top)
 - Edit cursor and pencil imagery suggesting active editing
-- Decorative elements: lightbulb icon (ideas), speech bubbles (storytelling)
+- Decorative elements: lightbulb icon (ideas), speech bubbles (storytelling) - position in CENTER band
 
 FIGURE:
-- Positioned CENTER-RIGHT, seated or standing at comfortable mid-height
+- Positioned CENTER-RIGHT at VERTICAL MIDDLE of image
 - A professional person actively writing/editing - holding oversized pencil or stylus
 - Facing the profile card, engaged in the act of creation
-- Wheelchair user OR standing - either works, but pose should be simple and symmetrical
-- Figure's head should be at VERTICAL CENTER of image, not near top
+- Figure's head should be at 40-50% from top, feet at 65-70% from top
+- CRITICAL: Entire figure must be within middle 50% band
+
+CROPPING WARNING:
+- Top 25% and bottom 25% WILL BE CROPPED on blog display
+- The "Headline" label would be cropped - show only "About" and "Experience"
+- All decorative elements must be in middle band
 
 REPRESENTATION: South Asian man with turban, warm brown skin, teal/sage professional attire
 
 AVOID:
-- Head near top edge (will be cropped)
+- Any text labels near top edge (will be cropped)
+- Figure extending to bottom edge
 - Complex arm poses
-- Dramatic action poses
 
 ATMOSPHERE: Creative, intentional, the craft of personal branding. Paper texture grain.
 ```
@@ -161,13 +177,15 @@ FIGURE:
 
 REPRESENTATION: Black woman with natural hair (locs, afro, or braids), golden/ochre headwrap or accessories, teal blazer
 
-FIGURE PLACEMENT CRITICAL:
-- Top of head should be at or BELOW the vertical center line
-- Leave empty space above head for safe cropping
+CROPPING WARNING:
+- Top 25% and bottom 25% WILL BE CROPPED on blog display
+- Figure's head at 40-50% from top, feet at 65-75% from top
+- Block stack must be fully within middle 50% band
+- No blocks extending to top or bottom edges
 
 AVOID:
 - Reaching up (raises figure too high)
-- Head near top edge
+- Figure or blocks near top/bottom edges
 - Complex poses
 
 ATMOSPHERE: Achievement, credibility, building something substantial. Paper texture grain.
@@ -200,16 +218,17 @@ FIGURE (The Active Participant):
 
 REPRESENTATION: Older professional woman (60s), silver/gray natural curly hair, warm brown skin, sage green blazer over cream top. Distinguished and approachable.
 
-FIGURE PLACEMENT CRITICAL:
-- Figure should be the stable origin from which activity radiates
-- Top of head at VERTICAL CENTER - plenty of space above for cropping
-- Not an action pose - serene presence
+CROPPING WARNING:
+- Top 25% and bottom 25% WILL BE CROPPED on blog display
+- Figure's head at 40-50% from top, feet at 65-75% from top
+- All radiating elements must be within middle 50% band
+- Figure is the stable center from which activity radiates
 
 AVOID:
-- Head near top edge
+- Head or feet near edges (will be cropped)
 - Asymmetrical or complex arm poses
 - Dramatic networking gestures
-- Raised hands or waving
+- Radiating elements extending to top/bottom edges
 
 ATMOSPHERE: Connection, presence, being the calm center of professional activity. Paper texture grain.
 ```
