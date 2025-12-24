@@ -12,12 +12,9 @@ const SITE_URL = 'https://TortoiseWolfe.github.io/SpokeToWork';
 const staticPages = [
   '',
   '/blog',
-  '/blog/schedule',
-  '/blog/editor',
   '/privacy',
   '/cookies',
   '/privacy-controls',
-  '/components',
   '/themes',
   '/accessibility',
   '/status',

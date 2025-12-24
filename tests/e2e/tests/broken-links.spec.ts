@@ -239,7 +239,6 @@ test.describe('Broken Links Detection', () => {
     // Also check specific important pages that might not be linked
     const importantPages = [
       '/blog',
-      '/components',
       '/themes',
       '/status',
       '/accessibility',
