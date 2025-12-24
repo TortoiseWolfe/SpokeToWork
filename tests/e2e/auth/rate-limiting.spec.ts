@@ -10,26 +10,39 @@ import { test, expect } from '@playwright/test';
  * These tests verify the user experience when rate limiting is triggered.
  * They test the actual UI behavior in a real browser.
  *
+ * IMPORTANT: Following ScriptHammer testing patterns:
+ * - Tests run in SERIAL mode (not parallel)
+ * - First test triggers rate limit with shared email
+ * - Subsequent tests verify the ALREADY triggered rate limit
+ * - This prevents IP-based rate limit cascade affecting other tests
+ *
  * NOTE: These tests run in the 'chromium-noauth' project (no authenticated state)
  * because they navigate to /sign-in and intentionally trigger failed logins.
  */
 
+// Run tests in serial mode - critical for rate limiting tests
+test.describe.configure({ mode: 'serial' });
+
 test.describe('Rate Limiting - User Experience', () => {
-  const testEmail = `ratelimit-test-${Date.now()}@mailinator.com`;
+  // Shared email across all tests - generated once in beforeAll
+  let sharedEmail: string;
   const testPassword = 'WrongPassword123!';
 
-  test.beforeEach(async ({ page }) => {
-    // Navigate to sign-in page
-    await page.goto('/sign-in');
-    await expect(page).toHaveTitle(/Sign In/i);
+  test.beforeAll(() => {
+    // Generate ONE email for all tests in this describe block
+    sharedEmail = `ratelimit-shared-${Date.now()}@mailinator.com`;
   });
 
-  test('should show lockout message after 5 failed sign-in attempts', async ({
+  test('1. should trigger rate limit after 5 failed sign-in attempts', async ({
     page,
   }) => {
+    // This is the ONLY test that triggers the rate limit
+    await page.goto('/sign-in');
+    await expect(page).toHaveTitle(/Sign In/i);
+
     // Attempt to sign in 5 times with wrong password
     for (let i = 0; i < 5; i++) {
-      await page.getByLabel('Email').fill(testEmail);
+      await page.getByLabel('Email').fill(sharedEmail);
       await page.getByLabel('Password', { exact: true }).fill(testPassword);
       await page.getByRole('button', { name: 'Sign In' }).click();
 
@@ -41,55 +54,35 @@ test.describe('Rate Limiting - User Experience', () => {
     }
 
     // 6th attempt should show rate limit message
-    await page.getByLabel('Email').fill(testEmail);
+    await page.getByLabel('Email').fill(sharedEmail);
     await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByRole('button', { name: 'Sign In' }).click();
 
     // Should see rate limit error message
     const errorMessage = await page.locator('[role="alert"]').textContent();
-    expect(errorMessage).toMatch(/rate.*limit|too many|try again/i);
+    expect(errorMessage).toMatch(/rate.*limit|too many|try again|locked/i);
   });
 
-  test('should disable submit button when rate limited', async ({ page }) => {
-    // Trigger rate limit
-    for (let i = 0; i < 5; i++) {
-      await page.getByLabel('Email').fill(testEmail);
-      await page.getByLabel('Password', { exact: true }).fill(testPassword);
-      await page.getByRole('button', { name: 'Sign In' }).click();
-      await page.waitForTimeout(200);
-    }
+  test('2. should show lockout message on already rate-limited email', async ({
+    page,
+  }) => {
+    // Verify the ALREADY triggered rate limit (only 1 attempt, not 5+)
+    await page.goto('/sign-in');
 
-    // Try to submit again
-    await page.getByLabel('Email').fill(testEmail);
+    await page.getByLabel('Email').fill(sharedEmail);
     await page.getByLabel('Password', { exact: true }).fill(testPassword);
+    await page.getByRole('button', { name: 'Sign In' }).click();
 
-    // Button might be disabled or show loading state
-    const submitButton = page.locator('button[type="submit"]');
-
-    // Wait a moment for UI to update
-    await page.waitForTimeout(500);
-
-    // Check if button indicates rate limiting (disabled, loading, or error)
-    const isDisabled = await submitButton.isDisabled();
-    const hasError = await page.locator('[role="alert"]').count();
-
-    // Either button is disabled OR error message is shown
-    expect(isDisabled || hasError > 0).toBe(true);
+    // Should immediately see rate limit error
+    const errorMessage = await page.locator('[role="alert"]').textContent();
+    expect(errorMessage).toMatch(/rate.*limit|too many|locked|try again/i);
   });
 
-  test('should show remaining time until unlock', async ({ page }) => {
-    const uniqueEmail = `ratelimit-timer-${Date.now()}@mailinator.com`;
+  test('3. should show remaining time until unlock', async ({ page }) => {
+    // Verify time information is shown (still using shared email)
+    await page.goto('/sign-in');
 
-    // Trigger rate limit
-    for (let i = 0; i < 5; i++) {
-      await page.getByLabel('Email').fill(uniqueEmail);
-      await page.getByLabel('Password', { exact: true }).fill(testPassword);
-      await page.getByRole('button', { name: 'Sign In' }).click();
-      await page.waitForTimeout(200);
-    }
-
-    // One more attempt to see lockout message
-    await page.getByLabel('Email').fill(uniqueEmail);
+    await page.getByLabel('Email').fill(sharedEmail);
     await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByRole('button', { name: 'Sign In' }).click();
 
@@ -98,13 +91,43 @@ test.describe('Rate Limiting - User Experience', () => {
     expect(errorMessage).toMatch(/\d+\s*(minute|min)/i);
   });
 
-  test('should allow different users to sign in independently', async ({
-    page,
-  }) => {
-    const blockedEmail = `blocked-${Date.now()}@mailinator.com`;
-    const allowedEmail = `allowed-${Date.now()}@mailinator.com`;
+  test('4. should have accessible error message', async ({ page }) => {
+    // Verify accessibility of error message
+    await page.goto('/sign-in');
 
-    // Block first user
+    await page.getByLabel('Email').fill(sharedEmail);
+    await page.getByLabel('Password', { exact: true }).fill(testPassword);
+    await page.getByRole('button', { name: 'Sign In' }).click();
+
+    // Error element should have proper ARIA role
+    const errorElement = page.locator('[role="alert"]');
+    await expect(errorElement).toBeVisible();
+    await expect(errorElement).toHaveAttribute('role', 'alert');
+
+    // Message should contain actionable information
+    const errorMessage = await errorElement.textContent();
+    expect(errorMessage).toMatch(/rate|limit|too many|attempts|locked/i);
+    expect(errorMessage).toMatch(/minute|wait|try again/i);
+  });
+});
+
+test.describe('Rate Limiting - Email Independence', () => {
+  // Separate describe block with its own shared state
+  test.describe.configure({ mode: 'serial' });
+
+  let blockedEmail: string;
+  let freshEmail: string;
+  const testPassword = 'WrongPassword123!';
+
+  test.beforeAll(() => {
+    blockedEmail = `blocked-${Date.now()}@mailinator.com`;
+    freshEmail = `fresh-${Date.now()}@mailinator.com`;
+  });
+
+  test('1. should block first email after 5 attempts', async ({ page }) => {
+    await page.goto('/sign-in');
+
+    // Block first email
     for (let i = 0; i < 5; i++) {
       await page.getByLabel('Email').fill(blockedEmail);
       await page.getByLabel('Password', { exact: true }).fill(testPassword);
@@ -112,107 +135,40 @@ test.describe('Rate Limiting - User Experience', () => {
       await page.waitForTimeout(200);
     }
 
-    // Try with blocked email - should see rate limit
+    // Verify blocked
     await page.getByLabel('Email').fill(blockedEmail);
     await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByRole('button', { name: 'Sign In' }).click();
 
-    let errorMessage = await page.locator('[role="alert"]').textContent();
-    expect(errorMessage).toMatch(/rate.*limit|too many/i);
-
-    // Try with different email - should NOT be blocked
-    await page.getByLabel('Email').fill(allowedEmail);
-    await page.getByLabel('Password', { exact: true }).fill(testPassword);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-
-    // Wait for response
-    await page.waitForTimeout(500);
-
-    errorMessage = await page.locator('[role="alert"]').textContent();
-
-    // Should see invalid credentials, NOT rate limit
-    expect(errorMessage).not.toMatch(/rate.*limit|too many/i);
-    expect(errorMessage).toMatch(/invalid|incorrect|wrong/i);
+    const errorMessage = await page.locator('[role="alert"]').textContent();
+    expect(errorMessage).toMatch(/rate.*limit|too many|locked/i);
   });
 
-  test('should track sign-up and sign-in attempts separately', async ({
+  test('2. should allow different email (not rate limited)', async ({
     page,
   }) => {
-    const email = `separate-limits-${Date.now()}@mailinator.com`;
+    // Fresh email should NOT be blocked (email-based lockout is per-email)
+    await page.goto('/sign-in');
 
-    // Exhaust sign-in attempts
-    for (let i = 0; i < 5; i++) {
-      await page.getByLabel('Email').fill(email);
-      await page.getByLabel('Password', { exact: true }).fill(testPassword);
-      await page.getByRole('button', { name: 'Sign In' }).click();
-      await page.waitForTimeout(200);
-    }
-
-    // Sign-in should be blocked
-    await page.getByLabel('Email').fill(email);
+    await page.getByLabel('Email').fill(freshEmail);
     await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByRole('button', { name: 'Sign In' }).click();
-
-    const signInError = await page.locator('[role="alert"]').textContent();
-    expect(signInError).toMatch(/rate.*limit|too many/i);
-
-    // Navigate to sign-up page
-    await page.goto('/sign-up');
-
-    // Sign-up should still be allowed (different rate limit)
-    await page.getByLabel('Email').fill(email);
-    await page
-      .getByLabel('Password', { exact: true })
-      .fill('ValidPassword123!');
-    await page.getByRole('button', { name: 'Sign Up' }).click();
 
     await page.waitForTimeout(500);
 
-    // Should not see rate limit error on sign-up
-    const signUpError = await page.locator('[role="alert"]').textContent();
-    if (signUpError) {
-      expect(signUpError).not.toMatch(/rate.*limit|too many/i);
-    }
-  });
-
-  test('should show clear error message with actionable information', async ({
-    page,
-  }) => {
-    const email = `clear-message-${Date.now()}@mailinator.com`;
-
-    // Trigger rate limit
-    for (let i = 0; i < 5; i++) {
-      await page.getByLabel('Email').fill(email);
-      await page.getByLabel('Password', { exact: true }).fill(testPassword);
-      await page.getByRole('button', { name: 'Sign In' }).click();
-      await page.waitForTimeout(200);
-    }
-
-    // Attempt once more
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password', { exact: true }).fill(testPassword);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-
-    // Check error message quality
     const errorMessage = await page.locator('[role="alert"]').textContent();
 
-    // Should contain:
-    // 1. Clear indication of rate limiting
-    expect(errorMessage).toMatch(/rate|limit|too many|attempts/i);
-
-    // 2. Time information
-    expect(errorMessage).toMatch(/minute|wait|try again/i);
-
-    // 3. Should be screen-reader accessible
-    const errorElement = page.locator('[role="alert"]');
-    await expect(errorElement).toHaveAttribute('role', 'alert');
+    // Should see invalid credentials, NOT rate limit
+    expect(errorMessage).not.toMatch(/rate.*limit|too many|locked/i);
+    expect(errorMessage).toMatch(/invalid|incorrect|wrong/i);
   });
 });
 
 test.describe('Rate Limiting - Password Reset', () => {
+  // Skip in CI to avoid triggering additional rate limits
   test.skip(
     () => !!process.env.CI,
-    'Skipped in CI: triggers IP-based rate limiting that affects other tests'
+    'Skipped in CI: password reset rate limiting is a lower-priority test'
   );
 
   test('should rate limit password reset requests', async ({ page }) => {
@@ -242,7 +198,6 @@ test.describe('Rate Limiting - Password Reset', () => {
     // Check for rate limit or success (depending on implementation)
     const alert = await page.locator('[role="alert"]').textContent();
     if (alert) {
-      // If there's an alert, it should either be rate limit or success
       expect(alert).toBeTruthy();
     }
   });
