@@ -11,13 +11,13 @@ import { test, expect, devices, BrowserContextOptions } from '@playwright/test';
 
 // Helper to extract only viewport/touch settings, not defaultBrowserType
 // This allows tests to run with any browser project (chromium, firefox, webkit)
+// Note: isMobile is not supported in Playwright's Firefox driver, so we omit it
 function getDeviceConfig(
   device: (typeof devices)[keyof typeof devices]
 ): BrowserContextOptions {
   return {
     viewport: device.viewport,
     deviceScaleFactor: device.deviceScaleFactor,
-    isMobile: device.isMobile,
     hasTouch: device.hasTouch,
     userAgent: device.userAgent,
   };

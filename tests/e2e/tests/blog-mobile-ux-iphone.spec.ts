@@ -11,11 +11,12 @@ import { test, expect, devices } from '@playwright/test';
 
 // Device configuration - spread only viewport/touch settings, not defaultBrowserType
 // This allows the test to run with any browser project (chromium, firefox, webkit)
+// Note: isMobile is not supported in Playwright's Firefox driver, so we omit it
+// The viewport size and userAgent are sufficient for mobile UX testing
 const iPhone12 = devices['iPhone 12'];
 test.use({
   viewport: iPhone12.viewport,
   deviceScaleFactor: iPhone12.deviceScaleFactor,
-  isMobile: iPhone12.isMobile,
   hasTouch: iPhone12.hasTouch,
   userAgent: iPhone12.userAgent,
 });

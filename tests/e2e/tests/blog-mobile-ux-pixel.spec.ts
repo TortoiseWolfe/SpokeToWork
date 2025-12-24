@@ -10,11 +10,11 @@ import { test, expect, devices } from '@playwright/test';
 
 // Device configuration - spread only viewport/touch settings, not defaultBrowserType
 // This allows the test to run with any browser project (chromium, firefox, webkit)
+// Note: isMobile is not supported in Playwright's Firefox driver, so we omit it
 const Pixel5 = devices['Pixel 5'];
 test.use({
   viewport: Pixel5.viewport,
   deviceScaleFactor: Pixel5.deviceScaleFactor,
-  isMobile: Pixel5.isMobile,
   hasTouch: Pixel5.hasTouch,
   userAgent: Pixel5.userAgent,
 });
