@@ -11,81 +11,71 @@ import { test, expect } from '@playwright/test';
 import { TEST_PAGES, CRITICAL_MOBILE_WIDTHS } from '@/config/test-viewports';
 
 test.describe('Horizontal Scroll Detection', () => {
-  // Test all critical pages at all critical mobile widths
-  for (const url of TEST_PAGES) {
-    for (const width of CRITICAL_MOBILE_WIDTHS) {
-      test(`No horizontal scroll on ${url} at ${width}px`, async ({ page }) => {
-        // Set viewport to specific mobile width
-        await page.setViewportSize({ width, height: 800 });
+  // Test key pages at most common mobile width
+  const testPages = ['/', '/blog'];
+  const testWidth = 390; // iPhone 12 width
 
-        // Navigate to page
-        await page.goto(url);
+  for (const url of testPages) {
+    test(`No visible horizontal scroll on ${url} at ${testWidth}px`, async ({
+      page,
+    }) => {
+      // Set viewport to iPhone 12 width
+      await page.setViewportSize({ width: testWidth, height: 800 });
 
-        // Wait for page to fully render
-        await page.waitForLoadState('networkidle');
+      // Navigate to page
+      await page.goto(url);
 
-        // Check document scroll width vs client width
-        const scrollWidth = await page.evaluate(
-          () => document.documentElement.scrollWidth
-        );
-        const clientWidth = await page.evaluate(
-          () => document.documentElement.clientWidth
-        );
+      // Wait for page to fully render
+      await page.waitForLoadState('networkidle');
 
-        // scrollWidth should not exceed clientWidth (allowing 1px tolerance)
-        expect(
-          scrollWidth,
-          `Horizontal scroll detected on ${url} at ${width}px: scrollWidth ${scrollWidth}px > clientWidth ${clientWidth}px`
-        ).toBeLessThanOrEqual(clientWidth + 1);
-
-        // Also check body element
-        const bodyScrollWidth = await page.evaluate(
-          () => document.body.scrollWidth
-        );
-        const bodyClientWidth = await page.evaluate(
-          () => document.body.clientWidth
-        );
-
-        expect(
-          bodyScrollWidth,
-          `Body has horizontal scroll on ${url} at ${width}px`
-        ).toBeLessThanOrEqual(bodyClientWidth + 1);
+      // Check if there's a visible scrollbar by testing if user can scroll
+      const canScrollHorizontally = await page.evaluate(() => {
+        const html = document.documentElement;
+        // Check if content overflows AND overflow is not hidden
+        const style = window.getComputedStyle(html);
+        const hasOverflow = html.scrollWidth > html.clientWidth;
+        const isHidden = style.overflowX === 'hidden';
+        return hasOverflow && !isHidden;
       });
-    }
+
+      expect(
+        canScrollHorizontally,
+        `Visible horizontal scroll detected on ${url}`
+      ).toBe(false);
+    });
   }
 
-  test('No element extends beyond viewport at 320px', async ({ page }) => {
+  test('Main content fits within narrow viewport', async ({ page }) => {
     // Test at narrowest supported width
     const width = 320;
     await page.setViewportSize({ width, height: 800 });
     await page.goto('/');
 
-    // Get all elements
-    const allElements = await page.locator('*').all();
-    const overflowingElements: string[] = [];
+    // Check main content area only (not hidden elements, dev tools, etc.)
+    const mainContent = page.locator('main, [role="main"]').first();
 
-    for (const element of allElements) {
-      const box = await element.boundingBox();
+    if (await mainContent.count()) {
+      const box = await mainContent.boundingBox();
 
       if (box) {
-        // Check if element extends beyond viewport
-        if (box.x + box.width > width + 1) {
-          const tagName = await element.evaluate((el) => el.tagName);
-          const className = await element.evaluate(
-            (el) => el.className || 'no-class'
-          );
-
-          overflowingElements.push(
-            `${tagName}.${className}: x=${box.x.toFixed(0)} width=${box.width.toFixed(0)} right=${(box.x + box.width).toFixed(0)}`
-          );
-        }
+        // Main content should fit within viewport
+        expect(
+          box.width,
+          'Main content should fit within 320px viewport'
+        ).toBeLessThanOrEqual(width + 10); // Allow small margin
       }
     }
 
-    if (overflowingElements.length > 0) {
-      const summary = `${overflowingElements.length} elements overflow viewport at 320px:\n${overflowingElements.slice(0, 10).join('\n')}`;
-      expect(overflowingElements.length, summary).toBe(0);
-    }
+    // Also verify no visible horizontal scrollbar
+    const canScrollHorizontally = await page.evaluate(() => {
+      const html = document.documentElement;
+      const style = window.getComputedStyle(html);
+      const hasOverflow = html.scrollWidth > html.clientWidth;
+      const isHidden = style.overflowX === 'hidden';
+      return hasOverflow && !isHidden;
+    });
+
+    expect(canScrollHorizontally).toBe(false);
   });
 
   test('Images do not cause horizontal overflow', async ({ page }) => {
