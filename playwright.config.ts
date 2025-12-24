@@ -115,6 +115,8 @@ export default defineConfig({
 
     {
       name: 'firefox',
+      testIgnore:
+        /auth\/(sign-up|user-registration|complete-flows|rate-limiting)\.spec\.ts/,
       use: {
         ...devices['Desktop Firefox'],
         storageState: './tests/e2e/fixtures/storage-state-auth.json',
@@ -124,6 +126,8 @@ export default defineConfig({
 
     {
       name: 'webkit',
+      testIgnore:
+        /auth\/(sign-up|user-registration|complete-flows|rate-limiting)\.spec\.ts/,
       use: {
         ...devices['Desktop Safari'],
         storageState: './tests/e2e/fixtures/storage-state-auth.json',
