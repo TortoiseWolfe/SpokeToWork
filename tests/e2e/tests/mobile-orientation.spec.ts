@@ -31,27 +31,18 @@ test.describe('Mobile Orientation Detection', () => {
     const page = await context.newPage();
 
     await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check viewport dimensions
     const viewportSize = page.viewportSize();
     expect(viewportSize?.width).toBe(390);
     expect(viewportSize?.height).toBe(844);
 
-    // Check that mobile layout is applied
-    // Look for mobile-specific classes or behaviors
-    const body = page.locator('body');
-    const bodyClasses = await body.getAttribute('class');
-
-    // Navigation should be in mobile mode
+    // Navigation should be visible
     const nav = page.locator('nav').first();
     await expect(nav).toBeVisible();
 
-    // Check for mobile menu button (should exist in portrait)
-    const mobileMenuButton = page.locator(
-      'nav button[aria-label*="menu" i], nav button[aria-label*="navigation" i]'
-    );
-
-    // Mobile menu button might be visible on narrow screens
+    // Should be in mobile viewport width
     const isMobileView = await page.evaluate(() => window.innerWidth < 768);
     expect(isMobileView, 'Should be in mobile viewport').toBeTruthy();
 
