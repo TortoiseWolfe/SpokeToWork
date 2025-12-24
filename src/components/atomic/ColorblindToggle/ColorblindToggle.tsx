@@ -31,6 +31,22 @@ export const ColorblindToggle: React.FC<ColorblindToggleProps> = ({
     isOpen
   );
 
+  // Handle Escape key to close dropdown (accessibility)
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+        // Close DaisyUI dropdown by removing focus
+        const activeElement = document.activeElement as HTMLElement;
+        if (activeElement && dropdownRef.current?.contains(activeElement)) {
+          activeElement.blur();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
   const colorblindOptions = [
     { value: ColorblindType.NONE, label: 'No Correction Needed' },
     {
