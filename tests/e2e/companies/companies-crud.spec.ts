@@ -8,9 +8,6 @@
  * - Cancel operations
  *
  * Uses createTestUser with email_confirm: true to avoid email verification issues.
- *
- * SKIPPED IN CI: Companies CRUD tests require database tables that may not be
- * properly cached in CI. Tests pass locally with dev server.
  */
 
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
@@ -19,12 +16,7 @@ import { CompaniesPage } from '../pages/CompaniesPage';
 
 const AUTH_FILE = 'tests/e2e/fixtures/storage-state-auth.json';
 
-// Skip companies CRUD tests in CI - database schema cache issues
 test.describe('Companies Page - Application CRUD', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Companies CRUD tests skipped in CI due to database schema cache issues'
-  );
   // Shared context and page for all tests - reuse auth state
   let sharedContext: BrowserContext;
   let sharedPage: Page;

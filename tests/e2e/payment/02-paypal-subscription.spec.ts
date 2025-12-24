@@ -1,19 +1,11 @@
 /**
  * Integration Test: Subscription Creation (PayPal) - T056
  * Tests PayPal recurring subscription flow
- *
- * SKIPPED IN CI: Payment feature requires dynamic server features not available
- * in static export.
  */
 
 import { test, expect } from '@playwright/test';
 
-// Skip all payment tests in CI - feature requires dynamic server
 test.describe('PayPal Subscription Creation Flow', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Payment tests require dynamic server features not available in static export'
-  );
   test.beforeEach(async ({ page }) => {
     await page.goto('/payment-demo');
   });

@@ -1,20 +1,11 @@
 /**
  * Integration Test: GDPR Consent Flow - T058
  * Tests payment consent modal and script loading behavior
- *
- * SKIPPED IN CI: Payment feature requires dynamic server features not available
- * in static export. These tests pass locally with dev server but fail in CI
- * where the app is served as static HTML.
  */
 
 import { test, expect } from '@playwright/test';
 
-// Skip all payment tests in CI - feature requires dynamic server
 test.describe('GDPR Payment Consent Flow', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Payment tests require dynamic server features not available in static export'
-  );
   test.beforeEach(async ({ page, context }) => {
     // Clear storage to reset consent
     await context.clearCookies();

@@ -7,17 +7,8 @@ import { test, expect } from '@playwright/test';
  * requires real browser DOM, not jsdom simulation.
  *
  * Tests keyboard navigation through form fields with proper tab order.
- *
- * SKIPPED IN CI: Focus management tests are flaky in static export due to
- * hydration timing. These tests pass locally with dev server.
  */
-
-// Skip focus management tests in CI - flaky due to hydration timing
 test.describe('Contact Form - Keyboard Navigation', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Focus management tests are flaky in static export due to hydration timing'
-  );
   test.beforeEach(async ({ page }) => {
     await page.goto('/contact');
   });

@@ -1,19 +1,11 @@
 /**
  * Integration Test: Dashboard Real-Time Updates - T060
  * Tests Supabase realtime subscription for payment status updates
- *
- * SKIPPED IN CI: Payment feature requires dynamic server features not available
- * in static export.
  */
 
 import { test, expect } from '@playwright/test';
 
-// Skip all payment tests in CI - feature requires dynamic server
 test.describe('Payment Dashboard Real-Time Updates', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Payment tests require dynamic server features not available in static export'
-  );
   test.beforeEach(async ({ page }) => {
     await page.goto('/payment/dashboard');
   });

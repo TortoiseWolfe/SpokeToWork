@@ -1,9 +1,6 @@
 // Security Hardening: Rate Limiting E2E Tests
 // Feature 017 - Task T009 (E2E Tests with Real Browser)
 // Purpose: Test rate limiting from user perspective
-//
-// SKIPPED IN CI: Rate limiting tests require server-side features not available
-// in static export. These tests pass locally with dev server.
 
 import { test, expect } from '@playwright/test';
 
@@ -14,12 +11,7 @@ import { test, expect } from '@playwright/test';
  * They test the actual UI behavior in a real browser.
  */
 
-// Skip rate limiting tests in CI - require dynamic server
 test.describe('Rate Limiting - User Experience', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Rate limiting tests require dynamic server features not available in static export'
-  );
   const testEmail = `ratelimit-test-${Date.now()}@mailinator.com`;
   const testPassword = 'WrongPassword123!';
 
@@ -215,10 +207,6 @@ test.describe('Rate Limiting - User Experience', () => {
 });
 
 test.describe('Rate Limiting - Password Reset', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Rate limiting tests require dynamic server features not available in static export'
-  );
   test('should rate limit password reset requests', async ({ page }) => {
     const email = `password-reset-${Date.now()}@mailinator.com`;
 

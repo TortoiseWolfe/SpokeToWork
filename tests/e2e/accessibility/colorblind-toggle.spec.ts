@@ -9,17 +9,8 @@ import { test, expect } from '@playwright/test';
  * Original locations:
  * - ColorblindToggle.accessibility.test.tsx:95-106 (focus management)
  * - ColorblindToggle.test.tsx:213-236 (click outside to close)
- *
- * SKIPPED IN CI: Focus management tests are flaky in static export due to
- * hydration timing. These tests pass locally with dev server.
  */
-
-// Skip focus management tests in CI - flaky due to hydration timing
 test.describe('ColorblindToggle - Accessibility', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Focus management tests are flaky in static export due to hydration timing'
-  );
   test.beforeEach(async ({ page }) => {
     // Navigate to home page where ColorblindToggle is in navigation
     await page.goto('/');

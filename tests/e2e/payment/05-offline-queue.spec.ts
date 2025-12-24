@@ -1,19 +1,11 @@
 /**
  * Integration Test: Offline Queue - T059
  * Tests payment queuing when offline and automatic sync when reconnected
- *
- * SKIPPED IN CI: Payment feature requires dynamic server features not available
- * in static export.
  */
 
 import { test, expect } from '@playwright/test';
 
-// Skip all payment tests in CI - feature requires dynamic server
 test.describe('Offline Payment Queue', () => {
-  test.skip(
-    () => !!process.env.CI,
-    'Payment tests require dynamic server features not available in static export'
-  );
   test.beforeEach(async ({ page }) => {
     await page.goto('/payment-demo');
 
