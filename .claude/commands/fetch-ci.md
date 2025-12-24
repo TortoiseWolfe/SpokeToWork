@@ -1,5 +1,22 @@
 ---
 description: Download and extract E2E test artifacts from GitHub Actions CI
+allowedTools:
+  - Bash(grep:*)
+  - Bash(cut:*)
+  - Bash(git:*)
+  - Bash(curl:*)
+  - Bash(mkdir:*)
+  - Bash(ls:*)
+  - Bash(rm:*)
+  - Bash(find:*)
+  - Bash(head:*)
+  - Bash(wc:*)
+  - Bash(python3:*)
+  - Bash(unzip:*)
+  - Bash(du:*)
+  - Read
+  - Glob
+  - Grep
 ---
 
 ## User Input
