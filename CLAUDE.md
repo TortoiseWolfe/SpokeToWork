@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working with this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with this repository.
 
 ## Core Development Principles
 
@@ -139,7 +139,7 @@ See `docs/CREATING_COMPONENTS.md` for details.
 This app is deployed to GitHub Pages (static hosting). This means:
 
 - NO server-side API routes (`src/app/api/` won't work in production)
-- NO access to non-NEXT*PUBLIC* environment variables in browser
+- NO access to non-`NEXT_PUBLIC_` environment variables in browser
 - All server-side logic must be in Supabase (database, Edge Functions, or triggers)
 
 When implementing features that need secrets:
@@ -469,35 +469,3 @@ WHERE name ILIKE '%steph%' OR contact_name ILIKE '%steph%';
 - E2E tests are local-only, not in CI pipeline
 - Docker-first development is mandatory
 - Use `min-h-11 min-w-11` for 44px touch targets (mobile-first)
-
-## Active Technologies
-
-- TypeScript 5.9, Node.js 22 + Playwright 1.57, @supabase/supabase-js (062-fix-e2e-auth)
-- localStorage (cookie consent), Supabase Auth (sessions) (062-fix-e2e-auth)
-
-- TypeScript 5.9, React 19, Next.js 15 + Supabase Auth (PKCE built-in), @supabase/supabase-js (050-oauth-state-cleanup)
-- Supabase PostgreSQL (removing `oauth_states` table) (050-oauth-state-cleanup)
-
-- TypeScript 5.9, React 19, Next.js 15 + Native fetch API, existing routing service pattern (048-openrouteservice-routing)
-- N/A (external API calls) (048-openrouteservice-routing)
-
-- TypeScript 5.9, React 19, Next.js 15 + `maplibre-gl`, `react-map-gl` (replacing `react-leaflet`, `leaflet`) (045-map-font-legibility)
-- Existing Supabase PostgreSQL for route data; IndexedDB (Dexie) for tile caching (045-map-font-legibility)
-
-- TypeScript 5.9, React 19, Next.js 15 + React, DaisyUI, Tailwind CSS 4, Supabase JS client (044-simplify-next-ride)
-- Supabase PostgreSQL (existing `active_route_planning` and `route_companies` tables) (044-simplify-next-ride)
-
-- Bash script + Vitest 3.2.4 on Node.js 22 + Vitest, pnpm, GitHub Actions runner (043-fix-ci-oom)
-- N/A (test infrastructure) (043-fix-ci-oom)
-
-- TypeScript 5.x with React 19, Next.js 15 + react-leaflet 5.x, Leaflet 1.9.x, @tanstack/react-query, Supabase JS client, DaisyUI (041-bicycle-route-planning)
-- Supabase PostgreSQL (cloud) with Row-Level Security (041-bicycle-route-planning)
-- TypeScript 5.9 with Node.js 22 + Vitest 3.2.3, happy-dom 20.0.11 (already installed), React 19 (042-test-memory-optimization)
-- N/A (test infrastructure change) (042-test-memory-optimization)
-
-- TypeScript 5.x with Next.js 15, React 19 + Supabase (Auth, Database), TanStack Query, DaisyUI (014-job-applications-fix)
-- Supabase PostgreSQL (cloud) with multi-tenant schema (014-job-applications-fix)
-
-## Recent Changes
-
-- 014-job-applications-fix: Added TypeScript 5.x with Next.js 15, React 19 + Supabase (Auth, Database), TanStack Query, DaisyUI
