@@ -18,11 +18,11 @@ test.describe('Debug Route Sidebar', () => {
     await page.goto('/sign-in');
     await page.fill(
       'input[type="email"]',
-      process.env.TEST_USER_EMAIL || 'test@example.com'
+      process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com'
     );
     await page.fill(
       'input[type="password"]',
-      process.env.TEST_USER_PASSWORD || 'testpassword'
+      process.env.TEST_USER_PRIMARY_PASSWORD || 'testpassword'
     );
     await page.click('button[type="submit"]');
     await page.waitForTimeout(3000);
