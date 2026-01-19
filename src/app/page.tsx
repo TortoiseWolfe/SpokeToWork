@@ -128,6 +128,7 @@ export default function Home() {
                   </svg>
                   Read Blog
                 </Link>
+                {/* Storybook link disabled - 404
                 <a
                   href="https://TortoiseWolfe.github.io/SpokeToWork/storybook/"
                   target="_blank"
@@ -150,6 +151,7 @@ export default function Home() {
                   </svg>
                   View Storybook
                 </a>
+                */}
                 <Link
                   href="/themes"
                   className="btn btn-secondary btn-md group md:btn-lg min-h-11 w-full min-w-11 sm:w-auto"

@@ -683,18 +683,27 @@ CREATE POLICY "Users can delete own sent requests" ON user_connections
 
 COMMENT ON TABLE user_connections IS 'Friend request management with status tracking';
 
--- Table 2: conversations (1-to-1 chats)
+-- Table 2: conversations (1-to-1 and group chats)
 CREATE TABLE IF NOT EXISTS conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  participant_1_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-  participant_2_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  participant_1_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+  participant_2_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+  is_group BOOLEAN NOT NULL DEFAULT FALSE,
+  group_name TEXT CHECK (length(group_name) <= 100),
+  created_by UUID REFERENCES user_profiles(id) ON DELETE SET NULL,
+  current_key_version INTEGER NOT NULL DEFAULT 1,
   last_message_at TIMESTAMPTZ,
   archived_by_participant_1 BOOLEAN NOT NULL DEFAULT FALSE,
   archived_by_participant_2 BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT no_self_conversation CHECK (participant_1_id != participant_2_id),
-  CONSTRAINT canonical_ordering CHECK (participant_1_id < participant_2_id),
-  CONSTRAINT unique_conversation UNIQUE (participant_1_id, participant_2_id)
+  CONSTRAINT no_self_conversation CHECK (is_group = true OR participant_1_id != participant_2_id),
+  CONSTRAINT canonical_ordering CHECK (is_group = true OR participant_1_id < participant_2_id),
+  CONSTRAINT unique_conversation UNIQUE (participant_1_id, participant_2_id),
+  CONSTRAINT check_group_participants CHECK (
+    (is_group = false AND participant_1_id IS NOT NULL AND participant_2_id IS NOT NULL)
+    OR
+    (is_group = true AND participant_1_id IS NULL AND participant_2_id IS NULL AND created_by IS NOT NULL)
+  )
 );
 
 CREATE INDEX IF NOT EXISTS idx_conversations_participant_1 ON conversations(participant_1_id);
@@ -750,7 +759,28 @@ CREATE POLICY "Users can update own conversation archive status" ON conversation
   FOR UPDATE USING (auth.uid() = participant_1_id OR auth.uid() = participant_2_id)
   WITH CHECK (auth.uid() = participant_1_id OR auth.uid() = participant_2_id);
 
-COMMENT ON TABLE conversations IS '1-to-1 conversations with canonical ordering';
+COMMENT ON TABLE conversations IS '1-to-1 and group conversations with canonical ordering';
+
+-- Table 2b: conversation_members (for group chats)
+-- Must be created before messages table so RLS policies can reference it
+CREATE TABLE IF NOT EXISTS conversation_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'member')),
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  left_at TIMESTAMPTZ,
+  key_version_joined INTEGER NOT NULL DEFAULT 1,
+  key_status TEXT NOT NULL DEFAULT 'active' CHECK (key_status IN ('active', 'pending')),
+  archived BOOLEAN NOT NULL DEFAULT FALSE,
+  muted BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+-- CHK025: Unique active membership per user per conversation
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_active_membership
+  ON conversation_members(conversation_id, user_id) WHERE left_at IS NULL;
+
+COMMENT ON TABLE conversation_members IS 'Group chat membership with roles and key versioning';
 
 -- Table 3: messages (Encrypted content)
 CREATE TABLE IF NOT EXISTS messages (
@@ -1046,26 +1076,10 @@ GRANT ALL ON typing_indicators TO authenticated, service_role;
 -- Tables modified: conversations, messages
 -- Tables new: conversation_members, group_keys
 
--- T006: Add group columns to conversations table
-ALTER TABLE conversations
-  ADD COLUMN IF NOT EXISTS is_group BOOLEAN NOT NULL DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS group_name TEXT CHECK (length(group_name) <= 100),
-  ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES user_profiles(id),
-  ADD COLUMN IF NOT EXISTS current_key_version INTEGER NOT NULL DEFAULT 1;
-
--- Make participant columns nullable for groups (they must be NULL for is_group=true)
-ALTER TABLE conversations
-  ALTER COLUMN participant_1_id DROP NOT NULL,
-  ALTER COLUMN participant_2_id DROP NOT NULL;
-
--- CHK023: Enforce is_group validation via CHECK constraint
--- Drop existing constraint if it exists (for idempotency)
-ALTER TABLE conversations DROP CONSTRAINT IF EXISTS check_group_participants;
-ALTER TABLE conversations ADD CONSTRAINT check_group_participants CHECK (
-  (is_group = false AND participant_1_id IS NOT NULL AND participant_2_id IS NOT NULL)
-  OR
-  (is_group = true AND participant_1_id IS NULL AND participant_2_id IS NULL AND created_by IS NOT NULL)
-);
+-- T006: Group columns already added in initial CREATE TABLE
+-- (is_group, group_name, created_by, current_key_version)
+-- Participant columns are already nullable from initial table definition
+-- check_group_participants constraint already exists from initial table definition
 
 -- T007: Add key_version column to messages table
 ALTER TABLE messages
@@ -1090,24 +1104,7 @@ ALTER TABLE messages ADD CONSTRAINT check_system_message_type CHECK (
   )
 );
 
--- T009: Create conversation_members junction table
-CREATE TABLE IF NOT EXISTS conversation_members (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-  role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'member')),
-  joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  left_at TIMESTAMPTZ,
-  key_version_joined INTEGER NOT NULL DEFAULT 1,
-  key_status TEXT NOT NULL DEFAULT 'active' CHECK (key_status IN ('active', 'pending')),
-  archived BOOLEAN NOT NULL DEFAULT FALSE,
-  muted BOOLEAN NOT NULL DEFAULT FALSE
-);
-
--- CHK025: Unique active membership per user per conversation
--- This constraint allows same user_id + conversation_id only if one has left_at set
-CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_active_membership
-  ON conversation_members(conversation_id, user_id) WHERE left_at IS NULL;
+-- T009: conversation_members table already created earlier (after conversations table)
 
 -- T010: Create group_keys table
 CREATE TABLE IF NOT EXISTS group_keys (
@@ -1453,14 +1450,13 @@ ALTER TABLE user_profiles
   ADD COLUMN IF NOT EXISTS home_address TEXT CHECK (length(home_address) <= 500),
   ADD COLUMN IF NOT EXISTS home_latitude DECIMAL(10, 8) CHECK (home_latitude >= -90 AND home_latitude <= 90),
   ADD COLUMN IF NOT EXISTS home_longitude DECIMAL(11, 8) CHECK (home_longitude >= -180 AND home_longitude <= 180),
-  ADD COLUMN IF NOT EXISTS distance_radius_miles INTEGER DEFAULT 20 CHECK (distance_radius_miles >= 1 AND distance_radius_miles <= 100),
-  ADD COLUMN IF NOT EXISTS metro_area_id UUID REFERENCES metro_areas(id);
+  ADD COLUMN IF NOT EXISTS distance_radius_miles INTEGER DEFAULT 20 CHECK (distance_radius_miles >= 1 AND distance_radius_miles <= 100);
+-- Note: metro_area_id column added later after metro_areas table is created
 
 COMMENT ON COLUMN user_profiles.home_address IS 'User home address for distance calculations';
 COMMENT ON COLUMN user_profiles.home_latitude IS 'User home latitude for distance calculations';
 COMMENT ON COLUMN user_profiles.home_longitude IS 'User home longitude for distance calculations';
 COMMENT ON COLUMN user_profiles.distance_radius_miles IS 'Configurable radius for extended_range warning (default 20)';
-COMMENT ON COLUMN user_profiles.metro_area_id IS 'Auto-assigned metro area based on home coordinates (Feature 012)';
 
 -- ============================================================================
 -- PART 11b: JOB APPLICATIONS (Feature 011 Evolution)
@@ -1688,6 +1684,11 @@ CREATE POLICY "Anyone can view metro areas" ON metro_areas
 
 COMMENT ON TABLE metro_areas IS 'Geographic regions organizing company data (Feature 012)';
 
+-- Add metro_area_id to user_profiles now that metro_areas table exists
+ALTER TABLE user_profiles
+  ADD COLUMN IF NOT EXISTS metro_area_id UUID REFERENCES metro_areas(id);
+COMMENT ON COLUMN user_profiles.metro_area_id IS 'Auto-assigned metro area based on home coordinates (Feature 012)';
+
 -- T015: Create shared_companies table
 CREATE TABLE IF NOT EXISTS shared_companies (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1760,6 +1761,8 @@ CREATE TABLE IF NOT EXISTS company_locations (
   longitude DECIMAL(10, 7) NOT NULL,
   phone VARCHAR(20),
   email VARCHAR(255),
+  contact_name TEXT,
+  contact_title TEXT,
   is_headquarters BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -2298,11 +2301,7 @@ COMMENT ON FUNCTION get_metro_areas_with_seed_count() IS 'Get metro areas that h
 -- Fixes broken FK from Feature 012 migration
 -- ============================================================================
 
--- T003: Add contact columns to company_locations
-ALTER TABLE company_locations
-  ADD COLUMN IF NOT EXISTS contact_name TEXT,
-  ADD COLUMN IF NOT EXISTS contact_title TEXT;
-
+-- T003: contact_name and contact_title columns already in initial company_locations table definition
 COMMENT ON COLUMN company_locations.contact_name IS 'Primary contact name at this location (Feature 014)';
 COMMENT ON COLUMN company_locations.contact_title IS 'Primary contact job title (Feature 014)';
 
@@ -2661,6 +2660,9 @@ CREATE TRIGGER active_route_planning_modified
 -- Usage: Call manually or schedule via pg_cron:
 --   SELECT cleanup_old_audit_logs();
 -- ============================================================================
+
+-- Drop old version first (signature change: void -> TABLE)
+DROP FUNCTION IF EXISTS cleanup_old_audit_logs();
 
 CREATE OR REPLACE FUNCTION cleanup_old_audit_logs()
 RETURNS TABLE(deleted_count bigint)

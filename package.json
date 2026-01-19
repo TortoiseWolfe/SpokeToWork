@@ -178,6 +178,7 @@
     "husky": "^9.1.7",
     "jest-axe": "^10.0.0",
     "jsdom": "^26.1.0",
+    "libsodium-wrappers": "^0.8.1",
     "lighthouse": "^12.8.2",
     "lint-staged": "^16.1.6",
     "msw": "^2.0.0",
@@ -194,6 +195,8 @@
     "storybook": "^9.1.17",
     "tailwindcss": "^4.1.13",
     "tsx": "^4.20.6",
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1",
     "typescript": "^5.9.2",
     "vitest": "^4.0.15",
     "wait-on": "^8.0.5"

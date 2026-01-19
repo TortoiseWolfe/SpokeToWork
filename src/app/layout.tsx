@@ -125,7 +125,7 @@ export default function RootLayout({
             <ActiveRouteProvider>
               <AccessibilityProvider>
                 <GlobalNav />
-                <CountdownBanner />
+                {/* <CountdownBanner /> */}
                 <ErrorBoundary level="page">
                   <main className="min-h-0 flex-1 overflow-hidden">
                     {children}
