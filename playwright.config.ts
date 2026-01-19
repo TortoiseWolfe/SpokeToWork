@@ -93,8 +93,7 @@ export default defineConfig({
     // Unauthenticated tests (signup, login flows, rate-limiting) - no auth dependency
     {
       name: 'chromium-noauth',
-      testMatch:
-        /auth\/(sign-up|user-registration|complete-flows|rate-limiting)\.spec\.ts/,
+      testMatch: /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: './tests/e2e/fixtures/storage-state.json',
@@ -104,8 +103,7 @@ export default defineConfig({
     // Browser projects depend on setup, use authenticated state
     {
       name: 'chromium',
-      testIgnore:
-        /auth\/(sign-up|user-registration|complete-flows|rate-limiting)\.spec\.ts/,
+      testIgnore: /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: './tests/e2e/fixtures/storage-state-auth.json',
@@ -115,8 +113,7 @@ export default defineConfig({
 
     {
       name: 'firefox',
-      testIgnore:
-        /auth\/(sign-up|user-registration|complete-flows|rate-limiting)\.spec\.ts/,
+      testIgnore: /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts/,
       use: {
         ...devices['Desktop Firefox'],
         storageState: './tests/e2e/fixtures/storage-state-auth.json',
@@ -126,8 +123,7 @@ export default defineConfig({
 
     {
       name: 'webkit',
-      testIgnore:
-        /auth\/(sign-up|user-registration|complete-flows|rate-limiting)\.spec\.ts/,
+      testIgnore: /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts/,
       use: {
         ...devices['Desktop Safari'],
         storageState: './tests/e2e/fixtures/storage-state-auth.json',

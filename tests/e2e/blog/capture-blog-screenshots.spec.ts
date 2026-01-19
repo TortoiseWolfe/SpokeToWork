@@ -1129,8 +1129,8 @@ test.describe.serial('Blog Screenshot Capture with Accuracy Audit', () => {
     await page.goto(`${BASE_URL}/map`);
     await page.waitForLoadState('networkidle');
 
-    // Wait for map
-    await page.waitForSelector('.leaflet-container', { timeout: 15000 });
+    // Wait for map (MapLibre GL, not Leaflet)
+    await page.waitForSelector('.maplibregl-canvas', { timeout: 15000 });
 
     // Wait for tiles to fully load
     await page.waitForTimeout(4000);
