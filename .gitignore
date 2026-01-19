@@ -48,7 +48,7 @@ next-env.d.ts
 
 # playwright
 test-results/
-tests/e2e/__snapshots__/
+# Note: tests/e2e/__snapshots__/ is NOT ignored - snapshots must be committed for CI
 tests/e2e/screenshots/
 screenshots/
 mobile-check.png
