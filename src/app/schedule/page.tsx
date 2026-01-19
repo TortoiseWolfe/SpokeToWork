@@ -110,17 +110,7 @@ export default function SchedulePage() {
               </div>
 
               <footer className="mt-8 space-y-2 text-xs opacity-60">
-                <p>Powered by scheduling integration</p>
-                <p>
-                  <a
-                    href="/storybook/?path=/story/atomic-calendarembed--default"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:opacity-80"
-                  >
-                    View component in Storybook →
-                  </a>
-                </p>
+                <p>Powered by Calendly scheduling</p>
               </footer>
             </div>
           </aside>
