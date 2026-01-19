@@ -35,9 +35,11 @@ if (!ACCESS_TOKEN) {
 }
 
 // Test password from environment variable
-const TEST_PASSWORD = process.env.TEST_USER_PASSWORD;
+const TEST_PASSWORD = process.env.TEST_USER_PRIMARY_PASSWORD;
 if (!TEST_PASSWORD) {
-  throw new Error('TEST_USER_PASSWORD environment variable is required');
+  throw new Error(
+    'TEST_USER_PRIMARY_PASSWORD environment variable is required'
+  );
 }
 
 interface SQLResult {
