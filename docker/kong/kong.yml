@@ -1,0 +1,86 @@
+_format_version: '2.1'
+_transform: true
+
+###
+### Kong configuration for local Supabase
+### Routes API requests to appropriate services
+###
+
+consumers:
+  - username: ANON
+    keyauth_credentials:
+      - key: set-anon-key-in-env-file
+  - username: SERVICE_ROLE
+    keyauth_credentials:
+      - key: set-service-key-in-env-file
+
+acls:
+  - consumer: ANON
+    group: anon
+  - consumer: SERVICE_ROLE
+    group: admin
+
+services:
+  ## Auth (GoTrue)
+  - name: auth-v1
+    url: http://supabase-auth:9999/verify
+    routes:
+      - name: auth-v1-route
+        strip_path: true
+        paths:
+          - /auth/v1/verify
+    plugins:
+      - name: cors
+
+  - name: auth-v1-all
+    url: http://supabase-auth:9999
+    routes:
+      - name: auth-v1-all-route
+        strip_path: true
+        paths:
+          - /auth/v1
+    plugins:
+      - name: cors
+
+  ## REST (PostgREST)
+  - name: rest-v1
+    url: http://supabase-rest:3000
+    routes:
+      - name: rest-v1-route
+        strip_path: true
+        paths:
+          - /rest/v1
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: false
+          key_names:
+            - apikey
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - anon
+            - admin
+
+  ## Meta (postgres-meta)
+  - name: meta
+    url: http://supabase-meta:8080
+    routes:
+      - name: meta-route
+        strip_path: true
+        paths:
+          - /pg
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: false
+          key_names:
+            - apikey
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - admin

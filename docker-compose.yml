@@ -34,17 +34,169 @@ services:
     networks:
       - spoketowork-network
 
-  # Future services can be added here
-  # db:
-  #   image: postgres:16-alpine
-  #   environment:
-  #     POSTGRES_DB: spoketowork
-  #     POSTGRES_USER: spoketowork
-  #     POSTGRES_PASSWORD: spoketowork
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   networks:
-  #     - spoketowork-network
+  # =============================================================================
+  # LOCAL SUPABASE SERVICES (start with: docker compose --profile supabase up)
+  # =============================================================================
+
+  supabase-db:
+    image: supabase/postgres:15.8.1.085
+    profiles: [supabase]
+    ports:
+      - '${SUPABASE_DB_PORT:-54322}:5432'
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      PGPORT: 5432
+      POSTGRES_PORT: 5432
+      PGPASSWORD: ${SUPABASE_LOCAL_DB_PASSWORD:-your-super-secret-and-long-postgres-password}
+      POSTGRES_PASSWORD: ${SUPABASE_LOCAL_DB_PASSWORD:-your-super-secret-and-long-postgres-password}
+      PGDATABASE: postgres
+      POSTGRES_DB: postgres
+      JWT_SECRET: ${SUPABASE_LOCAL_JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      JWT_EXP: 3600
+    volumes:
+      - supabase_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -h localhost && psql -U supabase_admin -d postgres -c "SELECT 1 FROM pg_roles WHERE rolname=''supabase_auth_admin''" | grep -q 1']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - spoketowork-network
+
+  supabase-init:
+    image: supabase/postgres:15.8.1.085
+    profiles: [supabase]
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${SUPABASE_LOCAL_DB_PASSWORD:-your-super-secret-and-long-postgres-password}
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        psql -h supabase-db -U supabase_admin -d postgres -c "ALTER USER supabase_auth_admin WITH PASSWORD '$$PGPASSWORD';"
+        psql -h supabase-db -U supabase_admin -d postgres -c "ALTER USER authenticator WITH PASSWORD '$$PGPASSWORD';"
+        psql -h supabase-db -U supabase_admin -d postgres -c "ALTER USER supabase_storage_admin WITH PASSWORD '$$PGPASSWORD';"
+        echo "Supabase role passwords configured"
+    networks:
+      - spoketowork-network
+
+  supabase-auth:
+    image: supabase/gotrue:v2.164.0
+    profiles: [supabase]
+    depends_on:
+      supabase-init:
+        condition: service_completed_successfully
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: http://localhost:${SUPABASE_API_PORT:-54321}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${SUPABASE_LOCAL_DB_PASSWORD:-your-super-secret-and-long-postgres-password}@supabase-db:5432/postgres
+      GOTRUE_SITE_URL: http://localhost:${HOST_PORT:-3001}
+      GOTRUE_URI_ALLOW_LIST: ''
+      GOTRUE_DISABLE_SIGNUP: 'false'
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_SECRET: ${SUPABASE_LOCAL_JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: 'true'
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: 'false'
+      GOTRUE_MAILER_AUTOCONFIRM: 'true'
+    restart: unless-stopped
+    networks:
+      - spoketowork-network
+
+  supabase-rest:
+    image: postgrest/postgrest:v12.2.0
+    profiles: [supabase]
+    depends_on:
+      supabase-init:
+        condition: service_completed_successfully
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${SUPABASE_LOCAL_DB_PASSWORD:-your-super-secret-and-long-postgres-password}@supabase-db:5432/postgres
+      PGRST_DB_SCHEMAS: public,graphql_public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${SUPABASE_LOCAL_JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      PGRST_DB_USE_LEGACY_GUCS: 'false'
+      PGRST_APP_SETTINGS_JWT_SECRET: ${SUPABASE_LOCAL_JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      PGRST_APP_SETTINGS_JWT_EXP: 3600
+    restart: unless-stopped
+    networks:
+      - spoketowork-network
+
+  supabase-meta:
+    image: supabase/postgres-meta:v0.83.2
+    profiles: [supabase]
+    depends_on:
+      supabase-init:
+        condition: service_completed_successfully
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: supabase-db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: postgres
+      PG_META_DB_USER: supabase_admin
+      PG_META_DB_PASSWORD: ${SUPABASE_LOCAL_DB_PASSWORD:-your-super-secret-and-long-postgres-password}
+    restart: unless-stopped
+    networks:
+      - spoketowork-network
+
+  supabase-kong:
+    image: kong:2.8.1
+    profiles: [supabase]
+    depends_on:
+      supabase-auth:
+        condition: service_started
+      supabase-rest:
+        condition: service_started
+    ports:
+      - '${SUPABASE_API_PORT:-54321}:8000'
+    environment:
+      KONG_DATABASE: 'off'
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      SUPABASE_ANON_KEY: ${SUPABASE_LOCAL_ANON_KEY:-set-anon-key-in-env-file}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_LOCAL_SERVICE_KEY:-set-service-key-in-env-file}
+    volumes:
+      - ./docker/kong/kong.yml:/kong/kong.yml:ro
+    restart: unless-stopped
+    networks:
+      - spoketowork-network
+
+  supabase-studio:
+    image: supabase/studio:20241202-71e5240
+    profiles: [supabase]
+    depends_on:
+      supabase-kong:
+        condition: service_started
+      supabase-meta:
+        condition: service_started
+    ports:
+      - '${SUPABASE_STUDIO_PORT:-54323}:3000'
+    environment:
+      STUDIO_PG_META_URL: http://supabase-meta:8080
+      POSTGRES_PASSWORD: ${SUPABASE_LOCAL_DB_PASSWORD:-your-super-secret-and-long-postgres-password}
+      DEFAULT_ORGANIZATION_NAME: SpokeToWork
+      DEFAULT_PROJECT_NAME: Local Development
+      SUPABASE_URL: http://supabase-kong:8000
+      SUPABASE_PUBLIC_URL: http://localhost:${SUPABASE_API_PORT:-54321}
+      SUPABASE_ANON_KEY: ${SUPABASE_LOCAL_ANON_KEY:-set-anon-key-in-env-file}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_LOCAL_SERVICE_KEY:-set-service-key-in-env-file}
+      AUTH_JWT_SECRET: ${SUPABASE_LOCAL_JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      LOGFLARE_API_KEY: ''
+      LOGFLARE_URL: ''
+      NEXT_PUBLIC_ENABLE_LOGS: 'false'
+      NEXT_ANALYTICS_BACKEND_PROVIDER: ''
+    restart: unless-stopped
+    networks:
+      - spoketowork-network
 
 networks:
   spoketowork-network:
@@ -54,3 +206,4 @@ volumes:
   postgres_data:
   node_modules:
   next_cache:
+  supabase_db_data:

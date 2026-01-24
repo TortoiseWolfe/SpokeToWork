@@ -104,6 +104,49 @@ Supabase Cloud free tier auto-pauses after 7 days. If paused:
 docker compose exec spoketowork pnpm run prime
 ```
 
+### Local Supabase (Offline Development)
+
+Self-hosted Supabase runs in Docker for offline development. Uses Docker Compose profiles - only starts when requested.
+
+**Start local Supabase:**
+
+```bash
+docker compose --profile supabase up
+```
+
+**Access local services:**
+
+- API: http://localhost:54321
+- Studio: http://localhost:54323
+- Database: localhost:54322 (user: supabase_admin, password: your-super-secret-and-long-postgres-password)
+
+**Switch app to local Supabase:**
+
+Edit `.env` - comment out cloud values and use local:
+
+```bash
+# Comment out cloud Supabase:
+# NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_xxx
+
+# Use local Supabase:
+NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=set-anon-key-in-env-file
+```
+
+**Stop local Supabase:**
+
+```bash
+docker compose --profile supabase down
+```
+
+**Reset local database:**
+
+```bash
+docker compose --profile supabase down -v  # Removes data
+docker compose --profile supabase up       # Fresh start with migrations
+```
+
 ## Component Structure (MANDATORY)
 
 Components must follow the 5-file pattern or CI/CD will fail:

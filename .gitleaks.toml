@@ -46,6 +46,10 @@ paths = [
   '''\.env\.example$''',
   '''\.env\.sample$''',
   '''docs/.*\.md$''',
+  # Local Supabase config (contains official Supabase demo keys, not real secrets)
+  '''LOCAL-SUPABASE-GUIDE\.md$''',
+  '''docker/kong/kong\.yml$''',
+  '''docker/supabase/.*''',
   # Test files
   '''.*\.test\.ts$''',
   '''.*\.spec\.ts$''',
@@ -80,6 +84,10 @@ regexes = [
   '''PLACEHOLDER_.*''',
   '''example\.com''',
   '''test@example\.com''',
+  # Official Supabase demo JWT keys (publicly documented, not real secrets)
+  # These are the official self-hosting demo keys from Supabase documentation
+  '''dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE''',
+  '''DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q''',
 ]
 
 # Stop words that indicate the string is not a secret
