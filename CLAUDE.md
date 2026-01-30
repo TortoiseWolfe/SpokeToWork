@@ -116,9 +116,9 @@ docker compose --profile supabase up
 
 **Access local services:**
 
-- API: http://localhost:54321
-- Studio: http://localhost:54323
-- Database: localhost:54322 (user: supabase_admin, password: your-super-secret-and-long-postgres-password)
+- API: http://localhost:54321 (configurable via SUPABASE_API_PORT)
+- Studio: http://localhost:54323 (configurable via SUPABASE_STUDIO_PORT)
+- Database: localhost:54322 (configurable via SUPABASE_DB_PORT; user: supabase_admin)
 
 **Switch app to local Supabase:**
 
