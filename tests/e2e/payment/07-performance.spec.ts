@@ -108,6 +108,9 @@ test.describe('Payment System Performance', () => {
   }) => {
     test.fail(true, '/payment/dashboard page does not exist');
     await page.goto('/payment/dashboard');
+    await expect(
+      page.getByRole('heading', { name: /dashboard/i })
+    ).toBeVisible();
 
     // Measure memory usage before
     const memoryBefore = await page.evaluate(() => {
@@ -246,9 +249,8 @@ test.describe('Payment System Performance', () => {
     const consentModal = page.getByRole('dialog', {
       name: /payment consent/i,
     });
-    if (await consentModal.isVisible()) {
-      await page.getByRole('button', { name: /accept.*continue/i }).click();
-    }
+    await expect(consentModal).toBeVisible();
+    await page.getByRole('button', { name: /accept.*continue/i }).click();
 
     // Wait for animation to complete
     await page.waitForTimeout(2000);

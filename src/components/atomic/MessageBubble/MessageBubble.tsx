@@ -77,6 +77,14 @@ const MessageBubble = memo(
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const dialogRef = useRef<HTMLDialogElement>(null);
+
+    // Open dialog via showModal() for top-layer rendering
+    useEffect(() => {
+      if (showDeleteConfirm && dialogRef.current && !dialogRef.current.open) {
+        dialogRef.current.showModal();
+      }
+    }, [showDeleteConfirm]);
 
     // Auto-resize textarea
     useEffect(() => {
@@ -149,6 +157,12 @@ const MessageBubble = memo(
 
     const handleDeleteClick = () => {
       setShowDeleteConfirm(true);
+      // Focus Cancel button after React commits the dialog and useEffect
+      // runs showModal(). The delay waits for showModal() to finish
+      // promoting the dialog to the top layer before setting focus.
+      setTimeout(() => {
+        dialogRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+      }, 100);
     };
 
     const handleConfirmDelete = async () => {
@@ -344,11 +358,17 @@ const MessageBubble = memo(
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm && (
           <dialog
+            ref={dialogRef}
             className="modal modal-open"
             role="dialog"
             aria-labelledby="delete-modal-title"
           >
-            <div className="modal-box">
+            <div
+              className="modal-backdrop bg-black/50"
+              onClick={handleCancelDelete}
+              aria-hidden="true"
+            ></div>
+            <div className="modal-box relative z-10">
               <h3 id="delete-modal-title" className="text-lg font-bold">
                 Delete Message?
               </h3>
@@ -376,11 +396,6 @@ const MessageBubble = memo(
                 </button>
               </div>
             </div>
-            <div
-              className="modal-backdrop bg-black/50"
-              onClick={handleCancelDelete}
-              aria-hidden="true"
-            ></div>
           </dialog>
         )}
       </div>

@@ -144,6 +144,9 @@ test.describe('PayPal Subscription Creation Flow', () => {
   test('should show grace period warning', async ({ page }) => {
     test.fail(true, '/payment/subscriptions page does not exist');
     await page.goto('/payment/subscriptions');
+    await expect(
+      page.getByRole('heading', { name: /subscriptions?/i })
+    ).toBeVisible();
 
     // Should show grace period alert (if subscription in grace period)
     const graceAlert = page.getByRole('alert', {

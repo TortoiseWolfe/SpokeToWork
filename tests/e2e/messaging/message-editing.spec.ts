@@ -9,46 +9,186 @@
  */
 
 import { test, expect, type Page } from '@playwright/test';
+import { createClient } from '@supabase/supabase-js';
 
-// Test user credentials (from .env or defaults)
+// Test user credentials — PRIMARY + TERTIARY per messaging E2E conventions
 const TEST_USER_1 = {
   email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
   password: process.env.TEST_USER_PRIMARY_PASSWORD!,
 };
 
 const TEST_USER_2 = {
-  email: process.env.TEST_USER_SECONDARY_EMAIL || 'test2@example.com',
-  password: process.env.TEST_USER_SECONDARY_PASSWORD!,
+  email: process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com',
+  password: process.env.TEST_USER_TERTIARY_PASSWORD!,
 };
+
+/**
+ * Ensure an accepted connection exists between PRIMARY and TERTIARY
+ * so the UI can create a conversation via the Message button.
+ * Runs once per test file via module-level flag.
+ */
+let messagingSetupDone = false;
+async function ensureMessagingSetup(): Promise<void> {
+  if (messagingSetupDone) return;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const supabase = createClient(supabaseUrl, serviceKey);
+
+  // Get user IDs via auth admin API
+  const { data: listResult, error: usersError } =
+    await supabase.auth.admin.listUsers();
+  if (usersError) {
+    throw new Error(`Failed to list users: ${usersError.message}`);
+  }
+
+  // listUsers returns { users: User[] } in supabase-js v2
+  const users = Array.isArray(listResult)
+    ? listResult
+    : ((listResult as { users: unknown[] })?.users ?? []);
+  const primaryUser = users.find(
+    (u: { email?: string }) => u.email === TEST_USER_1.email
+  ) as { id: string } | undefined;
+  const tertiaryUser = users.find(
+    (u: { email?: string }) => u.email === TEST_USER_2.email
+  ) as { id: string } | undefined;
+
+  if (!primaryUser || !tertiaryUser) {
+    throw new Error(
+      `Messaging test users not found: primary=${primaryUser?.id}, tertiary=${tertiaryUser?.id}`
+    );
+  }
+
+  // Upsert accepted connection (service role bypasses RLS)
+  const { error: upsertError } = await supabase.from('user_connections').upsert(
+    {
+      requester_id: primaryUser.id,
+      addressee_id: tertiaryUser.id,
+      status: 'accepted',
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'requester_id,addressee_id' }
+  );
+
+  if (upsertError) {
+    throw new Error(`Failed to upsert connection: ${upsertError.message}`);
+  }
+
+  messagingSetupDone = true;
+}
 
 /**
  * Sign in helper function
  */
 async function signIn(page: Page, email: string, password: string) {
   await page.goto('/sign-in');
-  await page.fill('input[name="email"]', email);
-  await page.fill('input[name="password"]', password);
+  await page.fill('#email', email);
+  await page.fill('#password', password);
   await page.click('button[type="submit"]');
-  await page.waitForURL('/');
+  await page.waitForURL(/\/profile/);
 }
 
 /**
  * Navigate to conversation helper
  */
 async function navigateToConversation(page: Page) {
+  // Ensure accepted connection exists in DB before navigating
+  await ensureMessagingSetup();
+
   await page.goto('/messages?tab=connections');
 
-  // Find first accepted connection and click to open conversation
-  const firstConnection = page
-    .locator('[data-testid="connection-item"]')
-    .first();
-  await firstConnection.click();
+  // Handle ReAuth modal if encryption keys need unlocking
+  try {
+    const reAuthDialog = page.getByRole('dialog', {
+      name: /re-authentication required/i,
+    });
+    await reAuthDialog.waitFor({ state: 'visible', timeout: 5000 });
+    await page
+      .getByRole('textbox', { name: /password/i })
+      .fill(TEST_USER_1.password);
+    await page.getByRole('button', { name: /unlock messages/i }).click();
+    await reAuthDialog.waitFor({ state: 'hidden', timeout: 10000 });
+  } catch {
+    // Modal didn't appear - continue
+  }
 
-  // Wait for conversation to load
-  await page.waitForSelector('[data-testid="message-bubble"]', {
-    timeout: 5000,
-  });
+  // Wait for ConnectionManager to render
+  await page
+    .locator('[data-testid="connection-manager"]')
+    .waitFor({ state: 'visible' });
+
+  // Switch to Accepted tab and click Message on first accepted connection
+  await page.getByRole('tab', { name: /accepted/i }).click();
+  const messageButton = page.locator('[data-testid="message-button"]').first();
+  await messageButton.click({ timeout: 10000 });
+
+  // Message button creates conversation and switches to Chats tab;
+  // click the conversation to open it
+  const conversationButton = page
+    .locator('button[aria-label^="Conversation with"]')
+    .first();
+  await conversationButton.click({ timeout: 10000 });
+
+  // Wait for conversation to open
+  await page.waitForURL(/.*conversation=/, { timeout: 10000 });
 }
+
+/**
+ * Locate a message bubble by its unique text and return a stable locator
+ * anchored to the message's data-message-id attribute.  This survives
+ * content changes (edit, delete) and is immune to other messages arriving
+ * via Realtime during parallel test execution.
+ */
+async function findMessageBubble(page: Page, text: string) {
+  const byText = page
+    .locator('[data-testid="message-bubble"]')
+    .filter({ hasText: text });
+  const messageId = await byText.getAttribute('data-message-id');
+  return page.locator(`[data-message-id="${messageId}"]`);
+}
+
+/**
+ * Delete all accumulated messages from the shared test conversation so each
+ * test run starts with a clean slate.  Without this, repeated runs deposit
+ * dozens of messages that eventually degrade Realtime delivery and cause
+ * send-wait timeouts.
+ */
+test.beforeAll(async () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const supabase = createClient(supabaseUrl, serviceKey);
+
+  const { data: listResult } = await supabase.auth.admin.listUsers();
+  const users = Array.isArray(listResult)
+    ? listResult
+    : ((listResult as { users: unknown[] })?.users ?? []);
+  const primaryUser = users.find(
+    (u: { email?: string }) => u.email === TEST_USER_1.email
+  ) as { id: string } | undefined;
+  const tertiaryUser = users.find(
+    (u: { email?: string }) => u.email === TEST_USER_2.email
+  ) as { id: string } | undefined;
+
+  if (!primaryUser || !tertiaryUser) return;
+
+  // Canonical ordering: participant_1_id < participant_2_id
+  const p1 =
+    primaryUser.id < tertiaryUser.id ? primaryUser.id : tertiaryUser.id;
+  const p2 =
+    primaryUser.id < tertiaryUser.id ? tertiaryUser.id : primaryUser.id;
+
+  const { data: conversations } = await supabase
+    .from('conversations')
+    .select('id')
+    .eq('participant_1_id', p1)
+    .eq('participant_2_id', p2);
+
+  if (conversations) {
+    for (const conv of conversations) {
+      await supabase.from('messages').delete().eq('conversation_id', conv.id);
+    }
+  }
+});
 
 test.describe('Message Editing', () => {
   test.beforeEach(async ({ page }) => {
@@ -62,16 +202,17 @@ test.describe('Message Editing', () => {
     // Navigate to conversation
     await navigateToConversation(page);
 
-    // Send a message
-    const originalMessage = 'Original message content';
-    await page.fill('[data-testid="message-input"]', originalMessage);
-    await page.click('[data-testid="send-button"]');
+    // Send a message (unique per run to avoid accumulation across runs)
+    const runId = Date.now();
+    const originalMessage = `Original message content ${runId}`;
+    await page.fill('textarea[aria-label="Message input"]', originalMessage);
+    await page.click('button[aria-label="Send message"]');
 
     // Wait for message to appear
     await page.waitForSelector(`text=${originalMessage}`, { timeout: 5000 });
 
-    // Find the Edit button for our message
-    const messageBubble = page.locator('[data-testid="message-bubble"]').last();
+    // Find our specific message bubble (stable through content changes)
+    const messageBubble = await findMessageBubble(page, originalMessage);
     const editButton = messageBubble.locator('button', { hasText: 'Edit' });
 
     // Edit button should be visible for own messages
@@ -87,7 +228,7 @@ test.describe('Message Editing', () => {
     await expect(editTextarea).toBeVisible();
 
     // Change the content
-    const editedMessage = 'Edited message content';
+    const editedMessage = `Updated message content ${runId}`;
     await editTextarea.clear();
     await editTextarea.fill(editedMessage);
 
@@ -110,14 +251,17 @@ test.describe('Message Editing', () => {
   test('should cancel edit without saving', async ({ page }) => {
     await navigateToConversation(page);
 
-    // Send a message
-    const originalMessage = 'Message to cancel edit';
-    await page.fill('[data-testid="message-input"]', originalMessage);
-    await page.click('[data-testid="send-button"]');
+    // Send a message (unique text to avoid matching accumulated messages)
+    const runId = Date.now();
+    const originalMessage = `Cancel edit test ${runId}`;
+    await page.fill('textarea[aria-label="Message input"]', originalMessage);
+    await page.click('button[aria-label="Send message"]');
     await page.waitForSelector(`text=${originalMessage}`, { timeout: 5000 });
 
+    // Find our specific message bubble (stable through content changes)
+    const messageBubble = await findMessageBubble(page, originalMessage);
+
     // Click Edit
-    const messageBubble = page.locator('[data-testid="message-bubble"]').last();
     await messageBubble.locator('button', { hasText: 'Edit' }).click();
 
     // Change content
@@ -145,14 +289,17 @@ test.describe('Message Editing', () => {
   }) => {
     await navigateToConversation(page);
 
-    // Send a message
-    const originalMessage = 'Test unchanged content';
-    await page.fill('[data-testid="message-input"]', originalMessage);
-    await page.click('[data-testid="send-button"]');
+    // Send a message (unique text to avoid matching accumulated messages)
+    const runId = Date.now();
+    const originalMessage = `Unchanged content test ${runId}`;
+    await page.fill('textarea[aria-label="Message input"]', originalMessage);
+    await page.click('button[aria-label="Send message"]');
     await page.waitForSelector(`text=${originalMessage}`, { timeout: 5000 });
 
+    // Find our specific message bubble (stable through content changes)
+    const messageBubble = await findMessageBubble(page, originalMessage);
+
     // Click Edit
-    const messageBubble = page.locator('[data-testid="message-bubble"]').last();
     await messageBubble.locator('button', { hasText: 'Edit' }).click();
 
     // Save button should be disabled (content hasn't changed)
@@ -163,14 +310,17 @@ test.describe('Message Editing', () => {
   test('should not allow editing empty message', async ({ page }) => {
     await navigateToConversation(page);
 
-    // Send a message
-    const originalMessage = 'Test empty edit';
-    await page.fill('[data-testid="message-input"]', originalMessage);
-    await page.click('[data-testid="send-button"]');
+    // Send a message (unique text to avoid matching accumulated messages)
+    const runId = Date.now();
+    const originalMessage = `Empty edit test ${runId}`;
+    await page.fill('textarea[aria-label="Message input"]', originalMessage);
+    await page.click('button[aria-label="Send message"]');
     await page.waitForSelector(`text=${originalMessage}`, { timeout: 5000 });
 
+    // Find our specific message bubble (stable through content changes)
+    const messageBubble = await findMessageBubble(page, originalMessage);
+
     // Click Edit
-    const messageBubble = page.locator('[data-testid="message-bubble"]').last();
     await messageBubble.locator('button', { hasText: 'Edit' }).click();
 
     // Clear content
@@ -196,14 +346,15 @@ test.describe('Message Deletion', () => {
   }) => {
     await navigateToConversation(page);
 
-    // Send a message
-    const messageToDelete = 'Message to be deleted';
-    await page.fill('[data-testid="message-input"]', messageToDelete);
-    await page.click('[data-testid="send-button"]');
+    // Send a message (unique text to avoid matching accumulated messages)
+    const runId = Date.now();
+    const messageToDelete = `Delete target T116 ${runId}`;
+    await page.fill('textarea[aria-label="Message input"]', messageToDelete);
+    await page.click('button[aria-label="Send message"]');
     await page.waitForSelector(`text=${messageToDelete}`, { timeout: 5000 });
 
-    // Find the Delete button
-    const messageBubble = page.locator('[data-testid="message-bubble"]').last();
+    // Find our specific message bubble (stable through deletion)
+    const messageBubble = await findMessageBubble(page, messageToDelete);
     const deleteButton = messageBubble.locator('button', { hasText: 'Delete' });
 
     // Delete button should be visible
@@ -219,7 +370,7 @@ test.describe('Message Deletion', () => {
     );
 
     // Confirm deletion
-    await page.locator('button', { hasText: 'Delete' }).last().click();
+    await page.locator('button[aria-label="Confirm deletion"]').click();
 
     // Wait for deletion to complete
     await expect(page.locator('[role="dialog"]')).not.toBeVisible({
@@ -241,14 +392,17 @@ test.describe('Message Deletion', () => {
   test('should cancel deletion from confirmation modal', async ({ page }) => {
     await navigateToConversation(page);
 
-    // Send a message
-    const messageToKeep = 'Message to keep';
-    await page.fill('[data-testid="message-input"]', messageToKeep);
-    await page.click('[data-testid="send-button"]');
+    // Send a message (unique text to avoid matching accumulated messages)
+    const runId = Date.now();
+    const messageToKeep = `Cancel delete test ${runId}`;
+    await page.fill('textarea[aria-label="Message input"]', messageToKeep);
+    await page.click('button[aria-label="Send message"]');
     await page.waitForSelector(`text=${messageToKeep}`, { timeout: 5000 });
 
+    // Find our specific message bubble (stable through interactions)
+    const messageBubble = await findMessageBubble(page, messageToKeep);
+
     // Click Delete
-    const messageBubble = page.locator('[data-testid="message-bubble"]').last();
     await messageBubble.locator('button', { hasText: 'Delete' }).click();
 
     // Modal appears
@@ -272,18 +426,28 @@ test.describe('Message Deletion', () => {
   }) => {
     await navigateToConversation(page);
 
-    // Send and delete a message
-    const messageToDelete = 'Will be deleted';
-    await page.fill('[data-testid="message-input"]', messageToDelete);
-    await page.click('[data-testid="send-button"]');
+    // Send and delete a message (unique text to avoid matching accumulated messages)
+    const runId = Date.now();
+    const messageToDelete = `Delete target ${runId}`;
+    await page.fill('textarea[aria-label="Message input"]', messageToDelete);
+    await page.click('button[aria-label="Send message"]');
     await page.waitForSelector(`text=${messageToDelete}`, { timeout: 5000 });
 
-    const messageBubble = page.locator('[data-testid="message-bubble"]').last();
+    // Find our specific message bubble (stable through deletion)
+    const messageBubble = await findMessageBubble(page, messageToDelete);
     await messageBubble.locator('button', { hasText: 'Delete' }).click();
-    await page.locator('button', { hasText: 'Delete' }).last().click();
 
-    // Wait for deletion
-    await page.waitForSelector('text=[Message deleted]', { timeout: 5000 });
+    // Wait for confirmation dialog before clicking confirm
+    await expect(page.locator('[role="dialog"]')).toBeVisible();
+    await page.locator('button[aria-label="Confirm deletion"]').click();
+
+    // Wait for dialog to close and the specific message text to disappear
+    await expect(page.locator('[role="dialog"]')).not.toBeVisible({
+      timeout: 5000,
+    });
+    await expect(page.locator(`text=${messageToDelete}`)).not.toBeVisible({
+      timeout: 5000,
+    });
 
     // Edit and Delete buttons should not exist
     await expect(
@@ -373,13 +537,15 @@ test.describe('Time Window Restrictions', () => {
   }) => {
     await navigateToConversation(page);
 
-    // Send a new message (within window)
-    const recentMessage = 'Recent message within 15min';
-    await page.fill('[data-testid="message-input"]', recentMessage);
-    await page.click('[data-testid="send-button"]');
+    // Send a new message (unique text to avoid matching accumulated messages)
+    const runId = Date.now();
+    const recentMessage = `Recent message test ${runId}`;
+    await page.fill('textarea[aria-label="Message input"]', recentMessage);
+    await page.click('button[aria-label="Send message"]');
     await page.waitForSelector(`text=${recentMessage}`, { timeout: 5000 });
 
-    const recentBubble = page.locator('[data-testid="message-bubble"]').last();
+    // Find our specific message bubble (stable through interactions)
+    const recentBubble = await findMessageBubble(page, recentMessage);
 
     // Recent own message should have Edit and Delete buttons
     await expect(
@@ -431,14 +597,17 @@ test.describe('Accessibility', () => {
   test('T130: edit mode should have proper ARIA labels', async ({ page }) => {
     await navigateToConversation(page);
 
-    // Send a message
-    const message = 'Test accessibility';
-    await page.fill('[data-testid="message-input"]', message);
-    await page.click('[data-testid="send-button"]');
+    // Send a message (unique text to avoid matching accumulated messages)
+    const runId = Date.now();
+    const message = `ARIA labels test ${runId}`;
+    await page.fill('textarea[aria-label="Message input"]', message);
+    await page.click('button[aria-label="Send message"]');
     await page.waitForSelector(`text=${message}`, { timeout: 5000 });
 
+    // Find our specific message bubble (stable through content changes)
+    const messageBubble = await findMessageBubble(page, message);
+
     // Enter edit mode
-    const messageBubble = page.locator('[data-testid="message-bubble"]').last();
     await messageBubble.locator('button[aria-label="Edit message"]').click();
 
     // Check ARIA labels
@@ -458,14 +627,17 @@ test.describe('Accessibility', () => {
   }) => {
     await navigateToConversation(page);
 
-    // Send a message
-    const message = 'Test delete modal accessibility';
-    await page.fill('[data-testid="message-input"]', message);
-    await page.click('[data-testid="send-button"]');
+    // Send a message (unique text to avoid matching accumulated messages)
+    const runId = Date.now();
+    const message = `Delete modal ARIA test ${runId}`;
+    await page.fill('textarea[aria-label="Message input"]', message);
+    await page.click('button[aria-label="Send message"]');
     await page.waitForSelector(`text=${message}`, { timeout: 5000 });
 
+    // Find our specific message bubble (stable through interactions)
+    const messageBubble = await findMessageBubble(page, message);
+
     // Open delete modal
-    const messageBubble = page.locator('[data-testid="message-bubble"]').last();
     await messageBubble.locator('button[aria-label="Delete message"]').click();
 
     // Check modal ARIA attributes
@@ -495,29 +667,31 @@ test.describe('Accessibility', () => {
   }) => {
     await navigateToConversation(page);
 
-    // Send a message
-    const message = 'Test keyboard navigation';
-    await page.fill('[data-testid="message-input"]', message);
-    await page.click('[data-testid="send-button"]');
+    // Send a message (unique text to avoid matching accumulated messages)
+    const runId = Date.now();
+    const message = `Keyboard nav test ${runId}`;
+    await page.fill('textarea[aria-label="Message input"]', message);
+    await page.click('button[aria-label="Send message"]');
     await page.waitForSelector(`text=${message}`, { timeout: 5000 });
 
+    // Find our specific message bubble (stable through interactions)
+    const messageBubble = await findMessageBubble(page, message);
+
     // Open delete modal
-    const messageBubble = page.locator('[data-testid="message-bubble"]').last();
     await messageBubble.locator('button[aria-label="Delete message"]').click();
 
-    // Tab through modal buttons
-    await page.keyboard.press('Tab');
+    // Dialog should be visible
+    await expect(page.locator('[role="dialog"]')).toBeVisible();
+
+    // Focus should move to Cancel button when modal opens (correct modal behavior)
     await expect(
       page.locator('button[aria-label="Cancel deletion"]')
     ).toBeFocused();
 
+    // Tab should move focus to Confirm button
     await page.keyboard.press('Tab');
     await expect(
       page.locator('button[aria-label="Confirm deletion"]')
     ).toBeFocused();
-
-    // Press Escape to close (if implemented)
-    // await page.keyboard.press('Escape');
-    // await expect(page.locator('[role="dialog"]')).not.toBeVisible();
   });
 });

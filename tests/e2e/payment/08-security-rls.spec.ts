@@ -18,7 +18,6 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 test.describe('Row Level Security Policies', () => {
   test('should prevent anonymous users from writing to payment_intents', async () => {
-    test.fail(true, 'payment_intents table may not exist');
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     // Try to insert payment intent as anonymous user
@@ -36,7 +35,6 @@ test.describe('Row Level Security Policies', () => {
   });
 
   test('should prevent users from reading other users payment results', async () => {
-    test.fail(true, 'payment_results table may not exist');
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     // Try to query all payment results
@@ -57,7 +55,6 @@ test.describe('Row Level Security Policies', () => {
   });
 
   test('should prevent modification of webhook_events table', async () => {
-    test.fail(true, 'webhook_events table may not exist');
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     // Try to insert webhook event (should only be allowed from service role)
@@ -130,7 +127,6 @@ test.describe('Row Level Security Policies', () => {
   });
 
   test('should enforce currency validation in database constraints', async () => {
-    test.fail(true, 'payment_intents table may not exist');
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
       test.skip();
       return;
@@ -205,7 +201,6 @@ test.describe('Row Level Security Policies', () => {
   });
 
   test('should validate payment amount constraints', async () => {
-    test.fail(true, 'payment_intents table may not exist');
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
       test.skip();
       return;

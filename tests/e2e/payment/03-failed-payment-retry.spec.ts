@@ -116,6 +116,9 @@ test.describe('Failed Payment Retry Logic', () => {
   }) => {
     test.fail(true, '/payment/subscriptions page does not exist');
     await page.goto('/payment/subscriptions');
+    await expect(
+      page.getByRole('heading', { name: /subscriptions?/i })
+    ).toBeVisible();
 
     // Subscription with failed payment should show retry info
     const pastDueCard = page

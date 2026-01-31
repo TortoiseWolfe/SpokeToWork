@@ -317,6 +317,48 @@ function MessagesContent() {
     }
   };
 
+  const handleEditMessage = async (messageId: string, newContent: string) => {
+    try {
+      await messageService.editMessage({
+        message_id: messageId,
+        new_content: newContent,
+      });
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? {
+                ...msg,
+                content: newContent,
+                edited: true,
+                edited_at: new Date().toISOString(),
+              }
+            : msg
+        )
+      );
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to edit message.';
+      setError(message);
+      throw err;
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      await messageService.deleteMessage(messageId);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, deleted: true } : msg
+        )
+      );
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to delete message.';
+      setError(message);
+      throw err;
+    }
+  };
+
   const handleLoadMore = () => {
     if (!loading && hasMore) {
       loadMessages(true);
@@ -455,6 +497,8 @@ function MessagesContent() {
                       conversationId={conversationId}
                       messages={messages}
                       onSendMessage={handleSendMessage}
+                      onEditMessage={handleEditMessage}
+                      onDeleteMessage={handleDeleteMessage}
                       onLoadMore={handleLoadMore}
                       hasMore={hasMore}
                       loading={loading}
