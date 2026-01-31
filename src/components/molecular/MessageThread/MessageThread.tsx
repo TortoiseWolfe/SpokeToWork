@@ -167,12 +167,15 @@ export default function MessageThread({
     if (messages.length > 0) {
       const latestMessageId = messages[messages.length - 1].id;
 
-      // Only auto-scroll if this is a truly new message AND user is near bottom
-      if (
+      if (lastMessageRef.current === null) {
+        // Initial load: scroll to bottom instantly so the user lands
+        // on the most recent messages.
+        scrollToBottom(false);
+      } else if (
         latestMessageId !== lastMessageRef.current &&
-        lastMessageRef.current !== null &&
         shouldAutoScroll.current
       ) {
+        // New message arrived while user is near bottom: scroll smoothly.
         scrollToBottom(true);
       }
 

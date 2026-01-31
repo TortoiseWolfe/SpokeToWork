@@ -72,6 +72,22 @@ export class KeyManagementService {
     }
 
     try {
+      // Guard: if non-revoked keys already exist, derive from them rather
+      // than inserting a new key with a fresh salt.  A duplicate would become
+      // the active key (highest created_at) but its salt would not match the
+      // password the user originally enrolled with, breaking decryption.
+      const { data: existingKey } = await msgClient
+        .from('user_encryption_keys')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('revoked', false)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingKey) {
+        return this.deriveKeys(password);
+      }
+
       // Step 1: Generate random salt
       const salt = this.keyDerivationService.generateSalt();
 
