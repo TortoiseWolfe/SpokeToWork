@@ -382,20 +382,9 @@ CREATE TRIGGER on_auth_user_created
 -- ============================================================================
 
 -- Create avatars bucket for user profile pictures
-INSERT INTO storage.buckets (
-  id,
-  name,
-  public,
-  file_size_limit,
-  allowed_mime_types
-)
-VALUES (
-  'avatars',
-  'avatars',
-  true,                                              -- Public read access
-  5242880,                                           -- 5MB max file size
-  ARRAY['image/jpeg', 'image/png', 'image/webp']    -- Allowed formats
-)
+-- Note: public, file_size_limit, allowed_mime_types columns not available in this Supabase version
+INSERT INTO storage.buckets (id, name)
+VALUES ('avatars', 'avatars')
 ON CONFLICT (id) DO NOTHING;                         -- Idempotent
 
 -- Drop existing avatar policies (for clean re-run)

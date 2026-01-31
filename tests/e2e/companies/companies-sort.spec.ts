@@ -12,17 +12,6 @@ import { CompaniesPage } from '../pages/CompaniesPage';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
-// Test user credentials from env (required)
-const testEmail =
-  process.env.TEST_USER_EMAIL || process.env.TEST_USER_PRIMARY_EMAIL;
-const testPassword =
-  process.env.TEST_USER_PASSWORD || process.env.TEST_USER_PRIMARY_PASSWORD;
-
-if (!testEmail || !testPassword) {
-  throw new Error('TEST_USER_EMAIL and TEST_USER_PASSWORD must be set in .env');
-}
-
-const TEST_USER = { email: testEmail, password: testPassword };
 const AUTH_FILE = 'tests/e2e/fixtures/storage-state-auth.json';
 
 test.describe('Companies Page - Sort Functionality (Feature 051)', () => {

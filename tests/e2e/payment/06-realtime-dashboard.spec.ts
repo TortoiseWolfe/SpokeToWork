@@ -73,6 +73,10 @@ test.describe('Payment Dashboard Real-Time Updates', () => {
     page,
   }) => {
     test.fail(true, '/payment/dashboard page does not exist');
+    await expect(
+      page.getByRole('heading', { name: /dashboard/i })
+    ).toBeVisible();
+
     // Find a payment without webhook verification
     const unverifiedPayment = page
       .getByRole('article')

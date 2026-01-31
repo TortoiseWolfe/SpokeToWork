@@ -1,6 +1,6 @@
 # Blog Accuracy Audit Report
 
-**Generated:** 2025-12-17T11:26:51.195Z
+**Generated:** 2026-01-31T07:27:13.669Z
 **Blog Post:** getting-started-job-hunt-companion.md
 **Test File:** capture-blog-screenshots.spec.ts
 
@@ -10,8 +10,8 @@
 | ----------- | ----- |
 | ❌ Critical | 1     |
 | ⚠️ Warning  | 1     |
-| ℹ️ Info     | 1     |
-| **Total**   | **3** |
+| ℹ️ Info     | 2     |
+| **Total**   | **4** |
 
 ## Discrepancies Found
 
@@ -37,6 +37,12 @@
 - **Expected:** Button or link to view map (per blog)
 - **Actual:** View Map button/link not found in sidebar
 
+#### ℹ️ "Next Ride" feature
+
+- **Severity:** info
+- **Expected:** Feature to mark companies for "Next" ride (per blog)
+- **Actual:** "Next" or "Next Ride" text not found on page
+
 ## Recommended Blog Updates
 
 Based on the audit, consider updating the blog post:
@@ -44,6 +50,7 @@ Based on the audit, consider updating the blog post:
 - [ ] Step 4: Update "Add Application button" - Button not found in drawer
 - [ ] Step 5: Update "Create Route button" - Button labeled "New" (different text)
 - [ ] Step 5: Consider documenting "View Map button"
+- [ ] Step 5: Consider documenting ""Next Ride" feature"
 
 ---
 

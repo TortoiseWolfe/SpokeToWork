@@ -80,7 +80,7 @@ test.describe('Offline Message Queue', () => {
       await page.fill('#email', USER_A.email);
       await page.fill('#password', USER_A.password);
       await page.click('button[type="submit"]');
-      await page.waitForURL('/');
+      await page.waitForURL(/\/profile/);
 
       // ===== STEP 2: Navigate to conversation =====
       await page.goto(`${BASE_URL}/conversations`);
@@ -154,7 +154,7 @@ test.describe('Offline Message Queue', () => {
       await page.fill('#email', USER_A.email);
       await page.fill('#password', USER_A.password);
       await page.click('button[type="submit"]');
-      await page.waitForURL('/');
+      await page.waitForURL(/\/profile/);
 
       await page.goto(`${BASE_URL}/conversations`);
       await handleReAuthModal(page, USER_A.password);
@@ -224,7 +224,7 @@ test.describe('Offline Message Queue', () => {
       await page.fill('#email', USER_A.email);
       await page.fill('#password', USER_A.password);
       await page.click('button[type="submit"]');
-      await page.waitForURL('/');
+      await page.waitForURL(/\/profile/);
 
       await page.goto(`${BASE_URL}/conversations`);
       await handleReAuthModal(page, USER_A.password);
@@ -310,13 +310,13 @@ test.describe('Offline Message Queue', () => {
       await pageA.fill('#email', USER_A.email);
       await pageA.fill('#password', USER_A.password);
       await pageA.click('button[type="submit"]');
-      await pageA.waitForURL('/');
+      await pageA.waitForURL(/\/profile/);
 
       await pageB.goto(`${BASE_URL}/sign-in`);
       await pageB.fill('#email', USER_B.email);
       await pageB.fill('#password', USER_B.password);
       await pageB.click('button[type="submit"]');
-      await pageB.waitForURL('/');
+      await pageB.waitForURL(/\/profile/);
 
       // ===== STEP 2: Both navigate to same conversation =====
       await pageA.goto(`${BASE_URL}/conversations`);
@@ -416,7 +416,7 @@ test.describe('Offline Message Queue', () => {
       await page.fill('#email', USER_A.email);
       await page.fill('#password', USER_A.password);
       await page.click('button[type="submit"]');
-      await page.waitForURL('/');
+      await page.waitForURL(/\/profile/);
 
       await page.goto(`${BASE_URL}/conversations`);
       await handleReAuthModal(page, USER_A.password);

@@ -43,10 +43,10 @@ async function isElementInViewport(
 test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
   test.beforeEach(async ({ page }) => {
     // Login as test user
-    await page.goto('/auth/signin');
+    await page.goto('/sign-in');
     await page.fill(
       'input[type="email"]',
-      process.env.TEST_USER_EMAIL || 'test@example.com'
+      process.env.TEST_USER_PRIMARY_EMAIL!
     );
     await page.fill(
       'input[type="password"]',
@@ -156,10 +156,10 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
 
 test.describe('Messaging Scroll - User Story 2: Scroll Through Messages', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/auth/signin');
+    await page.goto('/sign-in');
     await page.fill(
       'input[type="email"]',
-      process.env.TEST_USER_EMAIL || 'test@example.com'
+      process.env.TEST_USER_PRIMARY_EMAIL!
     );
     await page.fill(
       'input[type="password"]',
@@ -216,10 +216,10 @@ test.describe('Messaging Scroll - User Story 2: Scroll Through Messages', () => 
 
 test.describe('Messaging Scroll - User Story 3: Jump to Bottom Button', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/auth/signin');
+    await page.goto('/sign-in');
     await page.fill(
       'input[type="email"]',
-      process.env.TEST_USER_EMAIL || 'test@example.com'
+      process.env.TEST_USER_PRIMARY_EMAIL!
     );
     await page.fill(
       'input[type="password"]',

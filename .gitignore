@@ -67,6 +67,7 @@ public/TASKS.md
 
 # Claude Code local settings (user-specific permissions)
 .claude/settings.local.json
+.claude/hooks/__pycache__/
 
 # Local Specify development tools (keep outputs, ignore scripts/templates)
 .specify/scripts/

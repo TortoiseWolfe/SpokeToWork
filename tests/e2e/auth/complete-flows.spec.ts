@@ -21,18 +21,20 @@ const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
 // Extract project ref from Supabase URL
 const PROJECT_REF = SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
 
-// Validate required environment variables
-if (!PROJECT_REF) {
-  throw new Error('NEXT_PUBLIC_SUPABASE_URL required');
-}
-if (!ACCESS_TOKEN) {
-  throw new Error('SUPABASE_ACCESS_TOKEN required');
-}
-
 const TEST_PASSWORD = process.env.TEST_USER_PRIMARY_PASSWORD;
-if (!TEST_PASSWORD) {
-  throw new Error('TEST_USER_PRIMARY_PASSWORD required');
-}
+
+// Skip all tests if required cloud Supabase credentials are missing.
+// These tests use the Supabase Management API and cannot run without cloud credentials.
+test.beforeEach(() => {
+  const missing = [
+    !PROJECT_REF && 'NEXT_PUBLIC_SUPABASE_URL (cloud)',
+    !ACCESS_TOKEN && 'SUPABASE_ACCESS_TOKEN',
+    !TEST_PASSWORD && 'TEST_USER_PRIMARY_PASSWORD',
+  ].filter(Boolean);
+  if (missing.length) {
+    test.skip(`Missing required env vars: ${missing.join(', ')}`);
+  }
+});
 
 interface SQLResult {
   [key: string]: unknown;

@@ -89,7 +89,7 @@ test.describe('GDPR Data Export', () => {
 
       // Verify profile data
       expect(data.profile).toHaveProperty('email');
-      expect(data.profile.email).toBe('test@example.com');
+      expect(data.profile.email).toBe(TEST_USER.email);
 
       // Verify statistics
       expect(data.statistics).toHaveProperty('total_conversations');
@@ -356,7 +356,7 @@ test.describe('GDPR Accessibility', () => {
     await page.fill('input[type="email"]', TEST_USER.email);
     await page.fill('input[type="password"]', TEST_USER.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL('/', { timeout: 10000 });
+    await page.waitForURL(/\/profile/, { timeout: 10000 });
     await page.goto('/account');
   });
 

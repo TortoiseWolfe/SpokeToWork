@@ -285,7 +285,19 @@ export function useConversationRealtime(
           message_id,
           new_content,
         });
-        // Message will be updated via real-time subscription
+        // Apply edit locally immediately; Realtime UPDATE will arrive later as a no-op
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === message_id
+              ? {
+                  ...msg,
+                  content: new_content,
+                  edited: true,
+                  edited_at: new Date().toISOString(),
+                }
+              : msg
+          )
+        );
       } catch (err) {
         setError(err as Error);
         throw err;
