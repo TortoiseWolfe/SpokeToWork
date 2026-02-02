@@ -36,8 +36,8 @@ const P256_ORDER = BigInt(
 );
 
 function bytesToBigInt(bytes: Uint8Array): bigint {
-  let result = 0n;
-  for (const byte of bytes) result = (result << 8n) + BigInt(byte);
+  let result = BigInt(0);
+  for (const byte of bytes) result = (result << BigInt(8)) + BigInt(byte);
   return result;
 }
 
@@ -45,8 +45,8 @@ function bigIntToBytes(value: bigint, length: number): Uint8Array {
   const bytes = new Uint8Array(length);
   let rem = value;
   for (let i = length - 1; i >= 0; i--) {
-    bytes[i] = Number(rem & 0xffn);
-    rem >>= 8n;
+    bytes[i] = Number(rem & BigInt(0xff));
+    rem = rem >> BigInt(8);
   }
   return bytes;
 }
@@ -87,7 +87,7 @@ async function derivePrivateKey(
     outputType: 'binary',
   });
 
-  const reduced = (bytesToBigInt(seed) % (P256_ORDER - 1n)) + 1n;
+  const reduced = (bytesToBigInt(seed) % (P256_ORDER - BigInt(1))) + BigInt(1);
   const privBytes = bigIntToBytes(reduced, 32);
   const pub = p256.getPublicKey(privBytes, false); // 04 || x || y
 
@@ -215,7 +215,8 @@ test.beforeAll(async () => {
       outputType: 'binary',
     });
 
-    const reduced = (bytesToBigInt(seed) % (P256_ORDER - 1n)) + 1n;
+    const reduced =
+      (bytesToBigInt(seed) % (P256_ORDER - BigInt(1))) + BigInt(1);
     const privBytes = bigIntToBytes(reduced, 32);
     const pub = p256.getPublicKey(privBytes, false);
 
