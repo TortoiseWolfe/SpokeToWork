@@ -11,13 +11,13 @@
 import { test, expect } from '@playwright/test';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN!;
 
 const PROJECT_REF = SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
 
-const TEST_EMAIL = process.env.TEST_USER_PRIMARY_EMAIL;
-const TEST_PASSWORD = process.env.TEST_USER_PRIMARY_PASSWORD;
+const TEST_EMAIL = process.env.TEST_USER_PRIMARY_EMAIL!;
+const TEST_PASSWORD = process.env.TEST_USER_PRIMARY_PASSWORD!;
 
 // Skip all tests if required cloud Supabase credentials are missing.
 // These tests use the Supabase Management API and cannot run without cloud credentials.
@@ -29,7 +29,7 @@ test.beforeEach(() => {
     !TEST_PASSWORD && 'TEST_USER_PRIMARY_PASSWORD',
   ].filter(Boolean);
   if (missing.length) {
-    test.skip(`Missing required env vars: ${missing.join(', ')}`);
+    test.skip(true, `Missing required env vars: ${missing.join(', ')}`);
   }
 });
 
