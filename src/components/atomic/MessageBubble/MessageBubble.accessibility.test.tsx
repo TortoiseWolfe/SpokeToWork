@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import MessageBubble from './MessageBubble';
 import type { DecryptedMessage } from '@/types/messaging';
@@ -86,5 +87,75 @@ describe('MessageBubble Accessibility', () => {
         name: /encrypted message that cannot be decrypted/i,
       })
     ).toBeInTheDocument();
+  });
+
+  describe('delete confirmation modal', () => {
+    it('should open modal with proper dialog role when delete is clicked', async () => {
+      const user = userEvent.setup();
+
+      const { container } = render(
+        <MessageBubble
+          message={baseMessage}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      );
+
+      const deleteButton = screen.getByRole('button', {
+        name: /delete message/i,
+      });
+      await user.click(deleteButton);
+
+      // happy-dom doesn't expose <dialog> to getByRole, query DOM directly
+      const modal = container.querySelector('dialog');
+      expect(modal).toBeInTheDocument();
+      expect(modal).toHaveAttribute('role', 'dialog');
+      expect(modal).toHaveAttribute('aria-labelledby', 'delete-modal-title');
+    });
+
+    it('should focus Cancel button when delete modal opens', async () => {
+      const user = userEvent.setup();
+
+      const { container } = render(
+        <MessageBubble
+          message={baseMessage}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      );
+
+      const deleteButton = screen.getByRole('button', {
+        name: /delete message/i,
+      });
+      await user.click(deleteButton);
+
+      // Cancel button should receive focus automatically
+      // happy-dom doesn't expose buttons inside <dialog> to getByRole, use getByLabelText
+      // waitFor is needed because useEffect runs after React's state update cycle
+      const cancelButton = screen.getByLabelText('Cancel deletion');
+      await waitFor(() => {
+        expect(cancelButton).toHaveFocus();
+      });
+    });
+
+    it('should have no accessibility violations when modal is open', async () => {
+      const user = userEvent.setup();
+
+      const { container } = render(
+        <MessageBubble
+          message={baseMessage}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      );
+
+      const deleteButton = screen.getByRole('button', {
+        name: /delete message/i,
+      });
+      await user.click(deleteButton);
+
+      const results = await axe(container);
+      expect(results).toHaveNoViolations();
+    });
   });
 });

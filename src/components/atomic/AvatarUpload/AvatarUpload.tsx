@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import Cropper from 'react-easy-crop';
 import { useAvatarUpload } from './useAvatarUpload';
 
@@ -46,6 +46,25 @@ export default function AvatarUpload({
     clearError,
     inputRef,
   } = useAvatarUpload(onUploadComplete);
+
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Use native showModal() for proper accessibility (focus trapping, inert background)
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (showCropModal && imageSrc) {
+      dialog.showModal();
+      // Focus the Cancel button (non-destructive action) for accessibility
+      // Native autoFocus should work in browsers, but we explicitly focus
+      // to ensure consistent behavior across all environments
+      cancelButtonRef.current?.focus();
+    } else {
+      dialog.close();
+    }
+  }, [showCropModal, imageSrc]);
 
   return (
     <div className={`flex flex-col gap-4${className ? ` ${className}` : ''}`}>
@@ -96,15 +115,14 @@ export default function AvatarUpload({
         )}
       </div>
 
-      {/* Crop Modal */}
-      {showCropModal && imageSrc && (
-        <dialog
-          open
-          className="modal modal-open"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="crop-title"
-        >
+      {/* Crop Modal - uses native showModal() for accessibility */}
+      <dialog
+        ref={dialogRef}
+        className="modal"
+        role="dialog"
+        aria-labelledby="crop-title"
+      >
+        {imageSrc && (
           <div className="modal-box max-w-2xl">
             <h3 id="crop-title" className="mb-4 text-lg font-bold">
               Crop Your Avatar
@@ -168,6 +186,7 @@ export default function AvatarUpload({
             {/* Action Buttons */}
             <div className="modal-action flex justify-end gap-2">
               <button
+                ref={cancelButtonRef}
                 type="button"
                 onClick={handleCancelCrop}
                 className="btn btn-ghost min-h-11 min-w-11"
@@ -187,15 +206,15 @@ export default function AvatarUpload({
               </button>
             </div>
           </div>
+        )}
 
-          {/* Modal backdrop */}
-          <div className="modal-backdrop" onClick={handleCancelCrop}>
-            <button type="button" aria-label="Close modal">
-              close
-            </button>
-          </div>
-        </dialog>
-      )}
+        {/* Modal backdrop */}
+        <div
+          className="modal-backdrop bg-black/50"
+          onClick={handleCancelCrop}
+          aria-hidden="true"
+        ></div>
+      </dialog>
     </div>
   );
 }
