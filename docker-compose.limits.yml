@@ -1,0 +1,7 @@
+# Optional resource limits for the spoketowork container.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.limits.yml up -d
+# Set CPUSET and MEM_LIMIT in .env.
+services:
+  spoketowork:
+    cpuset: ${CPUSET}
+    mem_limit: ${MEM_LIMIT}

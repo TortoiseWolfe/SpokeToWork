@@ -15,6 +15,9 @@
 # SUPABASE_API_PORT=54321
 # SUPABASE_DB_PORT=54322
 # SUPABASE_STUDIO_PORT=54323
+#
+# For resource limits, add the override: -f docker-compose.limits.yml
+# Set CPUSET and MEM_LIMIT in .env.
 
 services:
   spoketowork:
