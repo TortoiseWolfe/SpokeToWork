@@ -1,3 +1,10 @@
+# For parallel E2E runs, set COMPOSE_PROJECT_NAME to isolate instances:
+# COMPOSE_PROJECT_NAME=eval-a docker compose -f docker/docker-compose.e2e.yml up -d
+# COMPOSE_PROJECT_NAME=eval-b docker compose -f docker/docker-compose.e2e.yml up -d
+#
+# Discover dynamically assigned ports:
+# docker compose -f docker/docker-compose.e2e.yml port spoketowork 3000
+
 services:
   # Main application service
   spoketowork:
@@ -6,9 +13,9 @@ services:
       dockerfile: docker/Dockerfile
       target: dev
     ports:
-      - '3000:3000'
-      - '6006:6006'
-      - '24678:24678'
+      - '0:3000'   # Dev server – dynamic host port
+      - '0:6006'   # Storybook
+      - '0:24678'  # Next.js HMR websocket
     volumes:
       - ..:/app
       - /app/node_modules
@@ -54,7 +61,7 @@ services:
       spoketowork:
         condition: service_healthy
     ports:
-      - '9323:9323' # Playwright UI port
+      - '0:9323'    # Playwright UI – dynamic host port
     volumes:
       - ../tests/e2e:/app/tests/e2e
       - ../test-results:/app/test-results
