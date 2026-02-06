@@ -114,11 +114,11 @@ Self-hosted Supabase runs in Docker for offline development. Uses Docker Compose
 docker compose --profile supabase up
 ```
 
-**Access local services:**
+**Access local services (ports are dynamic by default):**
 
-- API: http://localhost:54321 (configurable via SUPABASE_API_PORT)
-- Studio: http://localhost:54323 (configurable via SUPABASE_STUDIO_PORT)
-- Database: localhost:54322 (configurable via SUPABASE_DB_PORT; user: supabase_admin)
+- API: `docker compose port supabase-kong 8000` (pin via SUPABASE_API_PORT in .env)
+- Studio: `docker compose port supabase-studio 3000` (pin via SUPABASE_STUDIO_PORT in .env)
+- Database: `docker compose port supabase-db 5432` (pin via SUPABASE_DB_PORT in .env; user: supabase_admin)
 
 **Switch app to local Supabase:**
 
@@ -129,7 +129,7 @@ Edit `.env` - comment out cloud values and use local:
 # NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 # NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_xxx
 
-# Use local Supabase:
+# Use local Supabase (requires SUPABASE_API_PORT=54321 in .env, or use `docker compose port supabase-kong 8000` to find the dynamic port):
 NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE
 ```

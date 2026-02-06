@@ -1,11 +1,20 @@
 # IMPORTANT: For A/B testing with multiple instances, set COMPOSE_PROJECT_NAME:
-# COMPOSE_PROJECT_NAME=instance-a docker compose up -d
-# COMPOSE_PROJECT_NAME=instance-b docker compose up -d
+# COMPOSE_PROJECT_NAME=instance-a docker compose --profile supabase up -d
+# COMPOSE_PROJECT_NAME=instance-b docker compose --profile supabase up -d
 #
+# All host ports are dynamically assigned by default (0 = OS-assigned).
 # Discover dynamically assigned ports:
-# docker compose port spoketowork 3000
-# docker compose port spoketowork 6006
-# docker compose port spoketowork 24678
+# docker compose port spoketowork 3000     # Dev server
+# docker compose port spoketowork 6006     # Storybook
+# docker compose port spoketowork 24678    # HMR websocket
+# docker compose port supabase-kong 8000   # Supabase API
+# docker compose port supabase-db 5432     # Supabase Database
+# docker compose port supabase-studio 3000 # Supabase Studio
+#
+# To pin Supabase ports (single-instance), set in .env:
+# SUPABASE_API_PORT=54321
+# SUPABASE_DB_PORT=54322
+# SUPABASE_STUDIO_PORT=54323
 
 services:
   spoketowork:
@@ -51,7 +60,7 @@ services:
     image: supabase/postgres:15.8.1.085
     profiles: [supabase]
     ports:
-      - '${SUPABASE_DB_PORT:-54322}:5432'
+      - '${SUPABASE_DB_PORT:-0}:5432'
     environment:
       POSTGRES_HOST: /var/run/postgresql
       PGPORT: 5432
@@ -101,10 +110,12 @@ services:
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
-      API_EXTERNAL_URL: http://localhost:${SUPABASE_API_PORT:-54321}
+      # Unused with GOTRUE_MAILER_AUTOCONFIRM=true and no OAuth providers.
+      # Set SUPABASE_API_PORT in .env to pin a fixed port if enabling OAuth or email confirmation.
+      API_EXTERNAL_URL: http://localhost:${SUPABASE_API_PORT:-0}
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${SUPABASE_LOCAL_DB_PASSWORD:-your-super-secret-and-long-postgres-password}@supabase-db:5432/postgres
-      GOTRUE_SITE_URL: http://localhost:${HOST_PORT:-3001}
+      GOTRUE_SITE_URL: http://spoketowork:3000
       GOTRUE_URI_ALLOW_LIST: ''
       GOTRUE_DISABLE_SIGNUP: 'false'
       GOTRUE_JWT_ADMIN_ROLES: service_role
@@ -163,7 +174,7 @@ services:
       supabase-rest:
         condition: service_started
     ports:
-      - '${SUPABASE_API_PORT:-54321}:8000'
+      - '${SUPABASE_API_PORT:-0}:8000'
     environment:
       KONG_DATABASE: 'off'
       KONG_DECLARATIVE_CONFIG: /kong/kong.yml
@@ -188,14 +199,15 @@ services:
       supabase-meta:
         condition: service_started
     ports:
-      - '${SUPABASE_STUDIO_PORT:-54323}:3000'
+      - '${SUPABASE_STUDIO_PORT:-0}:3000'
     environment:
       STUDIO_PG_META_URL: http://supabase-meta:8080
       POSTGRES_PASSWORD: ${SUPABASE_LOCAL_DB_PASSWORD:-your-super-secret-and-long-postgres-password}
       DEFAULT_ORGANIZATION_NAME: SpokeToWork
       DEFAULT_PROJECT_NAME: Local Development
       SUPABASE_URL: http://supabase-kong:8000
-      SUPABASE_PUBLIC_URL: http://localhost:${SUPABASE_API_PORT:-54321}
+      # Cosmetic: displayed in Studio UI only. Set SUPABASE_API_PORT in .env for correct display.
+      SUPABASE_PUBLIC_URL: http://localhost:${SUPABASE_API_PORT:-0}
       SUPABASE_ANON_KEY: ${SUPABASE_LOCAL_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE}
       SUPABASE_SERVICE_KEY: ${SUPABASE_LOCAL_SERVICE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q}
       AUTH_JWT_SECRET: ${SUPABASE_LOCAL_JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}

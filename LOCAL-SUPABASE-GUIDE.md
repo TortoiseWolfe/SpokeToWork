@@ -26,7 +26,7 @@ supabase-db:
   image: supabase/postgres:15.8.1.085
   profiles: [supabase]
   ports:
-    - '${SUPABASE_DB_PORT:-54322}:5432'
+    - '${SUPABASE_DB_PORT:-0}:5432'
   environment:
     POSTGRES_HOST: /var/run/postgresql
     PGPORT: 5432
@@ -80,10 +80,10 @@ supabase-auth:
   environment:
     GOTRUE_API_HOST: 0.0.0.0
     GOTRUE_API_PORT: 9999
-    API_EXTERNAL_URL: http://localhost:${SUPABASE_API_PORT:-54321}
+    API_EXTERNAL_URL: http://localhost:${SUPABASE_API_PORT:-0}
     GOTRUE_DB_DRIVER: postgres
     GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${SUPABASE_LOCAL_DB_PASSWORD:-your-super-secret-and-long-postgres-password}@supabase-db:5432/postgres
-    GOTRUE_SITE_URL: http://localhost:${HOST_PORT:-3001}
+    GOTRUE_SITE_URL: http://spoketowork:3000
     GOTRUE_URI_ALLOW_LIST: ''
     GOTRUE_DISABLE_SIGNUP: 'false'
     GOTRUE_JWT_ADMIN_ROLES: service_role
@@ -142,7 +142,7 @@ supabase-kong:
     supabase-rest:
       condition: service_started
   ports:
-    - '${SUPABASE_API_PORT:-54321}:8000'
+    - '${SUPABASE_API_PORT:-0}:8000'
   environment:
     KONG_DATABASE: 'off'
     KONG_DECLARATIVE_CONFIG: /kong/kong.yml
@@ -167,14 +167,14 @@ supabase-studio:
     supabase-meta:
       condition: service_started
   ports:
-    - '${SUPABASE_STUDIO_PORT:-54323}:3000'
+    - '${SUPABASE_STUDIO_PORT:-0}:3000'
   environment:
     STUDIO_PG_META_URL: http://supabase-meta:8080
     POSTGRES_PASSWORD: ${SUPABASE_LOCAL_DB_PASSWORD:-your-super-secret-and-long-postgres-password}
     DEFAULT_ORGANIZATION_NAME: YourProject
     DEFAULT_PROJECT_NAME: Local Development
     SUPABASE_URL: http://supabase-kong:8000
-    SUPABASE_PUBLIC_URL: http://localhost:${SUPABASE_API_PORT:-54321}
+    SUPABASE_PUBLIC_URL: http://localhost:${SUPABASE_API_PORT:-0}
     SUPABASE_ANON_KEY: ${SUPABASE_LOCAL_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE}
     SUPABASE_SERVICE_KEY: ${SUPABASE_LOCAL_SERVICE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q}
     AUTH_JWT_SECRET: ${SUPABASE_LOCAL_JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
@@ -293,7 +293,8 @@ services:
 # =============================================================================
 # LOCAL SUPABASE (docker compose --profile supabase up)
 # =============================================================================
-# Ports (defaults in docker-compose.yml)
+# Ports – dynamic (0 = OS-assigned) by default.
+# Uncomment to pin fixed ports:
 # SUPABASE_DB_PORT=54322
 # SUPABASE_API_PORT=54321
 # SUPABASE_STUDIO_PORT=54323
@@ -303,6 +304,7 @@ services:
 # SUPABASE_LOCAL_JWT_SECRET=your-super-secret-jwt-token-with-at-least-32-characters-long
 
 # To use local Supabase instead of cloud, set:
+# (requires SUPABASE_API_PORT=54321 above, or use `docker compose port supabase-kong 8000` to find the dynamic port)
 # NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
 # NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE
 ```
@@ -326,22 +328,27 @@ docker compose --profile supabase up
 
 ### Access Points
 
-| Service           | URL                            |
-| ----------------- | ------------------------------ |
-| API Gateway       | http://localhost:54321         |
-| Auth API          | http://localhost:54321/auth/v1 |
-| REST API          | http://localhost:54321/rest/v1 |
-| Studio Dashboard  | http://localhost:54323         |
-| Database (direct) | localhost:54322                |
+Ports are dynamic by default. Discover with `docker compose port`:
+
+| Service           | Discover port                              | Pin via env var      |
+| ----------------- | ------------------------------------------ | -------------------- |
+| API Gateway       | `docker compose port supabase-kong 8000`   | SUPABASE_API_PORT    |
+| Auth API          | (same as API Gateway, path /auth/v1)       |                      |
+| REST API          | (same as API Gateway, path /rest/v1)       |                      |
+| Studio Dashboard  | `docker compose port supabase-studio 3000` | SUPABASE_STUDIO_PORT |
+| Database (direct) | `docker compose port supabase-db 5432`     | SUPABASE_DB_PORT     |
 
 ### Test It Works
 
 ```bash
+# Discover the API port
+API_PORT=$(docker compose port supabase-kong 8000 | cut -d: -f2)
+
 # Health check
-curl http://localhost:54321/auth/v1/health
+curl http://localhost:$API_PORT/auth/v1/health
 
 # Sign up a user
-curl -X POST http://localhost:54321/auth/v1/signup \
+curl -X POST http://localhost:$API_PORT/auth/v1/signup \
   -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE" \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"TestPassword123"}'
@@ -371,7 +378,7 @@ Supabase is not a monolith - it's a collection of open-source tools:
                     └────────┬────────┘
                              │
                     ┌────────▼────────┐
-                    │   Kong (API GW) │  Port 54321
+                    │   Kong (API GW) │  Dynamic (or SUPABASE_API_PORT)
                     └────────┬────────┘
            ┌─────────────────┼─────────────────┐
            │                 │                 │
@@ -383,14 +390,14 @@ Supabase is not a monolith - it's a collection of open-source tools:
            └─────────────────┼─────────────────┘
                              │
                     ┌────────▼────────┐
-                    │   PostgreSQL    │  Port 54322
+                    │   PostgreSQL    │  Dynamic (or SUPABASE_DB_PORT)
                     │  (with pgvector,│
                     │   extensions)   │
                     └─────────────────┘
 
    Optional:
    ┌─────────────────┐
-   │  Studio (UI)    │  Port 54323
+   │  Studio (UI)    │  Dynamic (or SUPABASE_STUDIO_PORT)
    └─────────────────┘
 ```
 
@@ -501,7 +508,7 @@ Then switching is just changing `.env`:
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-cloud-key
 
-# Local
+# Local (requires SUPABASE_API_PORT=54321 in .env, or discover with docker compose port)
 NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-local-key
 ```
@@ -559,4 +566,4 @@ The API keys in `kong.yml` must match exactly what you send in the `apikey` head
 
 ### Studio shows as "unhealthy"
 
-Studio's healthcheck is strict. It usually still works - try accessing http://localhost:54323.
+Studio's healthcheck is strict. It usually still works - discover the port with `docker compose port supabase-studio 3000` and access it.
