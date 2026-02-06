@@ -110,9 +110,9 @@ jobs:
           BASE_URL: http://localhost:3000
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          TEST_USER_EMAIL: ${{ secrets.TEST_USER_PRIMARY_EMAIL }}
+          TEST_USER_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
-          TEST_USER_PRIMARY_EMAIL: ${{ secrets.TEST_USER_PRIMARY_EMAIL }}
+          TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
           TEST_USER_PRIMARY_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
 
       - name: Smoke test summary
@@ -169,7 +169,7 @@ jobs:
           SKIP_WEBSERVER: true
           BASE_URL: http://localhost:3000
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          TEST_USER_PRIMARY_EMAIL: ${{ secrets.TEST_USER_PRIMARY_EMAIL }}
+          TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
           TEST_USER_PRIMARY_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
 
       - name: Upload auth state
@@ -253,13 +253,13 @@ jobs:
           DEBUG: pw:api
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          TEST_USER_EMAIL: ${{ secrets.TEST_USER_PRIMARY_EMAIL }}
+          TEST_USER_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
-          TEST_USER_PRIMARY_EMAIL: ${{ secrets.TEST_USER_PRIMARY_EMAIL }}
+          TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
           TEST_USER_PRIMARY_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
-          TEST_USER_SECONDARY_EMAIL: ${{ secrets.TEST_USER_SECONDARY_EMAIL }}
+          TEST_USER_SECONDARY_EMAIL: ${{ vars.TEST_USER_SECONDARY_EMAIL }}
           TEST_USER_SECONDARY_PASSWORD: ${{ secrets.TEST_USER_SECONDARY_PASSWORD }}
-          TEST_USER_TERTIARY_EMAIL: ${{ secrets.TEST_USER_TERTIARY_EMAIL }}
+          TEST_USER_TERTIARY_EMAIL: ${{ vars.TEST_USER_TERTIARY_EMAIL }}
           TEST_USER_TERTIARY_PASSWORD: ${{ secrets.TEST_USER_TERTIARY_PASSWORD }}
 
       - name: Upload blob report
