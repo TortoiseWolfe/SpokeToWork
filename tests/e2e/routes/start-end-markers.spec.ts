@@ -38,6 +38,13 @@ function addConsoleListener(page: Page) {
 }
 
 test.describe('Start/End Markers - Full Flow', () => {
+  // Requires MapLibre GL (WebGL/GPU) for map rendering and live Supabase
+  // route data. Neither is available in headless CI against the static export.
+  test.skip(
+    !!process.env.CI,
+    'MapLibre GL requires WebGL/GPU not available in headless CI; also needs live Supabase route data'
+  );
+
   // Apply authenticated storage state and desktop viewport
   test.use({
     storageState: AUTH_FILE,

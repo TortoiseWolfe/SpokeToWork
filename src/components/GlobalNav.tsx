@@ -142,7 +142,10 @@ function GlobalNavComponent() {
   ];
 
   return (
-    <nav className="border-base-300 bg-base-100/95 sticky top-0 z-50 w-full max-w-full border-b shadow-sm backdrop-blur-md">
+    <nav
+      aria-label="Site navigation"
+      className="border-base-300 bg-base-100/95 sticky top-0 z-50 w-full max-w-full border-b shadow-sm backdrop-blur-md"
+    >
       <div className="container mx-auto max-w-full px-4">
         <div className="flex h-16 w-full max-w-full items-center justify-between">
           {/* Logo & Brand */}
@@ -165,7 +168,10 @@ function GlobalNavComponent() {
           </div>
 
           {/* Main Navigation */}
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav
+            aria-label="Primary links"
+            className="hidden items-center gap-1 md:flex"
+          >
             {navItems.map((item) => (
               <Link
                 key={item.href}
@@ -245,7 +251,7 @@ function GlobalNavComponent() {
             {/* Auth Buttons */}
             {user ? (
               <div className="dropdown dropdown-end">
-                <label
+                <button
                   tabIndex={0}
                   className="btn btn-ghost btn-circle avatar min-h-11 min-w-11"
                   aria-label="User account menu"
@@ -259,7 +265,7 @@ function GlobalNavComponent() {
                     displayName={profile?.display_name || user.email || 'User'}
                     size="sm"
                   />
-                </label>
+                </button>
                 <ul
                   tabIndex={0}
                   className="menu menu-sm dropdown-content bg-base-100 rounded-box -right-2 z-[1] mt-3 w-48 max-w-[calc(100%-4rem)] p-2 shadow sm:w-52"
@@ -331,7 +337,7 @@ function GlobalNavComponent() {
 
             {/* Mobile Menu - 44px touch target */}
             <div className="dropdown dropdown-end md:hidden">
-              <label
+              <button
                 tabIndex={0}
                 className="btn btn-ghost btn-circle min-h-11 min-w-11"
                 aria-label="Navigation menu"
@@ -350,7 +356,7 @@ function GlobalNavComponent() {
                     d="M4 6h16M4 12h16M4 18h16"
                   />
                 </svg>
-              </label>
+              </button>
               <ul
                 tabIndex={0}
                 className="menu menu-sm dropdown-content bg-base-100 rounded-box -right-2 z-[1] mt-3 w-40 max-w-[calc(100%-4rem)] p-2 shadow sm:w-44"
@@ -462,7 +468,7 @@ function GlobalNavComponent() {
 
             {/* Theme Selector - Mobile-first touch targets */}
             <div className="dropdown dropdown-end">
-              <label
+              <button
                 tabIndex={0}
                 className="btn btn-ghost btn-circle min-h-11 min-w-11"
                 title="Change theme"
@@ -482,7 +488,7 @@ function GlobalNavComponent() {
                     d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"
                   />
                 </svg>
-              </label>
+              </button>
               <ul
                 tabIndex={0}
                 className="dropdown-content bg-base-100 rounded-box z-[1] max-h-96 w-44 max-w-[calc(100%-4rem)] overflow-y-auto p-2 shadow-lg sm:w-52"

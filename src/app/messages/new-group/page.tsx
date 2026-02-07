@@ -131,7 +131,7 @@ function NewGroupContent() {
       </header>
 
       {/* Main Content - Scrollable */}
-      <main className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-lg p-4">
           {/* Group Name Input */}
           <div className="form-control mb-6">
@@ -389,7 +389,7 @@ function NewGroupContent() {
             </div>
           )}
         </div>
-      </main>
+      </div>
 
       {/* Sticky Footer */}
       <footer className="border-base-300 bg-base-100 shrink-0 border-t p-4">

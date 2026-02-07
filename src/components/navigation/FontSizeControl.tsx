@@ -10,10 +10,11 @@ export function FontSizeControl() {
 
   return (
     <div className="dropdown dropdown-end">
-      <label
+      <button
         tabIndex={0}
         className="btn btn-ghost btn-circle min-h-11 min-w-11"
         title="Text size and spacing"
+        aria-label="Text size and spacing"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -29,18 +30,18 @@ export function FontSizeControl() {
             d="M4 6h16M4 12h12m-6 6h6"
           />
         </svg>
-      </label>
+      </button>
       <div
         tabIndex={0}
         className="dropdown-content bg-base-100 rounded-box z-[1] w-56 max-w-[calc(100vw-2rem)] p-4 shadow-lg sm:w-72"
       >
-        <h3 className="mb-3 text-sm font-semibold tracking-wide uppercase opacity-70">
+        <h3 className="mb-3 text-sm font-semibold tracking-wide uppercase opacity-90">
           Text Settings
         </h3>
 
         {/* Font Size */}
         <div className="mb-4">
-          <label className="mb-2 block text-xs font-medium opacity-60">
+          <label className="mb-2 block text-xs font-medium opacity-90">
             Size
           </label>
           <div className="btn-group btn-group-horizontal w-full">
@@ -69,7 +70,7 @@ export function FontSizeControl() {
 
         {/* Line Height */}
         <div className="mb-4">
-          <label className="mb-2 block text-xs font-medium opacity-60">
+          <label className="mb-2 block text-xs font-medium opacity-90">
             Spacing
           </label>
           <div className="btn-group btn-group-horizontal w-full">

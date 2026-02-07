@@ -150,7 +150,7 @@ export const ColorblindToggle: React.FC<ColorblindToggleProps> = ({
                   aria-label="Toggle pattern overlays"
                 />
               </label>
-              <span className="label-text-alt">
+              <span className="text-sm opacity-90">
                 Adds patterns to help distinguish colors
               </span>
             </div>

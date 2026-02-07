@@ -124,10 +124,18 @@ export default function RootLayout({
           <AuthProvider>
             <ActiveRouteProvider>
               <AccessibilityProvider>
-                <GlobalNav />
+                <a
+                  href="#main"
+                  className="focus:bg-base-100 focus:text-base-content sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4"
+                >
+                  Skip to main content
+                </a>
+                <header>
+                  <GlobalNav />
+                </header>
                 {/* <CountdownBanner /> */}
                 <ErrorBoundary level="page">
-                  <main className="min-h-0 flex-1 overflow-hidden">
+                  <main id="main" className="min-h-0 flex-1 overflow-hidden">
                     {children}
                   </main>
                 </ErrorBoundary>

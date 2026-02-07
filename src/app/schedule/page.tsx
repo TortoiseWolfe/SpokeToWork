@@ -16,7 +16,7 @@ const CalendarEmbed = dynamic(
 
 export default function SchedulePage() {
   return (
-    <main className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8">
       <div className="mx-auto max-w-7xl">
         {/* Two-column layout on desktop, stacked on mobile */}
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-12">
@@ -123,6 +123,6 @@ export default function SchedulePage() {
           </section>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

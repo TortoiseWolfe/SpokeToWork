@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 export default function PrivacyControlsPage() {
   return (
-    <main className="container mx-auto max-w-4xl px-4 py-6 sm:py-8 md:py-12">
+    <div className="container mx-auto max-w-4xl px-4 py-6 sm:py-8 md:py-12">
       <header>
         <h1 className="mb-8 !text-2xl font-bold sm:!text-4xl md:!text-5xl">
           Privacy Controls
@@ -34,6 +34,6 @@ export default function PrivacyControlsPage() {
           Cookie Policy
         </Link>
       </nav>
-    </main>
+    </div>
   );
 }

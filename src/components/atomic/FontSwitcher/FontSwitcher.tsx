@@ -60,17 +60,16 @@ export const FontSwitcher: React.FC<FontSwitcherProps> = ({
 
   return (
     <div className={`dropdown dropdown-end ${className}`} ref={dropdownRef}>
-      <label
+      <button
         tabIndex={0}
         className="btn btn-ghost gap-2"
         aria-label="Font Selection"
-        role="button"
       >
         <FontIcon className="h-5 w-5" />
         <span className="hidden sm:inline">
           {currentFontConfig?.name || 'Select Font'}
         </span>
-      </label>
+      </button>
       <div
         tabIndex={0}
         className="dropdown-content menu card card-compact bg-base-100 z-[100] mt-2 w-80 p-4 shadow-xl"
@@ -81,7 +80,7 @@ export const FontSwitcher: React.FC<FontSwitcherProps> = ({
           {/* Recent fonts section */}
           {recentFontObjects.length > 0 && (
             <>
-              <div className="text-sm font-semibold opacity-60">Recent</div>
+              <div className="text-sm font-semibold opacity-90">Recent</div>
               <div
                 className="mb-3 space-y-1"
                 role="listbox"
@@ -103,7 +102,7 @@ export const FontSwitcher: React.FC<FontSwitcherProps> = ({
           )}
 
           {/* All fonts */}
-          <div className="text-sm font-semibold opacity-60">All Fonts</div>
+          <div className="text-sm font-semibold opacity-90">All Fonts</div>
           <div className="space-y-1" role="listbox" aria-label="Font options">
             {otherFonts.map((font, index) => (
               <FontOption
@@ -169,11 +168,10 @@ const FontOption: React.FC<FontOptionProps> = ({
 
   return (
     <button
-      role="option"
-      aria-selected={isActive ? 'true' : 'false'}
       data-font-index={dataIndex}
       onClick={() => onSelect(font.id)}
       onKeyDown={handleKeyDown}
+      aria-label={`Select ${font.name} font${isActive ? ' (currently selected)' : ''}`}
       className={`hover:bg-base-200 w-full rounded-lg p-3 text-left transition-colors ${
         isActive ? 'bg-primary text-primary-content active' : ''
       }`}
@@ -187,7 +185,7 @@ const FontOption: React.FC<FontOptionProps> = ({
               <span className="loading loading-spinner loading-xs"></span>
             )}
           </div>
-          <div className="mt-1 text-sm opacity-60">{font.description}</div>
+          <div className="mt-1 text-sm opacity-90">{font.description}</div>
         </div>
         {font.accessibility && (
           <span className="badge badge-success badge-sm mt-1">
