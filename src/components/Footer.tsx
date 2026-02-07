@@ -7,7 +7,7 @@ export function Footer() {
         <p className="text-base-content/60 text-sm leading-relaxed">
           SpokeToWork &copy; {new Date().getFullYear()}
         </p>
-        <p className="text-base-content/40 mt-1 text-xs">
+        <p className="text-base-content/70 mt-1 text-xs">
           Open source template available at{' '}
           <a
             href="https://scripthammer.com"

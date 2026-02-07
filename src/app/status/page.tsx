@@ -758,7 +758,7 @@ export default function StatusPage() {
   const pwaTestSummary = pwaTester.getTestSummary();
 
   return (
-    <main className="bg-base-200 min-h-screen overflow-x-hidden p-2 sm:p-4 md:p-6 lg:p-8">
+    <div className="bg-base-200 min-h-screen overflow-x-hidden p-2 sm:p-4 md:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-4 sm:mb-6 md:mb-8">
           <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
@@ -2601,6 +2601,6 @@ export default function StatusPage() {
           )}
         </Card>
       </div>
-    </main>
+    </div>
   );
 }

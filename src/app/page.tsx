@@ -28,7 +28,7 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="from-base-200 via-base-100 to-base-200 flex h-[calc(100vh-10rem)] flex-col overflow-x-hidden overflow-y-auto bg-gradient-to-br">
+    <div className="from-base-200 via-base-100 to-base-200 flex h-[calc(100vh-10rem)] flex-col overflow-x-hidden overflow-y-auto bg-gradient-to-br">
       {/* Skip to main content for accessibility - mobile-first touch target (PRP-017 T036) */}
       <a
         href="#main-content"
@@ -305,6 +305,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-    </main>
+    </div>
   );
 }

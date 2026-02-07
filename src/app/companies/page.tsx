@@ -1222,7 +1222,7 @@ ${rows}
       )}
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto">
         <div className="container mx-auto px-4 py-8">
           {/* Header */}
           <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
@@ -1619,7 +1619,7 @@ ${rows}
             generateRouteGeometry={generateRouteGeometry}
           />
         </div>
-      </main>
+      </div>
     </div>
   );
 }

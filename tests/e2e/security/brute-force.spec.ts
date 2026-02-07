@@ -5,6 +5,15 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Brute Force Prevention - REQ-SEC-003', () => {
+  // Requires live Supabase backend for server-side rate limiting.
+  // The static export has no backend — auth calls return generic errors,
+  // never the rate-limit/lockout messages these tests assert on.
+  test.skip(
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      process.env.NEXT_PUBLIC_SUPABASE_URL.includes('localhost'),
+    'Requires live Supabase rate-limiting — not available against placeholder/local URL'
+  );
+
   const testEmail = `brute-force-test-${Date.now()}@mailinator.com`;
   const wrongPassword = 'WrongPassword123!';
 

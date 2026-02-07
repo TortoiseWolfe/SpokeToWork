@@ -24,10 +24,10 @@ test.describe('Accessibility', () => {
     await checkA11y(page);
   });
 
-  test('components page passes automated accessibility checks', async ({
+  test('contact page passes automated accessibility checks', async ({
     page,
   }) => {
-    await page.goto('/components');
+    await page.goto('/contact');
     await injectAxe(page);
     await checkA11y(page);
   });
@@ -72,7 +72,7 @@ test.describe('Accessibility', () => {
   });
 
   test('all form inputs have labels', async ({ page }) => {
-    await page.goto('/components');
+    await page.goto('/contact');
 
     const inputs = page
       .locator('input, select, textarea')
@@ -320,10 +320,12 @@ test.describe('Accessibility', () => {
   });
 
   test('error messages are associated with form fields', async ({ page }) => {
-    await page.goto('/components');
+    await page.goto('/contact');
 
-    // Look for error messages
-    const errorMessages = page.locator('.text-error, [role="alert"]');
+    // Look for error messages, excluding framework-injected elements (e.g. Next.js route announcer)
+    const errorMessages = page.locator(
+      '.text-error, [role="alert"]:not([id^="__"])'
+    );
     const errorCount = await errorMessages.count();
 
     for (let i = 0; i < errorCount; i++) {

@@ -12,7 +12,7 @@ export default function CommentPolicyPage() {
   const lastUpdated = '2025-01-27';
 
   return (
-    <main className="container mx-auto max-w-4xl px-4 py-6 sm:py-8 md:py-12">
+    <div className="container mx-auto max-w-4xl px-4 py-6 sm:py-8 md:py-12">
       <header>
         <h1 className="mb-6 !text-2xl font-bold sm:mb-8 sm:!text-4xl md:!text-5xl">
           Comment Policy
@@ -207,6 +207,6 @@ export default function CommentPolicyPage() {
           </p>
         </section>
       </article>
-    </main>
+    </div>
   );
 }

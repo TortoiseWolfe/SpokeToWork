@@ -409,7 +409,7 @@ export default function MapPage() {
   }> = [];
 
   return (
-    <main className="flex h-[calc(100vh-4rem)] flex-col">
+    <div className="flex h-[calc(100vh-4rem)] flex-col">
       {/* Compact toolbar */}
       <div className="bg-base-100 flex flex-wrap items-center gap-2 px-2 py-1 shadow-sm">
         <LocationButton
@@ -494,6 +494,6 @@ export default function MapPage() {
         description="We'd like to use your location to show you on the map and help you explore nearby places."
         privacyPolicyUrl="/privacy"
       />
-    </main>
+    </div>
   );
 }

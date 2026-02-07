@@ -285,19 +285,19 @@ test.describe('Cross-Page Navigation', () => {
     await page.setViewportSize({ width: 375, height: 667 });
     await page.goto('/');
 
-    // Look for mobile menu button (hamburger)
-    const menuButton = page.locator(
-      'button[aria-label*="menu"], button.hamburger, button:has-text("☰")'
-    );
+    // GlobalNav uses a DaisyUI dropdown with a <label> (not <button>) for the hamburger.
+    // The label has aria-label="Navigation menu"; the dropdown content uses .dropdown-content.
+    const menuButton = page.locator('[aria-label="Navigation menu"]');
     const hasMenuButton = (await menuButton.count()) > 0;
 
     if (hasMenuButton) {
       // Open mobile menu
       await menuButton.click();
 
-      // Check menu is visible
+      // The nav dropdown-content is a sibling of the label inside the same
+      // dropdown div. Use the sibling combinator to uniquely target it.
       const mobileNav = page.locator(
-        '.drawer-side, .mobile-menu, [class*="mobile-nav"]'
+        '[aria-label="Navigation menu"] ~ .dropdown-content'
       );
       await expect(mobileNav).toBeVisible();
 

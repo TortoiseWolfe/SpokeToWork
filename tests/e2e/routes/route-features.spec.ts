@@ -20,6 +20,14 @@ import {
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 const AUTH_FILE = getAuthStatePath();
 
+// Requires live Supabase route data and authenticated session.
+// In headless CI against the static export the companies table never loads,
+// causing waitForTable() to time out before the inner conditional skips fire.
+test.skip(
+  !!process.env.CI,
+  'Requires live Supabase route data — not available in headless CI against static export'
+);
+
 // Helper to check if current viewport is desktop (lg breakpoint = 1024px)
 function isDesktopViewport(page: Page): boolean {
   const viewportWidth = page.viewportSize()?.width ?? 0;

@@ -9,10 +9,20 @@ import { test, expect } from '@playwright/test';
  * Tests keyboard navigation through form fields.
  */
 test.describe('Contact Form - Keyboard Navigation', () => {
+  // Use base (unauthenticated) storage state. The contact page is public and
+  // does not require auth. Running with storage-state-auth.json causes
+  // AuthContext to validate the session against the placeholder Supabase URL,
+  // which fails on static export and redirects the page to /, making the form
+  // unreachable.
+  test.use({
+    storageState: './tests/e2e/fixtures/storage-state.json',
+  });
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/contact');
-    // Wait for the form to be fully rendered
+    // Wait for the form to be fully rendered and hydration to settle
     await page.waitForSelector('form[aria-label="Contact form"]');
+    await page.waitForLoadState('networkidle');
   });
 
   test('form fields should be keyboard focusable', async ({ page }) => {
