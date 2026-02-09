@@ -15,7 +15,7 @@ export default function DocsPage() {
       description: 'Quick setup and installation guide',
       links: [
         {
-          href: 'https://github.com/TortoiseWolfe/SpokeToWork_v_001/blob/main/README.md',
+          href: 'https://github.com/TortoiseWolfe/SpokeToWork/blob/main/README.md',
           label: 'README',
           external: true,
         },
@@ -25,7 +25,7 @@ export default function DocsPage() {
           external: false,
         },
         {
-          href: 'https://github.com/TortoiseWolfe/SpokeToWork_v_001#quick-start',
+          href: 'https://github.com/TortoiseWolfe/SpokeToWork#quick-start',
           label: 'Quick Start',
           external: true,
         },
@@ -36,17 +36,17 @@ export default function DocsPage() {
       description: 'Comprehensive development documentation',
       links: [
         {
-          href: 'https://github.com/TortoiseWolfe/SpokeToWork_v_001/blob/main/CLAUDE.md',
+          href: 'https://github.com/TortoiseWolfe/SpokeToWork/blob/main/CLAUDE.md',
           label: 'CLAUDE.md - AI Development Guide',
           external: true,
         },
         {
-          href: 'https://github.com/TortoiseWolfe/SpokeToWork_v_001/blob/main/docs/FORKING-GUIDE.md',
+          href: 'https://github.com/TortoiseWolfe/SpokeToWork/blob/main/docs/FORKING-GUIDE.md',
           label: 'Forking Guide',
           external: true,
         },
         {
-          href: 'https://github.com/TortoiseWolfe/SpokeToWork_v_001/blob/main/docs/CREATING_COMPONENTS.md',
+          href: 'https://github.com/TortoiseWolfe/SpokeToWork/blob/main/docs/CREATING_COMPONENTS.md',
           label: 'Component Creation',
           external: true,
         },
@@ -57,17 +57,17 @@ export default function DocsPage() {
       description: 'Technical architecture and patterns',
       links: [
         {
-          href: 'https://github.com/TortoiseWolfe/SpokeToWork_v_001/blob/main/docs/project/TESTING.md',
+          href: 'https://github.com/TortoiseWolfe/SpokeToWork/blob/main/docs/project/TESTING.md',
           label: 'Testing Strategy',
           external: true,
         },
         {
-          href: 'https://github.com/TortoiseWolfe/SpokeToWork_v_001/blob/main/docs/ACCESSIBILITY.md',
+          href: 'https://github.com/TortoiseWolfe/SpokeToWork/blob/main/docs/ACCESSIBILITY.md',
           label: 'Accessibility Guide',
           external: true,
         },
         {
-          href: 'https://github.com/TortoiseWolfe/SpokeToWork_v_001/blob/main/docs/PWA.md',
+          href: 'https://github.com/TortoiseWolfe/SpokeToWork/blob/main/docs/PWA.md',
           label: 'PWA Implementation',
           external: true,
         },
@@ -78,17 +78,17 @@ export default function DocsPage() {
       description: 'Development workflows and methodologies',
       links: [
         {
-          href: 'https://github.com/TortoiseWolfe/SpokeToWork_v_001/blob/main/docs/PRP-EXECUTION-GUIDE.md',
+          href: 'https://github.com/TortoiseWolfe/SpokeToWork/blob/main/docs/PRP-EXECUTION-GUIDE.md',
           label: 'PRP Workflow',
           external: true,
         },
         {
-          href: 'https://github.com/TortoiseWolfe/SpokeToWork_v_001/blob/main/docs/prp-docs/SPECKIT-PRP-GUIDE.md',
+          href: 'https://github.com/TortoiseWolfe/SpokeToWork/blob/main/docs/prp-docs/SPECKIT-PRP-GUIDE.md',
           label: 'Spec Kit Workflow Guide',
           external: true,
         },
         {
-          href: 'https://github.com/TortoiseWolfe/SpokeToWork_v_001/tree/main/docs/spec-kit',
+          href: 'https://github.com/TortoiseWolfe/SpokeToWork/tree/main/docs/spec-kit',
           label: 'Spec Kit Documentation',
           external: true,
         },
@@ -99,22 +99,22 @@ export default function DocsPage() {
       description: 'Project status and roadmaps',
       links: [
         {
-          href: 'https://github.com/TortoiseWolfe/SpokeToWork_v_001/blob/main/docs/project/CHANGELOG.md',
+          href: 'https://github.com/TortoiseWolfe/SpokeToWork/blob/main/docs/project/CHANGELOG.md',
           label: 'Changelog',
           external: true,
         },
         {
-          href: 'https://github.com/TortoiseWolfe/SpokeToWork_v_001/blob/main/docs/project/CONTRIBUTING.md',
+          href: 'https://github.com/TortoiseWolfe/SpokeToWork/blob/main/docs/project/CONTRIBUTING.md',
           label: 'Contributing Guide',
           external: true,
         },
         {
-          href: 'https://github.com/TortoiseWolfe/SpokeToWork_v_001/blob/main/docs/project/SECURITY.md',
+          href: 'https://github.com/TortoiseWolfe/SpokeToWork/blob/main/docs/project/SECURITY.md',
           label: 'Security Policy',
           external: true,
         },
         {
-          href: 'https://github.com/TortoiseWolfe/SpokeToWork_v_001/blob/main/docs/project/SPRINT-4-ROADMAP.md',
+          href: 'https://github.com/TortoiseWolfe/SpokeToWork/blob/main/docs/project/SPRINT-4-ROADMAP.md',
           label: 'Sprint 4 Roadmap',
           external: true,
         },
@@ -125,7 +125,7 @@ export default function DocsPage() {
       description: 'Related tools and resources',
       links: [
         {
-          href: 'https://github.com/TortoiseWolfe/SpokeToWork_v_001',
+          href: 'https://github.com/TortoiseWolfe/SpokeToWork',
           label: 'GitHub Repository',
           external: true,
         },
@@ -220,7 +220,7 @@ export default function DocsPage() {
           </p>
           <div className="flex flex-wrap gap-4">
             <a
-              href="https://github.com/TortoiseWolfe/SpokeToWork_v_001/issues"
+              href="https://github.com/TortoiseWolfe/SpokeToWork/issues"
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-primary min-h-11 min-w-11"
@@ -228,7 +228,7 @@ export default function DocsPage() {
               Report an Issue
             </a>
             <a
-              href="https://github.com/TortoiseWolfe/SpokeToWork_v_001/discussions"
+              href="https://github.com/TortoiseWolfe/SpokeToWork/discussions"
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-outline min-h-11 min-w-11"
