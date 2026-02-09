@@ -1,4 +1,4 @@
-# Development Dockerfile for ScriptHammer
+# Development Dockerfile for SpokeToWork
 FROM node:22-slim AS base
 
 # Install pnpm and configure store
