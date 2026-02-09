@@ -108,17 +108,28 @@ docker compose exec spoketowork pnpm run prime
 
 Self-hosted Supabase runs in Docker for offline development. Uses Docker Compose profiles - only starts when requested.
 
-**Start local Supabase:**
+**Start local Supabase (with working auth):**
 
 ```bash
-docker compose --profile supabase up
+./scripts/supabase-up.sh
+```
+
+This two-phase script starts all services, discovers the OS-assigned ports, then restarts GoTrue with correct browser-facing URLs. Auth will not work if you skip this and run `docker compose --profile supabase up` directly.
+
+**DO NOT** edit `API_EXTERNAL_URL` or `GOTRUE_SITE_URL` in docker-compose.yml. These are set dynamically by the startup script. A hookify rule will warn if you try.
+
+**For multi-instance (A/B eval):**
+
+```bash
+COMPOSE_PROJECT_NAME=model-a ./scripts/supabase-up.sh
+COMPOSE_PROJECT_NAME=model-b ./scripts/supabase-up.sh
 ```
 
 **Access local services (ports are dynamic by default):**
 
-- API: `docker compose port supabase-kong 8000` (pin via SUPABASE_API_PORT in .env)
-- Studio: `docker compose port supabase-studio 3000` (pin via SUPABASE_STUDIO_PORT in .env)
-- Database: `docker compose port supabase-db 5432` (pin via SUPABASE_DB_PORT in .env; user: supabase_admin)
+- API: `docker compose port supabase-kong 8000`
+- Studio: `docker compose port supabase-studio 3000`
+- Database: `docker compose port supabase-db 5432` (user: supabase_admin)
 
 **Switch app to local Supabase:**
 
