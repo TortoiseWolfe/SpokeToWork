@@ -110,7 +110,7 @@ export default function ContactPage() {
               </h3>
               <div className="space-y-2">
                 <a
-                  href="https://github.com/TortoiseWolfe/SpokeToWork_v_001/issues"
+                  href="https://github.com/TortoiseWolfe/SpokeToWork/issues"
                   className="link link-primary flex items-center"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -125,7 +125,7 @@ export default function ContactPage() {
                   GitHub Issues
                 </a>
                 <a
-                  href="https://github.com/TortoiseWolfe/SpokeToWork_v_001/discussions"
+                  href="https://github.com/TortoiseWolfe/SpokeToWork/discussions"
                   className="link link-primary flex items-center"
                   target="_blank"
                   rel="noopener noreferrer"

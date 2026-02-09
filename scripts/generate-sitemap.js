@@ -6,7 +6,7 @@ const matter = require('gray-matter');
 
 const BLOG_DIR = path.join(process.cwd(), 'blog');
 const PUBLIC_DIR = path.join(process.cwd(), 'public');
-const SITE_URL = 'https://TortoiseWolfe.github.io/SpokeToWork_v_001';
+const SITE_URL = 'https://TortoiseWolfe.github.io/SpokeToWork';
 
 // Static pages in the application
 const staticPages = [
