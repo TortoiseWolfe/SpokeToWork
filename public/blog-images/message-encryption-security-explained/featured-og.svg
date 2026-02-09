@@ -66,6 +66,6 @@
 
   <!-- Bottom badge -->
   <text x="600" y="585" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" fill="white" opacity="0.6">
-    ScriptHammer Blog
+    SpokeToWork Blog
   </text>
 </svg>

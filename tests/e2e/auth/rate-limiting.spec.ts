@@ -10,7 +10,7 @@ import { test, expect } from '@playwright/test';
  * These tests verify the user experience when rate limiting is triggered.
  * They test the actual UI behavior in a real browser.
  *
- * IMPORTANT: Following ScriptHammer testing patterns:
+ * IMPORTANT: Following established testing patterns:
  * - Tests run in SERIAL mode (not parallel)
  * - First test triggers rate limit with shared email
  * - Subsequent tests verify the ALREADY triggered rate limit
