@@ -136,8 +136,11 @@ test.describe('Session Persistence E2E', () => {
 
     // Tokens might be same if not near expiry, but refresh mechanism should exist
     // The important part is that navigation doesn't break authentication
-    await expect(page).toHaveURL('/profile');
-    await expect(page.getByText(testUser.email)).toBeVisible();
+    await expect(page).toHaveURL(/\/profile/);
+    // Email appears in multiple places (nav, card title, card body) — target heading
+    await expect(
+      page.getByRole('heading', { name: testUser.email })
+    ).toBeVisible();
 
     // Sign out
     await signOut(page);
@@ -173,8 +176,10 @@ test.describe('Session Persistence E2E', () => {
     await newPage.goto('/profile');
 
     // Verify still authenticated
-    await expect(newPage).toHaveURL('/profile');
-    await expect(newPage.getByText(testUser.email)).toBeVisible();
+    await expect(newPage).toHaveURL(/\/profile/);
+    await expect(
+      newPage.getByRole('heading', { name: testUser.email })
+    ).toBeVisible();
 
     await newContext.close();
   });
@@ -195,6 +200,8 @@ test.describe('Session Persistence E2E', () => {
 
     // Sign out (with verify: false since we verify manually below)
     await signOut(page, { verify: false });
+    // Wait for page to fully settle after sign-out navigation (window.location.href = '/')
+    await page.waitForLoadState('networkidle');
 
     // Verify session cleared from storage
     const afterSignOut = await page.evaluate(() =>
@@ -232,17 +239,22 @@ test.describe('Session Persistence E2E', () => {
 
     // Page 2 should also be authenticated (shared storage)
     await page2.goto('/profile');
-    await expect(page2).toHaveURL('/profile');
-    await expect(page2.getByText(testUser.email)).toBeVisible();
+    await expect(page2).toHaveURL(/\/profile/);
+    await expect(
+      page2.getByRole('heading', { name: testUser.email })
+    ).toBeVisible();
 
     // Sign out on page 1 (using signOut helper with page1)
     await signOut(page1, { verify: false });
 
-    // Page 2 should detect sign out (if using realtime sync)
-    // Note: This depends on implementation - may require page reload
-    await page2.reload();
-    await page2.waitForURL(/\/sign-in/);
-    await expect(page2).toHaveURL(/\/sign-in/);
+    // Page 2 detects sign out via cross-tab SIGNED_OUT event (FR-009)
+    // AuthContext.onAuthStateChange redirects to home '/', not '/sign-in'
+    await page2.waitForURL(
+      (url) => url.pathname === '/' || url.pathname.includes('/sign-in'),
+      { timeout: 10000 }
+    );
+    // Verify we're no longer on the profile page
+    await expect(page2).not.toHaveURL(/\/profile/);
 
     await context.close();
   });
@@ -260,12 +272,14 @@ test.describe('Session Persistence E2E', () => {
     // Reload page
     await page.reload();
 
-    // Verify still authenticated
-    await expect(page.getByText(testUser.email)).toBeVisible();
+    // Verify still authenticated (email appears in nav, card title, card body — target heading)
+    await expect(
+      page.getByRole('heading', { name: testUser.email })
+    ).toBeVisible();
 
     // Navigate to another protected route
     await page.goto('/account');
-    await expect(page).toHaveURL('/account');
+    await expect(page).toHaveURL(/\/account/);
 
     // Sign out
     await signOut(page);

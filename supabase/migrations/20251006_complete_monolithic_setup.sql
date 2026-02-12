@@ -1285,11 +1285,11 @@ COMMENT ON TABLE group_keys IS 'Encrypted symmetric group keys per member per ve
 -- ============================================================================
 
 -- Admin profile for system welcome messages (Feature 002)
--- Fixed UUID: a30ac480-9050-4853-b0ae-4e3d9e24259d
+-- Fixed UUID: 00000000-0000-0000-0000-000000000001 (matches seed-test-users.ts)
 -- Only insert if admin user exists in auth.users (created via Supabase Auth)
 INSERT INTO user_profiles (id, username, display_name, welcome_message_sent)
-SELECT 'a30ac480-9050-4853-b0ae-4e3d9e24259d', 'spoketowork', 'SpokeToWork', TRUE
-WHERE EXISTS (SELECT 1 FROM auth.users WHERE id = 'a30ac480-9050-4853-b0ae-4e3d9e24259d')
+SELECT '00000000-0000-0000-0000-000000000001', 'spoketowork', 'SpokeToWork', TRUE
+WHERE EXISTS (SELECT 1 FROM auth.users WHERE id = '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================================

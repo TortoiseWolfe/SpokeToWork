@@ -2,7 +2,7 @@
 FROM mcr.microsoft.com/playwright:v1.48.0-focal
 
 # Install pnpm
-RUN npm install -g pnpm@8
+RUN npm install -g pnpm@latest
 
 WORKDIR /app
 

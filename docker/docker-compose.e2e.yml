@@ -4,6 +4,10 @@
 #
 # Discover dynamically assigned ports:
 # docker compose -f docker/docker-compose.e2e.yml port spoketowork 3000
+#
+# The spoketowork-net external network is created by the main docker-compose.yml
+# (network name: ${COMPOSE_PROJECT_NAME:-spoketowork}_SpokeToWork).
+# Both services join it so e2e-tests can reach supabase-kong for admin API calls.
 
 services:
   # Main application service
@@ -20,17 +24,22 @@ services:
       - ..:/app
       - /app/node_modules
       - /app/.next
+    env_file:
+      - ../.env
+      - path: ../.env.supabase.local
+        required: false
     environment:
       - WATCHPACK_POLLING=true
       - CHOKIDAR_USEPOLLING=true
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000/SpokeToWork']
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/']
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
     networks:
       - e2e-network
+      - spoketowork-net
 
   # E2E testing service with Playwright
   e2e-tests:
@@ -44,12 +53,18 @@ services:
       - ../tests/e2e:/app/tests/e2e
       - ../test-results:/app/test-results
       - ../playwright-report:/app/playwright-report
+    env_file:
+      - ../.env
     environment:
-      - BASE_URL=http://spoketowork:3000/SpokeToWork
+      - BASE_URL=http://spoketowork:3000
       - CI=false
       - PWDEBUG=${PWDEBUG:-0}
+      # Override to use Docker service name (container→container, not host-mapped port)
+      - NEXT_PUBLIC_SUPABASE_URL=http://supabase-kong:8000
+      - SUPABASE_INTERNAL_URL=http://supabase-kong:8000
     networks:
       - e2e-network
+      - spoketowork-net
     command: pnpm test:e2e
 
   # Optional: Playwright UI mode service
@@ -66,11 +81,16 @@ services:
       - ../tests/e2e:/app/tests/e2e
       - ../test-results:/app/test-results
       - ../playwright-report:/app/playwright-report
+    env_file:
+      - ../.env
     environment:
-      - BASE_URL=http://spoketowork:3000/SpokeToWork
+      - BASE_URL=http://spoketowork:3000
       - DISPLAY=:99
+      - NEXT_PUBLIC_SUPABASE_URL=http://supabase-kong:8000
+      - SUPABASE_INTERNAL_URL=http://supabase-kong:8000
     networks:
       - e2e-network
+      - spoketowork-net
     command: pnpm test:e2e:ui
     profiles:
       - ui
@@ -78,6 +98,10 @@ services:
 networks:
   e2e-network:
     driver: bridge
+  # External network created by the main docker-compose.yml Supabase stack
+  spoketowork-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-spoketowork}_SpokeToWork
 
 volumes:
   test-results:

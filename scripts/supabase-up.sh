@@ -30,9 +30,12 @@ if [ -z "$KONG_PORT" ]; then
   exit 1
 fi
 
-# Write dynamic Supabase config for the app container
+# Write Supabase config for the app container.
+# Use the Docker service name (supabase-kong:8000) so that Playwright/Next.js
+# running INSIDE the container can reach Supabase via the internal network.
+# Host-side browser access uses the host-mapped port printed at the end.
 cat > .env.supabase.local <<EOF
-NEXT_PUBLIC_SUPABASE_URL=http://localhost:$KONG_PORT
+NEXT_PUBLIC_SUPABASE_URL=http://supabase-kong:8000
 NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY
 EOF
 
