@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { waitForMapReady } from './utils/map-helpers';
 
 // Helper to dismiss countdown banner if present
 async function dismissBanner(page: Page) {
@@ -227,86 +228,95 @@ test.describe('Geolocation Map Page', () => {
   test('should handle map zoom controls', async ({ page }) => {
     await page.goto('/map');
     await dismissBanner(page);
-
-    // Wait for map to fully load
-    await page.waitForSelector('.maplibregl-canvas', { state: 'visible' });
-    await page.waitForTimeout(2000); // Wait for map to be fully initialized
+    await waitForMapReady(page);
 
     // Get initial zoom using map API
     const initialZoom = await page.evaluate(() => {
-      const map = (window as any).maplibreMap;
+      const map = (window as any).maplibreMap?.getMap?.();
       return map?.getZoom() ?? 13;
     });
 
     // Zoom in using map API (more reliable than clicking buttons)
     await page.evaluate(() => {
-      const map = (window as any).maplibreMap;
+      const map = (window as any).maplibreMap?.getMap?.();
       map?.zoomIn();
     });
-    await page.waitForTimeout(500);
 
-    const zoomedInLevel = await page.evaluate(() => {
-      const map = (window as any).maplibreMap;
-      return map?.getZoom();
-    });
-
-    expect(zoomedInLevel).toBeCloseTo(initialZoom + 1, 0);
+    // Poll until zoom animation completes
+    await expect
+      .poll(
+        async () =>
+          page.evaluate(() => {
+            const map = (window as any).maplibreMap?.getMap?.();
+            return Math.round(map?.getZoom() ?? 0);
+          }),
+        { message: 'Waiting for zoomIn to reach target', timeout: 5000 }
+      )
+      .toBe(Math.round(initialZoom + 1));
 
     // Zoom out using map API
     await page.evaluate(() => {
-      const map = (window as any).maplibreMap;
+      const map = (window as any).maplibreMap?.getMap?.();
       map?.zoomOut();
     });
-    await page.waitForTimeout(500);
 
-    const zoomedOutLevel = await page.evaluate(() => {
-      const map = (window as any).maplibreMap;
-      return map?.getZoom();
-    });
-
-    expect(zoomedOutLevel).toBeCloseTo(initialZoom, 0);
+    // Poll until zoom animation completes
+    await expect
+      .poll(
+        async () =>
+          page.evaluate(() => {
+            const map = (window as any).maplibreMap?.getMap?.();
+            return Math.round(map?.getZoom() ?? 0);
+          }),
+        { message: 'Waiting for zoomOut to reach target', timeout: 5000 }
+      )
+      .toBe(Math.round(initialZoom));
   });
 
   test('should handle keyboard navigation', async ({ page }) => {
     await page.goto('/map');
     await dismissBanner(page);
-
-    // Wait for map to be ready
-    await page.waitForSelector('.maplibregl-canvas', { state: 'visible' });
-    await page.waitForTimeout(1000);
+    await waitForMapReady(page);
 
     // Get initial zoom
     const initialZoom = await page.evaluate(() => {
-      const map = (window as any).maplibreMap;
+      const map = (window as any).maplibreMap?.getMap?.();
       return map?.getZoom() ?? 13;
     });
 
     // Use map API for keyboard zoom (more reliable than actual keyboard events)
     await page.evaluate(() => {
-      const map = (window as any).maplibreMap;
+      const map = (window as any).maplibreMap?.getMap?.();
       map?.zoomIn();
     });
-    await page.waitForTimeout(500);
 
-    const zoomedIn = await page.evaluate(() => {
-      const map = (window as any).maplibreMap;
-      return map?.getZoom();
-    });
-
-    expect(zoomedIn).toBeCloseTo(initialZoom + 1, 0);
+    // Poll until zoom reaches expected value (animation-safe)
+    await expect
+      .poll(
+        async () =>
+          page.evaluate(() => {
+            const map = (window as any).maplibreMap?.getMap?.();
+            return Math.round(map?.getZoom() ?? 0);
+          }),
+        { message: 'Waiting for zoomIn to reach target', timeout: 5000 }
+      )
+      .toBe(Math.round(initialZoom + 1));
 
     await page.evaluate(() => {
-      const map = (window as any).maplibreMap;
+      const map = (window as any).maplibreMap?.getMap?.();
       map?.zoomOut();
     });
-    await page.waitForTimeout(500);
 
-    const zoomedOut = await page.evaluate(() => {
-      const map = (window as any).maplibreMap;
-      return map?.getZoom();
-    });
-
-    expect(zoomedOut).toBeCloseTo(initialZoom, 0);
+    await expect
+      .poll(
+        async () =>
+          page.evaluate(() => {
+            const map = (window as any).maplibreMap?.getMap?.();
+            return Math.round(map?.getZoom() ?? 0);
+          }),
+        { message: 'Waiting for zoomOut to reach target', timeout: 5000 }
+      )
+      .toBe(Math.round(initialZoom));
   });
 
   test('should be responsive on mobile', async ({ page }) => {
@@ -328,28 +338,37 @@ test.describe('Geolocation Map Page', () => {
   test('should handle map pan gestures', async ({ page }) => {
     await page.goto('/map');
     await dismissBanner(page);
-
-    // Wait for map to be ready
-    await page.waitForSelector('.maplibregl-canvas', { state: 'visible' });
-    await page.waitForTimeout(1000);
+    await waitForMapReady(page);
 
     // Get initial center
     const initialCenter = await page.evaluate(() => {
-      const map = (window as any).maplibreMap;
+      const map = (window as any).maplibreMap?.getMap?.();
       const center = map?.getCenter();
       return center ? { lat: center.lat, lng: center.lng } : null;
     });
 
     // Use map API to pan (more reliable than drag simulation)
     await page.evaluate(() => {
-      const map = (window as any).maplibreMap;
+      const map = (window as any).maplibreMap?.getMap?.();
       map?.panBy([100, 100], { duration: 0 });
     });
-    await page.waitForTimeout(500);
+
+    // Poll until center has changed (pan with duration:0 is near-instant but not synchronous)
+    await expect
+      .poll(
+        async () =>
+          page.evaluate((prevLat) => {
+            const map = (window as any).maplibreMap?.getMap?.();
+            const center = map?.getCenter();
+            return center ? center.lat !== prevLat : false;
+          }, initialCenter?.lat),
+        { message: 'Waiting for pan to complete', timeout: 5000 }
+      )
+      .toBe(true);
 
     // Center should have changed
     const newCenter = await page.evaluate(() => {
-      const map = (window as any).maplibreMap;
+      const map = (window as any).maplibreMap?.getMap?.();
       const center = map?.getCenter();
       return center ? { lat: center.lat, lng: center.lng } : null;
     });
@@ -384,20 +403,30 @@ test.describe('Geolocation Map Page', () => {
   });
 
   test('should handle dark mode theme', async ({ page }) => {
-    // Set dark theme
     await page.goto('/map');
+    await waitForMapReady(page);
+
+    // Set dark theme
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
 
-    // Wait for theme to apply
-    await page.waitForTimeout(500);
+    // Wait for style reload after theme change
+    await expect
+      .poll(
+        async () =>
+          page.evaluate(() => {
+            const map = (window as any).maplibreMap?.getMap?.();
+            return map ? map.isStyleLoaded() : false;
+          }),
+        { message: 'Waiting for dark theme style to load', timeout: 10000 }
+      )
+      .toBe(true);
 
     // Map canvas should still be visible after theme change
     await expect(page.locator('.maplibregl-canvas')).toBeVisible();
 
     // MapLibre uses different styles for dark mode (handled via useMapTheme hook)
-    // The map style JSON changes, not control backgrounds
     const canvasExists = await page.locator('.maplibregl-canvas').count();
     expect(canvasExists).toBe(1);
   });
@@ -407,10 +436,7 @@ test.describe('Geolocation Map Page', () => {
   }) => {
     await page.goto('/map');
     await dismissBanner(page);
-
-    // Wait for map and bike routes to load
-    await page.waitForSelector('.maplibregl-canvas', { state: 'visible' });
-    await page.waitForTimeout(3000); // Wait for GeoJSON to load
+    await waitForMapReady(page);
 
     // Collect console errors
     const consoleErrors: string[] = [];
@@ -427,11 +453,20 @@ test.describe('Geolocation Map Page', () => {
     });
     expect(hasRoutesInitial).toBe(true);
 
-    // Toggle to dark theme
+    // Toggle to dark theme and wait for style reload
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
-    await page.waitForTimeout(2000); // Wait for style change
+    await expect
+      .poll(
+        async () =>
+          page.evaluate(() => {
+            const map = (window as any).maplibreMap?.getMap?.();
+            return map ? map.isStyleLoaded() : false;
+          }),
+        { message: 'Waiting for dark theme style to load', timeout: 10000 }
+      )
+      .toBe(true);
 
     // Verify bike routes still exist after theme toggle
     const hasRoutesAfterDark = await page.evaluate(() => {
@@ -440,11 +475,20 @@ test.describe('Geolocation Map Page', () => {
     });
     expect(hasRoutesAfterDark).toBe(true);
 
-    // Toggle back to light theme
+    // Toggle back to light theme and wait for style reload
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'light');
     });
-    await page.waitForTimeout(2000);
+    await expect
+      .poll(
+        async () =>
+          page.evaluate(() => {
+            const map = (window as any).maplibreMap?.getMap?.();
+            return map ? map.isStyleLoaded() : false;
+          }),
+        { message: 'Waiting for light theme style to load', timeout: 10000 }
+      )
+      .toBe(true);
 
     // Verify bike routes still exist
     const hasRoutesAfterLight = await page.evaluate(() => {
@@ -463,12 +507,10 @@ test.describe('Geolocation Map Page', () => {
   test('should survive 10 consecutive theme toggles (SC-001)', async ({
     page,
   }) => {
+    test.setTimeout(60000); // 10 style reloads with proper polling needs >30s
     await page.goto('/map');
     await dismissBanner(page);
-
-    // Wait for map to fully load
-    await page.waitForSelector('.maplibregl-canvas', { state: 'visible' });
-    await page.waitForTimeout(3000);
+    await waitForMapReady(page);
 
     // Verify initial state
     const hasRoutesInitial = await page.evaluate(() => {
@@ -477,17 +519,26 @@ test.describe('Geolocation Map Page', () => {
     });
     expect(hasRoutesInitial).toBe(true);
 
-    // Toggle theme 10 times
+    // Toggle theme 10 times, waiting for each style reload
     for (let i = 0; i < 10; i++) {
       const theme = i % 2 === 0 ? 'dark' : 'light';
       await page.evaluate((t) => {
         document.documentElement.setAttribute('data-theme', t);
       }, theme);
-      await page.waitForTimeout(500);
+      await expect
+        .poll(
+          async () =>
+            page.evaluate(() => {
+              const map = (window as any).maplibreMap?.getMap?.();
+              return map ? map.isStyleLoaded() : false;
+            }),
+          {
+            message: `Waiting for style reload (toggle ${i + 1})`,
+            timeout: 10000,
+          }
+        )
+        .toBe(true);
     }
-
-    // Wait for final style to stabilize
-    await page.waitForTimeout(1000);
 
     // Verify bike routes still exist after 10 toggles
     const hasRoutesAfterToggles = await page.evaluate(() => {

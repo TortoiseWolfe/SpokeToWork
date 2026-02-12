@@ -5,11 +5,25 @@ import RouteCompanyList from './RouteCompanyList';
 import type { BicycleRoute, RouteCompany } from '@/types/route';
 import { useRoutes } from '@/hooks/useRoutes';
 
+// Minimal RouteCompany returned by toggleNextRide mock
+const toggledCompany = {
+  id: 'rc-1',
+  route_id: 'route-1',
+  user_id: 'user-1',
+  shared_company_id: 'company-1',
+  private_company_id: null,
+  tracking_id: null,
+  sequence_order: 0,
+  visit_on_next_ride: true,
+  distance_from_start_miles: null,
+  created_at: '2025-01-01T00:00:00Z',
+};
+
 // Mock hooks
 vi.mock('@/hooks/useRoutes', () => ({
   useRoutes: vi.fn(() => ({
     reorderCompanies: vi.fn().mockResolvedValue(undefined),
-    toggleNextRide: vi.fn().mockResolvedValue(undefined),
+    toggleNextRide: vi.fn().mockResolvedValue(toggledCompany),
     removeCompanyFromRoute: vi.fn().mockResolvedValue(undefined),
   })),
 }));
@@ -156,7 +170,7 @@ describe('RouteCompanyList', () => {
 
   it('can toggle next ride checkbox', async () => {
     const user = userEvent.setup();
-    const mockToggleNextRide = vi.fn().mockResolvedValue(undefined);
+    const mockToggleNextRide = vi.fn().mockResolvedValue(toggledCompany);
     mockedUseRoutes.mockReturnValue({
       routes: [],
       activeRouteId: null,

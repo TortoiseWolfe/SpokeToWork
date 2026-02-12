@@ -60,6 +60,11 @@ export default function ForgotPasswordForm({
 
     setLoading(true);
 
+    // Record every reset attempt before calling Supabase — Supabase always
+    // returns success to prevent email enumeration, so the counter must be
+    // incremented unconditionally rather than only on error.
+    await recordFailedAttempt(email, 'password_reset');
+
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(
       email,
       {
@@ -70,9 +75,6 @@ export default function ForgotPasswordForm({
     setLoading(false);
 
     if (resetError) {
-      // Record failed attempt
-      await recordFailedAttempt(email, 'password_reset');
-
       // Log failed password reset attempt (T036)
       await logAuthEvent({
         event_type: 'password_reset_request',

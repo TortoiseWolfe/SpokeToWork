@@ -156,7 +156,7 @@ const settings = {
             </div>
             <div className="stat">
               <div className="stat-title">Current Font</div>
-              <div className="stat-value text-accent">
+              <div className="stat-value text-base-content">
                 {fontFamily === 'sans-serif'
                   ? 'Sans'
                   : fontFamily === 'serif'

@@ -4,6 +4,18 @@
 
 import { test, expect } from '@playwright/test';
 
+// Next.js injects a [role="alert"] route announcer on every page.
+// Exclude it so strict-mode locators resolve to the auth error only.
+const ALERT = '[role="alert"]:not(#__next-route-announcer__)';
+
+// Skip only if no real Supabase is configured (placeholder/empty URL).
+// Both cloud (.supabase.co) and local (supabase-kong) are supported now that
+// the monolithic migration has been applied to the local dev DB.
+test.skip(
+  !process.env.NEXT_PUBLIC_SUPABASE_URL,
+  'Requires a real Supabase instance (cloud or local)'
+);
+
 /**
  * E2E Tests for Rate Limiting
  *
@@ -47,7 +59,7 @@ test.describe('Rate Limiting - User Experience', () => {
       await page.getByRole('button', { name: 'Sign In' }).click();
 
       // Wait for error message
-      await page.waitForSelector('[role="alert"]', { timeout: 3000 });
+      await page.waitForSelector(ALERT, { timeout: 3000 });
 
       // Small delay between attempts
       await page.waitForTimeout(200);
@@ -59,8 +71,9 @@ test.describe('Rate Limiting - User Experience', () => {
     await page.getByRole('button', { name: 'Sign In' }).click();
 
     // Should see rate limit error message
-    const errorMessage = await page.locator('[role="alert"]').textContent();
-    expect(errorMessage).toMatch(/rate.*limit|too many|try again|locked/i);
+    await expect(page.locator(ALERT).first()).toContainText(
+      /rate.*limit|too many|try again|locked/i
+    );
   });
 
   test('2. should show lockout message on already rate-limited email', async ({
@@ -74,8 +87,9 @@ test.describe('Rate Limiting - User Experience', () => {
     await page.getByRole('button', { name: 'Sign In' }).click();
 
     // Should immediately see rate limit error
-    const errorMessage = await page.locator('[role="alert"]').textContent();
-    expect(errorMessage).toMatch(/rate.*limit|too many|locked|try again/i);
+    await expect(page.locator(ALERT).first()).toContainText(
+      /rate.*limit|too many|locked|try again/i
+    );
   });
 
   test('3. should show remaining time until unlock', async ({ page }) => {
@@ -87,8 +101,9 @@ test.describe('Rate Limiting - User Experience', () => {
     await page.getByRole('button', { name: 'Sign In' }).click();
 
     // Should see time remaining (e.g., "15 minutes", "14 minutes", etc.)
-    const errorMessage = await page.locator('[role="alert"]').textContent();
-    expect(errorMessage).toMatch(/\d+\s*(minute|min)/i);
+    await expect(page.locator(ALERT).first()).toContainText(
+      /\d+\s*(minute|min)/i
+    );
   });
 
   test('4. should have accessible error message', async ({ page }) => {
@@ -100,7 +115,7 @@ test.describe('Rate Limiting - User Experience', () => {
     await page.getByRole('button', { name: 'Sign In' }).click();
 
     // Error element should have proper ARIA role
-    const errorElement = page.locator('[role="alert"]');
+    const errorElement = page.locator(ALERT);
     await expect(errorElement).toBeVisible();
     await expect(errorElement).toHaveAttribute('role', 'alert');
 
@@ -140,8 +155,9 @@ test.describe('Rate Limiting - Email Independence', () => {
     await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByRole('button', { name: 'Sign In' }).click();
 
-    const errorMessage = await page.locator('[role="alert"]').textContent();
-    expect(errorMessage).toMatch(/rate.*limit|too many|locked/i);
+    await expect(page.locator(ALERT).first()).toContainText(
+      /rate.*limit|too many|locked/i
+    );
   });
 
   test('2. should allow different email (not rate limited)', async ({
@@ -156,7 +172,7 @@ test.describe('Rate Limiting - Email Independence', () => {
 
     await page.waitForTimeout(500);
 
-    const errorMessage = await page.locator('[role="alert"]').textContent();
+    const errorMessage = await page.locator(ALERT).textContent();
 
     // Should see invalid credentials, NOT rate limit
     expect(errorMessage).not.toMatch(/rate.*limit|too many|locked/i);
@@ -174,30 +190,30 @@ test.describe('Rate Limiting - Password Reset', () => {
   test('should rate limit password reset requests', async ({ page }) => {
     const email = `password-reset-${Date.now()}@mailinator.com`;
 
-    await page.goto('/forgot-password');
-
-    // Attempt 5 password resets
+    // Attempt 5 password resets.
+    // The form replaces itself with a success banner on each submission, so
+    // navigate back to /forgot-password every iteration to get a fresh form.
     for (let i = 0; i < 5; i++) {
+      await page.goto('/forgot-password');
       await page.getByLabel('Email').fill(email);
       await page.getByRole('button', { name: 'Send Reset Link' }).click();
-      await page.waitForTimeout(500);
-
-      // Might need to navigate back if redirect happens
-      const currentUrl = page.url();
-      if (!currentUrl.includes('forgot-password')) {
-        await page.goto('/forgot-password');
-      }
+      // Wait for the form to process (success banner or error alert)
+      // before navigating away so the rate-limit counter is recorded.
+      // Use .alert-success/.alert-error to avoid latching onto hidden .alert-info elements.
+      await expect(
+        page.locator('.alert-success, .alert-error').first()
+      ).toBeVisible({ timeout: 5000 });
     }
 
-    // 6th attempt should be rate limited
+    // 6th attempt should be rate limited — navigate back for a fresh form
+    await page.goto('/forgot-password');
     await page.getByLabel('Email').fill(email);
     await page.getByRole('button', { name: 'Send Reset Link' }).click();
 
-    await page.waitForTimeout(500);
-
     // Check for rate limit or success (depending on implementation)
-    const alert = await page.locator('[role="alert"]').textContent();
-    if (alert) {
+    const alertEl = page.locator(ALERT);
+    if ((await alertEl.count()) > 0) {
+      const alert = await alertEl.textContent();
       expect(alert).toBeTruthy();
     }
   });

@@ -154,7 +154,7 @@ export default function ContactPage() {
           </div>
         </div>
 
-        <div className="text-base-content/60 text-center text-xs sm:text-sm">
+        <div className="text-base-content/80 text-center text-xs sm:text-sm">
           <p>
             Your privacy is important to us. We&apos;ll never share your
             information with third parties.

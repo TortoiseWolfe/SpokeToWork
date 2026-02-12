@@ -60,9 +60,8 @@ export const FontSwitcher: React.FC<FontSwitcherProps> = ({
 
   return (
     <div className={`dropdown dropdown-end ${className}`} ref={dropdownRef}>
-      <label
-        tabIndex={0}
-        role="button"
+      <button
+        type="button"
         className="btn btn-ghost gap-2"
         aria-label="Font Selection"
         onClick={() => setIsOpen(!isOpen)}
@@ -71,7 +70,7 @@ export const FontSwitcher: React.FC<FontSwitcherProps> = ({
         <span className="hidden sm:inline">
           {currentFontConfig?.name || 'Select Font'}
         </span>
-      </label>
+      </button>
       <div
         tabIndex={0}
         className="dropdown-content menu card card-compact bg-base-100 z-[100] mt-2 w-80 p-4 shadow-xl"

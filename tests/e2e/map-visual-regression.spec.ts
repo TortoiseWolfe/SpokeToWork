@@ -20,22 +20,45 @@ async function dismissBanner(page: Page) {
   }
 }
 
-// Helper to wait for map to fully load
-async function waitForMapLoad(page: Page, timeout = 5000) {
+// Helper to wait for map to fully load (polls for style readiness)
+async function waitForMapLoad(page: Page, timeout = 15000) {
   await page.waitForSelector('.maplibregl-canvas', {
     state: 'visible',
     timeout,
   });
-  // Wait for tiles and layers to render
-  await page.waitForTimeout(2000);
+  await expect
+    .poll(
+      async () => {
+        return page.evaluate(() => {
+          const map = (window as any).maplibreMap?.getMap?.();
+          return map ? map.isStyleLoaded() : false;
+        });
+      },
+      { message: 'Waiting for map style to load', timeout }
+    )
+    .toBe(true);
 }
 
-// Helper to set theme
+// Helper to set theme and wait for map style reload
 async function setTheme(page: Page, theme: 'light' | 'dark') {
   await page.evaluate((t) => {
     document.documentElement.setAttribute('data-theme', t);
   }, theme);
-  await page.waitForTimeout(1000); // Wait for style change
+  // Style swap clears layers; poll until the new style finishes loading
+  await expect
+    .poll(
+      async () => {
+        return page.evaluate(() => {
+          const map = (window as any).maplibreMap?.getMap?.();
+          return map ? map.isStyleLoaded() : false;
+        });
+      },
+      {
+        message: 'Waiting for map style reload after theme change',
+        timeout: 10000,
+      }
+    )
+    .toBe(true);
 }
 
 test.describe('Map Visual Regression Tests', () => {
@@ -253,26 +276,25 @@ test.describe('Theme Switching Visual Tests', () => {
   });
 
   test('screenshot comparison after 10 theme toggles', async ({ page }) => {
+    test.setTimeout(60000); // 10 style reloads with proper polling needs >30s
     await page.goto('/map');
     await dismissBanner(page);
     await waitForMapLoad(page);
 
     // Set to light for baseline
     await setTheme(page, 'light');
-    await page.waitForTimeout(500);
 
     // Capture baseline
     const baseline = await page.screenshot();
 
     // Toggle 10 times (ending on light)
+    // setTheme polls isStyleLoaded() so no extra waits needed
     for (let i = 0; i < 10; i++) {
       await setTheme(page, i % 2 === 0 ? 'dark' : 'light');
-      await page.waitForTimeout(200);
     }
 
     // Settle on light theme
     await setTheme(page, 'light');
-    await page.waitForTimeout(1000);
 
     // Compare with baseline
     await expect(page).toHaveScreenshot('map-after-10-toggles.png', {

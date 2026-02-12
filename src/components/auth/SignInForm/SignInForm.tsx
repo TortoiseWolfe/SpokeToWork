@@ -97,6 +97,26 @@ export default function SignInForm({
         return;
       }
 
+      // Normalize a GoTrue 429 to a friendly message.
+      // Skip recordFailedAttempt — GoTrue already counted this request against
+      // its own limiter, so incrementing our internal counter would double-count.
+      // Skip "attempts remaining" — the account is already locked server-side.
+      if (
+        (signInError as { status?: number }).status === 429 ||
+        signInError.message.toLowerCase().includes('rate limit')
+      ) {
+        await logAuthEvent({
+          event_type: 'sign_in',
+          event_data: { email, provider: 'email' },
+          success: false,
+          error_message: signInError.message,
+        });
+        setError(
+          'Too many sign-in attempts. Please wait a few minutes before trying again.'
+        );
+        return;
+      }
+
       // Record failed attempt on server (REQ-SEC-003)
       await recordFailedAttempt(email, 'sign_in');
 
