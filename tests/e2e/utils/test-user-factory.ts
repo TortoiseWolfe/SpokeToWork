@@ -60,7 +60,10 @@ export function getAdminClient(): SupabaseClient {
   // Validate env vars when admin client is actually needed
   validateAdminEnvVars();
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  // Prefer SUPABASE_INTERNAL_URL when running inside Docker (container→container)
+  // Fall back to NEXT_PUBLIC_SUPABASE_URL for host-based runs
+  const supabaseUrl = (process.env.SUPABASE_INTERNAL_URL ??
+    process.env.NEXT_PUBLIC_SUPABASE_URL)!;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
   adminClient = createClient(supabaseUrl, supabaseServiceKey, {

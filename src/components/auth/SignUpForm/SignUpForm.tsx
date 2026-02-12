@@ -91,6 +91,11 @@ export default function SignUpForm({
 
     setLoading(true);
 
+    // Record every sign-up attempt before calling Supabase — Supabase returns
+    // success for existing emails to prevent enumeration, so the counter must
+    // be incremented unconditionally rather than only on error.
+    await recordFailedAttempt(email, 'sign_up');
+
     const { error: signUpError } = await signUp(email, password, {
       rememberMe,
     });
@@ -98,9 +103,6 @@ export default function SignUpForm({
     setLoading(false);
 
     if (signUpError) {
-      // Record failed attempt on server
-      await recordFailedAttempt(email, 'sign_up');
-
       // Log failed sign-up attempt (T034)
       await logAuthEvent({
         event_type: 'sign_up',
@@ -120,52 +122,47 @@ export default function SignUpForm({
         });
       }
 
-      // Initialize encryption keys and send welcome message (Feature 004)
-      try {
-        const { keyManagementService } = await import(
-          '@/services/messaging/key-service'
-        );
-
-        // Initialize keys with password
-        logger.info('New user - initializing encryption keys');
-        const keyPair = await keyManagementService.initializeKeys(password);
-
-        // Send welcome message (non-blocking)
-        import('@/services/messaging/welcome-service')
-          .then(({ welcomeService }) => {
-            const { createClient } = require('@/lib/supabase/client');
-            const supabase = createClient();
-            supabase.auth
-              .getUser()
-              .then(({ data }: { data: { user: { id: string } | null } }) => {
-                if (
-                  data?.user?.id &&
-                  keyPair.privateKey &&
-                  keyPair.publicKeyJwk
-                ) {
-                  welcomeService
-                    .sendWelcomeMessage(
-                      data.user.id,
-                      keyPair.privateKey,
-                      keyPair.publicKeyJwk
-                    )
-                    .catch((err: Error) => {
-                      logger.error('Welcome message failed', { error: err });
-                    });
-                }
-              });
-          })
-          .catch((err: Error) => {
-            logger.error('Failed to load welcome service', { error: err });
-          });
-      } catch (keyError) {
-        logger.error('Failed to initialize encryption keys', {
-          error: keyError,
-        });
-        // Don't block signup flow
-      }
-
+      // Redirect immediately — key derivation runs in background
       onSuccess?.();
+
+      // Initialize encryption keys and send welcome message (Feature 004) — fire-and-forget
+      import('@/services/messaging/key-service')
+        .then(({ keyManagementService }) => {
+          logger.info('New user - initializing encryption keys');
+          return keyManagementService.initializeKeys(password);
+        })
+        .then((keyPair) => {
+          import('@/services/messaging/welcome-service')
+            .then(({ welcomeService }) => {
+              const { createClient } = require('@/lib/supabase/client');
+              const supabase = createClient();
+              supabase.auth
+                .getUser()
+                .then(({ data }: { data: { user: { id: string } | null } }) => {
+                  if (
+                    data?.user?.id &&
+                    keyPair.privateKey &&
+                    keyPair.publicKeyJwk
+                  ) {
+                    welcomeService
+                      .sendWelcomeMessage(
+                        data.user.id,
+                        keyPair.privateKey,
+                        keyPair.publicKeyJwk
+                      )
+                      .catch((err: Error) => {
+                        logger.error('Welcome message failed', { error: err });
+                      });
+                  }
+                });
+            })
+            .catch((err: Error) => {
+              logger.error('Failed to load welcome service', { error: err });
+            });
+        })
+        .catch((err: Error) => {
+          logger.error('Failed to initialize encryption keys', { error: err });
+        });
     }
   };
 
