@@ -49,12 +49,23 @@ function isAuthStateValid(): boolean {
 
     const state = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
 
-    // Find origin for localhost (support both 3000 and 3001)
-    const origin = state.origins?.find(
-      (o: { origin: string }) =>
-        o.origin.includes('localhost:3000') ||
-        o.origin.includes('localhost:3001')
-    );
+    // Find origin matching the base URL host (localhost or Docker service name).
+    // BASE_URL may be http://localhost:3000 or http://spoketowork:3000 etc.
+    const baseHost = (() => {
+      try {
+        return new URL(process.env.BASE_URL || 'http://localhost:3000').host;
+      } catch {
+        return 'localhost:3000';
+      }
+    })();
+
+    const origin = state.origins?.find((o: { origin: string }) => {
+      try {
+        return new URL(o.origin).host === baseHost;
+      } catch {
+        return false;
+      }
+    });
 
     if (!origin) {
       console.log('No localhost origin found in auth state');

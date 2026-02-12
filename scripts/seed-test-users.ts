@@ -23,7 +23,10 @@
 import { createClient } from '@supabase/supabase-js';
 import * as crypto from 'crypto';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+// Prefer SUPABASE_INTERNAL_URL when running inside Docker (container→container)
+// Fall back to NEXT_PUBLIC_SUPABASE_URL for host-based runs
+const supabaseUrl =
+  process.env.SUPABASE_INTERNAL_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Get credentials from env vars - REQUIRED, no fallbacks
@@ -139,6 +142,7 @@ async function setupAdminUser(): Promise<boolean> {
       console.log('  🔐 Creating admin auth user...');
       const { data: authData, error: authError } =
         await supabase.auth.admin.createUser({
+          id: ADMIN_USER.id, // Fixed UUID for consistent welcome message sender
           email: ADMIN_USER.email,
           password: 'AdminPassword123!', // Not used - no login needed
           email_confirm: true,

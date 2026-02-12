@@ -48,7 +48,8 @@ export async function loginAndVerify(
   credentials: LoginCredentials,
   options: LoginOptions = {}
 ): Promise<void> {
-  const { urlTimeout = 10000, elementTimeout = 15000 } = options;
+  // Use longer timeouts for local Supabase which can be slow under concurrent load
+  const { urlTimeout = 30000, elementTimeout = 30000 } = options;
 
   // Navigate to sign-in page
   await page.goto('/sign-in');

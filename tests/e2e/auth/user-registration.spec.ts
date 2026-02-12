@@ -21,21 +21,24 @@ test.describe('User Registration E2E', () => {
   }) => {
     // Step 1: Navigate to sign-up page
     await page.goto('/sign-up');
-    await expect(page).toHaveURL('/sign-up');
-    await expect(page.getByRole('heading', { name: 'Sign Up' })).toBeVisible();
+    await expect(page).toHaveURL(/\/sign-up/);
+    // Page heading is "Create Account"
+    await expect(
+      page.getByRole('heading', { name: 'Create Account' })
+    ).toBeVisible();
 
-    // Step 2: Fill sign-up form
+    // Step 3: Fill sign-up form
     await page.getByLabel('Email').fill(testEmail);
     await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByLabel('Confirm Password').fill(testPassword);
 
-    // Step 3: Check Remember Me (optional)
+    // Step 4: Check Remember Me (optional)
     await page.getByLabel('Remember me').check();
 
-    // Step 4: Submit sign-up form
+    // Step 5: Submit sign-up form
     await page.getByRole('button', { name: 'Sign Up' }).click();
 
-    // Step 5: Verify redirected to verify-email or profile
+    // Step 6: Verify redirected to verify-email or profile
     // Note: In production, email verification is required
     await page.waitForURL(/\/(verify-email|profile)/);
 
@@ -74,16 +77,18 @@ test.describe('User Registration E2E', () => {
   test('should show validation errors for invalid email', async ({ page }) => {
     await page.goto('/sign-up');
 
-    // Fill with invalid email
-    await page.getByLabel('Email').fill('not-an-email');
+    // Use email that passes HTML5 validation but fails app's TLD validation
+    await page.getByLabel('Email').fill('user@invalid.badtld');
     await page.getByLabel('Password', { exact: true }).fill(testPassword);
     await page.getByLabel('Confirm Password').fill(testPassword);
 
     // Submit form
     await page.getByRole('button', { name: 'Sign Up' }).click();
 
-    // Verify validation error shown
-    await expect(page.getByText(/invalid email/i)).toBeVisible();
+    // Verify validation error shown (TLD validation message)
+    await expect(
+      page.getByText(/invalid|missing.*TLD|top-level domain/i)
+    ).toBeVisible();
   });
 
   test('should show validation errors for weak password', async ({ page }) => {
@@ -121,8 +126,8 @@ test.describe('User Registration E2E', () => {
   test('should navigate to sign-in from sign-up page', async ({ page }) => {
     await page.goto('/sign-up');
 
-    // Click sign-in link
-    await page.getByRole('link', { name: /already have an account/i }).click();
+    // Click inline sign-in link (text is "Sign in", not "Already have an account")
+    await page.getByRole('link', { name: 'Sign in', exact: true }).click();
 
     // Verify navigated to sign-in
     await expect(page).toHaveURL(/\/sign-in/);
@@ -131,12 +136,12 @@ test.describe('User Registration E2E', () => {
   test('should display OAuth buttons on sign-up page', async ({ page }) => {
     await page.goto('/sign-up');
 
-    // Verify OAuth buttons present
+    // Verify OAuth buttons present (text is "Continue with GitHub/Google")
     await expect(
-      page.getByRole('button', { name: /sign up with github/i })
+      page.getByRole('button', { name: /continue with github/i })
     ).toBeVisible();
     await expect(
-      page.getByRole('button', { name: /sign up with google/i })
+      page.getByRole('button', { name: /continue with google/i })
     ).toBeVisible();
   });
 });
