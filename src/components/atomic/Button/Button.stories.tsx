@@ -197,3 +197,53 @@ export const AllVariants: Story = {
     </div>
   ),
 };
+
+export const ThemeComparison: Story = {
+  args: { children: 'Button' },
+  parameters: { layout: 'fullscreen' },
+  render: () => {
+    const variants = [
+      'primary',
+      'secondary',
+      'accent',
+      'info',
+      'success',
+      'warning',
+      'error',
+    ] as const;
+    const Panel = ({ theme }: { theme: string }) => (
+      <div data-theme={theme} className="rounded-box bg-base-100 p-6">
+        <h3 className="text-base-content mb-4 text-lg font-semibold">
+          {theme}
+        </h3>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap gap-2">
+            {variants.map((v) => (
+              <Button key={v} variant={v}>
+                {v}
+              </Button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {variants.map((v) => (
+              <Button key={v} variant={v} outline>
+                {v}
+              </Button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="ghost">Ghost</Button>
+            <Button variant="link">Link</Button>
+            <Button disabled>Disabled</Button>
+          </div>
+        </div>
+      </div>
+    );
+    return (
+      <div className="grid grid-cols-2 gap-4 p-4">
+        <Panel theme="spoketowork-dark" />
+        <Panel theme="spoketowork-light" />
+      </div>
+    );
+  },
+};

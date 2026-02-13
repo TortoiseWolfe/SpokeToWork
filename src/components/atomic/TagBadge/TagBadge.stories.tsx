@@ -153,3 +153,36 @@ export const LongTagNames: Story = {
     </div>
   ),
 };
+
+export const ThemeComparison: Story = {
+  args: { tag: 'Theme Demo' },
+  parameters: { layout: 'fullscreen' },
+  render: () => {
+    const Panel = ({ theme }: { theme: string }) => (
+      <div data-theme={theme} className="rounded-box bg-base-100 p-6">
+        <h3 className="text-base-content mb-4 text-lg font-semibold">
+          {theme}
+        </h3>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap gap-2">
+            <TagBadge tag="Default" variant="default" />
+            <TagBadge tag="Primary" variant="primary" />
+            <TagBadge tag="Secondary" variant="secondary" />
+            <TagBadge tag="Accent" variant="accent" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <TagBadge tag="Active" active />
+            <TagBadge tag="With Count" count={12} />
+            <TagBadge tag="Non-Clickable" clickable={false} />
+          </div>
+        </div>
+      </div>
+    );
+    return (
+      <div className="grid grid-cols-2 gap-4 p-4">
+        <Panel theme="spoketowork-dark" />
+        <Panel theme="spoketowork-light" />
+      </div>
+    );
+  },
+};

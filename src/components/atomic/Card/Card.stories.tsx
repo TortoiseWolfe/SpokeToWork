@@ -172,3 +172,46 @@ export const CardGrid: Story = {
     layout: 'fullscreen',
   },
 };
+
+export const ThemeComparison: Story = {
+  args: { children: 'Card content' },
+  parameters: { layout: 'fullscreen' },
+  render: () => {
+    const Panel = ({ theme }: { theme: string }) => (
+      <div data-theme={theme} className="rounded-box bg-base-200 p-6">
+        <h3 className="text-base-content mb-4 text-lg font-semibold">
+          {theme}
+        </h3>
+        <div className="flex flex-col gap-4">
+          <Card title="Basic Card" subtitle="With subtitle">
+            Standard card with default styling.
+          </Card>
+          <Card title="Bordered" bordered>
+            Card with visible border.
+          </Card>
+          <Card
+            title="With Actions"
+            actions={
+              <>
+                <Button variant="ghost" size="sm">
+                  Cancel
+                </Button>
+                <Button variant="primary" size="sm">
+                  Confirm
+                </Button>
+              </>
+            }
+          >
+            Card with action buttons.
+          </Card>
+        </div>
+      </div>
+    );
+    return (
+      <div className="grid grid-cols-2 gap-4 p-4">
+        <Panel theme="spoketowork-dark" />
+        <Panel theme="spoketowork-light" />
+      </div>
+    );
+  },
+};
