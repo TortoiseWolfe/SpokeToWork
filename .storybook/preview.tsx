@@ -56,6 +56,8 @@ const preview: Preview = {
     // Theme decorator
     withThemeByDataAttribute({
       themes: {
+        'spoketowork-dark': 'spoketowork-dark',
+        'spoketowork-light': 'spoketowork-light',
         light: 'light',
         dark: 'dark',
         cupcake: 'cupcake',
@@ -89,7 +91,7 @@ const preview: Preview = {
         nord: 'nord',
         sunset: 'sunset',
       },
-      defaultTheme: 'light',
+      defaultTheme: 'spoketowork-dark',
       attributeName: 'data-theme',
     }),
   ],
