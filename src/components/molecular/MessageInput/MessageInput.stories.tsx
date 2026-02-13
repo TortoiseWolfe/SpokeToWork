@@ -3,7 +3,7 @@ import { fn } from '@storybook/test';
 import MessageInput from './MessageInput';
 
 const meta = {
-  title: 'Atomic/MessageInput',
+  title: 'Atomic Design/Molecular/MessageInput',
   component: MessageInput,
   parameters: {
     layout: 'centered',

@@ -54,7 +54,7 @@ It only loads and tracks when analytics consent is granted through the ConsentCo
 ## Usage
 \`\`\`tsx
 // In app/layout.tsx
-import GoogleAnalytics from '@/components/atomic/GoogleAnalytics';
+import GoogleAnalytics from '@/lib/analytics/GoogleAnalytics';
 
 export default function RootLayout({ children }) {
   return (
