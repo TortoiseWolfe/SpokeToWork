@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import ResizablePanel from './ResizablePanel';
 
 const meta: Meta<typeof ResizablePanel> = {

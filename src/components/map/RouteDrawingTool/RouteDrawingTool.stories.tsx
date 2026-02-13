@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { MapContainer, TileLayer } from 'react-leaflet';
 import { useState } from 'react';
 import RouteDrawingTool from './RouteDrawingTool';

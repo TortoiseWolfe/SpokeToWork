@@ -1,8 +1,8 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { CodeBlock } from './CodeBlock';
 
 const meta = {
-  title: 'Atomic Design/Atomic/CodeBlock',
+  title: 'Atomic Design/Molecular/CodeBlock',
   component: CodeBlock,
   parameters: {
     layout: 'centered',

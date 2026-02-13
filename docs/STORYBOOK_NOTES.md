@@ -2,109 +2,61 @@
 
 ## Current Status
 
-Using Storybook 9.1.5 with Next.js 15.5
+Using Storybook 10.2.8 with Next.js 15.5 via `@storybook/nextjs-vite`.
 
-## Temporarily Removed Packages (Incompatible with Storybook 9.1.5)
+### Key Packages
 
-The following packages are still on version 8.6.14 and cause build errors with Storybook 9.1.5:
+| Package                   | Version | Purpose                                                                    |
+| ------------------------- | ------- | -------------------------------------------------------------------------- |
+| `storybook`               | 10.2.8  | Core (includes essentials: Controls, Actions, Viewport, Backgrounds, Docs) |
+| `@storybook/nextjs-vite`  | 10.2.8  | Framework integration (Next.js + Vite)                                     |
+| `@storybook/addon-themes` | 10.2.8  | DaisyUI theme switcher                                                     |
+| `@storybook/addon-a11y`   | 10.2.8  | WCAG accessibility testing                                                 |
 
-### Removed Packages:
+### Storybook 10 Consolidation
 
-1. **@storybook/addon-essentials** (8.6.14)
-   - **Missing features:**
-     - Controls addon (for live prop editing)
-     - Actions addon (for logging callbacks)
-     - Backgrounds addon (for background color switching)
-     - Viewport addon (for responsive testing)
-     - Toolbars addon (for custom toolbars)
-     - Measure addon (for measuring components)
-     - Outline addon (for component boundaries)
-     - Highlight addon (for highlighting elements)
+In v10, many packages were absorbed into the core `storybook` package:
 
-2. **@storybook/addon-interactions** (8.6.14)
-   - **Missing features:**
-     - Interactive testing in Storybook UI
-     - Play functions for automated interactions
-     - Step-by-step debugging
+- **Controls, Actions, Viewport, Backgrounds, Docs** — now built into `storybook` (previously `@storybook/addon-essentials`)
+- **Test utilities (`fn`, `expect`)** — import from `storybook/test` (previously `@storybook/test`)
+- **Story types (`Meta`, `StoryObj`)** — import from `@storybook/nextjs-vite` (previously `@storybook/nextjs`)
 
-3. **@storybook/blocks** (8.6.14)
-   - **Missing features:**
-     - Pre-built documentation blocks
-     - MDX story components
-     - Auto-generated prop tables
+## Story Organization
 
-4. **@storybook/test** (8.6.14)
-   - **Missing features:**
-     - Built-in testing utilities
-     - Vitest integration
-     - Testing-library utilities
+Stories use a hybrid functional + atomic design hierarchy:
 
-## What's Still Working:
+**Atomic Design/** — Design complexity hierarchy
 
-- ✅ Basic Storybook UI
-- ✅ Story rendering
-- ✅ Next.js integration
-- ✅ Documentation generation (@storybook/addon-docs)
-- ✅ Component linking (@storybook/addon-links)
-- ✅ Onboarding experience (@storybook/addon-onboarding)
-- ✅ Chromatic integration for visual testing
+- `Atomic Design/Subatomic/` — Primitive building blocks (Text)
+- `Atomic Design/Atomic/` — Basic UI components (Button, Card, etc.)
+- `Atomic Design/Molecular/` — Composed components (CodeBlock, MessageInput, etc.)
+- `Atomic Design/Organism/` — Complex features (DiceTray, etc.)
 
-## Workarounds:
+**Features/** — Functional purpose grouping
 
-- **Controls**: Edit props directly in story files for now
-- **Viewport**: Use browser dev tools for responsive testing
-- **Actions**: Use console.log for callback debugging
-- **Testing**: Run tests separately with Jest/Vitest
+- `Features/Authentication/` — Auth components (SignInForm, SignUpForm, etc.)
+- `Features/Privacy/` — GDPR compliance (CookieConsent, ConsentModal, etc.)
+- `Features/Payment/` — Payment processing (PaymentButton, PaymentHistory, etc.)
+- `Features/Map/` — Geolocation (MapContainer, LocationButton, etc.)
+- `Features/Blog/` — Blog system (BlogPostCard, BlogContent, etc.)
+- `Features/Forms/` — Form components (ContactForm)
+- `Features/Calendar/` — Calendar integration (CalendarEmbed)
+- `Features/Analytics/` — Tracking (GoogleAnalytics)
 
-## When to Re-add:
+**Layout/** — Layout and theming
 
-Check periodically if these packages have been updated to 9.x:
+- `Layout/Theme/` — Theme switching (FontSwitcher, ColorblindToggle, etc.)
 
-```bash
-npm view @storybook/addon-essentials dist-tags.latest
-npm view @storybook/addon-interactions dist-tags.latest
-npm view @storybook/blocks dist-tags.latest
-npm view @storybook/test dist-tags.latest
-```
-
-Once they reach 9.x, add them back to package.json and .storybook/main.ts
-
-## Story Organization (Updated October 2025)
-
-All 51 component stories follow a consistent functional organization structure:
-
-### Structure:
-
-**Atomic Design/** - Design complexity hierarchy (16 components)
-
-- `Atomic Design/Subatomic/` - Primitive building blocks (Text)
-- `Atomic Design/Atomic/` - Basic UI components (Button, Card, etc.)
-
-**Features/** - Functional purpose grouping (34 components)
-
-- `Features/Authentication/` - Auth components (SignInForm, SignUpForm, etc.)
-- `Features/Privacy/` - GDPR compliance (CookieConsent, ConsentModal, etc.)
-- `Features/Payment/` - Payment processing (PaymentButton, PaymentHistory, etc.)
-- `Features/Map/` - Geolocation (MapContainer, LocationButton, etc.)
-- `Features/Blog/` - Blog system (BlogPostCard, BlogContent, etc.)
-- `Features/Forms/` - Form components (ContactForm)
-- `Features/Calendar/` - Calendar integration (CalendarEmbed)
-- `Features/Analytics/` - Tracking (GoogleAnalytics)
-
-**Layout/** - Layout and theming (3 components)
-
-- `Layout/Theme/` - Theme switching (FontSwitcher, ColorblindToggle, etc.)
-
-### Example Story Titles:
+### Example Story Titles
 
 ```typescript
 title: 'Atomic Design/Atomic/Button';
+title: 'Atomic Design/Molecular/CodeBlock';
 title: 'Features/Authentication/SignInForm';
 title: 'Features/Payment/PaymentButton';
-title: 'Features/Blog/BlogPostCard';
 title: 'Layout/Theme/FontSwitcher';
 ```
 
-### When Creating New Components:
+### When Creating New Components
 
 After using the component generator, update the story `title` field to match the functional category rather than the generated atomic design category.

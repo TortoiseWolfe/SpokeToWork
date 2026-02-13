@@ -1,18 +1,40 @@
 import React from 'react';
-import type { Preview } from '@storybook/nextjs';
+import type { Preview } from '@storybook/nextjs-vite';
 import { withThemeByDataAttribute } from '@storybook/addon-themes';
 import { ConsentProvider } from '../src/contexts/ConsentContext';
+import { AuthContext } from '../src/contexts/AuthContext';
+import type { AuthContextType } from '../src/contexts/AuthContext';
 import '../src/app/globals.css';
 
-// Initialize MSW
+// Initialize MSW (non-blocking — don't let failures prevent story rendering)
 if (typeof window !== 'undefined') {
-  import('../src/mocks/browser').then(({ worker }) => {
-    // Start the mocking when in Storybook
-    worker.start({
-      onUnhandledRequest: 'bypass', // Don't warn about unhandled requests
+  import('../src/mocks/browser')
+    .then(({ worker }) => {
+      worker.start({
+        onUnhandledRequest: 'bypass',
+        quiet: true,
+      });
+    })
+    .catch(() => {
+      // MSW init failed — stories still render, just without mocked APIs
     });
-  });
 }
+
+// Mock auth context for Storybook — no Supabase dependency
+const mockAuthValue: AuthContextType = {
+  user: null,
+  session: null,
+  isLoading: false,
+  isAuthenticated: false,
+  error: null,
+  retryCount: 0,
+  signUp: async () => ({ error: null }),
+  signIn: async () => ({ error: null }),
+  signOut: async () => {},
+  refreshSession: async () => {},
+  retry: async () => {},
+  clearError: () => {},
+};
 
 const preview: Preview = {
   parameters: {
@@ -23,19 +45,10 @@ const preview: Preview = {
       },
     },
     a11y: {
-      // Configure addon-a11y to use WCAG 2.1 AA standards
       config: {
         rules: [
-          {
-            // WCAG 2.1 AA rules
-            id: 'wcag2aa',
-            enabled: true,
-          },
-          {
-            // Additional best practices
-            id: 'best-practice',
-            enabled: true,
-          },
+          { id: 'wcag2aa', enabled: true },
+          { id: 'best-practice', enabled: true },
         ],
       },
       options: {
@@ -47,15 +60,19 @@ const preview: Preview = {
     },
   },
   decorators: [
-    // Add ConsentProvider wrapper
+    // Global providers — mock AuthContext to avoid Supabase dependency
     (Story) => (
       <ConsentProvider>
-        <Story />
+        <AuthContext.Provider value={mockAuthValue}>
+          <Story />
+        </AuthContext.Provider>
       </ConsentProvider>
     ),
     // Theme decorator
     withThemeByDataAttribute({
       themes: {
+        'spoketowork-dark': 'spoketowork-dark',
+        'spoketowork-light': 'spoketowork-light',
         light: 'light',
         dark: 'dark',
         cupcake: 'cupcake',
@@ -89,7 +106,7 @@ const preview: Preview = {
         nord: 'nord',
         sunset: 'sunset',
       },
-      defaultTheme: 'light',
+      defaultTheme: 'spoketowork-dark',
       attributeName: 'data-theme',
     }),
   ],

@@ -4,7 +4,7 @@ import React, { memo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayeredSpokeToWorkLogo } from '@/components/atomic/SpinningLogo';
-import { ColorblindToggle } from '@/components/atomic/ColorblindToggle';
+import { ColorblindToggle } from '@/components/molecular/ColorblindToggle';
 import { FontSizeControl } from '@/components/navigation/FontSizeControl';
 import { detectedConfig } from '@/config/project-detected';
 import { useAuth } from '@/contexts/AuthContext';
@@ -107,6 +107,8 @@ function GlobalNavComponent() {
   ];
 
   const themes = [
+    'spoketowork-dark',
+    'spoketowork-light',
     'light',
     'dark',
     'cupcake',

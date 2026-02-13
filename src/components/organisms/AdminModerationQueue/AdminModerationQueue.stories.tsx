@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import AdminModerationQueue from './AdminModerationQueue';
 import type { ModerationQueueItem } from '@/lib/companies/admin-moderation-service';
 

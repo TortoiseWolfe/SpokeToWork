@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import GoogleAnalytics from './GoogleAnalytics';
 import React from 'react';
 
@@ -54,7 +54,7 @@ It only loads and tracks when analytics consent is granted through the ConsentCo
 ## Usage
 \`\`\`tsx
 // In app/layout.tsx
-import GoogleAnalytics from '@/components/atomic/GoogleAnalytics';
+import GoogleAnalytics from '@/lib/analytics/GoogleAnalytics';
 
 export default function RootLayout({ children }) {
   return (

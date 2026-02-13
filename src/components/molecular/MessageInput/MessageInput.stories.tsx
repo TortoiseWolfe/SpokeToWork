@@ -1,9 +1,9 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
-import { fn } from '@storybook/test';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
+import { fn } from 'storybook/test';
 import MessageInput from './MessageInput';
 
 const meta = {
-  title: 'Atomic/MessageInput',
+  title: 'Atomic Design/Molecular/MessageInput',
   component: MessageInput,
   parameters: {
     layout: 'centered',
