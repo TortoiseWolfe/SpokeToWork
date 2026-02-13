@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import CompanyMatchSuggestion from './CompanyMatchSuggestion';
 import type { MatchResult, MatchConfidence } from '@/types/company';
 

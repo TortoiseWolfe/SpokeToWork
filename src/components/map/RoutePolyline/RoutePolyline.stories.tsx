@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { MapContainer, TileLayer } from 'react-leaflet';
 import RoutePolyline, { RoutePolylines } from './RoutePolyline';
 import type { BicycleRoute, RouteGeometry } from '@/types/route';

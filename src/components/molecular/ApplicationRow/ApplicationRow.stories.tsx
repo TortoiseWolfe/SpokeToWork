@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import ApplicationRow from './ApplicationRow';
 import type { JobApplication } from '@/types/company';
 

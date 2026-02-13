@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import CompanyDetailDrawer from './CompanyDetailDrawer';
 import type { CompanyWithApplications } from '@/types/company';
 
