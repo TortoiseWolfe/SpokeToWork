@@ -27,6 +27,92 @@ body {
     lemonade, night, coffee, winter, dim, nord, sunset;
 }
 
+/* SpokeToWork brand theme — dark variant (default) */
+@plugin "daisyui/theme" {
+  name: 'spoketowork-dark';
+  default: true;
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: oklch(28.8% 0.072 259.1); /* Navy #132a4e */
+  --color-base-200: oklch(24.2% 0.061 259.5); /* Darker navy #0d1f3c */
+  --color-base-300: oklch(33.3% 0.077 257.1); /* Lighter navy #1a365d */
+  --color-base-content: oklch(95.1% 0.025 236.8); /* Light blue-white #e0f2fe */
+
+  --color-primary: oklch(69.6% 0.16 55.5); /* Orange #E67E22 — brand */
+  --color-primary-content: oklch(100% 0 0); /* White */
+
+  --color-secondary: oklch(81.6% 0.145 216.5); /* Cyan #00d9ff — accents */
+  --color-secondary-content: oklch(24.2% 0.061 259.5); /* Navy */
+
+  --color-accent: oklch(72.3% 0.192 149.6); /* Green #22c55e — success */
+  --color-accent-content: oklch(100% 0 0); /* White */
+
+  --color-neutral: oklch(27.8% 0.03 256.8); /* Dark gray #1f2937 */
+  --color-neutral-content: oklch(87.2% 0.009 258.3); /* Light gray #d1d5db */
+
+  --color-info: oklch(62.3% 0.188 259.8); /* Blue #3b82f6 */
+  --color-info-content: oklch(100% 0 0);
+  --color-success: oklch(72.3% 0.192 149.6); /* Green #22c55e */
+  --color-success-content: oklch(100% 0 0);
+  --color-warning: oklch(90.5% 0.166 98.1); /* Yellow #fde047 */
+  --color-warning-content: oklch(24.2% 0.061 259.5);
+  --color-error: oklch(63.7% 0.208 25.3); /* Red #ef4444 */
+  --color-error-content: oklch(100% 0 0);
+
+  --radius-selector: 1.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+/* SpokeToWork brand theme — light variant */
+@plugin "daisyui/theme" {
+  name: 'spoketowork-light';
+  default: false;
+  prefersdark: false;
+  color-scheme: light;
+
+  --color-base-100: oklch(98% 0.005 78.3); /* Warm white #faf8f5 */
+  --color-base-200: oklch(94.5% 0.009 78.3); /* Light cream #f0ece6 */
+  --color-base-300: oklch(89.9% 0.012 79.8); /* Borders #e2ddd5 */
+  --color-base-content: oklch(27.8% 0.03 256.8); /* Dark text #1f2937 */
+
+  --color-primary: oklch(60.4% 0.176 43.9); /* Darker orange #d35400 */
+  --color-primary-content: oklch(100% 0 0); /* White */
+
+  --color-secondary: oklch(60.9% 0.111 221.7); /* Darker cyan #0891b2 */
+  --color-secondary-content: oklch(100% 0 0); /* White */
+
+  --color-accent: oklch(62.7% 0.17 149.2); /* Darker green #16a34a */
+  --color-accent-content: oklch(100% 0 0); /* White */
+
+  --color-neutral: oklch(35% 0.03 256.8); /* Medium dark gray */
+  --color-neutral-content: oklch(98% 0.005 78.3); /* Warm white */
+
+  --color-info: oklch(54.6% 0.215 262.9); /* Blue #2563eb */
+  --color-info-content: oklch(100% 0 0);
+  --color-success: oklch(62.7% 0.17 149.2); /* Green #16a34a */
+  --color-success-content: oklch(100% 0 0);
+  --color-warning: oklch(68.1% 0.142 75.8); /* Amber #ca8a04 */
+  --color-warning-content: oklch(27.8% 0.03 256.8);
+  --color-error: oklch(57.7% 0.215 27.3); /* Red #dc2626 */
+  --color-error-content: oklch(100% 0 0);
+
+  --radius-selector: 1.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
 /* Override DaisyUI drawer-side to respect container bounds
  * DaisyUI's default uses position:fixed + height:100dvh which is viewport-relative.
  * This makes it absolute (relative to nearest positioned ancestor) so it stays
@@ -91,6 +177,7 @@ body {
 }
 
 /* Dark theme support for MapLibre controls */
+[data-theme='spoketowork-dark'] .maplibregl-ctrl-group,
 [data-theme='dark'] .maplibregl-ctrl-group,
 [data-theme='dracula'] .maplibregl-ctrl-group,
 [data-theme='synthwave'] .maplibregl-ctrl-group,
@@ -100,6 +187,7 @@ body {
   background: rgba(30, 30, 30, 0.9) !important;
 }
 
+[data-theme='spoketowork-dark'] .maplibregl-ctrl-group button,
 [data-theme='dark'] .maplibregl-ctrl-group button,
 [data-theme='dracula'] .maplibregl-ctrl-group button,
 [data-theme='synthwave'] .maplibregl-ctrl-group button,
@@ -110,6 +198,7 @@ body {
   color: white !important;
 }
 
+[data-theme='spoketowork-dark'] .maplibregl-ctrl-group button:hover,
 [data-theme='dark'] .maplibregl-ctrl-group button:hover,
 [data-theme='dracula'] .maplibregl-ctrl-group button:hover,
 [data-theme='synthwave'] .maplibregl-ctrl-group button:hover,
@@ -296,6 +385,7 @@ p:not([class*='text-']) {
 }
 
 /* Fix Leaflet controls for dark mode */
+[data-theme='spoketowork-dark'] .leaflet-control,
 [data-theme='dark'] .leaflet-control,
 [data-theme='dracula'] .leaflet-control,
 [data-theme='synthwave'] .leaflet-control,
@@ -311,6 +401,7 @@ p:not([class*='text-']) {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
+[data-theme='spoketowork-dark'] .leaflet-control a,
 [data-theme='dark'] .leaflet-control a,
 [data-theme='dracula'] .leaflet-control a,
 [data-theme='synthwave'] .leaflet-control a,
