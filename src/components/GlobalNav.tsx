@@ -107,6 +107,8 @@ function GlobalNavComponent() {
   ];
 
   const themes = [
+    'spoketowork-dark',
+    'spoketowork-light',
     'light',
     'dark',
     'cupcake',
