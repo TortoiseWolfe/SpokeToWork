@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { SpinningLogo } from './SpinningLogo';
 import { SpokeToWorkLogo } from './SpokeToWorkLogo';
 import { LayeredSpokeToWorkLogo } from './LayeredSpokeToWorkLogo';

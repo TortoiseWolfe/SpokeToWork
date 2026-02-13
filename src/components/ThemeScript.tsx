@@ -4,9 +4,9 @@ export default function ThemeScript() {
       function getSystemTheme() {
         // Check if user prefers dark mode
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-          return 'dark'; // You can change this to 'dracula', 'night', etc.
+          return 'spoketowork-dark';
         }
-        return 'light'; // You can change this to 'corporate', 'cupcake', etc.
+        return 'spoketowork-light';
       }
 
       function applyTheme(theme) {
