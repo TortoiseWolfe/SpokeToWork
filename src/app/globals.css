@@ -113,6 +113,19 @@ body {
   --noise: 0;
 }
 
+/* Theme-aware brand shadows — softer on light backgrounds */
+[data-theme='spoketowork-dark'] {
+  --shadow-brand: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.8));
+  --shadow-brand-sm: drop-shadow(1px 1px 0px rgba(0, 0, 0, 0.7));
+  --shadow-brand-subtle: drop-shadow(2px 2px 0px rgba(0, 0, 0, 0.3));
+}
+
+[data-theme='spoketowork-light'] {
+  --shadow-brand: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.25));
+  --shadow-brand-sm: drop-shadow(1px 1px 0px rgba(0, 0, 0, 0.15));
+  --shadow-brand-subtle: drop-shadow(2px 2px 0px rgba(0, 0, 0, 0.1));
+}
+
 /* Override DaisyUI drawer-side to respect container bounds
  * DaisyUI's default uses position:fixed + height:100dvh which is viewport-relative.
  * This makes it absolute (relative to nearest positioned ancestor) so it stays

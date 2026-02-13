@@ -38,7 +38,7 @@ export const LayeredSpokeToWorkLogo: React.FC<LayeredSpokeToWorkLogoProps> = ({
             width: '100%',
             height: '100%',
             objectFit: 'contain',
-            filter: 'drop-shadow(1px 1px 0px rgba(0, 0, 0, 0.7))',
+            filter: 'var(--shadow-brand-sm)',
           }}
           priority
         />
@@ -89,7 +89,7 @@ export const LayeredSpokeToWorkLogo: React.FC<LayeredSpokeToWorkLogoProps> = ({
             width: '100%',
             height: '100%',
             objectFit: 'contain',
-            filter: 'drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.8))',
+            filter: 'var(--shadow-brand)',
           }}
           priority
         />
@@ -116,7 +116,7 @@ export const LayeredSpokeToWorkLogo: React.FC<LayeredSpokeToWorkLogoProps> = ({
             width: '100%',
             height: '100%',
             objectFit: 'contain',
-            filter: 'drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.8))',
+            filter: 'var(--shadow-brand)',
           }}
           priority
         />
