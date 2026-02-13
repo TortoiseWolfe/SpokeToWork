@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/nextjs';
 import DiceTray from './DiceTray';
 
 const meta = {
-  title: 'Atomic Design/Atomic/DiceTray',
+  title: 'Atomic Design/Organism/DiceTray',
   component: DiceTray,
   parameters: {
     layout: 'centered',
