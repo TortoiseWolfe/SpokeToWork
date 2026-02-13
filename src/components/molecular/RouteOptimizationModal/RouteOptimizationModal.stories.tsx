@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import RouteOptimizationModal from './RouteOptimizationModal';
 import type { RouteOptimizationResult } from '@/lib/routes/optimization-types';
 

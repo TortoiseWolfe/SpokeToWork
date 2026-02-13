@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import RouteCompanyList from './RouteCompanyList';
 import type { BicycleRoute, RouteCompany } from '@/types/route';
 

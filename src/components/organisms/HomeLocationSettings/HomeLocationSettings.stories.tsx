@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
-import { fn } from '@storybook/test';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
+import { fn } from 'storybook/test';
 import HomeLocationSettings from './HomeLocationSettings';
 
 const meta: Meta<typeof HomeLocationSettings> = {

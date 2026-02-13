@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import RouteDetailDrawer from './RouteDetailDrawer';
 import type { BicycleRoute, RouteCompanyWithDetails } from '@/types/route';
 
