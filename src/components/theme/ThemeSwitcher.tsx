@@ -48,22 +48,34 @@ export function ThemeSwitcher() {
   const { trackThemeChange } = useAnalytics();
 
   useEffect(() => {
-    // Check if we can use persistent storage
-    const canPersist = canUseCookies(CookieCategory.FUNCTIONAL);
-
-    // Try to load saved theme
-    let savedTheme = 'spoketowork-dark';
-
-    if (canPersist) {
-      // Use localStorage if functional cookies allowed
-      savedTheme = localStorage.getItem('theme') || 'spoketowork-dark';
-    } else {
-      // Use sessionStorage as fallback
-      savedTheme = sessionStorage.getItem('theme') || 'spoketowork-dark';
+    // Read current theme from DOM first (ThemeScript already applied it)
+    const domTheme = document.documentElement.getAttribute('data-theme');
+    if (domTheme) {
+      setCurrentTheme(domTheme);
+      return;
     }
+
+    // Fallback: check storage
+    const canPersist = canUseCookies(CookieCategory.FUNCTIONAL);
+    const savedTheme = canPersist
+      ? localStorage.getItem('theme') || 'spoketowork-dark'
+      : sessionStorage.getItem('theme') || 'spoketowork-dark';
 
     setCurrentTheme(savedTheme);
     document.documentElement.setAttribute('data-theme', savedTheme);
+  }, []);
+
+  // Stay in sync with theme changes from GlobalNav dropdown
+  useEffect(() => {
+    const handleExternalThemeChange = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.theme) {
+        setCurrentTheme(detail.theme);
+      }
+    };
+    window.addEventListener('themechange', handleExternalThemeChange);
+    return () =>
+      window.removeEventListener('themechange', handleExternalThemeChange);
   }, []);
 
   const handleThemeChange = useCallback(

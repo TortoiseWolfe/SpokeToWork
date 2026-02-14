@@ -28,27 +28,43 @@ function GlobalNavComponent() {
   const [showInstallButton, setShowInstallButton] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
 
-  // Theme management
+  // Theme management — read current theme from DOM (ThemeScript sets it on first paint)
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') || 'spoketowork-dark';
-    setTheme(savedTheme);
-    document.documentElement.setAttribute('data-theme', savedTheme);
+    const currentTheme =
+      document.documentElement.getAttribute('data-theme') ||
+      localStorage.getItem('theme') ||
+      sessionStorage.getItem('theme') ||
+      'spoketowork-dark';
+    setTheme(currentTheme);
 
-    // Also set on body for consistency
-    if (document.body) {
-      document.body.setAttribute('data-theme', savedTheme);
-    }
+    // Listen for theme changes from ThemeSwitcher
+    const handleExternalThemeChange = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.theme) {
+        setTheme(detail.theme);
+      }
+    };
+    window.addEventListener('themechange', handleExternalThemeChange);
+    return () =>
+      window.removeEventListener('themechange', handleExternalThemeChange);
   }, []);
 
   const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
 
-    // Also set on body for consistency
+    // Apply to DOM
+    document.documentElement.setAttribute('data-theme', newTheme);
     if (document.body) {
       document.body.setAttribute('data-theme', newTheme);
     }
+
+    // Persist to both storages for cross-component consistency
+    try {
+      localStorage.setItem('theme', newTheme);
+    } catch {
+      // localStorage may be blocked by cookie consent
+    }
+    sessionStorage.setItem('theme', newTheme);
 
     // Dispatch custom event for other components to listen to
     window.dispatchEvent(
