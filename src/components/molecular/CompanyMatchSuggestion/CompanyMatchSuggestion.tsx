@@ -136,7 +136,9 @@ export default function CompanyMatchSuggestion({
 
                 {/* Address */}
                 {match.address && (
-                  <div className="mt-1 text-sm opacity-70">{match.address}</div>
+                  <div className="text-base-content/85 mt-1 text-sm">
+                    {match.address}
+                  </div>
                 )}
 
                 {/* Distance */}

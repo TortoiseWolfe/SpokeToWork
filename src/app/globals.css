@@ -63,7 +63,7 @@ body {
   --color-error-content: oklch(100% 0 0);
 
   --radius-selector: 1.5rem;
-  --radius-field: 0.5rem;
+  --radius-field: 0.75rem;
   --radius-box: 0.75rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
@@ -108,7 +108,7 @@ body {
   --color-error-content: oklch(100% 0 0);
 
   --radius-selector: 1.5rem;
-  --radius-field: 0.5rem;
+  --radius-field: 0.75rem;
   --radius-box: 0.75rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
@@ -138,6 +138,70 @@ body {
   --shadow-brand: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.25));
   --shadow-brand-sm: drop-shadow(1px 1px 0px rgba(0, 0, 0, 0.15));
   --shadow-brand-subtle: drop-shadow(2px 2px 0px rgba(0, 0, 0, 0.1));
+}
+
+/* Button micro-interactions — professional with playful touches */
+[data-theme='spoketowork-dark']
+  .btn:not(.btn-ghost):not(.btn-link):not(:disabled),
+[data-theme='spoketowork-light']
+  .btn:not(.btn-ghost):not(.btn-link):not(:disabled) {
+  transition:
+    color 0.2s cubic-bezier(0, 0, 0.2, 1),
+    background-color 0.2s cubic-bezier(0, 0, 0.2, 1),
+    border-color 0.2s cubic-bezier(0, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0, 0, 0.2, 1),
+    transform 0.15s cubic-bezier(0, 0, 0.2, 1);
+}
+
+[data-theme='spoketowork-dark']
+  .btn:not(.btn-ghost):not(.btn-link):not(:disabled):hover,
+[data-theme='spoketowork-light']
+  .btn:not(.btn-ghost):not(.btn-link):not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+[data-theme='spoketowork-dark']
+  .btn:not(.btn-ghost):not(.btn-link):not(:disabled):active,
+[data-theme='spoketowork-light']
+  .btn:not(.btn-ghost):not(.btn-link):not(:disabled):active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* Branded focus ring for keyboard navigation */
+[data-theme='spoketowork-dark'] .btn:focus-visible {
+  outline: 2px solid oklch(79.5% 0.145 55.5);
+  outline-offset: 2px;
+}
+
+[data-theme='spoketowork-light'] .btn:focus-visible {
+  outline: 2px solid oklch(60.4% 0.176 43.9);
+  outline-offset: 2px;
+}
+
+/* Loading spinner visibility on dark backgrounds */
+[data-theme='spoketowork-dark'] .btn .loading {
+  color: currentColor;
+}
+
+/* Card personality — subtle separation on dark, polished feel */
+[data-theme='spoketowork-dark'] .card {
+  border: 1px solid oklch(38% 0.06 257 / 0.6);
+  transition:
+    transform 0.2s cubic-bezier(0, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0, 0, 0.2, 1);
+}
+
+[data-theme='spoketowork-light'] .card {
+  transition:
+    transform 0.2s cubic-bezier(0, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0, 0, 0.2, 1);
+}
+
+/* Cards with links or buttons get hover lift */
+a.card:hover,
+button.card:hover,
+.card[role='button']:hover {
+  transform: translateY(-2px);
 }
 
 /* Override DaisyUI drawer-side to respect container bounds

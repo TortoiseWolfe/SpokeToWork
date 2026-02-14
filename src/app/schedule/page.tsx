@@ -109,7 +109,7 @@ export default function SchedulePage() {
                 </div>
               </div>
 
-              <footer className="mt-8 space-y-2 text-xs opacity-60">
+              <footer className="text-base-content/80 mt-8 space-y-2 text-xs">
                 <p>Powered by Calendly scheduling</p>
               </footer>
             </div>

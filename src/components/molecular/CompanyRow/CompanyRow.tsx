@@ -236,7 +236,9 @@ function CompanyRowComponent({
                 <span className="badge badge-ghost badge-xs">Inactive</span>
               )}
             </div>
-            <div className="text-sm opacity-70">{company.address}</div>
+            <div className="text-base-content/85 text-sm">
+              {company.address}
+            </div>
           </div>
         </div>
       </td>
@@ -252,7 +254,9 @@ function CompanyRowComponent({
               <div className="font-medium">{company.contact_name}</div>
             )}
             {company.contact_title && (
-              <div className="text-xs opacity-70">{company.contact_title}</div>
+              <div className="text-base-content/85 text-xs">
+                {company.contact_title}
+              </div>
             )}
             {company.phone && (
               <div className="text-xs">

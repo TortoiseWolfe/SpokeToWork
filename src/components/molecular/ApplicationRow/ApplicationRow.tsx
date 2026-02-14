@@ -141,7 +141,7 @@ export default function ApplicationRow({
                 <span className="badge badge-ghost badge-xs">Inactive</span>
               )}
             </div>
-            <div className="flex items-center gap-2 text-sm opacity-70">
+            <div className="text-base-content/85 flex items-center gap-2 text-sm">
               <span>
                 {WORK_LOCATION_LABELS[application.work_location_type]}
               </span>
