@@ -12,7 +12,6 @@ interface BlogContentProps {
 }
 
 export default function BlogContent({ htmlContent }: BlogContentProps) {
-  const [copiedCode, setCopiedCode] = React.useState<string | null>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
 
   // Process HTML to add copy buttons to code blocks and fix image paths
@@ -35,13 +34,11 @@ export default function BlogContent({ htmlContent }: BlogContentProps) {
       (match, lang, code) => {
         // Use deterministic ID based on index instead of Math.random()
         const id = `code-block-${codeBlockIndex++}`;
-        // Code is already escaped by markdown processor, keep it escaped for safety
-        // Prism will handle the highlighting after the content is rendered
         return `
           <div class="mockup-code bg-base-300 my-4 relative" data-code-id="${id}">
             <div class="absolute top-2 right-12 text-xs text-base-content/60">${lang}</div>
             <button
-              onclick="navigator.clipboard.writeText(this.parentElement.querySelector('pre').textContent); this.innerHTML='✓'; setTimeout(() => this.innerHTML='📋', 2000)"
+              data-copy-code="${id}"
               class="btn btn-xs btn-ghost absolute top-2 right-2"
               title="Copy code"
             >📋</button>
@@ -52,8 +49,31 @@ export default function BlogContent({ htmlContent }: BlogContentProps) {
     );
   }, [htmlContent]);
 
-  // No need for client-side highlighting anymore
-  // Server-side highlighting is already applied in markdown-processor.ts
+  // Event delegation for code copy buttons (replaces inline onclick handlers)
+  React.useEffect(() => {
+    const container = contentRef.current;
+    if (!container) return;
+
+    const handleClick = (e: MouseEvent) => {
+      const button = (e.target as HTMLElement).closest<HTMLButtonElement>(
+        '[data-copy-code]'
+      );
+      if (!button) return;
+
+      const codeId = button.getAttribute('data-copy-code');
+      const codeEl = container.querySelector(`#${codeId}`);
+      if (codeEl) {
+        navigator.clipboard.writeText(codeEl.textContent || '');
+        button.textContent = '✓';
+        setTimeout(() => {
+          button.textContent = '📋';
+        }, 2000);
+      }
+    };
+
+    container.addEventListener('click', handleClick);
+    return () => container.removeEventListener('click', handleClick);
+  }, [processedHtml]);
 
   // Add smooth scrolling for anchor links with offset for header
   React.useEffect(() => {
