@@ -66,12 +66,12 @@ export const LightMode: Story = {
   },
   render: (args) => (
     <div className="flex flex-col items-center gap-4 p-4">
-      <div className="text-sm text-gray-500">
+      <div className="text-sm text-base-content/75">
         Component requires react-map-gl Map wrapper.
         <br />
         Showing props for documentation:
       </div>
-      <div className="rounded-lg border bg-white p-4 shadow-sm">
+      <div className="rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm">
         <h3 className="mb-2 font-semibold">Light Mode Props</h3>
         <pre className="text-sm">{JSON.stringify(args, null, 2)}</pre>
         <div className="mt-2 flex items-center gap-2">
@@ -103,12 +103,12 @@ export const DarkMode: Story = {
   },
   render: (args) => (
     <div className="flex flex-col items-center gap-4 p-4">
-      <div className="text-sm text-gray-500">
+      <div className="text-sm text-base-content/75">
         Component requires react-map-gl Map wrapper.
         <br />
         Showing props for documentation:
       </div>
-      <div className="rounded-lg border bg-gray-800 p-4 text-white shadow-sm">
+      <div className="rounded-lg border border-base-300 bg-base-300 p-4 shadow-sm">
         <h3 className="mb-2 font-semibold">Dark Mode Props</h3>
         <pre className="text-sm">{JSON.stringify(args, null, 2)}</pre>
         <div className="mt-2 flex items-center gap-2">
@@ -140,13 +140,13 @@ export const Hidden: Story = {
   },
   render: (args) => (
     <div className="flex flex-col items-center gap-4 p-4">
-      <div className="text-sm text-gray-500">
+      <div className="text-sm text-base-content/75">
         Layer is hidden (visible: false)
       </div>
-      <div className="rounded-lg border bg-white p-4 opacity-50 shadow-sm">
+      <div className="rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm">
         <h3 className="mb-2 font-semibold">Hidden Layer Props</h3>
         <pre className="text-sm">{JSON.stringify(args, null, 2)}</pre>
-        <p className="mt-2 text-sm text-gray-500">
+        <p className="mt-2 text-sm text-base-content/75">
           Layers have visibility: &apos;none&apos; in layout
         </p>
       </div>

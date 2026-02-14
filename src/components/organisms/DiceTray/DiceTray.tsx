@@ -216,7 +216,7 @@ export default function DiceTray({
               />
             ))}
             {trayDice.length === 0 && (
-              <div className="text-base-content/40 italic">
+              <div className="text-base-content/75 italic">
                 No dice in tray - drag dice here to unlock
               </div>
             )}
@@ -230,7 +230,7 @@ export default function DiceTray({
           onDragLeave={handleDragLeave}
           onDrop={(e) => handleDrop(e, 'lock')}
         >
-          <div className="text-warning-content/80 mb-2 text-sm">
+          <div className="text-base-content/85 mb-2 text-sm">
             🔒 Lock Zone (drag here to preserve values)
           </div>
           <div className="flex flex-wrap gap-3">
@@ -248,7 +248,7 @@ export default function DiceTray({
               />
             ))}
             {lockedDice.length === 0 && (
-              <div className="text-base-content/40 italic">
+              <div className="text-base-content/75 italic">
                 Drag dice here to lock their values
               </div>
             )}

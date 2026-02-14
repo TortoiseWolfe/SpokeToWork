@@ -210,7 +210,7 @@ export default function RouteOptimizationModal({
                         key={id}
                         className="bg-base-200 flex items-center gap-2 rounded px-2 py-1 text-sm"
                       >
-                        <span className="text-base-content/75 font-mono text-xs">
+                        <span className="text-base-content/85 font-mono text-xs">
                           {index + 1}.
                         </span>
                         <span className="truncate">
@@ -237,7 +237,7 @@ export default function RouteOptimizationModal({
                             moved ? 'bg-success/20' : 'bg-base-200'
                           }`}
                         >
-                          <span className="text-base-content/75 font-mono text-xs">
+                          <span className="text-base-content/85 font-mono text-xs">
                             {index + 1}.
                           </span>
                           <span className="truncate">
