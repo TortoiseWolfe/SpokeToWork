@@ -146,6 +146,32 @@ DaisyUI's `@plugin "daisyui/theme" { default: true }` sets CSS variables as base
 - Use `Promise.race` with timeouts for map/heavy components that may hang during evaluation.
 - Page audit script: `tests/e2e/audit-pages.mjs`. Storybook audit: `tests/e2e/storybook-audit.spec.ts`.
 
+### Map Theme Detection
+
+MapLibre map style (dark navy vs warm cream) is driven by `useMapTheme.ts` which has a hardcoded `darkThemes` array. The same list is duplicated in `MapContainerInner.tsx` as `DARK_THEMES` for the `BikeRoutesLayer` color adaptation. Both lists must include `'spoketowork-dark'` — it was missing initially, causing the map to stay on the light style even when the page was dark.
+
+The detection chain: `MutationObserver` on `document.documentElement` watches for `data-theme` attribute changes → `detectDarkMode()` checks the attribute against the hardcoded list → returns the matching `StyleSpecification` JSON (`map-style-dark.json` or `map-style-light.json`).
+
+### Map Style Warmth
+
+The light map style (`map-style-light.json`) background was cold gray `#f8f9fa` which clashed with the warm cream theme. Changed to `#f6e9d5` to match `base-100`. Roads, building fills, and text halos also need warming (`#ffffff` → `#faf3ea`) for visual cohesion. Village/POI text labels needed darkening (`#555555` → `#3d3d3d`) for AAA contrast on the cream background.
+
+### ThemeSwitcher Cross-Component Sync
+
+`ThemeSwitcher.tsx` sets `data-theme` on the DOM and saves to storage, but must also dispatch `window.dispatchEvent(new CustomEvent('themechange', { detail: { theme } }))` for components that listen for theme changes (e.g., GlobalNav's sync listener). Without this, switching themes on the `/themes` page wouldn't notify other components.
+
+### Dropdown Width in Absolute Positioning
+
+DaisyUI `.dropdown-content` is absolutely positioned inside a `.dropdown` parent (the 44px button). Using `max-w-[calc(100%-4rem)]` resolves `100%` against the parent width (44px), yielding a negative max-width — the dropdown renders at ~16px wide (invisible). Fix: use `max-w-[calc(100vw-4rem)]` to reference the viewport instead.
+
+### AAA WCAG Contrast
+
+AA requires 4.5:1 for normal text; AAA requires 7:1. Colors that pass AA often fail AAA by a wide margin. For the light theme, primary orange needed darkening from `oklch(60.4%)` to `oklch(42%)`, success green from `oklch(62.7%)` to `oklch(39%)`. Warning yellow required white content text (`--color-warning-content: oklch(100% 0 0)`) since dark text on dark-yellow fails AAA. Use per-theme CSS class overrides (e.g., `[data-theme='spoketowork-light'] .text-error`) for text that DaisyUI renders via utility classes.
+
+### Error Logging in React Render Body
+
+Never put `logger.error()` or `console.error()` in the render body of a React component — it fires on every re-render. When an error state persists (e.g., Supabase unreachable), this floods the Next.js error overlay with repeated errors. Always use `useEffect` with the error as a dependency: `useEffect(() => { if (error) logger.warn(...) }, [error])`. Use `logger.warn` instead of `logger.error` for expected environment conditions (DNS unreachable, service unavailable).
+
 ### Button Personality
 
 Hover lift (`translateY(-1px)`), active press (`scale(0.97)`), and branded focus ring (`outline: 2px solid oklch(79.5% 0.145 55.5)`) are defined in `globals.css` CSS rules scoped to `[data-theme='spoketowork-dark']` and `[data-theme='spoketowork-light']`, not in the Button component itself. This keeps the Button component clean and theme-agnostic.
@@ -161,6 +187,7 @@ Hover lift (`translateY(-1px)`), active press (`scale(0.97)`), and branded focus
 | Phase 3: Atomic Components        | Complete | `999f254`            |
 | Phase 4: Molecular/Organism Audit | Complete | `83741fb`            |
 | Phase 5: Page Polish              | Complete | `971971c`            |
+| Post: Theme/Map/AAA Fixes         | Complete | `2075e53`            |
 
 ## Pre-Implementation State Reference
 
