@@ -99,7 +99,7 @@ const MapDecorator = (Story: React.ComponentType) => (
 );
 
 const meta: Meta<typeof RoutePolyline> = {
-  title: 'Map/RoutePolyline',
+  title: 'Features/Map/RoutePolyline',
   component: RoutePolyline,
   tags: ['autodocs'],
   decorators: [MapDecorator],

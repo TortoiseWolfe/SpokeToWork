@@ -3,7 +3,7 @@ import CompanyMatchSuggestion from './CompanyMatchSuggestion';
 import type { MatchResult, MatchConfidence } from '@/types/company';
 
 const meta: Meta<typeof CompanyMatchSuggestion> = {
-  title: 'Molecular/CompanyMatchSuggestion',
+  title: 'Atomic Design/Molecular/CompanyMatchSuggestion',
   component: CompanyMatchSuggestion,
   parameters: {
     layout: 'padded',

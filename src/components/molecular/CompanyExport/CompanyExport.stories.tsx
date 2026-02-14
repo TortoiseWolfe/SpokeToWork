@@ -24,7 +24,7 @@ const mockExport = async (format: ExportFormat) => {
 };
 
 const meta: Meta<typeof CompanyExport> = {
-  title: 'Components/Molecular/CompanyExport',
+  title: 'Atomic Design/Molecular/CompanyExport',
   component: CompanyExport,
   parameters: {
     layout: 'padded',

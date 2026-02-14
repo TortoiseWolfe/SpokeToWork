@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import ConnectionManager from './ConnectionManager';
 
 const meta: Meta<typeof ConnectionManager> = {
-  title: 'Components/Organisms/ConnectionManager',
+  title: 'Atomic Design/Organism/ConnectionManager',
   component: ConnectionManager,
   parameters: {
     layout: 'padded',

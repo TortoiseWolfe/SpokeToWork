@@ -3,7 +3,7 @@ import { useState } from 'react';
 import RouteFilter from './RouteFilter';
 
 const meta: Meta<typeof RouteFilter> = {
-  title: 'Molecular/RouteFilter',
+  title: 'Atomic Design/Molecular/RouteFilter',
   component: RouteFilter,
   tags: ['autodocs'],
   parameters: {

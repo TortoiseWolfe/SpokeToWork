@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import RouteBuilder from './RouteBuilder';
 
 const meta: Meta<typeof RouteBuilder> = {
-  title: 'Organisms/RouteBuilder',
+  title: 'Atomic Design/Organism/RouteBuilder',
   component: RouteBuilder,
   tags: ['autodocs'],
   parameters: {

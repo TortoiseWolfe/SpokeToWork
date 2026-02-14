@@ -4,7 +4,7 @@ import CompanyForm from './CompanyForm';
 import type { Company, HomeLocation } from '@/types/company';
 
 const meta: Meta<typeof CompanyForm> = {
-  title: 'Components/Organisms/CompanyForm',
+  title: 'Atomic Design/Organism/CompanyForm',
   component: CompanyForm,
   parameters: {
     layout: 'padded',

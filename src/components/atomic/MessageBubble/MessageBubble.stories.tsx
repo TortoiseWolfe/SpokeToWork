@@ -19,7 +19,7 @@ const mockMessage: DecryptedMessage = {
 };
 
 const meta = {
-  title: 'Atomic/MessageBubble',
+  title: 'Atomic Design/Atomic/MessageBubble',
   component: MessageBubble,
   parameters: {
     layout: 'centered',

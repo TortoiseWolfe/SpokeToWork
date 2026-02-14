@@ -77,9 +77,11 @@ body {
   prefersdark: false;
   color-scheme: light;
 
-  --color-base-100: oklch(98% 0.005 78.3); /* Warm white #faf8f5 */
-  --color-base-200: oklch(94.5% 0.009 78.3); /* Light cream #f0ece6 */
-  --color-base-300: oklch(89.9% 0.012 79.8); /* Borders #e2ddd5 */
+  --color-base-100: oklch(
+    94% 0.03 79
+  ); /* Warm tan cream — complementary to navy */
+  --color-base-200: oklch(90% 0.035 79); /* Deeper cream */
+  --color-base-300: oklch(85% 0.04 79); /* Tan borders */
   --color-base-content: oklch(27.8% 0.03 256.8); /* Dark text #1f2937 */
 
   --color-primary: oklch(60.4% 0.176 43.9); /* Darker orange #d35400 */
