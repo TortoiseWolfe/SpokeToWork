@@ -421,7 +421,7 @@ export default function MapPage() {
         />
 
         {userLocation && (
-          <span className="text-xs opacity-70">
+          <span className="text-base-content/85 text-xs">
             {userLocation[0].toFixed(4)}, {userLocation[1].toFixed(4)}
             {accuracy && ` (±${accuracy.toFixed(0)}m)`}
           </span>

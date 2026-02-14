@@ -107,7 +107,7 @@ export default function TagsPage() {
               className="badge badge-lg badge-outline hover:badge-primary transition-colors"
             >
               {tag.name}
-              <span className="ml-1 opacity-70">({tag.count})</span>
+              <span className="text-base-content/85 ml-1">({tag.count})</span>
             </Link>
           ))}
         </div>

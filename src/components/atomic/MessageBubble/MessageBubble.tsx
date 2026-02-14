@@ -198,7 +198,9 @@ const MessageBubble = memo(
           data-message-id={message.id}
         >
           <div className="chat-header mb-1">
-            <span className="text-sm opacity-70">{message.senderName}</span>
+            <span className="text-base-content/85 text-sm">
+              {message.senderName}
+            </span>
             <time className="ml-2 text-xs opacity-50">
               {formatTimestamp(message.created_at)}
             </time>
@@ -223,7 +225,9 @@ const MessageBubble = memo(
           data-message-id={message.id}
         >
           <div className="chat-header mb-1">
-            <span className="text-sm opacity-70">{message.senderName}</span>
+            <span className="text-base-content/85 text-sm">
+              {message.senderName}
+            </span>
             <time className="ml-2 text-xs opacity-50">
               {formatTimestamp(message.created_at)}
             </time>
@@ -270,7 +274,9 @@ const MessageBubble = memo(
         data-message-id={message.id}
       >
         <div className="chat-header mb-1">
-          <span className="text-sm opacity-70">{message.senderName}</span>
+          <span className="text-base-content/85 text-sm">
+            {message.senderName}
+          </span>
           <time className="ml-2 text-xs opacity-50">
             {formatTimestamp(message.created_at)}
           </time>
