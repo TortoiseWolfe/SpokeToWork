@@ -1,18 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import React from 'react';
 import SignUpForm from './SignUpForm';
-import { AuthProvider } from '@/contexts/AuthContext';
 
-const withAuthProvider = (Story: any) => (
-  <AuthProvider>
-    <Story />
-  </AuthProvider>
-);
-
+// Global preview.tsx provides mock AuthContext — no real AuthProvider needed
 const meta: Meta<typeof SignUpForm> = {
   title: 'Features/Authentication/SignUpForm',
   component: SignUpForm,
-  decorators: [withAuthProvider],
   parameters: {
     layout: 'centered',
     docs: {

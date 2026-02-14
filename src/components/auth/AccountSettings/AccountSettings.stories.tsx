@@ -1,19 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import React from 'react';
 import AccountSettings from './AccountSettings';
-import { AuthProvider } from '@/contexts/AuthContext';
 
-// Mock AuthProvider decorator for Storybook
-const withAuthProvider = (Story: any) => (
-  <AuthProvider>
-    <Story />
-  </AuthProvider>
-);
-
+// Global preview.tsx provides mock AuthContext — no real AuthProvider needed
 const meta: Meta<typeof AccountSettings> = {
   title: 'Features/Authentication/AccountSettings',
   component: AccountSettings,
-  decorators: [withAuthProvider],
   parameters: {
     layout: 'centered',
     docs: {
