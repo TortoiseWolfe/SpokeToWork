@@ -211,6 +211,33 @@ export const LoadingIndicator: Story = {
   },
 };
 
+export const ThemeComparison: Story = {
+  args: { children: null },
+  parameters: { layout: 'fullscreen' },
+  render: () => (
+    <div className="grid grid-cols-2 gap-4 p-4">
+      <div
+        data-theme="spoketowork-dark"
+        className="rounded-box bg-base-100 flex flex-col items-center gap-4 p-8"
+      >
+        <h3 className="text-base-content text-lg font-semibold">
+          spoketowork-dark
+        </h3>
+        <LayeredSpokeToWorkLogo size={200} speed="slow" pauseOnHover />
+      </div>
+      <div
+        data-theme="spoketowork-light"
+        className="rounded-box bg-base-100 flex flex-col items-center gap-4 p-8"
+      >
+        <h3 className="text-base-content text-lg font-semibold">
+          spoketowork-light
+        </h3>
+        <LayeredSpokeToWorkLogo size={200} speed="slow" pauseOnHover />
+      </div>
+    </div>
+  ),
+};
+
 export const MultipleLogos: Story = {
   args: {
     children: <ReactLogo />,
