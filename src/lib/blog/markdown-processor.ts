@@ -330,29 +330,32 @@ export class MarkdownProcessor {
 
     // Convert headers (after code blocks to avoid converting # in code)
     // Add IDs to headers for TOC navigation
+    // Trailing \n ensures a blank line after headings so paragraph splitter
+    // can separate them from following text (even without an explicit blank line
+    // in the source markdown).
     html = html.replace(/^###### (.*?)$/gm, (match, text) => {
       const id = this.generateId(text);
-      return `<h6 id="${id}">${text}</h6>`;
+      return `<h6 id="${id}">${text}</h6>\n`;
     });
     html = html.replace(/^##### (.*?)$/gm, (match, text) => {
       const id = this.generateId(text);
-      return `<h5 id="${id}">${text}</h5>`;
+      return `<h5 id="${id}">${text}</h5>\n`;
     });
     html = html.replace(/^#### (.*?)$/gm, (match, text) => {
       const id = this.generateId(text);
-      return `<h4 id="${id}">${text}</h4>`;
+      return `<h4 id="${id}">${text}</h4>\n`;
     });
     html = html.replace(/^### (.*?)$/gm, (match, text) => {
       const id = this.generateId(text);
-      return `<h3 id="${id}">${text}</h3>`;
+      return `<h3 id="${id}">${text}</h3>\n`;
     });
     html = html.replace(/^## (.*?)$/gm, (match, text) => {
       const id = this.generateId(text);
-      return `<h2 id="${id}">${text}</h2>`;
+      return `<h2 id="${id}">${text}</h2>\n`;
     });
     html = html.replace(/^# (.*?)$/gm, (match, text) => {
       const id = this.generateId(text);
-      return `<h1 id="${id}">${text}</h1>`;
+      return `<h1 id="${id}">${text}</h1>\n`;
     });
 
     // Convert inline code
