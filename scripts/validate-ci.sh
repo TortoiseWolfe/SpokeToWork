@@ -70,11 +70,48 @@ if [ "$1" != "--quick" ]; then
 fi
 
 # 5. Production build
-run_check "Production build" "pnpm build"
+# next build and next dev both use .next/ — running them in the same container
+# causes race conditions (dev server overwrites manifest files mid-build).
+# Fix: stop the dev server container, build in a temporary container, restart.
+if [ "$IN_DOCKER" = true ]; then
+    run_check "Production build" "pnpm build"
+else
+    echo -e "\n${YELLOW}🔍 Running: Production build${NC}"
+    echo "--------------------------------"
+    echo "Stopping dev server to avoid .next conflicts..."
+    docker compose stop spoketowork >/dev/null 2>&1
+    if docker compose run --rm -T spoketowork pnpm run build; then
+        echo -e "${GREEN}✅ Production build passed${NC}"
+    else
+        echo -e "${RED}❌ Production build failed${NC}"
+        echo "Restarting dev server..."
+        docker compose up -d spoketowork >/dev/null 2>&1
+        exit 1
+    fi
+    echo "Restarting dev server..."
+    docker compose up -d spoketowork >/dev/null 2>&1
+fi
 
 # 6. Storybook build (optional - can be slow)
 if [ "$1" != "--quick" ]; then
-    run_check "Storybook build" "pnpm build-storybook"
+    if [ "$IN_DOCKER" = true ]; then
+        run_check "Storybook build" "pnpm build-storybook"
+    else
+        echo -e "\n${YELLOW}🔍 Running: Storybook build${NC}"
+        echo "--------------------------------"
+        echo "Stopping dev server to avoid conflicts..."
+        docker compose stop spoketowork >/dev/null 2>&1
+        if docker compose run --rm -T spoketowork pnpm run build-storybook; then
+            echo -e "${GREEN}✅ Storybook build passed${NC}"
+        else
+            echo -e "${RED}❌ Storybook build failed${NC}"
+            echo "Restarting dev server..."
+            docker compose up -d spoketowork >/dev/null 2>&1
+            exit 1
+        fi
+        echo "Restarting dev server..."
+        docker compose up -d spoketowork >/dev/null 2>&1
+    fi
 fi
 
 echo -e "\n================================"

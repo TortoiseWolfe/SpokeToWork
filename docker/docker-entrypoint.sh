@@ -37,8 +37,11 @@ chown -R node:node /app/.next
 chmod -R 755 /app/.next
 echo "✅ Fresh .next directory configured!"
 
-# Also ensure node_modules has correct ownership
+# Ensure writable directories for node user (build scripts, static export)
+chown node:node /app 2>/dev/null || true
 chown -R node:node /app/node_modules 2>/dev/null || true
+chown -R node:node /app/public 2>/dev/null || true
+chown -R node:node /app/out 2>/dev/null || true
 
 # Check for common issues that might need fixing
 if [ -f ".next/BUILD_ID" ]; then
