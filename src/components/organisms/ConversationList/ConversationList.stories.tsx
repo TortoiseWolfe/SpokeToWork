@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import ConversationList from './ConversationList';
 
 const meta: Meta<typeof ConversationList> = {
-  title: 'Components/Organisms/ConversationList',
+  title: 'Atomic Design/Organism/ConversationList',
   component: ConversationList,
   parameters: {
     layout: 'fullscreen',

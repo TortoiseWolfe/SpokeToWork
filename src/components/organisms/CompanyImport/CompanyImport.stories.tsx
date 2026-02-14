@@ -19,7 +19,7 @@ const mockPartialResult: ImportResult = {
 };
 
 const meta: Meta<typeof CompanyImport> = {
-  title: 'Components/Organisms/CompanyImport',
+  title: 'Atomic Design/Organism/CompanyImport',
   component: CompanyImport,
   parameters: {
     layout: 'padded',

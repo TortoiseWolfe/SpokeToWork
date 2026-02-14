@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import RouteSidebar from './RouteSidebar';
 
 const meta: Meta<typeof RouteSidebar> = {
-  title: 'Organisms/RouteSidebar',
+  title: 'Atomic Design/Organism/RouteSidebar',
   component: RouteSidebar,
   tags: ['autodocs'],
   parameters: {

@@ -9,7 +9,7 @@ import { useState } from 'react';
 import AccountDeletionModal from './AccountDeletionModal';
 
 const meta: Meta<typeof AccountDeletionModal> = {
-  title: 'Components/Molecular/AccountDeletionModal',
+  title: 'Atomic Design/Molecular/AccountDeletionModal',
   component: AccountDeletionModal,
   parameters: {
     layout: 'centered',

@@ -11,7 +11,7 @@ const mockShareOptions: ShareOptions = {
 };
 
 const meta: Meta<typeof SocialShareButtons> = {
-  title: 'Features/Blog/SocialShareButtons',
+  title: 'Atomic Design/Molecular/SocialShareButtons',
   component: SocialShareButtons,
   parameters: {
     layout: 'centered',

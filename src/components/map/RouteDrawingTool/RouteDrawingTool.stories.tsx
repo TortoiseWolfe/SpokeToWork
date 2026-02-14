@@ -38,7 +38,7 @@ const MapDecorator = (Story: React.ComponentType) => (
 );
 
 const meta: Meta<typeof RouteDrawingTool> = {
-  title: 'Map/RouteDrawingTool',
+  title: 'Features/Map/RouteDrawingTool',
   component: RouteDrawingTool,
   tags: ['autodocs'],
   decorators: [MapDecorator],

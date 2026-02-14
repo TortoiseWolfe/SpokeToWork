@@ -3,7 +3,7 @@ import CompanyDetailDrawer from './CompanyDetailDrawer';
 import type { CompanyWithApplications } from '@/types/company';
 
 const meta: Meta<typeof CompanyDetailDrawer> = {
-  title: 'Organisms/CompanyDetailDrawer',
+  title: 'Atomic Design/Organism/CompanyDetailDrawer',
   component: CompanyDetailDrawer,
   parameters: {
     layout: 'fullscreen',

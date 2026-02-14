@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { FontSwitcher } from './FontSwitcher';
 
 const meta = {
-  title: 'Layout/Theme/FontSwitcher',
+  title: 'Atomic Design/Molecular/FontSwitcher',
   component: FontSwitcher,
   parameters: {
     layout: 'centered',

@@ -76,7 +76,7 @@ const mockCompanies: Company[] = [
 ];
 
 const meta: Meta<typeof CompanyTable> = {
-  title: 'Components/Organisms/CompanyTable',
+  title: 'Atomic Design/Organism/CompanyTable',
   component: CompanyTable,
   parameters: {
     layout: 'padded',
