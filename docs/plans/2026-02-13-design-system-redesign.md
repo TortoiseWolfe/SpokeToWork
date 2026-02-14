@@ -125,7 +125,44 @@ Order:
 - Mobile-first responsive approach stays
 - Steady improvement pace, no hard deadline
 
-## Current State Reference
+## Implementation Learnings
+
+### Theme Application
+
+Three places set `data-theme` on the DOM: `ThemeScript.tsx` (inline script, first paint), `GlobalNav.tsx` (useEffect on hydration), `ThemeSwitcher.tsx` (user selection). All three must default to `'spoketowork-dark'`, not `'dark'`. GlobalNav originally defaulted to `'dark'` which caused the built-in DaisyUI dark theme (purple primary, gray background) to override our custom theme on every page load.
+
+DaisyUI's `@plugin "daisyui/theme" { default: true }` sets CSS variables as base-level styles, but `[data-theme="dark"]` selectors from the built-in themes list have higher specificity and override them. The `data-theme` attribute must match the custom theme name exactly.
+
+### Contrast Patterns
+
+- Use `text-base-content/85` instead of `opacity-70` for text dimming. `opacity-XX` dims the entire element (background, borders, text). `text-base-content/XX` only affects text color.
+- Colors that serve dual roles (text-on-dark-bg AND background-with-text) need split treatment. Use CSS class overrides for text rendering (e.g., `[data-theme='spoketowork-dark'] .text-error { color: oklch(78% ...) }`) and dark `-content` values for background usage (e.g., `--color-primary-content: oklch(20% ...)`).
+- The automated 590-story axe-core audit found 30 contrast issues. 16 were fixed, 14 remaining are intentional (4 inactive row dimming at AA level, 10 AAA-only edge cases).
+
+### Playwright Auditing
+
+- Set `colorScheme: 'dark'` in `browser.newPage()` options to trigger the correct theme via ThemeScript's `prefers-color-scheme` media query.
+- Inject axe-core via `page.addScriptTag({ content: AXE_SOURCE })` for per-page contrast checks.
+- Use `Promise.race` with timeouts for map/heavy components that may hang during evaluation.
+- Page audit script: `tests/e2e/audit-pages.mjs`. Storybook audit: `tests/e2e/storybook-audit.spec.ts`.
+
+### Button Personality
+
+Hover lift (`translateY(-1px)`), active press (`scale(0.97)`), and branded focus ring (`outline: 2px solid oklch(79.5% 0.145 55.5)`) are defined in `globals.css` CSS rules scoped to `[data-theme='spoketowork-dark']` and `[data-theme='spoketowork-light']`, not in the Button component itself. This keeps the Button component clean and theme-agnostic.
+
+## Completion Status
+
+**Status:** Complete (2026-02-14)
+
+| Phase                             | Status   | Key Commits          |
+| --------------------------------- | -------- | -------------------- |
+| Phase 1: Storybook v10            | Complete | `20cd992`, `3a3de99` |
+| Phase 2: Custom Theme             | Complete | `d45e5ad`, `c13e892` |
+| Phase 3: Atomic Components        | Complete | `999f254`            |
+| Phase 4: Molecular/Organism Audit | Complete | `83741fb`            |
+| Phase 5: Page Polish              | Complete | `971971c`            |
+
+## Pre-Implementation State Reference
 
 - Framework: Next.js 15.5, React 19, TypeScript
 - Styling: Tailwind v4 + DaisyUI (beta), 32 stock themes available
