@@ -16,13 +16,13 @@ export default function SignInPage() {
     const params = new URLSearchParams(window.location.search);
     const url = params.get('returnUrl');
     if (url) {
-      // If returnUrl already has basePath or is absolute, use as-is
-      // Otherwise prepend basePath
-      const finalUrl =
-        url.startsWith(basePath) || url.startsWith('http')
-          ? url
-          : `${basePath}${url}`;
-      setReturnUrl(finalUrl);
+      // Only allow relative URLs to prevent open redirect attacks.
+      // Reject absolute URLs (http://, https://, //) and protocol-relative URLs.
+      const isRelative = url.startsWith('/') && !url.startsWith('//');
+      if (isRelative) {
+        const finalUrl = url.startsWith(basePath) ? url : `${basePath}${url}`;
+        setReturnUrl(finalUrl);
+      }
     }
   }, []);
 

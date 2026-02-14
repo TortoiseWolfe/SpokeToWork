@@ -145,12 +145,10 @@ describe('KeyManagementService', () => {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 eq: vi.fn().mockReturnValue({
-                  order: vi.fn().mockReturnValue({
-                    limit: vi.fn().mockReturnValue({
-                      maybeSingle: vi.fn().mockResolvedValue({
-                        data: null,
-                        error: { code: 'PGRST116', message: 'No rows found' },
-                      }),
+                  limit: vi.fn().mockReturnValue({
+                    maybeSingle: vi.fn().mockResolvedValue({
+                      data: null,
+                      error: { code: 'PGRST116', message: 'No rows found' },
                     }),
                   }),
                 }),
@@ -229,12 +227,10 @@ describe('KeyManagementService', () => {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 eq: vi.fn().mockReturnValue({
-                  order: vi.fn().mockReturnValue({
-                    limit: vi.fn().mockReturnValue({
-                      maybeSingle: vi.fn().mockResolvedValue({
-                        data: null,
-                        error: { code: 'PGRST116' },
-                      }),
+                  limit: vi.fn().mockReturnValue({
+                    maybeSingle: vi.fn().mockResolvedValue({
+                      data: null,
+                      error: { code: 'PGRST116' },
                     }),
                   }),
                 }),

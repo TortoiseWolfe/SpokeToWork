@@ -13,7 +13,11 @@ export default function SignUpPage() {
     const params = new URLSearchParams(window.location.search);
     const url = params.get('returnUrl');
     if (url) {
-      setReturnUrl(url);
+      // Only allow relative URLs to prevent open redirect attacks
+      const isRelative = url.startsWith('/') && !url.startsWith('//');
+      if (isRelative) {
+        setReturnUrl(url);
+      }
     }
   }, []);
 

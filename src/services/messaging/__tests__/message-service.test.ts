@@ -442,12 +442,14 @@ describe('MessageService', () => {
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
-                  order: vi.fn().mockReturnValue({
-                    limit: vi.fn().mockResolvedValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockReturnValue({
+                    lt: vi.fn().mockReturnValue({
                       data: mockMessages,
                       error: null,
                     }),
+                    data: mockMessages,
+                    error: null,
                   }),
                 }),
               }),
@@ -520,13 +522,11 @@ describe('MessageService', () => {
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
-                  order: vi.fn().mockReturnValue({
-                    limit: vi.fn().mockReturnValue({
-                      lt: vi.fn().mockResolvedValue({
-                        data: [mockMessages[0]],
-                        error: null,
-                      }),
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockReturnValue({
+                    lt: vi.fn().mockResolvedValue({
+                      data: [mockMessages[0]],
+                      error: null,
                     }),
                   }),
                 }),
