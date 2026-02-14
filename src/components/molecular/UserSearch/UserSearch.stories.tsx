@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import UserSearch from './UserSearch';
 
 const meta: Meta<typeof UserSearch> = {
-  title: 'Components/Molecular/UserSearch',
+  title: 'Atomic Design/Molecular/UserSearch',
   component: UserSearch,
   parameters: {
     layout: 'padded',

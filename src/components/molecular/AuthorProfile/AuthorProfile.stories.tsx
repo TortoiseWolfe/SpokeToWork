@@ -44,7 +44,7 @@ const mockAuthor: Author = {
 };
 
 const meta: Meta<typeof AuthorProfile> = {
-  title: 'Features/Blog/AuthorProfile',
+  title: 'Atomic Design/Molecular/AuthorProfile',
   component: AuthorProfile,
   parameters: {
     layout: 'centered',

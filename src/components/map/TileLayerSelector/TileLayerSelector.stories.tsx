@@ -57,7 +57,7 @@ const mockProviders: MapTileProvider[] = [
 ];
 
 const meta: Meta<typeof TileLayerSelector> = {
-  title: 'Map/TileLayerSelector',
+  title: 'Features/Map/TileLayerSelector',
   component: TileLayerSelector,
   tags: ['autodocs'],
   parameters: {

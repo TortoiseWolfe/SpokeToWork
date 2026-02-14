@@ -5,7 +5,7 @@ import CompanyFilters from './CompanyFilters';
 import type { CompanyFilters as CompanyFiltersType } from '@/types/company';
 
 const meta: Meta<typeof CompanyFilters> = {
-  title: 'Components/Molecular/CompanyFilters',
+  title: 'Atomic Design/Molecular/CompanyFilters',
   component: CompanyFilters,
   parameters: {
     layout: 'padded',

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import CoordinateMap from './CoordinateMap';
 
 const meta: Meta<typeof CoordinateMap> = {
-  title: 'Components/Molecular/CoordinateMap',
+  title: 'Atomic Design/Molecular/CoordinateMap',
   component: CoordinateMap,
   parameters: {
     layout: 'padded',

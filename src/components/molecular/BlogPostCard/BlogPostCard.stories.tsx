@@ -58,7 +58,7 @@ const draftPost: BlogPost = {
 };
 
 const meta: Meta<typeof BlogPostCard> = {
-  title: 'Features/Blog/BlogPostCard',
+  title: 'Atomic Design/Molecular/BlogPostCard',
   component: BlogPostCard,
   parameters: {
     layout: 'centered',

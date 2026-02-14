@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import RouteStartEndEditor from './RouteStartEndEditor';
 
 const meta: Meta<typeof RouteStartEndEditor> = {
-  title: 'Molecular/RouteStartEndEditor',
+  title: 'Atomic Design/Molecular/RouteStartEndEditor',
   component: RouteStartEndEditor,
   tags: ['autodocs'],
   parameters: {

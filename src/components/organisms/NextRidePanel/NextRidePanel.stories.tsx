@@ -99,7 +99,7 @@ const createMockRouteCompanies = (
 };
 
 const meta: Meta<typeof NextRidePanel> = {
-  title: 'Organisms/NextRidePanel',
+  title: 'Atomic Design/Organism/NextRidePanel',
   component: NextRidePanel,
   tags: ['autodocs'],
   parameters: {

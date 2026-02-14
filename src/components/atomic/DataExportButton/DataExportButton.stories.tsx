@@ -8,7 +8,7 @@ import { fn } from 'storybook/test';
 import DataExportButton from './DataExportButton';
 
 const meta: Meta<typeof DataExportButton> = {
-  title: 'Components/Atomic/DataExportButton',
+  title: 'Atomic Design/Atomic/DataExportButton',
   component: DataExportButton,
   parameters: {
     layout: 'centered',

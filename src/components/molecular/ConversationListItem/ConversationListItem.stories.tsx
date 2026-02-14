@@ -13,7 +13,7 @@ const mockParticipant = {
 };
 
 const meta: Meta<typeof ConversationListItem> = {
-  title: 'Components/Molecular/ConversationListItem',
+  title: 'Atomic Design/Molecular/ConversationListItem',
   component: ConversationListItem,
   parameters: {
     layout: 'centered',
