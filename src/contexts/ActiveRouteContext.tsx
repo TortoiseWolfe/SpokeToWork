@@ -39,9 +39,9 @@ export interface ActiveRouteContextValue {
   refresh: () => Promise<void>;
 }
 
-const ActiveRouteContext = createContext<ActiveRouteContextValue | undefined>(
-  undefined
-);
+export const ActiveRouteContext = createContext<
+  ActiveRouteContextValue | undefined
+>(undefined);
 
 export function ActiveRouteProvider({
   children,
