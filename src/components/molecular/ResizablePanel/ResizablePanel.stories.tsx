@@ -37,7 +37,7 @@ Width persists to localStorage and is restored on mount.
         <Story />
         <div className="bg-base-100 flex-1 p-4">
           <p className="text-base-content/80">Main content area</p>
-          <p className="text-base-content/40 mt-2 text-sm">
+          <p className="text-base-content/75 mt-2 text-sm">
             Drag the right edge of the panel to resize it.
             <br />
             The width persists in localStorage.

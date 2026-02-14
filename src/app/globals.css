@@ -42,13 +42,13 @@ body {
   --color-primary: oklch(
     79.5% 0.145 55.5
   ); /* Lighter orange for AAA contrast on navy */
-  --color-primary-content: oklch(100% 0 0); /* White */
+  --color-primary-content: oklch(20% 0.04 55); /* Dark warm — AAA on light orange */
 
   --color-secondary: oklch(81.6% 0.145 216.5); /* Cyan #00d9ff — accents */
   --color-secondary-content: oklch(24.2% 0.061 259.5); /* Navy */
 
   --color-accent: oklch(72.3% 0.192 149.6); /* Green #22c55e — success */
-  --color-accent-content: oklch(100% 0 0); /* White */
+  --color-accent-content: oklch(20% 0.04 149); /* Dark green — AAA on green */
 
   --color-neutral: oklch(27.8% 0.03 256.8); /* Dark gray #1f2937 */
   --color-neutral-content: oklch(87.2% 0.009 258.3); /* Light gray #d1d5db */
@@ -56,7 +56,7 @@ body {
   --color-info: oklch(62.3% 0.188 259.8); /* Blue #3b82f6 */
   --color-info-content: oklch(100% 0 0);
   --color-success: oklch(72.3% 0.192 149.6); /* Green #22c55e */
-  --color-success-content: oklch(100% 0 0);
+  --color-success-content: oklch(20% 0.04 149); /* Dark green — AAA on green */
   --color-warning: oklch(90.5% 0.166 98.1); /* Yellow #fde047 */
   --color-warning-content: oklch(24.2% 0.061 259.5);
   --color-error: oklch(63.7% 0.208 25.3); /* Red #ef4444 */
@@ -176,6 +176,25 @@ body {
 [data-theme='spoketowork-light'] .btn:focus-visible {
   outline: 2px solid oklch(60.4% 0.176 43.9);
   outline-offset: 2px;
+}
+
+/* Semantic text colors — lightened for AAA on dark backgrounds */
+[data-theme='spoketowork-dark'] .text-error {
+  color: oklch(78% 0.155 25.3); /* Lighter red — 8:1+ on navy */
+}
+
+[data-theme='spoketowork-dark'] .text-info {
+  color: oklch(78% 0.13 259.8); /* Lighter blue — 8:1+ on navy */
+}
+
+[data-theme='spoketowork-dark'] .text-success {
+  color: oklch(78% 0.15 149.6); /* Lighter green — 8:1+ on navy */
+}
+
+/* Table header and form label alt contrast — DaisyUI defaults too dim for AAA */
+[data-theme='spoketowork-dark'] th,
+[data-theme='spoketowork-dark'] .label-text-alt {
+  color: oklch(82% 0.02 236.8); /* 7.5:1 on base-100 */
 }
 
 /* Loading spinner visibility on dark backgrounds */
@@ -554,7 +573,7 @@ p:not([class*='text-']) {
 /* ===== Syntax Highlighting Styles ===== */
 /* Line numbers styles */
 [data-theme] .line-number {
-  @apply text-base-content/30 select-none;
+  @apply text-base-content/75 select-none;
   display: inline-block;
   width: 3rem;
   text-align: right;
@@ -568,12 +587,12 @@ p:not([class*='text-']) {
   display: block;
 }
 
-/* Token colors that work with all themes */
+/* Token colors — lightened for AAA on dark code backgrounds */
 [data-theme] .token.comment,
 [data-theme] .token.prolog,
 [data-theme] .token.doctype,
 [data-theme] .token.cdata {
-  color: #6a9955; /* Green comments */
+  color: #8ec07c; /* Lightened green comments — 7:1+ on #0d1f3c */
 }
 
 [data-theme] .token.punctuation {
@@ -619,12 +638,12 @@ p:not([class*='text-']) {
 }
 
 [data-theme] .token.keyword {
-  color: #569cd6; /* Blue */
+  color: #7cb8e8; /* Lightened blue — 7:1+ on #0d1f3c */
 }
 
 [data-theme] .token.regex,
 [data-theme] .token.important {
-  color: #d16969; /* Red */
+  color: #e88888; /* Lightened red — 7:1+ on #0d1f3c */
 }
 
 [data-theme] .token.important,

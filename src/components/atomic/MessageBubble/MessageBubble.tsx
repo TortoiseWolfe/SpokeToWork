@@ -201,16 +201,14 @@ const MessageBubble = memo(
             <span className="text-base-content/85 text-sm">
               {message.senderName}
             </span>
-            <time className="ml-2 text-xs opacity-50">
+            <time className="ml-2 text-xs text-base-content/75">
               {formatTimestamp(message.created_at)}
             </time>
           </div>
-          <div
-            className={`chat-bubble ${
-              message.isOwn ? 'chat-bubble-primary' : 'chat-bubble-secondary'
-            } opacity-60`}
-          >
-            <p className="text-sm italic">[Message deleted]</p>
+          <div className="chat-bubble bg-base-300">
+            <p className="text-base-content/85 text-sm italic">
+              [Message deleted]
+            </p>
           </div>
         </div>
       );
@@ -228,7 +226,7 @@ const MessageBubble = memo(
             <span className="text-base-content/85 text-sm">
               {message.senderName}
             </span>
-            <time className="ml-2 text-xs opacity-50">
+            <time className="ml-2 text-xs text-base-content/75">
               {formatTimestamp(message.created_at)}
             </time>
           </div>
@@ -277,11 +275,11 @@ const MessageBubble = memo(
           <span className="text-base-content/85 text-sm">
             {message.senderName}
           </span>
-          <time className="ml-2 text-xs opacity-50">
+          <time className="ml-2 text-xs text-base-content/75">
             {formatTimestamp(message.created_at)}
           </time>
           {message.edited && message.edited_at && (
-            <span className="ml-2 text-xs opacity-50">
+            <span className="ml-2 text-xs text-base-content/75">
               (Edited {formatTimestamp(message.edited_at)})
             </span>
           )}

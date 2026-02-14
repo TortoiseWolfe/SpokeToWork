@@ -71,7 +71,7 @@ export const WithCallbacks: Story = {
 
 export const CustomStyling: Story = {
   args: {
-    className: 'bg-primary text-primary-content',
+    className: 'bg-base-200',
     privacyPolicyUrl: '/privacy',
     cookiePolicyUrl: '/cookies',
   },

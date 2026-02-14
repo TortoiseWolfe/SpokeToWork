@@ -30,7 +30,7 @@ export const Default: Story = {
 
 export const WithCustomClass: Story = {
   args: {
-    className: 'p-4 bg-primary text-white rounded',
+    className: 'p-4 bg-base-200 rounded',
   },
 };
 
