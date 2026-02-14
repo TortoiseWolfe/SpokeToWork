@@ -30,7 +30,7 @@ function GlobalNavComponent() {
 
   // Theme management
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
+    const savedTheme = localStorage.getItem('theme') || 'spoketowork-dark';
     setTheme(savedTheme);
     document.documentElement.setAttribute('data-theme', savedTheme);
 
