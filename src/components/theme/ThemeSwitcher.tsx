@@ -90,6 +90,11 @@ export function ThemeSwitcher() {
       document.documentElement.setAttribute('data-theme', theme);
       document.body?.setAttribute('data-theme', theme);
 
+      // Dispatch custom event for cross-component sync
+      window.dispatchEvent(
+        new CustomEvent('themechange', { detail: { theme } })
+      );
+
       // Check if we can persist the preference
       const canPersist = canUseCookies(CookieCategory.FUNCTIONAL);
 

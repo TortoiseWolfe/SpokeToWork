@@ -20,7 +20,7 @@
       "id": "background",
       "type": "background",
       "paint": {
-        "background-color": "#f8f9fa"
+        "background-color": "#f6e9d5"
       }
     },
     {
@@ -82,7 +82,7 @@
       "source-layer": "transportation",
       "filter": ["==", ["get", "class"], "secondary"],
       "paint": {
-        "line-color": "#ffffff",
+        "line-color": "#faf3ea",
         "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.8, 16, 4]
       }
     },
@@ -97,7 +97,7 @@
         ["literal", ["tertiary", "minor", "service"]]
       ],
       "paint": {
-        "line-color": "#ffffff",
+        "line-color": "#faf3ea",
         "line-width": ["interpolate", ["linear"], ["zoom"], 12, 0.5, 16, 3]
       }
     },
@@ -123,7 +123,7 @@
         ["==", ["get", "bicycle"], "yes"]
       ],
       "paint": {
-        "line-color": "#ffffff",
+        "line-color": "#faf3ea",
         "line-width": [
           "interpolate",
           ["linear"],
@@ -190,7 +190,7 @@
       },
       "paint": {
         "text-color": "#166534",
-        "text-halo-color": "#ffffff",
+        "text-halo-color": "#faf3ea",
         "text-halo-width": 2
       }
     },
@@ -200,7 +200,7 @@
       "source": "openmaptiles",
       "source-layer": "building",
       "paint": {
-        "fill-color": "#e0e0e0",
+        "fill-color": "#e0d5c7",
         "fill-opacity": 0.7
       }
     },
@@ -233,7 +233,7 @@
       },
       "paint": {
         "text-color": "#222222",
-        "text-halo-color": "#ffffff",
+        "text-halo-color": "#faf3ea",
         "text-halo-width": 2.5
       }
     },
@@ -260,7 +260,7 @@
       },
       "paint": {
         "text-color": "#1a1a1a",
-        "text-halo-color": "#ffffff",
+        "text-halo-color": "#faf3ea",
         "text-halo-width": 2
       }
     },
@@ -287,7 +287,7 @@
       },
       "paint": {
         "text-color": "#333333",
-        "text-halo-color": "#ffffff",
+        "text-halo-color": "#faf3ea",
         "text-halo-width": 2
       }
     },
@@ -307,8 +307,8 @@
         "text-size": ["interpolate", ["linear"], ["zoom"], 12, 14, 16, 18]
       },
       "paint": {
-        "text-color": "#555555",
-        "text-halo-color": "#ffffff",
+        "text-color": "#3d3d3d",
+        "text-halo-color": "#faf3ea",
         "text-halo-width": 1.5
       }
     },
@@ -345,8 +345,8 @@
         "icon-allow-overlap": false
       },
       "paint": {
-        "text-color": "#444444",
-        "text-halo-color": "#ffffff",
+        "text-color": "#3d3d3d",
+        "text-halo-color": "#faf3ea",
         "text-halo-width": 2
       }
     }

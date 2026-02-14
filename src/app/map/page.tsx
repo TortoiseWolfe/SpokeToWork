@@ -89,7 +89,13 @@ export default function MapPage() {
 
   useEffect(() => {
     if (!user && !authLoading) {
-      getSystemRoutes().then(setSystemRoutes).catch(console.error);
+      getSystemRoutes()
+        .then(setSystemRoutes)
+        .catch((err) => {
+          logger.warn('System routes unavailable', {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
     }
   }, [user, authLoading, getSystemRoutes]);
 
@@ -150,10 +156,12 @@ export default function MapPage() {
     RouteCompanyWithDetails[]
   >([]);
 
-  // Log any route errors for debugging
-  if (routesError) {
-    logger.error('Route loading error', { error: routesError.message });
-  }
+  // Log route errors once per error change (not on every render)
+  useEffect(() => {
+    if (routesError) {
+      logger.warn('Route loading unavailable', { error: routesError.message });
+    }
+  }, [routesError]);
 
   // Debug: Log routes being fetched
   useEffect(() => {
