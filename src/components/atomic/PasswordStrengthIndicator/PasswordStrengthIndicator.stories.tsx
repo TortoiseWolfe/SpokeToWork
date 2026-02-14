@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import PasswordStrengthIndicator from './PasswordStrengthIndicator';
 
 const meta: Meta<typeof PasswordStrengthIndicator> = {
-  title: 'Components/Atomic/PasswordStrengthIndicator',
+  title: 'Atomic Design/Atomic/PasswordStrengthIndicator',
   component: PasswordStrengthIndicator,
   parameters: {
     layout: 'centered',

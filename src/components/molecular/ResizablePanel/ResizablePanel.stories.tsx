@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import ResizablePanel from './ResizablePanel';
 
 const meta: Meta<typeof ResizablePanel> = {
-  title: 'Molecular/ResizablePanel',
+  title: 'Atomic Design/Molecular/ResizablePanel',
   component: ResizablePanel,
   tags: ['autodocs'],
   parameters: {

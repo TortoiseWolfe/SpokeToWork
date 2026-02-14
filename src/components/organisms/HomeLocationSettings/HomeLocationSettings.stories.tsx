@@ -3,7 +3,7 @@ import { fn } from 'storybook/test';
 import HomeLocationSettings from './HomeLocationSettings';
 
 const meta: Meta<typeof HomeLocationSettings> = {
-  title: 'Components/Organisms/HomeLocationSettings',
+  title: 'Atomic Design/Organism/HomeLocationSettings',
   component: HomeLocationSettings,
   parameters: {
     layout: 'padded',

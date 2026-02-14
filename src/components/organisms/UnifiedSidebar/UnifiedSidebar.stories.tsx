@@ -3,7 +3,7 @@ import { fn } from 'storybook/test';
 import UnifiedSidebar from './UnifiedSidebar';
 
 const meta: Meta<typeof UnifiedSidebar> = {
-  title: 'Components/Organisms/UnifiedSidebar',
+  title: 'Atomic Design/Organism/UnifiedSidebar',
   component: UnifiedSidebar,
   parameters: {
     layout: 'fullscreen',

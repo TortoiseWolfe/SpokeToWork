@@ -3,7 +3,7 @@ import AdminModerationQueue from './AdminModerationQueue';
 import type { ModerationQueueItem } from '@/lib/companies/admin-moderation-service';
 
 const meta: Meta<typeof AdminModerationQueue> = {
-  title: 'Organisms/AdminModerationQueue',
+  title: 'Atomic Design/Organism/AdminModerationQueue',
   component: AdminModerationQueue,
   tags: ['autodocs'],
   parameters: {

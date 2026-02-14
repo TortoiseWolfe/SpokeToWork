@@ -7,7 +7,7 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { CreateGroupModal } from './CreateGroupModal';
 
 const meta: Meta<typeof CreateGroupModal> = {
-  title: 'Organisms/CreateGroupModal',
+  title: 'Atomic Design/Organism/CreateGroupModal',
   component: CreateGroupModal,
   parameters: {
     layout: 'centered',

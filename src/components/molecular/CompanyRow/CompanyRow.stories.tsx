@@ -28,7 +28,7 @@ const mockCompany: Company = {
 };
 
 const meta: Meta<typeof CompanyRow> = {
-  title: 'Components/Molecular/CompanyRow',
+  title: 'Atomic Design/Molecular/CompanyRow',
   component: CompanyRow,
   parameters: {
     layout: 'padded',

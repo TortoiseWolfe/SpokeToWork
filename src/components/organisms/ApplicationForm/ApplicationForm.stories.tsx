@@ -3,7 +3,7 @@ import ApplicationForm from './ApplicationForm';
 import type { JobApplication } from '@/types/company';
 
 const meta: Meta<typeof ApplicationForm> = {
-  title: 'Organisms/ApplicationForm',
+  title: 'Atomic Design/Organism/ApplicationForm',
   component: ApplicationForm,
   parameters: {
     layout: 'centered',

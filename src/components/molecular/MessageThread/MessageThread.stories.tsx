@@ -36,7 +36,7 @@ const generateMockMessages = (count: number): DecryptedMessage[] => {
 };
 
 const meta = {
-  title: 'Molecular/MessageThread',
+  title: 'Atomic Design/Molecular/MessageThread',
   component: MessageThread,
   parameters: {
     layout: 'fullscreen',

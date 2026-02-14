@@ -3,7 +3,7 @@ import RouteOptimizationModal from './RouteOptimizationModal';
 import type { RouteOptimizationResult } from '@/lib/routes/optimization-types';
 
 const meta: Meta<typeof RouteOptimizationModal> = {
-  title: 'Molecular/RouteOptimizationModal',
+  title: 'Atomic Design/Molecular/RouteOptimizationModal',
   component: RouteOptimizationModal,
   parameters: {
     layout: 'fullscreen',

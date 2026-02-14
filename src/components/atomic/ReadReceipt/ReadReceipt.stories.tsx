@@ -9,7 +9,7 @@ import ReadReceipt from './ReadReceipt';
  */
 
 const meta: Meta<typeof ReadReceipt> = {
-  title: 'Messaging/ReadReceipt',
+  title: 'Atomic Design/Atomic/ReadReceipt',
   component: ReadReceipt,
   parameters: {
     layout: 'centered',

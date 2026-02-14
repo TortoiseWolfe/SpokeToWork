@@ -69,7 +69,7 @@ const mockCompanies: RouteCompany[] = [
 ];
 
 const meta: Meta<typeof RouteCompanyList> = {
-  title: 'Organisms/RouteCompanyList',
+  title: 'Atomic Design/Organism/RouteCompanyList',
   component: RouteCompanyList,
   tags: ['autodocs'],
   parameters: {

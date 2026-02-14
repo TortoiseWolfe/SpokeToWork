@@ -11,7 +11,7 @@ import { BikeRoutesLayer } from './BikeRoutesLayer';
  * The stories here show the component in isolation for documentation purposes.
  */
 const meta: Meta<typeof BikeRoutesLayer> = {
-  title: 'Map/BikeRoutesLayer',
+  title: 'Features/Map/BikeRoutesLayer',
   component: BikeRoutesLayer,
   parameters: {
     layout: 'centered',

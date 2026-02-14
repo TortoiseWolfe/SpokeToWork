@@ -93,7 +93,7 @@ const mockCompanies: RouteCompanyWithDetails[] = [
 ];
 
 const meta: Meta<typeof RouteDetailDrawer> = {
-  title: 'Organisms/RouteDetailDrawer',
+  title: 'Atomic Design/Organism/RouteDetailDrawer',
   component: RouteDetailDrawer,
   parameters: {
     layout: 'fullscreen',

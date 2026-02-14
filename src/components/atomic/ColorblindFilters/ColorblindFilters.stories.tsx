@@ -48,7 +48,7 @@ const ColorDemo = ({ filterType }: { filterType?: ColorblindType }) => {
 };
 
 const meta = {
-  title: 'Layout/Theme/ColorblindFilters',
+  title: 'Atomic Design/Atomic/ColorblindFilters',
   component: ColorblindFilters,
   parameters: {
     layout: 'centered',

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import TagCloud from './TagCloud';
 
 const meta = {
-  title: 'Features/Blog/TagCloud',
+  title: 'Atomic Design/Molecular/TagCloud',
   component: TagCloud,
   parameters: {
     layout: 'padded',

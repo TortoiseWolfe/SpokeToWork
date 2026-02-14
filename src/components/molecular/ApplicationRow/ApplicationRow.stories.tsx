@@ -3,7 +3,7 @@ import ApplicationRow from './ApplicationRow';
 import type { JobApplication } from '@/types/company';
 
 const meta: Meta<typeof ApplicationRow> = {
-  title: 'Molecular/ApplicationRow',
+  title: 'Atomic Design/Molecular/ApplicationRow',
   component: ApplicationRow,
   parameters: {
     layout: 'padded',
