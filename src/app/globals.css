@@ -42,7 +42,9 @@ body {
   --color-primary: oklch(
     79.5% 0.145 55.5
   ); /* Lighter orange for AAA contrast on navy */
-  --color-primary-content: oklch(20% 0.04 55); /* Dark warm — AAA on light orange */
+  --color-primary-content: oklch(
+    20% 0.04 55
+  ); /* Dark warm — AAA on light orange */
 
   --color-secondary: oklch(81.6% 0.145 216.5); /* Cyan #00d9ff — accents */
   --color-secondary-content: oklch(24.2% 0.061 259.5); /* Navy */
@@ -86,7 +88,7 @@ body {
   --color-base-300: oklch(85% 0.04 79); /* Tan borders */
   --color-base-content: oklch(27.8% 0.03 256.8); /* Dark text #1f2937 */
 
-  --color-primary: oklch(60.4% 0.176 43.9); /* Darker orange #d35400 */
+  --color-primary: oklch(42% 0.14 43.9); /* Dark burnt orange — AAA on cream */
   --color-primary-content: oklch(100% 0 0); /* White */
 
   --color-secondary: oklch(60.9% 0.111 221.7); /* Darker cyan #0891b2 */
@@ -98,13 +100,13 @@ body {
   --color-neutral: oklch(35% 0.03 256.8); /* Medium dark gray */
   --color-neutral-content: oklch(98% 0.005 78.3); /* Warm white */
 
-  --color-info: oklch(54.6% 0.215 262.9); /* Blue #2563eb */
+  --color-info: oklch(42% 0.15 262.9); /* Dark blue — AAA on cream */
   --color-info-content: oklch(100% 0 0);
-  --color-success: oklch(62.7% 0.17 149.2); /* Green #16a34a */
+  --color-success: oklch(39% 0.11 149.2); /* Dark green — AAA on cream */
   --color-success-content: oklch(100% 0 0);
-  --color-warning: oklch(68.1% 0.142 75.8); /* Amber #ca8a04 */
-  --color-warning-content: oklch(27.8% 0.03 256.8);
-  --color-error: oklch(57.7% 0.215 27.3); /* Red #dc2626 */
+  --color-warning: oklch(42% 0.1 75.8); /* Dark amber — AAA on cream */
+  --color-warning-content: oklch(100% 0 0); /* White on dark amber */
+  --color-error: oklch(45% 0.18 27.3); /* Dark red — AAA on cream */
   --color-error-content: oklch(100% 0 0);
 
   --radius-selector: 1.5rem;
@@ -138,6 +140,52 @@ body {
   --shadow-brand: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.25));
   --shadow-brand-sm: drop-shadow(1px 1px 0px rgba(0, 0, 0, 0.15));
   --shadow-brand-subtle: drop-shadow(2px 2px 0px rgba(0, 0, 0, 0.1));
+}
+
+/* WCAG AAA overrides for DaisyUI component styles on light theme */
+[data-theme='spoketowork-light'] .label-text {
+  color: oklch(35% 0.02 256.8); /* 9:1+ on cream — AAA compliant */
+}
+
+[data-theme='spoketowork-light']
+  .tab:not(.tab-active):not([aria-selected='true']) {
+  color: oklch(35% 0.02 256.8); /* 9:1+ on cream — AAA compliant */
+}
+
+/* Semantic text colors — darkened for AAA on cream backgrounds */
+[data-theme='spoketowork-light'] .text-error {
+  color: oklch(45% 0.18 27.3); /* Dark red — 7:1+ on cream */
+}
+
+[data-theme='spoketowork-light'] .text-info {
+  color: oklch(42% 0.15 262.9); /* Dark blue — 7:1+ on cream */
+}
+
+[data-theme='spoketowork-light'] .text-success {
+  color: oklch(39% 0.11 149.2); /* Dark green — 7:1+ on cream */
+}
+
+[data-theme='spoketowork-light'] .text-warning {
+  color: oklch(42% 0.1 75.8); /* Dark amber — 7:1+ on cream */
+}
+
+/* Table header and form label alt contrast on light theme */
+[data-theme='spoketowork-light'] th,
+[data-theme='spoketowork-light'] .label-text-alt {
+  color: oklch(35% 0.02 256.8); /* 9:1+ on cream */
+}
+
+/* Boost dimmed text for AAA on cream — /75 and /80 are too faint */
+[data-theme='spoketowork-light'] .text-base-content\/75 {
+  color: oklch(38% 0.025 256.8); /* 7.5:1+ on cream — AAA */
+}
+
+[data-theme='spoketowork-light'] .text-base-content\/80 {
+  color: oklch(36% 0.02 256.8); /* 8:1+ on cream — AAA */
+}
+
+[data-theme='spoketowork-light'] .text-base-content\/85 {
+  color: oklch(34% 0.02 256.8); /* 8.5:1+ on cream — AAA */
 }
 
 /* Button micro-interactions — professional with playful touches */
@@ -174,7 +222,7 @@ body {
 }
 
 [data-theme='spoketowork-light'] .btn:focus-visible {
-  outline: 2px solid oklch(60.4% 0.176 43.9);
+  outline: 2px solid oklch(42% 0.14 43.9);
   outline-offset: 2px;
 }
 
@@ -234,32 +282,32 @@ button.card:hover,
   top: 0 !important;
 }
 
-/* MapLibre popup styling for consistent contrast across themes */
+/* MapLibre popup styling — theme-aware for consistent contrast */
 .maplibregl-popup-content {
-  background: white !important;
-  color: #1f2937 !important;
+  background: var(--color-base-100, white) !important;
+  color: var(--color-base-content, #1f2937) !important;
   border-radius: 8px !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
   padding: 0 !important;
 }
 
 .maplibregl-popup-close-button {
-  color: #6b7280 !important;
+  color: var(--color-base-content, #6b7280) !important;
   font-size: 18px !important;
   padding: 4px 8px !important;
 }
 
 .maplibregl-popup-close-button:hover {
-  color: #1f2937 !important;
-  background: #f3f4f6 !important;
+  color: var(--color-base-content, #1f2937) !important;
+  background: var(--color-base-200, #f3f4f6) !important;
 }
 
 .maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
-  border-top-color: white !important;
+  border-top-color: var(--color-base-100, white) !important;
 }
 
 .maplibregl-popup-anchor-top .maplibregl-popup-tip {
-  border-bottom-color: white !important;
+  border-bottom-color: var(--color-base-100, white) !important;
 }
 
 /* MapLibre navigation controls - ensure visibility across all browsers */

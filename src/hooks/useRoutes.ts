@@ -179,7 +179,9 @@ export function useRoutes(options: UseRoutesOptions = {}): UseRoutesReturn {
         setRoutes(data);
         setError(null); // Clear any previous error on success
       } catch (err) {
-        console.error('useRoutes: Failed to fetch routes:', err);
+        logger.warn('useRoutes: Routes unavailable', {
+          error: err instanceof Error ? err.message : String(err),
+        });
         setError(
           err instanceof Error ? err : new Error('Failed to fetch routes')
         );

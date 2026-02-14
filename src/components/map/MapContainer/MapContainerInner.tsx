@@ -238,6 +238,7 @@ const CustomMarker: React.FC<{
 
 // List of known dark themes in DaisyUI
 const DARK_THEMES = [
+  'spoketowork-dark',
   'dark',
   'synthwave',
   'halloween',

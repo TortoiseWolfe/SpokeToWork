@@ -28,6 +28,7 @@ export function useMapTheme(
 
       // List of known dark themes in DaisyUI
       const darkThemes = [
+        'spoketowork-dark',
         'dark',
         'synthwave',
         'halloween',
