@@ -114,7 +114,7 @@ export default function RouteOptimizationModal({
               aria-live="polite"
             >
               <span className="loading loading-spinner loading-lg" />
-              <p className="text-base-content/70">
+              <p className="text-base-content/85">
                 Calculating optimal route...
               </p>
             </div>
@@ -201,7 +201,7 @@ export default function RouteOptimizationModal({
               <div className="grid grid-cols-2 gap-4">
                 {/* Before */}
                 <div>
-                  <h3 className="text-base-content/70 mb-2 text-sm font-medium">
+                  <h3 className="text-base-content/85 mb-2 text-sm font-medium">
                     Current Order
                   </h3>
                   <ol className="space-y-1" aria-label="Current route order">
@@ -210,7 +210,7 @@ export default function RouteOptimizationModal({
                         key={id}
                         className="bg-base-200 flex items-center gap-2 rounded px-2 py-1 text-sm"
                       >
-                        <span className="text-base-content/50 font-mono text-xs">
+                        <span className="text-base-content/75 font-mono text-xs">
                           {index + 1}.
                         </span>
                         <span className="truncate">
@@ -223,7 +223,7 @@ export default function RouteOptimizationModal({
 
                 {/* After */}
                 <div>
-                  <h3 className="text-base-content/70 mb-2 text-sm font-medium">
+                  <h3 className="text-base-content/85 mb-2 text-sm font-medium">
                     Optimized Order
                   </h3>
                   <ol className="space-y-1" aria-label="Optimized route order">
@@ -237,7 +237,7 @@ export default function RouteOptimizationModal({
                             moved ? 'bg-success/20' : 'bg-base-200'
                           }`}
                         >
-                          <span className="text-base-content/50 font-mono text-xs">
+                          <span className="text-base-content/75 font-mono text-xs">
                             {index + 1}.
                           </span>
                           <span className="truncate">
@@ -261,13 +261,13 @@ export default function RouteOptimizationModal({
               {/* Estimated time */}
               <div className="bg-base-200 rounded-lg p-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-base-content/70">Estimated Time:</span>
+                  <span className="text-base-content/85">Estimated Time:</span>
                   <span className="font-medium">
                     {Math.round(result.estimatedTimeMinutes)} minutes
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-base-content/70">Total Distance:</span>
+                  <span className="text-base-content/85">Total Distance:</span>
                   <span className="font-medium">
                     {result.totalDistanceMiles.toFixed(1)} miles
                   </span>

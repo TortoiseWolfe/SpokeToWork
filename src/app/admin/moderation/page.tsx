@@ -215,7 +215,7 @@ export default function AdminModerationPage() {
     <div className="container mx-auto p-6">
       <header className="mb-6">
         <h1 className="text-3xl font-bold">Moderation Queue</h1>
-        <p className="text-base-content/70 mt-2">
+        <p className="text-base-content/85 mt-2">
           Review and approve company contributions and edit suggestions.
         </p>
       </header>

@@ -248,7 +248,7 @@ export default function Home() {
                   🏢
                 </div>
                 <h3 className="card-title text-base">Track Companies</h3>
-                <p className="text-base-content/70 text-xs">
+                <p className="text-base-content/85 text-xs">
                   Log applications & follow-ups
                 </p>
               </div>
@@ -263,7 +263,7 @@ export default function Home() {
                   🚴
                 </div>
                 <h3 className="card-title text-base">Plan Routes</h3>
-                <p className="text-base-content/70 text-xs">
+                <p className="text-base-content/85 text-xs">
                   Optimize your job hunt by bike
                 </p>
               </div>
@@ -278,7 +278,7 @@ export default function Home() {
                   📅
                 </div>
                 <h3 className="card-title text-base">Schedule Visits</h3>
-                <p className="text-base-content/70 text-xs">
+                <p className="text-base-content/85 text-xs">
                   Book interviews & follow-ups
                 </p>
               </div>
@@ -297,7 +297,7 @@ export default function Home() {
                   💬
                 </div>
                 <h3 className="card-title text-base">Stay Connected</h3>
-                <p className="text-base-content/70 text-xs">
+                <p className="text-base-content/85 text-xs">
                   Message recruiters & contacts
                 </p>
               </div>

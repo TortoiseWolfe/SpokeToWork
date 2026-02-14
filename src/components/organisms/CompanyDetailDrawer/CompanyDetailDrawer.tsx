@@ -377,9 +377,9 @@ function CompanyDetailDrawer({
                 <span className="badge badge-ghost badge-sm">Inactive</span>
               )}
             </h2>
-            <p className="text-base-content/70 text-sm">{company.address}</p>
+            <p className="text-base-content/85 text-sm">{company.address}</p>
             {company.contact_name && (
-              <p className="text-base-content/70 mt-1 text-sm">
+              <p className="text-base-content/85 mt-1 text-sm">
                 Contact: {company.contact_name}
                 {company.contact_title && ` (${company.contact_title})`}
               </p>
@@ -438,7 +438,7 @@ function CompanyDetailDrawer({
           {/* Phone - full width, click to copy */}
           {company.phone && (
             <div className="mb-3 flex items-center gap-2">
-              <span className="text-base-content/70 text-sm">Phone:</span>
+              <span className="text-base-content/85 text-sm">Phone:</span>
               <button
                 type="button"
                 className="btn btn-ghost btn-sm font-mono"
@@ -461,7 +461,7 @@ function CompanyDetailDrawer({
           <div className="flex flex-col gap-2 text-sm">
             {company.website && (
               <div className="truncate">
-                <span className="text-base-content/70">Website:</span>{' '}
+                <span className="text-base-content/85">Website:</span>{' '}
                 <a
                   href={company.website}
                   target="_blank"
@@ -483,7 +483,7 @@ function CompanyDetailDrawer({
             )}
             {company.careers_url && (
               <div className="truncate">
-                <span className="text-base-content/70">Careers:</span>{' '}
+                <span className="text-base-content/85">Careers:</span>{' '}
                 <a
                   href={company.careers_url}
                   target="_blank"
@@ -496,7 +496,7 @@ function CompanyDetailDrawer({
             )}
             {company.email && (
               <div className="min-w-0 truncate">
-                <span className="text-base-content/70">Email:</span>{' '}
+                <span className="text-base-content/85">Email:</span>{' '}
                 <a
                   href={`mailto:${company.email}`}
                   className="link link-primary"
@@ -506,7 +506,7 @@ function CompanyDetailDrawer({
               </div>
             )}
             <div>
-              <span className="text-base-content/70">Priority:</span>{' '}
+              <span className="text-base-content/85">Priority:</span>{' '}
               <span
                 className={
                   company.priority <= 2 ? 'text-warning font-bold' : ''
@@ -518,7 +518,7 @@ function CompanyDetailDrawer({
           </div>
           {company.notes && (
             <div className="mt-2">
-              <span className="text-base-content/70 text-sm">Notes:</span>
+              <span className="text-base-content/85 text-sm">Notes:</span>
               <p className="bg-base-200 mt-1 rounded p-2 text-sm">
                 {company.notes}
               </p>
@@ -538,7 +538,7 @@ function CompanyDetailDrawer({
                   <div className="flex flex-wrap items-center gap-3">
                     {/* Tracking Status */}
                     <div className="flex items-center gap-2">
-                      <span className="text-base-content/70 text-sm">
+                      <span className="text-base-content/85 text-sm">
                         Status:
                       </span>
                       {onTrackingStatusChange ? (
@@ -576,7 +576,7 @@ function CompanyDetailDrawer({
 
                     {/* Priority */}
                     <div className="flex items-center gap-2">
-                      <span className="text-base-content/70 text-sm">
+                      <span className="text-base-content/85 text-sm">
                         Priority:
                       </span>
                       {onTrackingPriorityChange ? (
@@ -634,7 +634,7 @@ function CompanyDetailDrawer({
                   >
                     Pending Review
                   </span>
-                  <span className="text-base-content/70 text-xs">
+                  <span className="text-base-content/85 text-xs">
                     Submitted for community review
                   </span>
                 </div>
@@ -683,7 +683,7 @@ function CompanyDetailDrawer({
             onSuggestEdit && (
               <div className="mt-3 border-t pt-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-base-content/70 text-sm">
+                  <span className="text-base-content/85 text-sm">
                     Data Correction
                   </span>
                   {!editingField && (
@@ -791,7 +791,7 @@ function CompanyDetailDrawer({
           {onAddToRoute && (
             <div className="mt-3 border-t pt-3">
               <div className="flex items-center justify-between">
-                <span className="text-base-content/70 text-sm">Routes</span>
+                <span className="text-base-content/85 text-sm">Routes</span>
                 <button
                   type="button"
                   className="btn btn-ghost btn-xs text-primary"
@@ -864,7 +864,7 @@ function CompanyDetailDrawer({
           {/* Applications List */}
           <div className="flex-1 overflow-y-auto p-4">
             {applications.length === 0 ? (
-              <div className="text-base-content/50 py-8 text-center">
+              <div className="text-base-content/75 py-8 text-center">
                 <p>No applications yet.</p>
                 {onAddApplication && (
                   <button
@@ -901,7 +901,7 @@ function CompanyDetailDrawer({
                               </span>
                             )}
                           </h4>
-                          <p className="text-base-content/70 text-sm">
+                          <p className="text-base-content/85 text-sm">
                             {WORK_LOCATION_LABELS[app.work_location_type]}
                             {/* Job links: Careers | Apply | Status */}
                             {(app.job_link ||
@@ -1062,7 +1062,7 @@ function CompanyDetailDrawer({
                       </div>
 
                       {/* Dates */}
-                      <div className="text-base-content/70 mt-2 text-xs">
+                      <div className="text-base-content/85 mt-2 text-xs">
                         {app.date_applied && (
                           <span className="mr-3">
                             Applied: {formatDate(app.date_applied)}
@@ -1077,7 +1077,7 @@ function CompanyDetailDrawer({
 
                       {/* Notes */}
                       {app.notes && (
-                        <p className="text-base-content/70 mt-1 text-xs">
+                        <p className="text-base-content/85 mt-1 text-xs">
                           {app.notes}
                         </p>
                       )}

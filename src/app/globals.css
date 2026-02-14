@@ -39,7 +39,9 @@ body {
   --color-base-300: oklch(33.3% 0.077 257.1); /* Lighter navy #1a365d */
   --color-base-content: oklch(95.1% 0.025 236.8); /* Light blue-white #e0f2fe */
 
-  --color-primary: oklch(69.6% 0.16 55.5); /* Orange #E67E22 — brand */
+  --color-primary: oklch(
+    79.5% 0.145 55.5
+  ); /* Lighter orange for AAA contrast on navy */
   --color-primary-content: oklch(100% 0 0); /* White */
 
   --color-secondary: oklch(81.6% 0.145 216.5); /* Cyan #00d9ff — accents */
@@ -120,6 +122,16 @@ body {
   --shadow-brand: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.8));
   --shadow-brand-sm: drop-shadow(1px 1px 0px rgba(0, 0, 0, 0.7));
   --shadow-brand-subtle: drop-shadow(2px 2px 0px rgba(0, 0, 0, 0.3));
+}
+
+/* WCAG AAA overrides for DaisyUI component styles on dark theme */
+[data-theme='spoketowork-dark'] .label-text {
+  color: oklch(82% 0.02 236.8); /* 7.5:1 on base-100 — AAA compliant */
+}
+
+[data-theme='spoketowork-dark']
+  .tab:not(.tab-active):not([aria-selected='true']) {
+  color: oklch(82% 0.02 236.8); /* 7.5:1 on base-100 — AAA compliant */
 }
 
 [data-theme='spoketowork-light'] {

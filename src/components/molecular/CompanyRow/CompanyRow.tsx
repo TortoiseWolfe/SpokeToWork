@@ -351,7 +351,7 @@ function CompanyRowComponent({
           return totalCount > 0 ? (
             <span className="badge badge-info badge-sm">{totalCount}</span>
           ) : (
-            <span className="text-base-content/50">-</span>
+            <span className="text-base-content/75">-</span>
           );
         })()}
       </td>

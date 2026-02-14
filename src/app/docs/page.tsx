@@ -154,7 +154,7 @@ export default function DocsPage() {
         <h1 className="mb-4 text-3xl font-bold sm:text-4xl md:text-5xl">
           Documentation
         </h1>
-        <p className="text-base-content/70 text-base sm:text-lg md:text-xl">
+        <p className="text-base-content/85 text-base sm:text-lg md:text-xl">
           Everything you need to know about SpokeToWork
         </p>
       </header>
@@ -167,7 +167,7 @@ export default function DocsPage() {
           >
             <div className="card-body">
               <h2 className="card-title text-2xl">{section.title}</h2>
-              <p className="text-base-content/70 mb-4">{section.description}</p>
+              <p className="text-base-content/85 mb-4">{section.description}</p>
               <div className="divider my-2"></div>
               <ul className="space-y-2">
                 {section.links.map((link, linkIndex) => (

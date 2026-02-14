@@ -257,7 +257,7 @@ export default function RouteSidebar({
             ></span>
           </div>
         ) : displayedRoutes.length === 0 ? (
-          <div className="text-base-content/60 p-4 text-center">
+          <div className="text-base-content/80 p-4 text-center">
             <p>No routes yet</p>
             <p className="mt-1 text-sm">
               Create your first route to get started
@@ -279,7 +279,7 @@ export default function RouteSidebar({
       </div>
 
       {/* Feature 047 US2: Fixed footer - stays in place while route list scrolls */}
-      <div className="border-base-300 text-base-content/60 flex-shrink-0 border-t p-3 text-sm">
+      <div className="border-base-300 text-base-content/80 flex-shrink-0 border-t p-3 text-sm">
         {displayedRoutes.length} route{displayedRoutes.length !== 1 ? 's' : ''}
         {/* DEPRECATED: System trails count - Feature 048 cancelled */}
       </div>
@@ -372,13 +372,13 @@ function RouteListItem({
           </div>
 
           {route.distance_miles && (
-            <p className="text-base-content/60 text-sm">
+            <p className="text-base-content/80 text-sm">
               {route.distance_miles.toFixed(1)} mi
             </p>
           )}
 
           {route.description && (
-            <p className="text-base-content/50 mt-1 truncate text-xs">
+            <p className="text-base-content/75 mt-1 truncate text-xs">
               {route.description}
             </p>
           )}

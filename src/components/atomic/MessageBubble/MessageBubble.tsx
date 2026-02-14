@@ -229,7 +229,7 @@ const MessageBubble = memo(
             </time>
           </div>
           <div
-            className="chat-bubble bg-base-300 text-base-content/70"
+            className="chat-bubble bg-base-300 text-base-content/85"
             role="group"
             aria-label="Encrypted message that cannot be decrypted"
           >

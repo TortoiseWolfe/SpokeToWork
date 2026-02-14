@@ -133,7 +133,7 @@ export default function TileLayerSelector({
           aria-label="Map tile providers"
         >
           {enabledProviders.length === 0 ? (
-            <div className="text-base-content/60 p-2 text-sm">
+            <div className="text-base-content/80 p-2 text-sm">
               No providers available
             </div>
           ) : (
@@ -211,7 +211,7 @@ export default function TileLayerSelector({
               <div className="divider my-1" />
               <button
                 type="button"
-                className="text-base-content/70 hover:bg-base-200 w-full rounded p-2 text-left text-sm"
+                className="text-base-content/85 hover:bg-base-200 w-full rounded p-2 text-left text-sm"
                 onClick={() => {
                   onReset();
                   setIsOpen(false);

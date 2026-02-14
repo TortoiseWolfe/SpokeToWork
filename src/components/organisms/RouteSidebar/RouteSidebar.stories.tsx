@@ -13,7 +13,7 @@ const meta: Meta<typeof RouteSidebar> = {
       <div className="flex h-screen">
         <Story />
         <div className="bg-base-100 flex-1 p-4">
-          <p className="text-base-content/60">Map area placeholder</p>
+          <p className="text-base-content/80">Map area placeholder</p>
         </div>
       </div>
     ),

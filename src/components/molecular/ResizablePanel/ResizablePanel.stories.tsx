@@ -36,7 +36,7 @@ Width persists to localStorage and is restored on mount.
       <div className="flex h-screen">
         <Story />
         <div className="bg-base-100 flex-1 p-4">
-          <p className="text-base-content/60">Main content area</p>
+          <p className="text-base-content/80">Main content area</p>
           <p className="text-base-content/40 mt-2 text-sm">
             Drag the right edge of the panel to resize it.
             <br />
@@ -59,7 +59,7 @@ export const Default: Story = {
     children: (
       <div className="bg-base-200 h-full p-4">
         <h2 className="text-lg font-semibold">Sidebar</h2>
-        <p className="text-base-content/60 mt-2">
+        <p className="text-base-content/80 mt-2">
           Drag the right edge to resize this panel.
         </p>
         <ul className="menu mt-4">
@@ -87,7 +87,7 @@ export const WithCallback: Story = {
     children: (
       <div className="bg-base-200 h-full p-4">
         <h2 className="text-lg font-semibold">With Callback</h2>
-        <p className="text-base-content/60 mt-2">
+        <p className="text-base-content/80 mt-2">
           Check the console for width change events.
         </p>
       </div>
@@ -130,7 +130,7 @@ export const WithRouteSidebar: Story = {
             </li>
           ))}
         </ul>
-        <div className="border-base-300 text-base-content/60 border-t p-3 text-sm">
+        <div className="border-base-300 text-base-content/80 border-t p-3 text-sm">
           8 routes
         </div>
       </div>
@@ -155,7 +155,7 @@ export const CustomLabel: Story = {
     children: (
       <div className="bg-base-200 h-full p-4">
         <h2 className="text-lg font-semibold">Custom Label</h2>
-        <p className="text-base-content/60 mt-2">
+        <p className="text-base-content/80 mt-2">
           The resize handle has a custom aria-label.
         </p>
       </div>
@@ -180,7 +180,7 @@ export const KeyboardNavigation: Story = {
     children: (
       <div className="bg-base-200 h-full p-4">
         <h2 className="text-lg font-semibold">Keyboard Navigation</h2>
-        <p className="text-base-content/60 mt-2">
+        <p className="text-base-content/80 mt-2">
           Focus the resize handle and use:
         </p>
         <ul className="mt-2 list-disc pl-5 text-sm">
@@ -219,7 +219,7 @@ export const MobileBehavior: Story = {
     children: (
       <div className="bg-base-200 h-full w-full p-4">
         <h2 className="text-lg font-semibold">Mobile View</h2>
-        <p className="text-base-content/60 mt-2">
+        <p className="text-base-content/80 mt-2">
           On mobile (viewport &lt; 768px), the resize handle is hidden and the
           panel uses full width.
         </p>

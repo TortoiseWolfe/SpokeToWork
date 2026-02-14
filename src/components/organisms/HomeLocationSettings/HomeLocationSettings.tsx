@@ -140,7 +140,7 @@ export default function HomeLocationSettings({
     >
       <div className="card-body">
         <h2 className="card-title">Home Location Settings</h2>
-        <p className="text-base-content/70 text-sm">
+        <p className="text-base-content/85 text-sm">
           Set your home location to calculate distances to companies. Companies
           outside your radius will be flagged as &quot;extended range&quot;.
         </p>

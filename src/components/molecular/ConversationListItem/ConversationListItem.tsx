@@ -211,13 +211,13 @@ function ConversationListItem({
                 {getDisplayName()}
               </h3>
               {isGroup && memberCount > 0 && (
-                <span className="text-base-content/50 shrink-0 text-xs">
+                <span className="text-base-content/75 shrink-0 text-xs">
                   ({memberCount})
                 </span>
               )}
             </div>
             {lastMessageAt && (
-              <span className="text-base-content/60 shrink-0 text-xs">
+              <span className="text-base-content/80 shrink-0 text-xs">
                 {formatTimestamp(lastMessageAt)}
               </span>
             )}
@@ -226,7 +226,7 @@ function ConversationListItem({
           {/* Last message preview */}
           <div className="flex items-center justify-between gap-2">
             <p
-              className={`truncate text-sm ${hasUnread ? 'text-base-content font-medium' : 'text-base-content/70'}`}
+              className={`truncate text-sm ${hasUnread ? 'text-base-content font-medium' : 'text-base-content/85'}`}
             >
               {truncateMessage(lastMessage)}
             </p>

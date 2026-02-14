@@ -149,14 +149,14 @@ export default function CompanyExport({
 
       {/* Company count */}
       {companyCount > 0 && (
-        <p className="text-base-content/60 mt-2 text-xs">
+        <p className="text-base-content/80 mt-2 text-xs">
           {companyCount} {companyCount === 1 ? 'company' : 'companies'} will be
           exported
         </p>
       )}
 
       {companyCount === 0 && (
-        <p className="text-base-content/60 mt-2 text-xs">
+        <p className="text-base-content/80 mt-2 text-xs">
           No companies to export
         </p>
       )}

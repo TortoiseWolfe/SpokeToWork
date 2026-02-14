@@ -6,8 +6,8 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: '.',
-  testMatch: 'storybook-audit.spec.ts',
-  timeout: 300_000,
+  testMatch: 'storybook-*-audit.spec.ts',
+  timeout: 900_000,
   retries: 0,
   workers: 1,
   reporter: 'list',

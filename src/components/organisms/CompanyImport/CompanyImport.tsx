@@ -117,7 +117,7 @@ export default function CompanyImport({
         <h2 className="card-title">Import Companies from CSV</h2>
 
         {/* CSV Format Info */}
-        <div className="text-base-content/70 mb-4 text-sm">
+        <div className="text-base-content/85 mb-4 text-sm">
           <p className="mb-1 font-medium">Expected CSV columns:</p>
           <code className="bg-base-300 block overflow-x-auto rounded px-2 py-1 text-xs">
             name,address,contact_name,contact_title,phone,email,website,notes,status,priority
@@ -195,7 +195,7 @@ export default function CompanyImport({
               <>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="text-base-content/50 mx-auto mb-4 h-12 w-12"
+                  className="text-base-content/75 mx-auto mb-4 h-12 w-12"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
