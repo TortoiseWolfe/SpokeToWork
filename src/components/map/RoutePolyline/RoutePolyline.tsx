@@ -265,7 +265,7 @@ export default function RoutePolyline({
             <h3 className="mb-1 text-base font-semibold">{route.name}</h3>
 
             {route.description && (
-              <p className="text-base-content/70 mb-2 text-sm">
+              <p className="text-base-content/85 mb-2 text-sm">
                 {route.description}
               </p>
             )}

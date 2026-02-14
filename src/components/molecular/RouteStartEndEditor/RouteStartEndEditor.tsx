@@ -289,7 +289,7 @@ export default function RouteStartEndEditor({
         {start.type === 'home' && hasHomeLocation ? (
           <div className="bg-base-200 rounded p-2 text-sm">
             <div className="font-medium">{homeLocation!.address || 'Home'}</div>
-            <div className="text-base-content/60 text-xs">
+            <div className="text-base-content/80 text-xs">
               {homeLocation!.latitude?.toFixed(4)},{' '}
               {homeLocation!.longitude?.toFixed(4)}
             </div>
@@ -391,7 +391,7 @@ export default function RouteStartEndEditor({
               <div className="font-medium">
                 {homeLocation!.address || 'Home'}
               </div>
-              <div className="text-base-content/60 text-xs">
+              <div className="text-base-content/80 text-xs">
                 {homeLocation!.latitude?.toFixed(4)},{' '}
                 {homeLocation!.longitude?.toFixed(4)}
               </div>
@@ -447,13 +447,13 @@ export default function RouteStartEndEditor({
       {/* Summary */}
       <div className="bg-base-200 rounded-lg p-3 text-sm">
         <div className="flex items-center justify-between">
-          <span className="text-base-content/70">Route Type:</span>
+          <span className="text-base-content/85">Route Type:</span>
           <span className="font-medium">
             {roundTrip ? 'Round Trip' : 'One-Way'}
           </span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-base-content/70">Start:</span>
+          <span className="text-base-content/85">Start:</span>
           <span className="font-medium">
             {effectiveStart.address ||
               (effectiveStart.latitude && effectiveStart.longitude
@@ -463,7 +463,7 @@ export default function RouteStartEndEditor({
         </div>
         {!roundTrip && (
           <div className="flex items-center justify-between">
-            <span className="text-base-content/70">End:</span>
+            <span className="text-base-content/85">End:</span>
             <span className="font-medium">
               {effectiveEnd.address ||
                 (effectiveEnd.latitude && effectiveEnd.longitude

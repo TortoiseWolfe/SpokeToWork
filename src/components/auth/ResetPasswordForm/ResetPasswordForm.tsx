@@ -91,7 +91,7 @@ export default function ResetPasswordForm({
         </div>
         {/* Password breach warning (HIBP) */}
         {isCheckingBreach && password.length >= 8 && (
-          <div className="text-base-content/60 mt-1 text-sm">
+          <div className="text-base-content/80 mt-1 text-sm">
             <span className="loading loading-spinner loading-xs mr-1"></span>
             Checking password security...
           </div>

@@ -263,7 +263,7 @@ function ApplicationForm({
           {isEditMode ? 'Edit Application' : 'Add Job Application'}
         </h2>
         {companyName && (
-          <p className="text-base-content/70 text-sm">for {companyName}</p>
+          <p className="text-base-content/85 text-sm">for {companyName}</p>
         )}
 
         {/* Position Title */}

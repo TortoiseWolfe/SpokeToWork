@@ -123,7 +123,7 @@ export const InteractiveDrawing: Story = {
         <div className="bg-base-100 absolute top-4 right-4 z-[1000] max-w-xs rounded-lg p-3 shadow-lg">
           <h3 className="mb-2 font-bold">Instructions</h3>
           <p className="mb-2 text-sm">Click on the map to add waypoints</p>
-          <p className="text-base-content/70 text-sm">
+          <p className="text-base-content/85 text-sm">
             {isDrawing
               ? 'Drawing mode active - click map to add points'
               : 'Route saved! Refresh to draw again'}

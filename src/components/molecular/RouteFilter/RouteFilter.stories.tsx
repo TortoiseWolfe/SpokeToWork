@@ -89,7 +89,7 @@ export const Interactive: Story = {
           onRouteChange={setSelectedId}
           showSystemRoutes={true}
         />
-        <p className="text-base-content/70 text-sm">
+        <p className="text-base-content/85 text-sm">
           Selected: {selectedId ?? 'None'}
         </p>
       </div>

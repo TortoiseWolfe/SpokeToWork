@@ -1228,7 +1228,7 @@ ${rows}
           <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold">Companies</h1>
-              <p className="text-base-content/70">
+              <p className="text-base-content/85">
                 Track companies for your job search
               </p>
               {activeRouteId && (

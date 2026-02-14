@@ -66,7 +66,7 @@ function SortableCompanyItem({
       {/* Drag handle */}
       <button
         type="button"
-        className="text-base-content/50 hover:text-base-content cursor-grab touch-none p-1 active:cursor-grabbing"
+        className="text-base-content/75 hover:text-base-content cursor-grab touch-none p-1 active:cursor-grabbing"
         aria-label={`Drag to reorder ${rc.company.name}. Press Ctrl+Arrow to move.`}
         {...attributes}
         {...listeners}
@@ -86,13 +86,13 @@ function SortableCompanyItem({
           />
         </svg>
       </button>
-      <span className="text-base-content/50 w-6 text-center text-sm font-medium">
+      <span className="text-base-content/75 w-6 text-center text-sm font-medium">
         {index + 1}
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{rc.company.name}</p>
         {rc.company.address && (
-          <p className="text-base-content/60 truncate text-sm">
+          <p className="text-base-content/80 truncate text-sm">
             {rc.company.address}
           </p>
         )}
@@ -346,7 +346,7 @@ export default function RouteDetailDrawer({
             </div>
             <div className="mt-1 flex items-center gap-2">
               {route.distance_miles && (
-                <span className="text-base-content/70 text-sm">
+                <span className="text-base-content/85 text-sm">
                   {route.distance_miles.toFixed(1)} mi
                 </span>
               )}
@@ -366,7 +366,7 @@ export default function RouteDetailDrawer({
               )}
             </div>
             {route.description && (
-              <p className="text-base-content/60 mt-2 line-clamp-2 text-sm">
+              <p className="text-base-content/80 mt-2 line-clamp-2 text-sm">
                 {route.description}
               </p>
             )}
@@ -455,7 +455,7 @@ export default function RouteDetailDrawer({
                 </button>
               )}
               {!isLoading && localCompanies.length > 0 && (
-                <span className="text-base-content/60 text-sm font-normal">
+                <span className="text-base-content/80 text-sm font-normal">
                   Drag to reorder
                 </span>
               )}
@@ -470,7 +470,7 @@ export default function RouteDetailDrawer({
               ></span>
             </div>
           ) : localCompanies.length === 0 ? (
-            <div className="text-base-content/60 py-8 text-center">
+            <div className="text-base-content/80 py-8 text-center">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="mx-auto mb-3 h-12 w-12 opacity-50"

@@ -107,7 +107,7 @@ export default function AdminModerationQueue({
         className={`card bg-base-200 p-8 text-center ${className}`}
         data-testid={testId}
       >
-        <p className="text-base-content/70">No pending items to review.</p>
+        <p className="text-base-content/85">No pending items to review.</p>
       </div>
     );
   }
@@ -133,7 +133,7 @@ export default function AdminModerationQueue({
                       <h3 className="font-semibold">
                         {item.private_company_name}
                       </h3>
-                      <p className="text-base-content/70 text-sm">
+                      <p className="text-base-content/85 text-sm">
                         Submitted{' '}
                         {new Date(item.created_at).toLocaleDateString()}
                       </p>
@@ -225,7 +225,7 @@ export default function AdminModerationQueue({
                       <h3 className="font-semibold">
                         {item.shared_company_name}
                       </h3>
-                      <p className="text-base-content/70 text-sm">
+                      <p className="text-base-content/85 text-sm">
                         Field:{' '}
                         <span className="font-medium">{item.field_name}</span>
                       </p>
@@ -237,7 +237,7 @@ export default function AdminModerationQueue({
                         <span className="text-success">{item.new_value}</span>
                       </div>
                       {item.reason && (
-                        <p className="text-base-content/70 mt-1 text-sm">
+                        <p className="text-base-content/85 mt-1 text-sm">
                           Reason: {item.reason}
                         </p>
                       )}

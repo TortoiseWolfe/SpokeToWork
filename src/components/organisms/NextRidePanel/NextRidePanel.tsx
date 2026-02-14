@@ -195,7 +195,7 @@ export default function NextRidePanel({
             ></span>
           </div>
         ) : totalCount === 0 ? (
-          <div className="text-base-content/60 p-4 text-center">
+          <div className="text-base-content/80 p-4 text-center">
             <p className="text-sm">No companies marked for next ride</p>
             <p className="mt-1 text-xs">
               Mark companies in a route to plan your next cycling trip
@@ -220,7 +220,7 @@ export default function NextRidePanel({
 
       {/* Footer */}
       {totalCount > 0 && (
-        <div className="border-base-300 text-base-content/60 border-t p-2 text-center text-xs">
+        <div className="border-base-300 text-base-content/80 border-t p-2 text-center text-xs">
           {totalCount} {totalCount === 1 ? 'stop' : 'stops'} planned
         </div>
       )}
@@ -258,7 +258,7 @@ function NextRideItem({ item, onToggle, onSelect }: NextRideItemProps) {
         aria-label={`View ${item.company.name} details`}
       >
         <p className="truncate text-sm font-medium">{item.company.name}</p>
-        <p className="text-base-content/60 truncate text-xs">
+        <p className="text-base-content/80 truncate text-xs">
           {item.routeName}
         </p>
       </button>

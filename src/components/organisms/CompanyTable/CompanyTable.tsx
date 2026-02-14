@@ -290,7 +290,7 @@ export default function CompanyTable({
       </div>
 
       {/* Results Count */}
-      <div className="text-base-content/70 mb-2 text-sm">
+      <div className="text-base-content/85 mb-2 text-sm">
         {sortedCompanies.length === companies.length ? (
           <span>{companies.length} companies</span>
         ) : (
@@ -305,7 +305,7 @@ export default function CompanyTable({
         <div className="card bg-base-100 p-8 text-center">
           {companies.length === 0 ? (
             <>
-              <p className="text-base-content/70 mb-4">
+              <p className="text-base-content/85 mb-4">
                 No companies yet. Start tracking companies you&apos;re
                 interested in.
               </p>
@@ -337,12 +337,12 @@ export default function CompanyTable({
               </div>
             </>
           ) : filters.on_active_route ? (
-            <p className="text-base-content/70">
+            <p className="text-base-content/85">
               No companies on this route yet. Add companies to your active route
               to see them here.
             </p>
           ) : (
-            <p className="text-base-content/70">
+            <p className="text-base-content/85">
               No companies match your filters.
             </p>
           )}

@@ -99,7 +99,7 @@ function SortableCompanyItem({
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="text-base-content/50 h-4 w-4"
+            className="text-base-content/75 h-4 w-4"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -133,7 +133,7 @@ function SortableCompanyItem({
           onChange={() => onToggleNextRide?.(company.id)}
           aria-label={`Mark ${companyName} for next ride`}
         />
-        <span className="text-base-content/70 text-xs">Next</span>
+        <span className="text-base-content/85 text-xs">Next</span>
       </label>
 
       {/* Remove button */}
@@ -270,7 +270,7 @@ export default function RouteCompanyList({
 
   if (localCompanies.length === 0) {
     return (
-      <div className="text-base-content/60 p-4 text-center">
+      <div className="text-base-content/80 p-4 text-center">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           className="mx-auto mb-2 h-12 w-12 opacity-50"
@@ -298,7 +298,7 @@ export default function RouteCompanyList({
   return (
     <div className="space-y-2">
       {/* Header with stats */}
-      <div className="text-base-content/70 flex items-center gap-2 px-2 text-sm">
+      <div className="text-base-content/85 flex items-center gap-2 px-2 text-sm">
         <span>{localCompanies.length} companies</span>
         {nextRideCount > 0 && (
           <span className="badge badge-primary badge-sm">
@@ -337,7 +337,7 @@ export default function RouteCompanyList({
 
       {/* Keyboard navigation hint */}
       {isDraggable && (
-        <p className="text-base-content/50 text-center text-xs">
+        <p className="text-base-content/75 text-center text-xs">
           Drag to reorder, or use Ctrl+Arrow keys
         </p>
       )}
