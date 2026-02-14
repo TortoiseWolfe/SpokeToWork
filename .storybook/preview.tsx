@@ -4,6 +4,8 @@ import { withThemeByDataAttribute } from '@storybook/addon-themes';
 import { ConsentProvider } from '../src/contexts/ConsentContext';
 import { AuthContext } from '../src/contexts/AuthContext';
 import type { AuthContextType } from '../src/contexts/AuthContext';
+import { ActiveRouteContext } from '../src/contexts/ActiveRouteContext';
+import type { ActiveRouteContextValue } from '../src/contexts/ActiveRouteContext';
 import '../src/app/globals.css';
 
 // Initialize MSW (non-blocking — don't let failures prevent story rendering)
@@ -36,8 +38,23 @@ const mockAuthValue: AuthContextType = {
   clearError: () => {},
 };
 
+// Mock active route context for Storybook — no Supabase dependency
+const mockActiveRouteValue: ActiveRouteContextValue = {
+  activeRouteId: null,
+  isLoading: false,
+  setActiveRoute: async () => {},
+  clearActiveRoute: async () => {},
+  refresh: async () => {},
+};
+
 const preview: Preview = {
   parameters: {
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: '/',
+      },
+    },
     controls: {
       matchers: {
         color: /(background|color)$/i,
@@ -60,11 +77,13 @@ const preview: Preview = {
     },
   },
   decorators: [
-    // Global providers — mock AuthContext to avoid Supabase dependency
+    // Global providers — mock contexts to avoid Supabase dependency
     (Story) => (
       <ConsentProvider>
         <AuthContext.Provider value={mockAuthValue}>
-          <Story />
+          <ActiveRouteContext.Provider value={mockActiveRouteValue}>
+            <Story />
+          </ActiveRouteContext.Provider>
         </AuthContext.Provider>
       </ConsentProvider>
     ),

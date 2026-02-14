@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { MapContainer, TileLayer } from 'react-leaflet';
+import Map from 'react-map-gl/maplibre';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import RoutePolyline, { RoutePolylines } from './RoutePolyline';
 import type { BicycleRoute, RouteGeometry } from '@/types/route';
 
@@ -82,19 +83,20 @@ const mockSystemRoute: BicycleRoute = {
   updated_at: '2024-01-01T00:00:00Z',
 };
 
+// MapLibre decorator — RoutePolyline uses react-map-gl/maplibre, not react-leaflet
 const MapDecorator = (Story: React.ComponentType) => (
   <div style={{ height: 500, width: '100%' }}>
-    <MapContainer
-      center={[35.15, -84.87]}
-      zoom={13}
-      style={{ height: '100%', width: '100%' }}
+    <Map
+      initialViewState={{
+        longitude: -84.87,
+        latitude: 35.15,
+        zoom: 13,
+      }}
+      style={{ width: '100%', height: '100%' }}
+      mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
       <Story />
-    </MapContainer>
+    </Map>
   </div>
 );
 
