@@ -2,6 +2,8 @@
 
 # CI logs
 /logs
+debug-storybook.log
+prompt_log.md
 
 # dependencies
 /node_modules
