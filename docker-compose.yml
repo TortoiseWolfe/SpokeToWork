@@ -53,6 +53,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    init: true
     restart: unless-stopped
     networks:
       - SpokeToWork
