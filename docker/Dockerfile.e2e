@@ -15,9 +15,6 @@ RUN pnpm install --frozen-lockfile
 # Copy application code
 COPY . .
 
-# Build the application
-RUN pnpm run build
-
 # Install Playwright browsers with dependencies
 RUN pnpm exec playwright install --with-deps chromium firefox webkit
 
@@ -26,7 +23,7 @@ RUN mkdir -p test-results playwright-report
 
 # Set environment variables
 ENV CI=true
-ENV BASE_URL=http://localhost:3000/CRUDkit
+ENV BASE_URL=http://localhost:3000
 
 # Expose ports
 EXPOSE 3000

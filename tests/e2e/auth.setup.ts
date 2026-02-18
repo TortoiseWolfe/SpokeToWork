@@ -133,8 +133,10 @@ setup('authenticate shared test user', async ({ page }) => {
   console.log(`Authenticating as: ${email}`);
 
   // Navigate to sign-in
+  // Use domcontentloaded instead of networkidle - WebKit fires networkidle
+  // before React hydration completes, causing login form timeouts
   await page.goto('/sign-in');
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
 
   // Check if already redirected away from sign-in (user might already be logged in)
   const currentUrl = page.url();
@@ -154,7 +156,7 @@ setup('authenticate shared test user', async ({ page }) => {
     // If no user menu visible, navigate back to sign-in to try logging in
     console.log('Not logged in, navigating to sign-in...');
     await page.goto('/sign-in');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   }
 
   // Dismiss cookie banner FIRST (before login) to prevent it blocking form elements
@@ -194,9 +196,10 @@ setup('authenticate shared test user', async ({ page }) => {
   // Wait longer for client-side hydration - form may take time to render
   const emailInput = page.locator('input[type="email"], input[name="email"]');
 
-  // Wait up to 15 seconds for the form to appear (client-side hydration can be slow)
+  // Wait up to 20 seconds for the form to appear (client-side hydration can be slow,
+  // especially on WebKit which fires networkidle before React is interactive)
   let formVisible = false;
-  for (let i = 0; i < 15; i++) {
+  for (let i = 0; i < 20; i++) {
     if (await emailInput.isVisible({ timeout: 1000 }).catch(() => false)) {
       formVisible = true;
       break;
@@ -221,7 +224,7 @@ setup('authenticate shared test user', async ({ page }) => {
     console.log('Current URL:', page.url());
     console.log('Page title:', await page.title());
     throw new Error(
-      `Login form not visible after 15s. URL: ${page.url()}. Check test-results/auth-form-not-visible.png`
+      `Login form not visible after 20s. URL: ${page.url()}. Check test-results/auth-form-not-visible.png`
     );
   }
 

@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import { useConnections } from '@/hooks/useConnections';
 import UserSearch from '@/components/molecular/UserSearch';
+import { useRovingTabIndex } from '@/hooks/useRovingTabIndex';
 import type { ConnectionRequest } from '@/types/messaging';
 
 export interface ConnectionManagerProps {
@@ -42,11 +43,20 @@ export default function ConnectionManager({
   React.useEffect(() => {
     onPendingConnectionCountChange?.(connections.pending_received.length);
   }, [connections.pending_received.length, onPendingConnectionCountChange]);
-  const [activeTab, setActiveTab] = useState<
-    'sent' | 'received' | 'accepted' | 'blocked'
-  >('received');
+  const CONNECTION_TABS = ['received', 'sent', 'accepted', 'blocked'] as const;
+  type ConnectionTab = (typeof CONNECTION_TABS)[number];
+
+  const [activeTab, setActiveTab] = useState<ConnectionTab>('received');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showBlockModal, setShowBlockModal] = useState<string | null>(null);
+
+  const { getItemProps: getConnectionTabProps } = useRovingTabIndex({
+    itemCount: 4,
+    initialIndex: CONNECTION_TABS.indexOf(activeTab),
+    onActiveIndexChange: (index) => {
+      setActiveTab(CONNECTION_TABS[index]);
+    },
+  });
 
   const handleAccept = useCallback(
     async (id: string) => {
@@ -225,29 +235,37 @@ export default function ConnectionManager({
       <div role="tablist" className="tabs tabs-bordered mb-6">
         <button
           role="tab"
+          aria-selected={activeTab === 'received'}
           className={`tab min-h-11 ${activeTab === 'received' ? 'tab-active' : ''}`}
           onClick={() => setActiveTab('received')}
+          {...getConnectionTabProps(0)}
         >
           Pending Received ({connections.pending_received.length})
         </button>
         <button
           role="tab"
+          aria-selected={activeTab === 'sent'}
           className={`tab min-h-11 ${activeTab === 'sent' ? 'tab-active' : ''}`}
           onClick={() => setActiveTab('sent')}
+          {...getConnectionTabProps(1)}
         >
           Pending Sent ({connections.pending_sent.length})
         </button>
         <button
           role="tab"
+          aria-selected={activeTab === 'accepted'}
           className={`tab min-h-11 ${activeTab === 'accepted' ? 'tab-active' : ''}`}
           onClick={() => setActiveTab('accepted')}
+          {...getConnectionTabProps(2)}
         >
           Accepted ({connections.accepted.length})
         </button>
         <button
           role="tab"
+          aria-selected={activeTab === 'blocked'}
           className={`tab min-h-11 ${activeTab === 'blocked' ? 'tab-active' : ''}`}
           onClick={() => setActiveTab('blocked')}
+          {...getConnectionTabProps(3)}
         >
           Blocked ({connections.blocked.length})
         </button>

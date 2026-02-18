@@ -9,6 +9,7 @@ import {
   type SortType,
 } from './useConversationList';
 import { useKeyboardShortcuts, shortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useRovingTabIndex } from '@/hooks/useRovingTabIndex';
 
 export interface ConversationListProps {
   /** Currently selected conversation ID */
@@ -54,6 +55,16 @@ export default function ConversationList({
     archiveConversation,
     unarchiveConversation,
   } = useConversationList();
+
+  const FILTER_TABS: FilterType[] = ['all', 'unread', 'archived'];
+
+  const { getItemProps: getFilterTabProps } = useRovingTabIndex({
+    itemCount: 3,
+    initialIndex: FILTER_TABS.indexOf(filterType),
+    onActiveIndexChange: (index) => {
+      setFilterType(FILTER_TABS[index]);
+    },
+  });
 
   const [searchInput, setSearchInput] = useState('');
   const [searchDebounce, setSearchDebounce] = useState<NodeJS.Timeout | null>(
@@ -176,6 +187,7 @@ export default function ConversationList({
             onClick={() => setFilterType('all')}
             role="tab"
             aria-selected={filterType === 'all'}
+            {...getFilterTabProps(0)}
           >
             All
             {counts.all > 0 && (
@@ -187,6 +199,7 @@ export default function ConversationList({
             onClick={() => setFilterType('unread')}
             role="tab"
             aria-selected={filterType === 'unread'}
+            {...getFilterTabProps(1)}
           >
             Unread
             {counts.unread > 0 && (
@@ -200,6 +213,7 @@ export default function ConversationList({
             onClick={() => setFilterType('archived')}
             role="tab"
             aria-selected={filterType === 'archived'}
+            {...getFilterTabProps(2)}
           >
             Archived
             {counts.archived > 0 && (

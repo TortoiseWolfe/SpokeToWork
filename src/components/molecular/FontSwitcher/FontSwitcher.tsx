@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useFontFamily } from '@/hooks/useFontFamily';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { useRovingTabIndex, type ItemProps } from '@/hooks/useRovingTabIndex';
 
 export interface FontSwitcherProps {
   className?: string;
@@ -22,14 +23,12 @@ export const FontSwitcher: React.FC<FontSwitcherProps> = ({
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const [focusedIndex, setFocusedIndex] = useState(-1);
 
   // FR-007: Use unified click-outside hook
   useClickOutside(
     dropdownRef,
     () => {
       setIsOpen(false);
-      setFocusedIndex(-1);
     },
     isOpen
   );
@@ -42,21 +41,26 @@ export const FontSwitcher: React.FC<FontSwitcherProps> = ({
     }
   };
 
-  // Focus management
-  useEffect(() => {
-    if (isOpen && focusedIndex >= 0) {
-      const option = document.querySelector(
-        `[data-font-index="${focusedIndex}"]`
-      ) as HTMLElement;
-      option?.focus();
-    }
-  }, [focusedIndex, isOpen]);
-
   // Group fonts by recent
   const recentFontObjects = recentFonts
     .map((id) => fonts.find((f) => f.id === id))
     .filter(Boolean);
   const otherFonts = fonts.filter((f) => !recentFonts.includes(f.id));
+
+  const totalFontCount = recentFontObjects.length + otherFonts.length;
+
+  // Find the index of the currently selected font across both sections
+  const allFontIds = [
+    ...recentFontObjects.map((f) => f!.id),
+    ...otherFonts.map((f) => f.id),
+  ];
+  const selectedFontIndex = allFontIds.indexOf(fontFamily);
+
+  const { getItemProps: getFontOptionProps } = useRovingTabIndex({
+    itemCount: totalFontCount,
+    orientation: 'vertical',
+    initialIndex: selectedFontIndex >= 0 ? selectedFontIndex : 0,
+  });
 
   return (
     <div className={`dropdown dropdown-end ${className}`} ref={dropdownRef}>
@@ -95,6 +99,7 @@ export const FontSwitcher: React.FC<FontSwitcherProps> = ({
                     isLoaded={isFontLoaded(font!.id)}
                     onSelect={handleFontSelect}
                     dataIndex={index}
+                    rovingProps={getFontOptionProps(index)}
                   />
                 ))}
               </div>
@@ -105,16 +110,20 @@ export const FontSwitcher: React.FC<FontSwitcherProps> = ({
           {/* All fonts */}
           <div className="text-sm font-semibold opacity-90">All Fonts</div>
           <div className="space-y-1" role="listbox" aria-label="Font options">
-            {otherFonts.map((font, index) => (
-              <FontOption
-                key={font.id}
-                font={font}
-                isActive={font.id === fontFamily}
-                isLoaded={isFontLoaded(font.id)}
-                onSelect={handleFontSelect}
-                dataIndex={recentFontObjects.length + index}
-              />
-            ))}
+            {otherFonts.map((font, index) => {
+              const combinedIndex = recentFontObjects.length + index;
+              return (
+                <FontOption
+                  key={font.id}
+                  font={font}
+                  isActive={font.id === fontFamily}
+                  isLoaded={isFontLoaded(font.id)}
+                  onSelect={handleFontSelect}
+                  dataIndex={combinedIndex}
+                  rovingProps={getFontOptionProps(combinedIndex)}
+                />
+              );
+            })}
           </div>
 
           {/* Info alert */}
@@ -151,6 +160,7 @@ interface FontOptionProps {
   isLoaded: boolean;
   onSelect: (fontId: string) => void;
   dataIndex: number;
+  rovingProps: ItemProps;
 }
 
 const FontOption: React.FC<FontOptionProps> = ({
@@ -159,8 +169,12 @@ const FontOption: React.FC<FontOptionProps> = ({
   isLoaded,
   onSelect,
   dataIndex,
+  rovingProps,
 }) => {
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Roving tabindex handles arrow/Home/End keys
+    rovingProps.onKeyDown(e);
+    // Enter selects the font
     if (e.key === 'Enter') {
       e.preventDefault();
       onSelect(font.id);
@@ -179,6 +193,9 @@ const FontOption: React.FC<FontOptionProps> = ({
         isActive ? 'bg-primary text-primary-content active' : ''
       }`}
       style={{ fontFamily: font.stack }}
+      tabIndex={rovingProps.tabIndex}
+      ref={rovingProps.ref}
+      data-roving-index={rovingProps['data-roving-index']}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">

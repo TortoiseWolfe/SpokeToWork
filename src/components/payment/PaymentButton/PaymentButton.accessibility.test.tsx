@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import { PaymentButton } from './PaymentButton';
 
@@ -175,12 +175,69 @@ describe('PaymentButton Accessibility', () => {
   it('should have proper keyboard navigation support', () => {
     const { container } = render(<PaymentButton {...defaultProps} />);
 
-    const interactiveElements = container.querySelectorAll(
-      'button, [role="tab"]'
+    // Only the active tab should have tabIndex=0 (roving tabindex pattern)
+    const tabs = container.querySelectorAll('[role="tab"]');
+    const tabsWithZeroIndex = Array.from(tabs).filter(
+      (t) => t.getAttribute('tabindex') === '0'
     );
-    interactiveElements.forEach((element) => {
-      // Should not have negative tabindex
-      expect(element.getAttribute('tabindex')).not.toBe('-1');
+    expect(tabsWithZeroIndex.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('tabs should have aria-selected attributes', () => {
+    render(<PaymentButton {...defaultProps} />);
+
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(2);
+
+    tabs.forEach((tab) => {
+      expect(tab).toHaveAttribute('aria-selected');
+    });
+  });
+
+  describe('Roving TabIndex keyboard navigation on provider tabs', () => {
+    it('ArrowRight moves focus to next provider tab', () => {
+      render(<PaymentButton {...defaultProps} />);
+      const tabs = screen.getAllByRole('tab');
+
+      expect(tabs[0]).toHaveAttribute('tabindex', '0');
+      expect(tabs[1]).toHaveAttribute('tabindex', '-1');
+
+      fireEvent.keyDown(tabs[0], { key: 'ArrowRight' });
+
+      expect(tabs[0]).toHaveAttribute('tabindex', '-1');
+      expect(tabs[1]).toHaveAttribute('tabindex', '0');
+    });
+
+    it('ArrowLeft moves focus to previous provider tab', () => {
+      render(<PaymentButton {...defaultProps} />);
+      const tabs = screen.getAllByRole('tab');
+
+      fireEvent.keyDown(tabs[0], { key: 'ArrowRight' });
+      fireEvent.keyDown(tabs[1], { key: 'ArrowLeft' });
+
+      expect(tabs[0]).toHaveAttribute('tabindex', '0');
+      expect(tabs[1]).toHaveAttribute('tabindex', '-1');
+    });
+
+    it('Home moves focus to first provider tab', () => {
+      render(<PaymentButton {...defaultProps} />);
+      const tabs = screen.getAllByRole('tab');
+
+      fireEvent.keyDown(tabs[0], { key: 'End' });
+      fireEvent.keyDown(tabs[1], { key: 'Home' });
+
+      expect(tabs[0]).toHaveAttribute('tabindex', '0');
+      expect(tabs[1]).toHaveAttribute('tabindex', '-1');
+    });
+
+    it('End moves focus to last provider tab', () => {
+      render(<PaymentButton {...defaultProps} />);
+      const tabs = screen.getAllByRole('tab');
+
+      fireEvent.keyDown(tabs[0], { key: 'End' });
+
+      expect(tabs[0]).toHaveAttribute('tabindex', '-1');
+      expect(tabs[1]).toHaveAttribute('tabindex', '0');
     });
   });
 });

@@ -233,4 +233,102 @@ describe('TileLayerSelector Accessibility', () => {
     const button = screen.getByRole('button');
     expect(button).toBeDisabled();
   });
+
+  describe('Roving TabIndex keyboard navigation in listbox', () => {
+    // Pass hasApiKey so the second provider (requires_api_key) is available
+    it('ArrowDown moves focus to next option', () => {
+      render(
+        <TileLayerSelector
+          providers={mockProviders}
+          selected={mockProviders[0]}
+          onSelect={vi.fn()}
+          hasApiKey={true}
+        />
+      );
+
+      // Open dropdown
+      fireEvent.click(
+        screen.getByRole('button', { name: /Select map tile provider/i })
+      );
+
+      const options = screen.getAllByRole('option');
+      expect(options[0]).toHaveAttribute('tabindex', '0');
+      expect(options[1]).toHaveAttribute('tabindex', '-1');
+
+      fireEvent.keyDown(options[0], { key: 'ArrowDown' });
+
+      expect(options[0]).toHaveAttribute('tabindex', '-1');
+      expect(options[1]).toHaveAttribute('tabindex', '0');
+    });
+
+    it('ArrowUp moves focus to previous option', () => {
+      render(
+        <TileLayerSelector
+          providers={mockProviders}
+          selected={mockProviders[0]}
+          onSelect={vi.fn()}
+          hasApiKey={true}
+        />
+      );
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /Select map tile provider/i })
+      );
+
+      const options = screen.getAllByRole('option');
+
+      // Move down first
+      fireEvent.keyDown(options[0], { key: 'ArrowDown' });
+      // Then up
+      fireEvent.keyDown(options[1], { key: 'ArrowUp' });
+
+      expect(options[0]).toHaveAttribute('tabindex', '0');
+      expect(options[1]).toHaveAttribute('tabindex', '-1');
+    });
+
+    it('Home moves focus to first option', () => {
+      render(
+        <TileLayerSelector
+          providers={mockProviders}
+          selected={mockProviders[0]}
+          onSelect={vi.fn()}
+          hasApiKey={true}
+        />
+      );
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /Select map tile provider/i })
+      );
+
+      const options = screen.getAllByRole('option');
+
+      fireEvent.keyDown(options[0], { key: 'End' });
+      fireEvent.keyDown(options[1], { key: 'Home' });
+
+      expect(options[0]).toHaveAttribute('tabindex', '0');
+      expect(options[1]).toHaveAttribute('tabindex', '-1');
+    });
+
+    it('End moves focus to last option', () => {
+      render(
+        <TileLayerSelector
+          providers={mockProviders}
+          selected={mockProviders[0]}
+          onSelect={vi.fn()}
+          hasApiKey={true}
+        />
+      );
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /Select map tile provider/i })
+      );
+
+      const options = screen.getAllByRole('option');
+
+      fireEvent.keyDown(options[0], { key: 'End' });
+
+      expect(options[0]).toHaveAttribute('tabindex', '-1');
+      expect(options[1]).toHaveAttribute('tabindex', '0');
+    });
+  });
 });

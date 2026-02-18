@@ -383,9 +383,9 @@ test.describe('Message Deletion', () => {
     // Original content should not be visible
     await expect(page.locator(`text=${messageToDelete}`)).not.toBeVisible();
 
-    // Message should have reduced opacity (deleted styling)
+    // Deleted message should have muted styling (bg-base-300 placeholder)
     await expect(messageBubble.locator('.chat-bubble')).toHaveClass(
-      /opacity-60/
+      /bg-base-300/
     );
   });
 
