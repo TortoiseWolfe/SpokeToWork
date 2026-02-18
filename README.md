@@ -110,6 +110,288 @@ Key context:
 - Aesthetic: mission with personality. Headspace-like. Not silly, not corporate.
 ```
 
+## Development Tasks
+
+### Codebase Polish
+
+```
+Read CLAUDE.md first. The codebase has accumulated rough edges across accessibility, messaging, and test infrastructure. This is a cleanup pass to get everything production-ready.
+
+Accessibility first. None of the tab controls have keyboard navigation. You can click between tabs but there's no arrow key support, no Home/End, and screen readers don't know which tab is active. Find every component that uses a tab pattern, figure out its interaction model, and add WCAG-compliant keyboard handling. Some are simple toggle pairs, some have three or four tabs, and at least one has a list where options can be disabled. Write tests that verify actual focus movement, not just handler existence.
+
+The message editing and deleting services exist but aren't wired to the UI. The messages page doesn't call them and the message bubble component doesn't expose any way to trigger them. Trace the full chain from service to UI, wire it up, and make sure deleted messages render as placeholders in the conversation instead of disappearing. Write tests for both operations.
+
+Employers should see new applications without refreshing. Check if Supabase realtime is configured, then wire up a subscription hook for the employer dashboard with a toast notification. The hook needs to clean up on unmount.
+
+The E2E Dockerfile still references the old repo name in its base URL and runs an unnecessary full application build. Clean that up so the image builds faster and the config matches reality.
+
+The auth suite passes on chromium but firefox hits a navigation abort during sign-out and webkit has intermittent login timeouts. Diagnose the root causes and make all three browser projects stable.
+
+The welcome message and complete flows specs need an admin user with encryption keys seeded in Supabase. These run against cloud Supabase in CI, not the local Docker stack, so the seeding approach needs to work in that context. Once the auth suite and admin seeding are solid, regenerate the map snapshot baselines.
+
+Run the full test suite when you're done. Everything should pass across all browser projects.
+```
+
+<details>
+<summary>Checklist</summary>
+
+- [ ] Read CLAUDE.md before starting
+- [ ] Found prior work documentation at repo root
+- [ ] Identified all 5 tab-pattern components (not just 2-3)
+
+**Keyboard Navigation**
+
+- [ ] ConversationList (3 tabs: All, Unread, Archived)
+- [ ] UnifiedSidebar (2 tabs: Chats, Connections)
+- [ ] ConnectionManager (4 tabs: Received, Sent, Accepted, Blocked)
+- [ ] PaymentButton (2 tabs: Stripe, PayPal)
+- [ ] TileLayerSelector (variable tiles, some disabled)
+- [ ] Arrow key navigation between tabs works
+- [ ] Home/End jump to first/last tab
+- [ ] TileLayerSelector: arrow keys skip disabled options
+- [ ] Tests verify actual focus movement (not just handler existence)
+
+**Message Edit/Delete**
+
+- [ ] Traced chain: service -> page handlers -> component props -> UI
+- [ ] Edit handler calls service and updates conversation
+- [ ] Delete handler shows placeholder (not filtered out)
+- [ ] Tests for both operations
+
+**Real-time Notifications**
+
+- [ ] Subscription hook for employer dashboard
+- [ ] Toast on new application (no page refresh)
+- [ ] Hook cleans up on unmount
+
+**Dockerfile.e2e Cleanup**
+
+- [ ] Base URL no longer references old repo name
+- [ ] Unnecessary build step removed or conditional
+- [ ] Default CMD matches actual invocation
+
+**Cross-Browser Reliability**
+
+- [ ] Firefox auth tests pass (no navigation abort during sign-out)
+- [ ] Webkit auth tests pass consistently (no intermittent timeouts)
+- [ ] All three browser projects green
+
+**Admin User Seeding (Cloud CI)**
+
+- [ ] Admin user seeded in cloud Supabase
+- [ ] Encryption keys exist for admin
+- [ ] welcome-message and complete-flows specs pass in CI
+
+**Map Snapshot Baselines**
+
+- [ ] Baselines regenerated after auth fixes
+- [ ] Stable across consecutive runs
+
+</details>
+
+---
+
+### Employer Redesign
+
+```
+Read CLAUDE.md first. SpokeToWork has two problems: it doesn't look like a product, and it doesn't work like one for employers.
+
+The landing page looks like a stock DaisyUI template. Emoji icons on the feature cards, a text-only hero with no visual weight, and nothing that says this is a job-hunting app for cyclists. The accessibility tooling and theme system are solid, but the page has no personality. Start with the hero section. It needs a visual anchor that communicates the core concept. Give it structure, visual hierarchy, and a reason to keep scrolling. Then rework the feature cards. Which feature matters most? Make that decision visible.
+
+There are no employer-facing pages at all. Employers sign up the same as job seekers and land on the same dashboard. Build an employer dashboard that shows incoming applications with status highlighting. The mapping between status values and visual styles needs to live in one place. If a new status shows up that the code doesn't recognize, it should fall back gracefully. Seed the database with realistic test data, not three placeholder rows.
+
+The design language you establish on the landing page carries through to the employer dashboard. Both need to feel like the same app when you switch themes. Every color uses DaisyUI semantic tokens. Hardcoded hex values will break 31 of 32 themes. Check your work against at least 3: light, dark, and one high-contrast like dracula or synthwave.
+
+The existing accessibility features are load-bearing. The skip-to-content link, the font scaling toolbar, the colorblind filters, the 44px touch targets. Read what's there before you move things around. Keep pages under 150 lines. Use the component generator for new components. Tests first, then implementation.
+```
+
+<details>
+<summary>Checklist</summary>
+
+**Design Quality**
+
+- [ ] Read CLAUDE.md before starting
+- [ ] Understood the existing design system (DaisyUI, Tailwind v4, Geist fonts)
+- [ ] Hero has visual weight and clear hierarchy (not just floating text)
+- [ ] Hero communicates what the app does without reading a paragraph
+- [ ] Call-to-action buttons feel intentional, not afterthoughts
+- [ ] Feature cards have visual differentiation and scanning rhythm
+- [ ] At least one feature card is visually prioritized over others
+- [ ] Page feels like a product, not a template
+
+**Theme Compatibility**
+
+- [ ] ALL colors use DaisyUI semantic tokens (primary, secondary, accent, base-\*)
+- [ ] Zero hardcoded hex values or Tailwind color utilities (bg-blue-500, text-gray-700, etc.)
+- [ ] Verified against light theme (no broken contrast)
+- [ ] Verified against dark theme (no invisible elements)
+- [ ] Verified against a high-contrast theme like dracula or synthwave
+- [ ] Visual design holds across all 3 tested themes
+- [ ] Landing page and employer dashboard feel like the same app across themes
+
+**Accessibility Preservation**
+
+- [ ] Skip-to-content link still works (Tab reveals, Enter jumps)
+- [ ] Font scaling toolbar works at all sizes (S through XL)
+- [ ] Touch targets remain 44px minimum
+- [ ] Focus order is logical top-to-bottom
+- [ ] Colorblind filters don't break the new layout
+- [ ] No new axe-core violations introduced
+
+**Auth Pages**
+
+- [ ] Sign-in page has visual identity, not just a centered form
+- [ ] Sign-up page matches sign-in design language
+- [ ] OAuth buttons (Google, GitHub) feel like first-class options
+- [ ] Form validation states styled consistently
+
+**Employer Dashboard**
+
+- [ ] Dashboard page exists with incoming applications
+- [ ] Status highlighting with centralized status-to-style mapping
+- [ ] Unknown status values fall back gracefully (not broken layout)
+- [ ] Seeded with realistic test data (varied statuses, not 3 placeholder rows)
+- [ ] Visual design matches the landing page's design language
+
+**Sign-Up Routing**
+
+- [ ] Sign-up flow asks user type (employer vs job seeker)
+- [ ] Proper routing based on user type selection
+- [ ] Both paths work end-to-end
+
+**Employee Management**
+
+- [ ] Employee list with add/remove
+- [ ] Updates without page refresh
+- [ ] Tests written first
+
+**Application Lifecycle**
+
+- [ ] Application tracking (list, view, accept/reject)
+- [ ] Status transitions work and update the dashboard
+
+**Profile and Account**
+
+- [ ] Profile page feels like a destination after sign-in
+- [ ] Avatar is prominent, auth provider visible
+- [ ] Page has enough structure to grow without redesign
+
+**Architecture**
+
+- [ ] Services created in src/lib/employer/ (not inline in pages)
+- [ ] Custom hooks in src/hooks/ for data fetching
+- [ ] Pages are thin (<150 lines)
+- [ ] 5-file component structure followed (index, component, test, stories, a11y)
+- [ ] Used component generator (not manual creation)
+- [ ] Shared design components reused across pages
+
+**Testing (TDD)**
+
+- [ ] Tests written BEFORE implementation (TDD approach)
+- [ ] Unit tests for services and hooks
+- [ ] Component tests for new components
+- [ ] E2E tests for new user flows
+- [ ] All new tests passing
+
+</details>
+
+---
+
+### Message Reliability
+
+```
+Read CLAUDE.md first. The encrypted messaging system has reliability issues that users are reporting but nobody's diagnosed yet.
+
+After going offline and coming back online, some messages show up twice in the conversation. Separately, sometimes a message just doesn't appear at all on the recipient's side even though the sender sees it fine. And occasionally the first message someone sends right after logging in fails silently, no error, just gone.
+
+There are also two UX problems. The typing indicator shows someone as typing long after they've stopped or closed the tab. And after reconnecting from an offline period, messages appear out of order even though they have sequence numbers.
+
+Start by reading the messaging quickstart doc and tracing the decryption pipeline end to end. The system uses end-to-end encryption, so understand the key management and caching layers before you start changing anything. Diagnose each symptom, find the root cause, fix it, and write tests that prove the fix works.
+```
+
+<details>
+<summary>Checklist</summary>
+
+**Diagnosis**
+
+- [ ] Read CLAUDE.md before starting
+- [ ] Read messaging quickstart doc
+- [ ] Traced the full decryption pipeline (message -> cache lookup -> key derivation -> decrypt -> UI)
+- [ ] Identified all three module-level caches in the realtime hook
+- [ ] Understood encryption scheme (ECDH P-256 + AES-GCM-256) before making changes
+
+**Duplicate Messages**
+
+- [ ] Diagnosed: offline queue sync has no dedup by message ID
+- [ ] Fix: Messages deduplicated during offline sync (not just suppressed in UI)
+- [ ] Test: Send messages offline, reconnect, verify no duplicates
+
+**Silent Message Loss**
+
+- [ ] Diagnosed: decryption failure returns null, message silently dropped from conversation
+- [ ] Fix: Failed decryption shows placeholder (user knows message exists but can't be read)
+- [ ] Fix: Root cause of decryption failure addressed (stale shared secret cache)
+- [ ] Test: Simulated decryption failure shows placeholder, not empty gap
+
+**First-Message-After-Login Failure**
+
+- [ ] Diagnosed: message send doesn't wait for key derivation to complete
+- [ ] Fix: Send waits for keys to be ready before encrypting
+- [ ] Test: Message sent immediately after login succeeds
+
+**Typing Indicator Cleanup**
+
+- [ ] Diagnosed: no cleanup on disconnect or tab close
+- [ ] Fix: Typing status cleared on disconnect, tab close, and session end
+- [ ] Fix: Stale typing records cleaned up (not orphaned forever)
+- [ ] Test: Close tab while typing, indicator disappears within timeout
+
+**Cache Invalidation**
+
+- [ ] Shared secret cache invalidated on key rotation or re-authentication
+- [ ] Private key cache invalidated on re-authentication
+- [ ] Profile cache has TTL or invalidation strategy
+- [ ] No thundering herd on concurrent decryption of many messages
+
+**Message Ordering**
+
+- [ ] Diagnosed: no sequence number re-ordering after offline sync
+- [ ] Fix: Messages sorted by sequence number after sync completes
+- [ ] Test: Offline messages interleaved with online messages appear in correct order
+
+**Encryption Constraint**
+
+- [ ] Did NOT attempt to log or display decrypted message content for debugging
+- [ ] Verified fixes using metadata (message IDs, timestamps, sequence numbers) not plaintext
+
+**Architecture**
+
+- [ ] Realtime hook stays under 400 lines (extract cache/sync if needed)
+- [ ] New modules follow existing patterns
+
+**Testing**
+
+- [ ] Messaging E2E specs pass
+- [ ] Encryption unit tests pass
+- [ ] Offline queue tests pass
+- [ ] No regressions in existing test suite
+
+</details>
+
+---
+
+### Accessibility Suite
+
+```
+Read CLAUDE.md first. Run the accessibility tests and figure out what's failing. These are real component bugs, not environment issues. Don't touch the test assertions, fix the actual components. Some of these are straightforward but at least one has a structural decision that'll break other pages if you get it wrong. Read the test expectations carefully before you start changing things.
+
+There's also an orientation problem on mobile viewports. Run those tests and you'll see something in the CSS isn't respecting the viewport width after a rotation. The test output shows the numbers.
+
+Start with those two areas. Once both specs are green, show me the results before moving on.
+```
+
+---
+
 ## License
 
 MIT - See [LICENSE](./LICENSE)
