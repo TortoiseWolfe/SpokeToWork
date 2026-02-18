@@ -11,7 +11,8 @@
  * @category molecular
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useRovingTabIndex } from '@/hooks/useRovingTabIndex';
 
 export type LocationType = 'home' | 'custom';
 
@@ -84,6 +85,40 @@ export default function RouteStartEndEditor({
 
   const hasHomeLocation = !!(homeLocation?.latitude && homeLocation?.longitude);
 
+  const startDisabledIndices = useMemo(
+    () => (!hasHomeLocation ? [0] : []),
+    [hasHomeLocation]
+  );
+  const endDisabledIndices = useMemo(
+    () => (!hasHomeLocation ? [0] : []),
+    [hasHomeLocation]
+  );
+
+  const startTypeRef = useRef<((type: LocationType) => void) | undefined>(
+    undefined
+  );
+  const endTypeRef = useRef<((type: LocationType) => void) | undefined>(
+    undefined
+  );
+
+  const { getItemProps: getStartTypeProps } = useRovingTabIndex({
+    itemCount: 2,
+    initialIndex: start.type === 'home' ? 0 : 1,
+    disabledIndices: startDisabledIndices,
+    onActiveIndexChange: (index) => {
+      startTypeRef.current?.(index === 0 ? 'home' : 'custom');
+    },
+  });
+
+  const { getItemProps: getEndTypeProps } = useRovingTabIndex({
+    itemCount: 2,
+    initialIndex: end.type === 'home' ? 0 : 1,
+    disabledIndices: endDisabledIndices,
+    onActiveIndexChange: (index) => {
+      endTypeRef.current?.(index === 0 ? 'home' : 'custom');
+    },
+  });
+
   const getEffectiveLocation = useCallback(
     (point: LocationPoint): LocationPoint => {
       if (point.type === 'home' && hasHomeLocation) {
@@ -143,6 +178,10 @@ export default function RouteStartEndEditor({
     setEnd(newEnd);
     onEndChange?.(newEnd);
   };
+
+  // Assign refs for roving tabindex callbacks (hooks defined above handlers)
+  startTypeRef.current = handleStartTypeChange;
+  endTypeRef.current = handleEndTypeChange;
 
   const handleStartAddressChange = (address: string) => {
     const newStart: LocationPoint = { ...start, address };
@@ -271,6 +310,7 @@ export default function RouteStartEndEditor({
             disabled={disabled || !hasHomeLocation}
             role="radio"
             aria-checked={start.type === 'home'}
+            {...getStartTypeProps(0)}
           >
             Home
           </button>
@@ -281,6 +321,7 @@ export default function RouteStartEndEditor({
             disabled={disabled}
             role="radio"
             aria-checked={start.type === 'custom'}
+            {...getStartTypeProps(1)}
           >
             Custom
           </button>
@@ -371,6 +412,7 @@ export default function RouteStartEndEditor({
               disabled={disabled || !hasHomeLocation}
               role="radio"
               aria-checked={end.type === 'home'}
+              {...getEndTypeProps(0)}
             >
               Home
             </button>
@@ -381,6 +423,7 @@ export default function RouteStartEndEditor({
               disabled={disabled}
               role="radio"
               aria-checked={end.type === 'custom'}
+              {...getEndTypeProps(1)}
             >
               Custom
             </button>

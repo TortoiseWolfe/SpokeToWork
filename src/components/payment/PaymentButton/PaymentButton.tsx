@@ -12,6 +12,7 @@ import {
 } from '@/hooks/usePaymentButton';
 import type { PaymentProvider } from '@/types/payment';
 import { formatPaymentAmount } from '@/lib/payments/payment-service';
+import { useRovingTabIndex } from '@/hooks/useRovingTabIndex';
 
 export interface PaymentButtonProps extends UsePaymentButtonOptions {
   className?: string;
@@ -53,6 +54,18 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
     clearError,
   } = usePaymentButton(options);
 
+  const PROVIDERS: PaymentProvider[] = ['stripe', 'paypal'];
+
+  const { getItemProps: getProviderTabProps } = useRovingTabIndex({
+    itemCount: 2,
+    initialIndex: selectedProvider
+      ? Math.max(0, PROVIDERS.indexOf(selectedProvider))
+      : 0,
+    onActiveIndexChange: (index) => {
+      selectProvider(PROVIDERS[index]);
+    },
+  });
+
   const formattedAmount = formatPaymentAmount(options.amount, options.currency);
 
   const sizeClasses = {
@@ -68,9 +81,11 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
         <div role="tablist" className="tabs tabs-boxed">
           <button
             role="tab"
+            aria-selected={selectedProvider === 'stripe'}
             className={`tab min-h-11 ${selectedProvider === 'stripe' ? 'tab-active' : ''}`}
             onClick={() => selectProvider('stripe')}
             aria-label="Select Stripe as payment provider"
+            {...getProviderTabProps(0)}
           >
             <svg
               className="mr-2 h-5 w-5"
@@ -84,9 +99,11 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
           </button>
           <button
             role="tab"
+            aria-selected={selectedProvider === 'paypal'}
             className={`tab min-h-11 ${selectedProvider === 'paypal' ? 'tab-active' : ''}`}
             onClick={() => selectProvider('paypal')}
             aria-label="Select PayPal as payment provider"
+            {...getProviderTabProps(1)}
           >
             <svg
               className="mr-2 h-5 w-5"

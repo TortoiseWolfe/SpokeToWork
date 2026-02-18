@@ -117,6 +117,8 @@ export default defineConfig({
       use: {
         ...devices['Desktop Firefox'],
         storageState: './tests/e2e/fixtures/storage-state-auth.json',
+        // Firefox needs longer action timeout for navigation tracking
+        actionTimeout: 15000,
       },
       dependencies: ['setup'],
     },
@@ -127,6 +129,9 @@ export default defineConfig({
       use: {
         ...devices['Desktop Safari'],
         storageState: './tests/e2e/fixtures/storage-state-auth.json',
+        // WebKit is slower with client-side hydration and session validation
+        actionTimeout: 15000,
+        navigationTimeout: 45000,
       },
       dependencies: ['setup'],
     },

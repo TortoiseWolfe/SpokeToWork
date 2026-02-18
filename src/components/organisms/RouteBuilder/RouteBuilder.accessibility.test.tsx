@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
@@ -179,6 +179,93 @@ describe('RouteBuilder Accessibility', () => {
       const styles = window.getComputedStyle(button);
       // DaisyUI buttons should meet 44px minimum
       expect(parseInt(styles.minHeight) || 0).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('Color picker roving tabindex keyboard navigation', () => {
+    const getColorRadios = () => {
+      const colorGroup = screen.getByRole('radiogroup', {
+        name: /select route color/i,
+      });
+      return Array.from(
+        colorGroup.querySelectorAll('[role="radio"]')
+      ) as HTMLElement[];
+    };
+
+    it('only one color radio has tabIndex=0', () => {
+      render(<RouteBuilder onClose={() => {}} />);
+
+      const colorRadios = getColorRadios();
+      const withTabZero = colorRadios.filter(
+        (r) => r.getAttribute('tabindex') === '0'
+      );
+      expect(withTabZero).toHaveLength(1);
+    });
+
+    it('ArrowRight moves focus to next color', () => {
+      render(<RouteBuilder onClose={() => {}} />);
+
+      const colorRadios = getColorRadios();
+      expect(colorRadios[0]).toHaveAttribute('tabindex', '0');
+      expect(colorRadios[1]).toHaveAttribute('tabindex', '-1');
+
+      fireEvent.keyDown(colorRadios[0], { key: 'ArrowRight' });
+
+      expect(colorRadios[0]).toHaveAttribute('tabindex', '-1');
+      expect(colorRadios[1]).toHaveAttribute('tabindex', '0');
+    });
+
+    it('ArrowLeft moves focus to previous color', () => {
+      render(<RouteBuilder onClose={() => {}} />);
+
+      const colorRadios = getColorRadios();
+
+      // Move right first
+      fireEvent.keyDown(colorRadios[0], { key: 'ArrowRight' });
+      // Then left
+      fireEvent.keyDown(colorRadios[1], { key: 'ArrowLeft' });
+
+      expect(colorRadios[0]).toHaveAttribute('tabindex', '0');
+      expect(colorRadios[1]).toHaveAttribute('tabindex', '-1');
+    });
+
+    it('ArrowDown moves focus to next color (both orientation)', () => {
+      render(<RouteBuilder onClose={() => {}} />);
+
+      const colorRadios = getColorRadios();
+
+      fireEvent.keyDown(colorRadios[0], { key: 'ArrowDown' });
+
+      expect(colorRadios[0]).toHaveAttribute('tabindex', '-1');
+      expect(colorRadios[1]).toHaveAttribute('tabindex', '0');
+    });
+
+    it('Home moves focus to first color', () => {
+      render(<RouteBuilder onClose={() => {}} />);
+
+      const colorRadios = getColorRadios();
+
+      // Move to a later color first
+      fireEvent.keyDown(colorRadios[0], { key: 'End' });
+      const lastIndex = colorRadios.length - 1;
+
+      // Press Home
+      fireEvent.keyDown(colorRadios[lastIndex], { key: 'Home' });
+
+      expect(colorRadios[0]).toHaveAttribute('tabindex', '0');
+      expect(colorRadios[lastIndex]).toHaveAttribute('tabindex', '-1');
+    });
+
+    it('End moves focus to last color', () => {
+      render(<RouteBuilder onClose={() => {}} />);
+
+      const colorRadios = getColorRadios();
+
+      fireEvent.keyDown(colorRadios[0], { key: 'End' });
+
+      const lastIndex = colorRadios.length - 1;
+      expect(colorRadios[0]).toHaveAttribute('tabindex', '-1');
+      expect(colorRadios[lastIndex]).toHaveAttribute('tabindex', '0');
     });
   });
 });

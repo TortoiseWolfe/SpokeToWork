@@ -180,23 +180,24 @@ export async function signOut(
   // Wait for dropdown to open and be interactive
   await page.waitForTimeout(300);
 
-  // Click sign out button using JavaScript to bypass any overlays
-  await page.evaluate(() => {
-    const btn = document.querySelector('button') as HTMLButtonElement | null;
-    const buttons = document.querySelectorAll('button');
-    for (const button of buttons) {
-      if (button.textContent?.trim() === 'Sign Out') {
-        button.click();
-        return;
-      }
-    }
-  });
+  // Click sign out button using Playwright locator (not page.evaluate)
+  // page.evaluate bypasses Playwright's navigation tracking, causing
+  // Firefox to abort navigation and WebKit to timeout
+  const signOutButton = page.getByRole('button', { name: 'Sign Out' });
+  await signOutButton.click();
 
   // Wait for redirect - GlobalNav redirects to home '/', not '/sign-in'
-  await page.waitForURL(
-    (url) => url.pathname === '/' || url.pathname.includes('/sign-in'),
-    { timeout }
-  );
+  // Use try/catch because Firefox may treat window.location.href assignment
+  // as a hard navigation that races with the waitForURL
+  try {
+    await page.waitForURL(
+      (url) => url.pathname === '/' || url.pathname.includes('/sign-in'),
+      { timeout }
+    );
+  } catch {
+    // Fallback: wait for page to settle after hard navigation
+    await page.waitForLoadState('domcontentloaded');
+  }
 
   // Optionally verify we're logged out
   if (verify) {

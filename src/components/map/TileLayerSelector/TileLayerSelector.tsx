@@ -7,9 +7,10 @@
  * Shows available providers with cycling-optimized indicators.
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import type { MapTileProvider } from '@/types/route';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { useRovingTabIndex } from '@/hooks/useRovingTabIndex';
 
 export interface TileLayerSelectorProps {
   /** Available tile providers */
@@ -71,6 +72,29 @@ export default function TileLayerSelector({
 
   // Filter to enabled providers only
   const enabledProviders = providers.filter((p) => p.is_enabled);
+
+  const disabledProviderIndices = useMemo(
+    () =>
+      enabledProviders
+        .map((p, i) => (!checkAvailability(p) ? i : -1))
+        .filter((i) => i !== -1),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [enabledProviders, hasApiKey, isProviderAvailable]
+  );
+
+  const selectedIndex = enabledProviders.findIndex(
+    (p) => p.name === selected?.name
+  );
+
+  const { getItemProps: getOptionProps } = useRovingTabIndex({
+    itemCount: enabledProviders.length,
+    orientation: 'vertical',
+    initialIndex: selectedIndex >= 0 ? selectedIndex : 0,
+    disabledIndices: disabledProviderIndices,
+    onActiveIndexChange: (index) => {
+      // Focus moves but selection only happens on Enter/click
+    },
+  });
 
   return (
     <div
@@ -137,9 +161,10 @@ export default function TileLayerSelector({
               No providers available
             </div>
           ) : (
-            enabledProviders.map((provider) => {
+            enabledProviders.map((provider, index) => {
               const isAvailable = checkAvailability(provider);
               const isSelected = selected?.name === provider.name;
+              const rovingProps = getOptionProps(index);
 
               return (
                 <div
@@ -151,13 +176,16 @@ export default function TileLayerSelector({
                     isSelected ? 'bg-primary/10' : ''
                   } ${!isAvailable ? 'cursor-not-allowed opacity-50' : ''}`}
                   onClick={() => isAvailable && handleSelect(provider.name)}
+                  {...rovingProps}
                   onKeyDown={(e) => {
+                    // Roving tabindex handles arrow/Home/End keys
+                    rovingProps.onKeyDown(e);
+                    // Enter/Space selects the option
                     if ((e.key === 'Enter' || e.key === ' ') && isAvailable) {
                       e.preventDefault();
                       handleSelect(provider.name);
                     }
                   }}
-                  tabIndex={isAvailable ? 0 : -1}
                 >
                   {/* Provider name */}
                   <span className="flex-1">{provider.display_name}</span>

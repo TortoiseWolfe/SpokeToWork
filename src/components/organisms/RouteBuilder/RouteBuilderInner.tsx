@@ -10,9 +10,10 @@
  * @see docs/specs/051-ci-test-memory/spec.md - OOM investigation
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRoutes } from '@/hooks/useRoutes';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { useRovingTabIndex } from '@/hooks/useRovingTabIndex';
 import RouteStartEndEditor, {
   type LocationPoint,
 } from '@/components/molecular/RouteStartEndEditor';
@@ -98,6 +99,21 @@ export default function RouteBuilderInner({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  const colorChangeRef = useRef<((color: string) => void) | undefined>(
+    undefined
+  );
+
+  const { getItemProps: getColorProps } = useRovingTabIndex({
+    itemCount: ROUTE_COLORS.length,
+    orientation: 'both',
+    initialIndex: ROUTE_COLORS.indexOf(
+      form.color as (typeof ROUTE_COLORS)[number]
+    ),
+    onActiveIndexChange: (index) => {
+      colorChangeRef.current?.(ROUTE_COLORS[index]);
+    },
+  });
+
   // Initialize form with route data or home location defaults
   useEffect(() => {
     if (route) {
@@ -175,6 +191,9 @@ export default function RouteBuilderInner({
   const handleColorChange = (color: string) => {
     setForm((prev) => ({ ...prev, color }));
   };
+
+  // Assign ref for roving tabindex callback (hook defined above handler)
+  colorChangeRef.current = handleColorChange;
 
   // Handle start point change from RouteStartEndEditor
   const handleStartChange = (point: LocationPoint) => {
@@ -413,7 +432,7 @@ export default function RouteBuilderInner({
               role="radiogroup"
               aria-label="Select route color"
             >
-              {ROUTE_COLORS.map((color) => (
+              {ROUTE_COLORS.map((color, index) => (
                 <button
                   key={color}
                   type="button"
@@ -427,6 +446,7 @@ export default function RouteBuilderInner({
                   role="radio"
                   aria-checked={form.color === color}
                   aria-label={`Color ${color}`}
+                  {...getColorProps(index)}
                 />
               ))}
             </div>

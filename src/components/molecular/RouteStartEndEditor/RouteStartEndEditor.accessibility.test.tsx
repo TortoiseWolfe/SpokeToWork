@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import RouteStartEndEditor from './RouteStartEndEditor';
 
@@ -194,6 +194,148 @@ describe('RouteStartEndEditor Accessibility', () => {
     const fieldsets = document.querySelectorAll('fieldset');
     fieldsets.forEach((fieldset) => {
       expect(fieldset).toBeDisabled();
+    });
+  });
+
+  describe('Start point type roving tabindex keyboard navigation', () => {
+    it('only one radio in start group has tabIndex=0', () => {
+      render(<RouteStartEndEditor homeLocation={mockHomeLocation} />);
+
+      const radiogroup = screen.getByRole('radiogroup', {
+        name: 'Start point type',
+      });
+      const radios = Array.from(radiogroup.querySelectorAll('[role="radio"]'));
+      const withTabZero = radios.filter(
+        (r) => r.getAttribute('tabindex') === '0'
+      );
+      expect(withTabZero).toHaveLength(1);
+    });
+
+    it('ArrowRight moves focus to next start type radio', () => {
+      render(<RouteStartEndEditor homeLocation={mockHomeLocation} />);
+
+      const radiogroup = screen.getByRole('radiogroup', {
+        name: 'Start point type',
+      });
+      const radios = Array.from(radiogroup.querySelectorAll('[role="radio"]'));
+
+      // Home radio is active by default (index 0)
+      expect(radios[0]).toHaveAttribute('tabindex', '0');
+      expect(radios[1]).toHaveAttribute('tabindex', '-1');
+
+      fireEvent.keyDown(radios[0], { key: 'ArrowRight' });
+
+      expect(radios[0]).toHaveAttribute('tabindex', '-1');
+      expect(radios[1]).toHaveAttribute('tabindex', '0');
+    });
+
+    it('ArrowLeft moves focus to previous start type radio', () => {
+      render(
+        <RouteStartEndEditor
+          homeLocation={mockHomeLocation}
+          startPoint={{
+            type: 'custom',
+            address: '',
+            latitude: null,
+            longitude: null,
+          }}
+        />
+      );
+
+      const radiogroup = screen.getByRole('radiogroup', {
+        name: 'Start point type',
+      });
+      const radios = Array.from(radiogroup.querySelectorAll('[role="radio"]'));
+
+      // Custom is active (index 1), move left
+      fireEvent.keyDown(radios[1], { key: 'ArrowLeft' });
+
+      expect(radios[0]).toHaveAttribute('tabindex', '0');
+      expect(radios[1]).toHaveAttribute('tabindex', '-1');
+    });
+
+    it('Home moves focus to first start type radio', () => {
+      render(
+        <RouteStartEndEditor
+          homeLocation={mockHomeLocation}
+          startPoint={{
+            type: 'custom',
+            address: '',
+            latitude: null,
+            longitude: null,
+          }}
+        />
+      );
+
+      const radiogroup = screen.getByRole('radiogroup', {
+        name: 'Start point type',
+      });
+      const radios = Array.from(radiogroup.querySelectorAll('[role="radio"]'));
+
+      fireEvent.keyDown(radios[1], { key: 'Home' });
+
+      expect(radios[0]).toHaveAttribute('tabindex', '0');
+    });
+
+    it('End moves focus to last start type radio', () => {
+      render(<RouteStartEndEditor homeLocation={mockHomeLocation} />);
+
+      const radiogroup = screen.getByRole('radiogroup', {
+        name: 'Start point type',
+      });
+      const radios = Array.from(radiogroup.querySelectorAll('[role="radio"]'));
+
+      fireEvent.keyDown(radios[0], { key: 'End' });
+
+      expect(radios[1]).toHaveAttribute('tabindex', '0');
+    });
+  });
+
+  describe('End point type roving tabindex keyboard navigation', () => {
+    it('ArrowRight moves focus to next end type radio', () => {
+      render(
+        <RouteStartEndEditor
+          homeLocation={mockHomeLocation}
+          isRoundTrip={false}
+        />
+      );
+
+      const radiogroup = screen.getByRole('radiogroup', {
+        name: 'End point type',
+      });
+      const radios = Array.from(radiogroup.querySelectorAll('[role="radio"]'));
+
+      expect(radios[0]).toHaveAttribute('tabindex', '0');
+
+      fireEvent.keyDown(radios[0], { key: 'ArrowRight' });
+
+      expect(radios[0]).toHaveAttribute('tabindex', '-1');
+      expect(radios[1]).toHaveAttribute('tabindex', '0');
+    });
+
+    it('ArrowLeft moves focus to previous end type radio', () => {
+      render(
+        <RouteStartEndEditor
+          homeLocation={mockHomeLocation}
+          isRoundTrip={false}
+          endPoint={{
+            type: 'custom',
+            address: '',
+            latitude: null,
+            longitude: null,
+          }}
+        />
+      );
+
+      const radiogroup = screen.getByRole('radiogroup', {
+        name: 'End point type',
+      });
+      const radios = Array.from(radiogroup.querySelectorAll('[role="radio"]'));
+
+      fireEvent.keyDown(radios[1], { key: 'ArrowLeft' });
+
+      expect(radios[0]).toHaveAttribute('tabindex', '0');
+      expect(radios[1]).toHaveAttribute('tabindex', '-1');
     });
   });
 });

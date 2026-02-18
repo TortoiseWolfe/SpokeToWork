@@ -2681,5 +2681,81 @@ COMMENT ON FUNCTION cleanup_old_audit_logs() IS 'Deletes auth_audit_logs older t
 -- END SECURITY: Audit Log Cleanup
 -- ============================================================================
 
+-- ============================================================================
+-- FEATURE 063: Employer Dashboard
+-- Created: 2026-02-18
+-- Purpose: Support employer role with dashboard access and company links
+-- ============================================================================
+
+-- T001: Add role column to user_profiles (default 'worker')
+ALTER TABLE user_profiles
+  ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'worker'
+  CHECK (role IN ('worker', 'employer', 'admin'));
+
+CREATE INDEX IF NOT EXISTS idx_user_profiles_role ON user_profiles(role);
+
+COMMENT ON COLUMN user_profiles.role IS 'User role: worker (default), employer, or admin (Feature 063)';
+
+-- T002: Create employer_company_links table
+CREATE TABLE IF NOT EXISTS employer_company_links (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  shared_company_id UUID NOT NULL REFERENCES shared_companies(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT unique_employer_company UNIQUE (user_id, shared_company_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_employer_company_links_user ON employer_company_links(user_id);
+CREATE INDEX IF NOT EXISTS idx_employer_company_links_company ON employer_company_links(shared_company_id);
+
+-- Enable RLS
+ALTER TABLE employer_company_links ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies: Employers can only see their own links
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'employer_company_links'
+                 AND policyname = 'Employers can view own links') THEN
+    CREATE POLICY "Employers can view own links" ON employer_company_links
+      FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+-- Grant access
+GRANT SELECT ON employer_company_links TO authenticated;
+GRANT ALL ON employer_company_links TO service_role;
+
+-- T003: RLS policy for employers to view applications for their linked companies
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'job_applications'
+                 AND policyname = 'Employers can view applications for linked companies') THEN
+    CREATE POLICY "Employers can view applications for linked companies" ON job_applications
+      FOR SELECT USING (
+        shared_company_id IN (
+          SELECT ecl.shared_company_id FROM employer_company_links ecl
+          WHERE ecl.user_id = auth.uid()
+        )
+      );
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'job_applications'
+                 AND policyname = 'Employers can update applications for linked companies') THEN
+    CREATE POLICY "Employers can update applications for linked companies" ON job_applications
+      FOR UPDATE USING (
+        shared_company_id IN (
+          SELECT ecl.shared_company_id FROM employer_company_links ecl
+          WHERE ecl.user_id = auth.uid()
+        )
+      );
+  END IF;
+END $$;
+
+COMMENT ON TABLE employer_company_links IS 'Links employer users to shared companies they manage (Feature 063)';
+
+-- ============================================================================
+-- END FEATURE 063: Employer Dashboard
+-- ============================================================================
+
 -- Commit the transaction - everything succeeded
 COMMIT;

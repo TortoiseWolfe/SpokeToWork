@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import userEvent from '@testing-library/user-event';
 import { FontSwitcher } from './FontSwitcher';
@@ -233,6 +233,90 @@ describe('FontSwitcher Accessibility', () => {
       // Text should be hidden on small screens
       const buttonText = button.querySelector('.hidden.sm\\:inline');
       expect(buttonText).toBeInTheDocument();
+    });
+  });
+
+  describe('Roving TabIndex keyboard navigation in font listbox', () => {
+    it('ArrowDown moves focus to next font option', async () => {
+      const user = userEvent.setup();
+      render(<FontSwitcher />);
+
+      const button = screen.getByRole('button', { name: /font selection/i });
+      await user.click(button);
+
+      const options = screen.getAllByRole('option');
+      // The selected font should have tabIndex=0
+      const activeOption = options.find(
+        (o) => o.getAttribute('tabindex') === '0'
+      );
+      expect(activeOption).toBeDefined();
+
+      if (activeOption && options.indexOf(activeOption) < options.length - 1) {
+        const nextIndex = options.indexOf(activeOption) + 1;
+        fireEvent.keyDown(activeOption, { key: 'ArrowDown' });
+
+        expect(activeOption).toHaveAttribute('tabindex', '-1');
+        expect(options[nextIndex]).toHaveAttribute('tabindex', '0');
+      }
+    });
+
+    it('ArrowUp moves focus to previous font option', async () => {
+      const user = userEvent.setup();
+      render(<FontSwitcher />);
+
+      const button = screen.getByRole('button', { name: /font selection/i });
+      await user.click(button);
+
+      const options = screen.getAllByRole('option');
+      const activeOption = options.find(
+        (o) => o.getAttribute('tabindex') === '0'
+      );
+
+      if (activeOption) {
+        // Move down first, then up
+        fireEvent.keyDown(activeOption, { key: 'ArrowDown' });
+        const nextIndex = options.indexOf(activeOption) + 1;
+        if (nextIndex < options.length) {
+          fireEvent.keyDown(options[nextIndex], { key: 'ArrowUp' });
+          expect(activeOption).toHaveAttribute('tabindex', '0');
+        }
+      }
+    });
+
+    it('Home moves focus to first font option', async () => {
+      const user = userEvent.setup();
+      render(<FontSwitcher />);
+
+      const button = screen.getByRole('button', { name: /font selection/i });
+      await user.click(button);
+
+      const options = screen.getAllByRole('option');
+      const activeOption = options.find(
+        (o) => o.getAttribute('tabindex') === '0'
+      );
+
+      if (activeOption) {
+        fireEvent.keyDown(activeOption, { key: 'Home' });
+        expect(options[0]).toHaveAttribute('tabindex', '0');
+      }
+    });
+
+    it('End moves focus to last font option', async () => {
+      const user = userEvent.setup();
+      render(<FontSwitcher />);
+
+      const button = screen.getByRole('button', { name: /font selection/i });
+      await user.click(button);
+
+      const options = screen.getAllByRole('option');
+      const activeOption = options.find(
+        (o) => o.getAttribute('tabindex') === '0'
+      );
+
+      if (activeOption) {
+        fireEvent.keyDown(activeOption, { key: 'End' });
+        expect(options[options.length - 1]).toHaveAttribute('tabindex', '0');
+      }
     });
   });
 });
