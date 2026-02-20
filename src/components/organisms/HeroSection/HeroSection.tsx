@@ -90,13 +90,13 @@ export default function HeroSection({ className = '' }: HeroSectionProps) {
             >
               <Link
                 href="/sign-up"
-                className="btn btn-primary btn-md group md:btn-lg min-h-11 w-full min-w-11 sm:w-auto"
+                className="btn btn-primary btn-md md:btn-lg min-h-11 w-full min-w-11 sm:w-auto"
               >
                 Get Started
               </Link>
               <Link
                 href="/map"
-                className="btn btn-secondary btn-outline btn-md group md:btn-lg min-h-11 w-full min-w-11 sm:w-auto"
+                className="btn btn-secondary btn-outline btn-md md:btn-lg min-h-11 w-full min-w-11 sm:w-auto"
               >
                 Try the Map
               </Link>
@@ -109,7 +109,7 @@ export default function HeroSection({ className = '' }: HeroSectionProps) {
             >
               <Link
                 href="/companies"
-                className="link link-hover opacity-87 hover:opacity-100 focus:opacity-100"
+                className="link link-hover text-base-content/87 hover:text-base-content focus:text-base-content min-h-11 items-center inline-flex"
               >
                 Companies
               </Link>
@@ -121,7 +121,7 @@ export default function HeroSection({ className = '' }: HeroSectionProps) {
               </span>
               <Link
                 href="/blog"
-                className="link link-hover opacity-87 hover:opacity-100 focus:opacity-100"
+                className="link link-hover text-base-content/87 hover:text-base-content focus:text-base-content min-h-11 items-center inline-flex"
               >
                 Blog
               </Link>
@@ -133,7 +133,7 @@ export default function HeroSection({ className = '' }: HeroSectionProps) {
               </span>
               <Link
                 href="/schedule"
-                className="link link-hover opacity-87 hover:opacity-100 focus:opacity-100"
+                className="link link-hover text-base-content/87 hover:text-base-content focus:text-base-content min-h-11 items-center inline-flex"
               >
                 Schedule
               </Link>
@@ -145,7 +145,7 @@ export default function HeroSection({ className = '' }: HeroSectionProps) {
               </span>
               <Link
                 href="/contact"
-                className="link link-hover opacity-87 hover:opacity-100 focus:opacity-100"
+                className="link link-hover text-base-content/87 hover:text-base-content focus:text-base-content min-h-11 items-center inline-flex"
               >
                 Contact
               </Link>
