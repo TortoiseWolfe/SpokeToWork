@@ -112,80 +112,64 @@ Key context:
 
 ## Development Tasks
 
-### Codebase Polish
+### Codebase Polish (Complete)
 
-```
-Read CLAUDE.md first. The codebase has accumulated rough edges across accessibility, messaging, and test infrastructure. This is a cleanup pass to get everything production-ready.
-
-Accessibility first. None of the tab controls have keyboard navigation. You can click between tabs but there's no arrow key support, no Home/End, and screen readers don't know which tab is active. Find every component that uses a tab pattern, figure out its interaction model, and add WCAG-compliant keyboard handling. Some are simple toggle pairs, some have three or four tabs, and at least one has a list where options can be disabled. Write tests that verify actual focus movement, not just handler existence.
-
-The message editing and deleting services exist but aren't wired to the UI. The messages page doesn't call them and the message bubble component doesn't expose any way to trigger them. Trace the full chain from service to UI, wire it up, and make sure deleted messages render as placeholders in the conversation instead of disappearing. Write tests for both operations.
-
-Employers should see new applications without refreshing. Check if Supabase realtime is configured, then wire up a subscription hook for the employer dashboard with a toast notification. The hook needs to clean up on unmount.
-
-The E2E Dockerfile still references the old repo name in its base URL and runs an unnecessary full application build. Clean that up so the image builds faster and the config matches reality.
-
-The auth suite passes on chromium but firefox hits a navigation abort during sign-out and webkit has intermittent login timeouts. Diagnose the root causes and make all three browser projects stable.
-
-The welcome message and complete flows specs need an admin user with encryption keys seeded in Supabase. These run against cloud Supabase in CI, not the local Docker stack, so the seeding approach needs to work in that context. Once the auth suite and admin seeding are solid, regenerate the map snapshot baselines.
-
-Run the full test suite when you're done. Everything should pass across all browser projects.
-```
+All items completed in commit `a93fbdb` and surrounding work.
 
 <details>
 <summary>Checklist</summary>
 
-- [ ] Read CLAUDE.md before starting
-- [ ] Found prior work documentation at repo root
-- [ ] Identified all 5 tab-pattern components (not just 2-3)
+- [x] Read CLAUDE.md before starting
+- [x] Found prior work documentation at repo root
+- [x] Identified all 5 tab-pattern components (not just 2-3)
 
-**Keyboard Navigation**
+**Keyboard Navigation** — `useRovingTabIndex` hook, ARIA roles, tests verify focus movement
 
-- [ ] ConversationList (3 tabs: All, Unread, Archived)
-- [ ] UnifiedSidebar (2 tabs: Chats, Connections)
-- [ ] ConnectionManager (4 tabs: Received, Sent, Accepted, Blocked)
-- [ ] PaymentButton (2 tabs: Stripe, PayPal)
-- [ ] TileLayerSelector (variable tiles, some disabled)
-- [ ] Arrow key navigation between tabs works
-- [ ] Home/End jump to first/last tab
-- [ ] TileLayerSelector: arrow keys skip disabled options
-- [ ] Tests verify actual focus movement (not just handler existence)
+- [x] ConversationList (3 tabs: All, Unread, Archived)
+- [x] UnifiedSidebar (2 tabs: Chats, Connections)
+- [x] ConnectionManager (4 tabs: Received, Sent, Accepted, Blocked)
+- [x] PaymentButton (2 tabs: Stripe, PayPal)
+- [x] TileLayerSelector (variable tiles, some disabled)
+- [x] Arrow key navigation between tabs works
+- [x] Home/End jump to first/last tab
+- [x] TileLayerSelector: arrow keys skip disabled options
+- [x] Tests verify actual focus movement (not just handler existence)
 
-**Message Edit/Delete**
+**Message Edit/Delete** — Services wired through MessageBubble, deleted messages show placeholder
 
-- [ ] Traced chain: service -> page handlers -> component props -> UI
-- [ ] Edit handler calls service and updates conversation
-- [ ] Delete handler shows placeholder (not filtered out)
-- [ ] Tests for both operations
+- [x] Traced chain: service -> page handlers -> component props -> UI
+- [x] Edit handler calls service and updates conversation
+- [x] Delete handler shows placeholder (not filtered out)
+- [x] Tests for both operations
 
-**Real-time Notifications**
+**Real-time Notifications** — `useEmployerApplications` hook + `ApplicationToast`
 
-- [ ] Subscription hook for employer dashboard
-- [ ] Toast on new application (no page refresh)
-- [ ] Hook cleans up on unmount
+- [x] Subscription hook for employer dashboard
+- [x] Toast on new application (no page refresh)
+- [x] Hook cleans up on unmount
 
 **Dockerfile.e2e Cleanup**
 
-- [ ] Base URL no longer references old repo name
-- [ ] Unnecessary build step removed or conditional
-- [ ] Default CMD matches actual invocation
+- [x] Base URL no longer references old repo name
+- [x] Unnecessary build step removed or conditional
+- [x] Default CMD matches actual invocation
 
-**Cross-Browser Reliability**
+**Cross-Browser Reliability** — Browser-specific timeouts in auth helpers
 
-- [ ] Firefox auth tests pass (no navigation abort during sign-out)
-- [ ] Webkit auth tests pass consistently (no intermittent timeouts)
-- [ ] All three browser projects green
+- [x] Firefox auth tests pass (no navigation abort during sign-out)
+- [x] Webkit auth tests pass consistently (no intermittent timeouts)
+- [x] All three browser projects green
 
-**Admin User Seeding (Cloud CI)**
+**Admin User Seeding (Cloud CI)** — `global-setup.ts` seeds via Management API
 
-- [ ] Admin user seeded in cloud Supabase
-- [ ] Encryption keys exist for admin
-- [ ] welcome-message and complete-flows specs pass in CI
+- [x] Admin user seeded in cloud Supabase
+- [x] Encryption keys exist for admin
+- [x] welcome-message and complete-flows specs pass in CI
 
-**Map Snapshot Baselines**
+**Map Snapshot Baselines** — 8 snapshots across themes and browsers
 
-- [ ] Baselines regenerated after auth fixes
-- [ ] Stable across consecutive runs
+- [x] Baselines regenerated after auth fixes
+- [x] Stable across consecutive runs
 
 </details>
 
