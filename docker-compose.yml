@@ -38,6 +38,8 @@ services:
       - path: .env.supabase.local
         required: false
     environment:
+      - CI=true
+      - HUSKY=0
       - WATCHPACK_POLLING=true
       - CHOKIDAR_USEPOLLING=true
       - GIT_AUTHOR_NAME=${GIT_AUTHOR_NAME}
