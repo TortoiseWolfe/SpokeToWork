@@ -105,4 +105,21 @@ describe('EmployerDashboard Accessibility', () => {
       screen.getByRole('group', { name: 'Application status counts' })
     ).toBeInTheDocument();
   });
+
+  it('should have no violations when load-more button is shown', async () => {
+    const { container } = render(
+      <EmployerDashboard
+        {...defaultProps}
+        hasMore
+        totalCount={50}
+        onLoadMore={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+    // Button has accessible name even when label is the count string.
+    expect(
+      screen.getByRole('button', { name: 'Load more applications' })
+    ).toBeInTheDocument();
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
 });

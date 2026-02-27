@@ -43,14 +43,11 @@ describe('FeaturesSection', () => {
     ).toBeInTheDocument();
   });
 
-  it('links cards to correct pages', () => {
+  it('links secondary cards to correct pages', () => {
     render(<FeaturesSection />);
     expect(
       screen.getByRole('link', { name: 'Track Companies' })
     ).toHaveAttribute('href', '/companies');
-    expect(
-      screen.getByRole('link', { name: 'Plan Routes' })
-    ).toHaveAttribute('href', '/map');
     expect(
       screen.getByRole('link', { name: 'Schedule Visits' })
     ).toHaveAttribute('href', '/schedule');
@@ -59,28 +56,25 @@ describe('FeaturesSection', () => {
     ).toHaveAttribute('href', '/messages');
   });
 
-  it('visually distinguishes the Plan Routes card with border-accent', () => {
+  it('renders Plan Routes as a spotlight, not in the grid', () => {
     render(<FeaturesSection />);
-    const planRoutesCard = screen.getByRole('link', { name: 'Plan Routes' });
-    expect(planRoutesCard.className).toContain('border-accent');
-    expect(planRoutesCard.className).toContain('border-2');
+    // Spotlight uses h3; the 3 grid cards also use h3.
+    // Plan Routes heading should exist exactly once.
+    const headings = screen.getAllByRole('heading', {
+      level: 3,
+      name: /Plan Routes/i,
+    });
+    expect(headings).toHaveLength(1);
+    // And there should be exactly 3 *other* feature headings.
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(4);
   });
 
-  it('does not apply border-accent to other cards', () => {
+  it('spotlight CTA links to /map', () => {
     render(<FeaturesSection />);
-    const trackCompanies = screen.getByRole('link', {
-      name: 'Track Companies',
-    });
-    const scheduleVisits = screen.getByRole('link', {
-      name: 'Schedule Visits',
-    });
-    const stayConnected = screen.getByRole('link', {
-      name: 'Stay Connected',
-    });
-
-    expect(trackCompanies.className).not.toContain('border-accent');
-    expect(scheduleVisits.className).not.toContain('border-accent');
-    expect(stayConnected.className).not.toContain('border-accent');
+    expect(screen.getByRole('link', { name: /Open the Map/i })).toHaveAttribute(
+      'href',
+      '/map'
+    );
   });
 
   it('renders all 4 illustrations', () => {

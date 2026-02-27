@@ -36,13 +36,13 @@ describe('FeaturesSection Accessibility', () => {
     expect(section).toHaveAttribute('aria-label', 'Features');
   });
 
-  it('should have accessible link text via aria-label on each card', () => {
+  it('should have accessible link text on spotlight CTA and each grid card', () => {
     render(<FeaturesSection />);
     expect(
-      screen.getByRole('link', { name: 'Track Companies' })
+      screen.getByRole('link', { name: /Open the Map/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('link', { name: 'Plan Routes' })
+      screen.getByRole('link', { name: 'Track Companies' })
     ).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'Schedule Visits' })

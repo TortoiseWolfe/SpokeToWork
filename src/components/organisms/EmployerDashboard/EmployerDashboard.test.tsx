@@ -178,4 +178,95 @@ describe('EmployerDashboard', () => {
     await user.click(appliedBadge);
     expect(screen.getByText('Bob')).toBeInTheDocument();
   });
+
+  // --- Pagination + full-dataset meta props ------------------------------
+
+  it('renders load-more button when hasMore is true', () => {
+    render(
+      <EmployerDashboard
+        {...defaultProps}
+        hasMore
+        totalCount={50}
+        onLoadMore={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+    const btn = screen.getByRole('button', { name: 'Load more applications' });
+    expect(btn).toHaveTextContent('Load more (1 of 50)');
+    expect(btn).toBeEnabled();
+  });
+
+  it('does not render load-more button when hasMore is false', () => {
+    render(<EmployerDashboard {...defaultProps} hasMore={false} />);
+    expect(
+      screen.queryByRole('button', { name: 'Load more applications' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('calls onLoadMore when load-more button is clicked', async () => {
+    const user = userEvent.setup();
+    const onLoadMore = vi.fn().mockResolvedValue(undefined);
+    render(
+      <EmployerDashboard
+        {...defaultProps}
+        hasMore
+        totalCount={50}
+        onLoadMore={onLoadMore}
+      />
+    );
+    await user.click(
+      screen.getByRole('button', { name: 'Load more applications' })
+    );
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables load-more button and shows spinner when loadingMore', () => {
+    render(
+      <EmployerDashboard
+        {...defaultProps}
+        hasMore
+        loadingMore
+        totalCount={50}
+        onLoadMore={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+    const btn = screen.getByRole('button', { name: 'Load more applications' });
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveTextContent('Loading');
+  });
+
+  it('uses statusCounts prop for badge numbers instead of loaded applications', () => {
+    // Only 1 app loaded, but full dataset has 42 applied. The badge should
+    // show 42 (funnel reflects full dataset, not just the visible page).
+    render(
+      <EmployerDashboard
+        {...defaultProps}
+        applications={[mockApplication({ status: 'applied' })]}
+        statusCounts={{ applied: 42, screening: 7 }}
+        totalCount={50}
+      />
+    );
+    const statusBar = screen.getByRole('group', {
+      name: 'Application status counts',
+    });
+    const appliedBadge = within(statusBar).getByRole('button', {
+      name: /^Applied/,
+    });
+    expect(appliedBadge).toHaveTextContent('42');
+    const allBadge = within(statusBar).getByRole('button', { name: /^All/ });
+    expect(allBadge).toHaveTextContent('50');
+  });
+
+  it('uses repeatUserIds prop for isRepeat badge instead of loaded applications', () => {
+    // user-1 appears once on this page, but repeatUserIds says they have
+    // more applications on a not-yet-loaded page → still flagged as repeat.
+    render(
+      <EmployerDashboard
+        {...defaultProps}
+        applications={[mockApplication({ user_id: 'user-1' })]}
+        repeatUserIds={new Set(['user-1'])}
+      />
+    );
+    // ApplicationRow renders a "Repeat" badge when isRepeat is true.
+    expect(screen.getByText(/repeat/i)).toBeInTheDocument();
+  });
 });

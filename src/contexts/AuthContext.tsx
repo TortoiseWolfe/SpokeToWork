@@ -52,8 +52,13 @@ export interface AuthState {
   retryCount: number;
 }
 
+/** Roles a user can self-assign at signup. Admin is never self-assignable. */
+export type RequestableRole = 'worker' | 'employer';
+
 export interface AuthOptions {
   rememberMe?: boolean;
+  /** Persists to raw_user_meta_data.requested_role — read by create_user_profile trigger. */
+  requestedRole?: RequestableRole;
 }
 
 export interface AuthContextType extends AuthState {
@@ -204,6 +209,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}${basePath}/auth/callback`,
+          data: options?.requestedRole
+            ? { requested_role: options.requestedRole }
+            : undefined,
         },
       });
       return { error };

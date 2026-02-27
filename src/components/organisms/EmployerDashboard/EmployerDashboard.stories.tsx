@@ -138,3 +138,37 @@ export const SingleApplication: Story = {
     onRefresh: async () => {},
   },
 };
+
+/**
+ * Paginated mode — only page 1 loaded but funnel shows the full dataset.
+ * Note the badge numbers sum to 200 while only 5 rows are visible.
+ */
+export const HasMore: Story = {
+  args: {
+    applications: sampleApplications,
+    loading: false,
+    error: null,
+    onUpdateStatus: async () => {},
+    onRefresh: async () => {},
+    statusCounts: {
+      applied: 120,
+      screening: 48,
+      interviewing: 20,
+      offer: 5,
+      closed: 7,
+    },
+    totalCount: 200,
+    hasMore: true,
+    onLoadMore: async () => {
+      console.log('Load more');
+    },
+  },
+};
+
+/** Load-more button disabled with spinner while the next page fetches. */
+export const LoadingMore: Story = {
+  args: {
+    ...HasMore.args,
+    loadingMore: true,
+  },
+};

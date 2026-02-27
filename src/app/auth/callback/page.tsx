@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { OAuthErrorBoundary } from './error-boundary';
 import { createLogger } from '@/lib/logger';
 import { isOAuthUser, populateOAuthProfile } from '@/lib/auth/oauth-utils';
+import { createClient } from '@/lib/supabase/client';
 
 const logger = createLogger('app:auth:callback:page');
 
@@ -57,6 +58,24 @@ function AuthCallbackContent() {
           }
         }
 
+        // Apply role stashed before OAuth redirect (OAuthButtons.tsx)
+        const pendingRole = localStorage.getItem('pending_auth_role');
+        if (pendingRole === 'worker' || pendingRole === 'employer') {
+          try {
+            const supabase = createClient();
+            const { error } = await supabase.rpc('set_own_role', {
+              p_role: pendingRole,
+            });
+            if (error) {
+              logger.error('set_own_role RPC failed', { error });
+            }
+          } catch (err) {
+            logger.error('Failed to apply pending role', { error: err });
+          } finally {
+            localStorage.removeItem('pending_auth_role');
+          }
+        }
+
         logger.info('User authenticated, redirecting to profile');
         router.push('/profile');
       } else {
@@ -104,7 +123,7 @@ function AuthCallbackContent() {
       <div className="text-center">
         <span className="loading loading-spinner loading-lg"></span>
         <p className="mt-4">Completing sign in...</p>
-        <p className="mt-2 text-sm text-base-content/75">{debugInfo}</p>
+        <p className="text-base-content/75 mt-2 text-sm">{debugInfo}</p>
       </div>
     </div>
   );

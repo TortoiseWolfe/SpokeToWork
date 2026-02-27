@@ -1,12 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import ApplicationRow from './ApplicationRow';
-import type { JobApplication } from '@/types/company';
+import type { EmployerApplication } from '@/hooks/useEmployerApplications';
 
 expect.extend(toHaveNoViolations);
 
-const mockApplication: JobApplication = {
+const mockApplication: EmployerApplication = {
   id: 'app-123',
   shared_company_id: 'company-456',
   private_company_id: null,
@@ -26,6 +26,8 @@ const mockApplication: JobApplication = {
   is_active: true,
   created_at: '2024-01-10T00:00:00.000Z',
   updated_at: '2024-01-15T00:00:00.000Z',
+  applicant_name: 'Jane Doe',
+  company_name: 'Acme Corp',
 };
 
 // Wrapper to provide proper table structure for accessibility
@@ -37,11 +39,10 @@ const AccessibleTableWrapper = ({
   <table>
     <thead>
       <tr>
+        <th>Applicant</th>
         <th>Position</th>
         <th>Status</th>
-        <th>Outcome</th>
         <th>Applied</th>
-        <th>Interview</th>
         <th>Actions</th>
       </tr>
     </thead>
@@ -53,7 +54,12 @@ describe('ApplicationRow Accessibility', () => {
   it('has no accessibility violations', async () => {
     const { container } = render(
       <AccessibleTableWrapper>
-        <ApplicationRow application={mockApplication} />
+        <ApplicationRow
+          application={mockApplication}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
+        />
       </AccessibleTableWrapper>
     );
 
@@ -61,13 +67,14 @@ describe('ApplicationRow Accessibility', () => {
     expect(results).toHaveNoViolations();
   });
 
-  it('has no accessibility violations with actions', async () => {
+  it('has no accessibility violations when updating', async () => {
     const { container } = render(
       <AccessibleTableWrapper>
         <ApplicationRow
           application={mockApplication}
-          onEdit={() => {}}
-          onDelete={() => {}}
+          onAdvance={vi.fn()}
+          updating={true}
+          isRepeat={false}
         />
       </AccessibleTableWrapper>
     );
@@ -76,13 +83,14 @@ describe('ApplicationRow Accessibility', () => {
     expect(results).toHaveNoViolations();
   });
 
-  it('has no accessibility violations with dropdowns', async () => {
+  it('has no accessibility violations with repeat badge', async () => {
     const { container } = render(
       <AccessibleTableWrapper>
         <ApplicationRow
           application={mockApplication}
-          onStatusChange={() => {}}
-          onOutcomeChange={() => {}}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={true}
         />
       </AccessibleTableWrapper>
     );
@@ -91,94 +99,65 @@ describe('ApplicationRow Accessibility', () => {
     expect(results).toHaveNoViolations();
   });
 
-  it('edit button has accessible label', () => {
+  it('advance button has accessible label', () => {
     render(
       <AccessibleTableWrapper>
-        <ApplicationRow application={mockApplication} onEdit={() => {}} />
+        <ApplicationRow
+          application={mockApplication}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
+        />
       </AccessibleTableWrapper>
     );
 
     expect(
-      screen.getByLabelText(/edit software engineer/i)
+      screen.getByLabelText(/advance jane doe to screening/i)
     ).toBeInTheDocument();
   });
 
-  it('delete button has accessible label', () => {
+  it('has no advance button for closed status', () => {
     render(
       <AccessibleTableWrapper>
-        <ApplicationRow application={mockApplication} onDelete={() => {}} />
+        <ApplicationRow
+          application={{ ...mockApplication, status: 'closed' }}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
+        />
       </AccessibleTableWrapper>
     );
 
     expect(
-      screen.getByLabelText(/delete software engineer/i)
-    ).toBeInTheDocument();
+      screen.queryByRole('button', { name: /advance/i })
+    ).not.toBeInTheDocument();
   });
 
-  it('status dropdown has accessible label', () => {
+  it('advance button is focusable', () => {
     render(
       <AccessibleTableWrapper>
         <ApplicationRow
           application={mockApplication}
-          onStatusChange={() => {}}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
         />
       </AccessibleTableWrapper>
     );
 
-    expect(screen.getByLabelText(/change status/i)).toBeInTheDocument();
-  });
-
-  it('outcome dropdown has accessible label', () => {
-    render(
-      <AccessibleTableWrapper>
-        <ApplicationRow
-          application={mockApplication}
-          onOutcomeChange={() => {}}
-        />
-      </AccessibleTableWrapper>
-    );
-
-    expect(screen.getByLabelText(/change outcome/i)).toBeInTheDocument();
-  });
-
-  it('job link has accessible attributes', () => {
-    render(
-      <AccessibleTableWrapper>
-        <ApplicationRow application={mockApplication} />
-      </AccessibleTableWrapper>
-    );
-
-    const jobLink = screen.getByText('Careers');
-    expect(jobLink).toHaveAttribute('target', '_blank');
-    expect(jobLink).toHaveAttribute('rel', 'noopener noreferrer');
-  });
-
-  it('row is keyboard navigable', () => {
-    render(
-      <AccessibleTableWrapper>
-        <ApplicationRow
-          application={mockApplication}
-          onEdit={() => {}}
-          onDelete={() => {}}
-          onStatusChange={() => {}}
-        />
-      </AccessibleTableWrapper>
-    );
-
-    const editButton = screen.getByLabelText(/edit/i);
-    const deleteButton = screen.getByLabelText(/delete/i);
-    const statusSelect = screen.getByLabelText(/change status/i);
-
-    // Buttons and selects should be focusable
-    expect(editButton).not.toHaveAttribute('tabindex', '-1');
-    expect(deleteButton).not.toHaveAttribute('tabindex', '-1');
-    expect(statusSelect).not.toHaveAttribute('tabindex', '-1');
+    const advanceButton = screen.getByLabelText(/advance/i);
+    expect(advanceButton).not.toHaveAttribute('tabindex', '-1');
   });
 
   it('uses semantic table structure', () => {
     const { container } = render(
       <AccessibleTableWrapper>
-        <ApplicationRow application={mockApplication} />
+        <ApplicationRow
+          application={mockApplication}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
+        />
       </AccessibleTableWrapper>
     );
 

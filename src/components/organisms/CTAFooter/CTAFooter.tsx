@@ -22,12 +22,18 @@ export default function CTAFooter({ className = '' }: CTAFooterProps) {
         <p className="text-base-content/80 mt-4 text-lg">
           Start planning your job search route today.
         </p>
-        <div className="mt-8">
+        <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
           <Link
             href="/sign-up"
             className="btn btn-primary btn-lg min-h-11 min-w-11"
           >
             Get Started
+          </Link>
+          <Link
+            href="/sign-up?role=employer"
+            className="btn btn-outline btn-lg min-h-11 min-w-11"
+          >
+            Hiring cyclists? Post jobs →
           </Link>
         </div>
       </div>

@@ -1,9 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
-import type { JobApplicationStatus } from '@/types/company';
-import { JOB_STATUS_LABELS, JOB_STATUS_COLORS } from '@/types/company';
+import React, { useState, useMemo } from 'react';
+import {
+  getStatusStyle,
+  JOB_STATUS_ORDER,
+  type JobApplicationStatus,
+} from '@/types/company';
 import type { EmployerApplication } from '@/hooks/useEmployerApplications';
+import ApplicationRow from '@/components/molecular/ApplicationRow';
 
 export interface EmployerDashboardProps {
   applications: EmployerApplication[];
@@ -14,19 +18,29 @@ export interface EmployerDashboardProps {
     status: JobApplicationStatus
   ) => Promise<void>;
   onRefresh: () => Promise<void>;
+  // --- Optional full-dataset meta (from paginated hook) --------------------
+  // When omitted (stories, unit tests), counts are derived locally from
+  // `applications`. When supplied, these reflect the FULL dataset so the
+  // funnel stays accurate even if only the first page is loaded.
+  /** Per-status counts across all applications (not just loaded page). */
+  statusCounts?: Partial<Record<JobApplicationStatus, number>>;
+  /** Total count across all applications. Drives the "All" badge. */
+  totalCount?: number;
+  /** user_ids appearing more than once in the full dataset. */
+  repeatUserIds?: Set<string>;
+  // --- Load-more pagination -----------------------------------------------
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => Promise<void>;
 }
-
-const STATUS_ORDER: JobApplicationStatus[] = [
-  'not_applied',
-  'applied',
-  'screening',
-  'interviewing',
-  'offer',
-  'closed',
-];
 
 /**
  * EmployerDashboard - Displays job applications with filtering and status management
+ *
+ * Stats bar counts are driven by `statusCounts`/`totalCount` when provided
+ * (paginated mode — hook runs a separate meta query over the full dataset).
+ * When not provided, counts fall back to local derivation from `applications`,
+ * keeping stories/tests zero-config.
  *
  * @category organisms
  * @see specs/063-employer-dashboard/spec.md
@@ -37,6 +51,12 @@ export default function EmployerDashboard({
   error,
   onUpdateStatus,
   onRefresh,
+  statusCounts,
+  totalCount,
+  repeatUserIds,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
 }: EmployerDashboardProps) {
   const [statusFilter, setStatusFilter] = useState<
     JobApplicationStatus | 'all'
@@ -48,40 +68,61 @@ export default function EmployerDashboard({
       ? applications
       : applications.filter((a) => a.status === statusFilter);
 
-  // Stats
-  const statusCounts = STATUS_ORDER.reduce(
-    (acc, status) => {
-      acc[status] = applications.filter((a) => a.status === status).length;
+  // Local-derivation fallbacks — used when full-dataset meta props aren't
+  // supplied (i.e. the component is being used standalone, not behind the
+  // paginated hook). Keeps existing stories/tests passing unchanged.
+  const localCounts = useMemo(() => {
+    if (statusCounts) return null; // prop wins, skip the work
+    return applications.reduce<Partial<Record<JobApplicationStatus, number>>>(
+      (acc, a) => {
+        acc[a.status] = (acc[a.status] ?? 0) + 1;
+        return acc;
+      },
+      {}
+    );
+  }, [applications, statusCounts]);
+
+  const localRepeats = useMemo(() => {
+    if (repeatUserIds) return null;
+    const counts = applications.reduce<Record<string, number>>((acc, a) => {
+      acc[a.user_id] = (acc[a.user_id] ?? 0) + 1;
       return acc;
-    },
-    {} as Record<JobApplicationStatus, number>
-  );
+    }, {});
+    return new Set(
+      Object.entries(counts)
+        .filter(([, n]) => n > 1)
+        .map(([uid]) => uid)
+    );
+  }, [applications, repeatUserIds]);
+
+  const countFor = (s: JobApplicationStatus) =>
+    (statusCounts ?? localCounts!)[s] ?? 0;
+  const total = totalCount ?? applications.length;
+  const isRepeat = (uid: string) => (repeatUserIds ?? localRepeats!).has(uid);
 
   const handleAdvanceStatus = async (app: EmployerApplication) => {
-    const currentIdx = STATUS_ORDER.indexOf(app.status);
-    if (currentIdx < STATUS_ORDER.length - 1) {
-      setUpdatingId(app.id);
-      try {
-        await onUpdateStatus(app.id, STATUS_ORDER[currentIdx + 1]);
-      } finally {
-        setUpdatingId(null);
-      }
+    const next = JOB_STATUS_ORDER[JOB_STATUS_ORDER.indexOf(app.status) + 1];
+    if (!next) return;
+    setUpdatingId(app.id);
+    try {
+      await onUpdateStatus(app.id, next);
+    } finally {
+      setUpdatingId(null);
     }
   };
 
-  if (loading) {
+  if (loading)
     return (
       <div className="flex justify-center py-12">
         <span
           className="loading loading-spinner loading-lg"
           role="status"
           aria-label="Loading applications"
-        ></span>
+        />
       </div>
     );
-  }
 
-  if (error) {
+  if (error)
     return (
       <div className="alert alert-error" role="alert">
         <span>{error}</span>
@@ -93,7 +134,6 @@ export default function EmployerDashboard({
         </button>
       </div>
     );
-  }
 
   return (
     <div data-testid="employer-dashboard">
@@ -103,32 +143,29 @@ export default function EmployerDashboard({
         role="group"
         aria-label="Application status counts"
       >
-        {STATUS_ORDER.map((status) => (
-          <button
-            key={status}
-            onClick={() =>
-              setStatusFilter(statusFilter === status ? 'all' : status)
-            }
-            className={`badge min-h-11 cursor-pointer gap-1 px-3 ${
-              statusFilter === status
-                ? 'badge-primary'
-                : JOB_STATUS_COLORS[status]
-            }`}
-            aria-pressed={statusFilter === status}
-          >
-            {JOB_STATUS_LABELS[status]}
-            <span className="font-bold">{statusCounts[status]}</span>
-          </button>
-        ))}
+        {JOB_STATUS_ORDER.map((status) => {
+          const { label, className } = getStatusStyle(status);
+          const count = countFor(status);
+          const active = statusFilter === status;
+          return (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(active ? 'all' : status)}
+              className={`badge min-h-11 cursor-pointer gap-1 px-3 ${active ? 'badge-primary' : className}`}
+              aria-pressed={active}
+            >
+              {label}
+              <span className="font-bold">{count}</span>
+            </button>
+          );
+        })}
         <button
           onClick={() => setStatusFilter('all')}
-          className={`badge min-h-11 cursor-pointer gap-1 px-3 ${
-            statusFilter === 'all' ? 'badge-primary' : 'badge-outline'
-          }`}
+          className={`badge min-h-11 cursor-pointer gap-1 px-3 ${statusFilter === 'all' ? 'badge-primary' : 'badge-outline'}`}
           aria-pressed={statusFilter === 'all'}
         >
           All
-          <span className="font-bold">{applications.length}</span>
+          <span className="font-bold">{total}</span>
         </button>
       </div>
 
@@ -136,7 +173,7 @@ export default function EmployerDashboard({
       {filtered.length === 0 ? (
         <div className="text-base-content/85 py-12 text-center">
           <p>
-            {applications.length === 0
+            {total === 0
               ? 'No applications yet'
               : `No ${statusFilter} applications`}
           </p>
@@ -155,53 +192,37 @@ export default function EmployerDashboard({
             </thead>
             <tbody>
               {filtered.map((app) => (
-                <tr key={app.id} data-testid="application-row">
-                  <td>
-                    <div className="font-medium">{app.applicant_name}</div>
-                    <div className="text-base-content/75 text-sm">
-                      {app.company_name}
-                    </div>
-                  </td>
-                  <td>{app.position_title || 'Not specified'}</td>
-                  <td>
-                    <span className={`badge ${JOB_STATUS_COLORS[app.status]}`}>
-                      {JOB_STATUS_LABELS[app.status]}
-                    </span>
-                  </td>
-                  <td className="text-sm">
-                    {app.date_applied
-                      ? new Date(app.date_applied).toLocaleDateString()
-                      : 'N/A'}
-                  </td>
-                  <td>
-                    {STATUS_ORDER.indexOf(app.status) <
-                      STATUS_ORDER.length - 1 && (
-                      <button
-                        onClick={() => handleAdvanceStatus(app)}
-                        disabled={updatingId === app.id}
-                        className="btn btn-sm btn-ghost min-h-11 min-w-11"
-                        aria-label={`Advance ${app.applicant_name} to ${
-                          JOB_STATUS_LABELS[
-                            STATUS_ORDER[STATUS_ORDER.indexOf(app.status) + 1]
-                          ]
-                        }`}
-                      >
-                        {updatingId === app.id
-                          ? '...'
-                          : `→ ${
-                              JOB_STATUS_LABELS[
-                                STATUS_ORDER[
-                                  STATUS_ORDER.indexOf(app.status) + 1
-                                ]
-                              ]
-                            }`}
-                      </button>
-                    )}
-                  </td>
-                </tr>
+                <ApplicationRow
+                  key={app.id}
+                  application={app}
+                  onAdvance={handleAdvanceStatus}
+                  updating={updatingId === app.id}
+                  isRepeat={isRepeat(app.user_id)}
+                />
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Load-more — only when the hook reports more rows exist. */}
+      {hasMore && onLoadMore && (
+        <div className="mt-4 flex justify-center">
+          <button
+            onClick={onLoadMore}
+            disabled={loadingMore}
+            className="btn btn-outline min-h-11"
+            aria-label="Load more applications"
+          >
+            {loadingMore ? (
+              <>
+                <span className="loading loading-spinner loading-sm" />
+                Loading…
+              </>
+            ) : (
+              `Load more (${applications.length} of ${total})`
+            )}
+          </button>
         </div>
       )}
     </div>
