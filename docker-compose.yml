@@ -26,13 +26,16 @@ services:
       dockerfile: docker/Dockerfile
       target: dev
     ports:
-      - '0:3000'   # Dev server – use `docker compose port spoketowork 3000`
-      - '0:6006'   # Storybook
-      - '0:24678'  # Next.js HMR websocket
+      - '0:3000' # Dev server – use `docker compose port spoketowork 3000`
+      - '0:6006' # Storybook
+      - '0:24678' # Next.js HMR websocket
     volumes:
       - .:/app
       - node_modules:/app/node_modules
-      - next_cache:/app/.next
+      - type: tmpfs
+        target: /app/.next
+        tmpfs:
+          mode: 01777
     env_file:
       - .env
       - path: .env.supabase.local
@@ -79,7 +82,11 @@ services:
     volumes:
       - supabase_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -h localhost && psql -U supabase_admin -d postgres -c "SELECT 1 FROM pg_roles WHERE rolname=''supabase_auth_admin''" | grep -q 1']
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U postgres -h localhost && psql -U supabase_admin -d postgres -c "SELECT 1 FROM pg_roles WHERE rolname=''supabase_auth_admin''" | grep -q 1',
+        ]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -96,7 +103,7 @@ services:
         condition: service_healthy
     environment:
       PGPASSWORD: ${SUPABASE_LOCAL_DB_PASSWORD:-your-super-secret-and-long-postgres-password}
-    entrypoint: ["/bin/bash", "-c"]
+    entrypoint: ['/bin/bash', '-c']
     command:
       - |
         psql -h supabase-db -U supabase_admin -d postgres -c "ALTER USER supabase_auth_admin WITH PASSWORD '$$PGPASSWORD';"
@@ -238,5 +245,4 @@ networks:
 
 volumes:
   node_modules:
-  next_cache:
   supabase_db_data:

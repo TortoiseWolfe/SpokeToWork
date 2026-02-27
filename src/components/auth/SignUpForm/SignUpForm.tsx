@@ -18,6 +18,8 @@ const logger = createLogger('components:auth:SignUpForm');
 export interface SignUpFormProps {
   /** Callback on successful sign up */
   onSuccess?: () => void;
+  /** Role requested at signup (worker or employer) */
+  requestedRole?: 'worker' | 'employer';
   /** Additional CSS classes */
   className?: string;
 }
@@ -30,6 +32,7 @@ export interface SignUpFormProps {
  */
 export default function SignUpForm({
   onSuccess,
+  requestedRole,
   className = '',
 }: SignUpFormProps) {
   const { signUp, user } = useAuth();
@@ -98,6 +101,7 @@ export default function SignUpForm({
 
     const { error: signUpError } = await signUp(email, password, {
       rememberMe,
+      requestedRole,
     });
 
     setLoading(false);

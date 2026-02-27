@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import SignInForm from '@/components/auth/SignInForm';
 import OAuthButtons from '@/components/auth/OAuthButtons';
+import AuthPageShell from '@/components/organisms/AuthPageShell';
 import Link from 'next/link';
 
 // Get basePath for redirects (empty string in dev, '/SpokeToWork' in production)
@@ -27,36 +28,34 @@ export default function SignInPage() {
   }, []);
 
   return (
-    <div className="container mx-auto px-4 py-12 sm:px-6 md:py-16 lg:px-8">
-      <div className="mx-auto max-w-md">
-        <h1 className="mb-6 text-center text-3xl font-bold sm:mb-8">Sign In</h1>
+    <AuthPageShell>
+      <h1 className="mb-6 text-3xl font-bold">Sign In</h1>
 
-        <SignInForm
-          onSuccess={() =>
-            (window.location.href = decodeURIComponent(returnUrl))
-          }
-        />
+      <OAuthButtons layout="row" />
 
-        <p className="mt-4 text-center text-sm">
-          <Link href="/forgot-password" className="link-primary">
-            Forgot password?
-          </Link>
-        </p>
-
-        <div className="divider my-6">OR</div>
-
-        <OAuthButtons />
-
-        <p className="mt-6 text-center text-sm">
-          Don&apos;t have an account?{' '}
-          <Link
-            href={`/sign-up${returnUrl !== '/profile' ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ''}`}
-            className="link-primary"
-          >
-            Sign up
-          </Link>
-        </p>
+      <div className="divider my-6 text-xs opacity-70">
+        or continue with email
       </div>
-    </div>
+
+      <SignInForm
+        onSuccess={() => (window.location.href = decodeURIComponent(returnUrl))}
+      />
+
+      <p className="mt-4 text-center text-sm">
+        <Link href="/forgot-password" className="link-primary">
+          Forgot password?
+        </Link>
+      </p>
+
+      <p className="mt-6 text-center text-sm">
+        Don&apos;t have an account?{' '}
+        <Link
+          href={`/sign-up${returnUrl !== '/profile' ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ''}`}
+          className="link-primary"
+        >
+          Sign up
+        </Link>
+      </p>
+    </AuthPageShell>
   );
 }

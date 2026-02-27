@@ -29,6 +29,15 @@ if [ -d "/app/.next" ]; then
 fi
 
 mkdir -p /app/.next
+
+# Fail fast if .next is not writable (e.g. volume owned by root after --user root)
+if ! touch /app/.next/.write-test 2>/dev/null; then
+  echo "ERROR: /app/.next is not writable by user $(whoami) (UID $(id -u))"
+  echo "Fix: docker compose down && docker volume rm spoketowork_next_cache && docker compose up"
+  exit 1
+fi
+rm -f /app/.next/.write-test
+
 echo "Fresh .next directory configured"
 
 if [ -f ".next/BUILD_ID" ]; then

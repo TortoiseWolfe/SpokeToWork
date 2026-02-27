@@ -261,15 +261,25 @@ END;
 $$;
 
 -- Auto-create user profile on signup
+-- Reads requested_role from signup metadata (email path). Admin is never
+-- self-assignable; falls back to 'worker' for NULL/invalid/'admin'.
 CREATE OR REPLACE FUNCTION create_user_profile()
 RETURNS TRIGGER
 SECURITY DEFINER
 SET search_path = public
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  v_role TEXT;
 BEGIN
-  INSERT INTO public.user_profiles (id, created_at, updated_at)
-  VALUES (NEW.id, NOW(), NOW())
+  -- Read requested_role from signup metadata. Admin is never self-assignable.
+  v_role := NEW.raw_user_meta_data->>'requested_role';
+  IF v_role IS NULL OR v_role NOT IN ('worker', 'employer') THEN
+    v_role := 'worker';
+  END IF;
+
+  INSERT INTO public.user_profiles (id, role, created_at, updated_at)
+  VALUES (NEW.id, v_role, NOW(), NOW())
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 EXCEPTION
@@ -2755,6 +2765,250 @@ COMMENT ON TABLE employer_company_links IS 'Links employer users to shared compa
 
 -- ============================================================================
 -- END FEATURE 063: Employer Dashboard
+-- ============================================================================
+
+-- ============================================================================
+-- FEATURE 063b: Role Persistence Through Signup
+-- Created: 2026-02-27
+-- Purpose: OAuth callback can set role post-redirect; admin never self-assignable
+-- ============================================================================
+
+-- Self-service role change (worker <-> employer only). The OAuth signup path
+-- can't pass metadata to the create_user_profile trigger, so the callback page
+-- calls this RPC after the session is established. Server-side enforcement:
+-- admin is never self-assignable via this function.
+CREATE OR REPLACE FUNCTION set_own_role(p_role TEXT)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF p_role NOT IN ('worker', 'employer') THEN
+    RAISE EXCEPTION 'Invalid role: %. Only worker or employer allowed.', p_role;
+  END IF;
+
+  UPDATE public.user_profiles
+  SET role = p_role, updated_at = NOW()
+  WHERE id = auth.uid();
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'No profile for user %', auth.uid();
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION set_own_role(TEXT) TO authenticated;
+
+COMMENT ON FUNCTION set_own_role(TEXT) IS
+  'Self-service role switch for OAuth callback. Rejects admin; worker/employer only (Feature 063b).';
+
+-- ============================================================================
+-- END FEATURE 063b: Role Persistence Through Signup
+-- ============================================================================
+
+-- ============================================================================
+-- FEATURE 064: Employer Team Management
+-- Three SECURITY DEFINER RPCs so employers can share company access with
+-- accepted connections. Bypasses the SELECT-only RLS on employer_company_links.
+-- Auto-upgrades the teammate to role='employer' on add (no demotion on remove).
+-- ============================================================================
+
+-- T001: get_team_members — returns the roster for a company the caller is linked to.
+-- Needed because RLS on employer_company_links only exposes rows where
+-- auth.uid() = user_id, so you can't see your teammates' rows directly.
+CREATE OR REPLACE FUNCTION get_team_members(p_company_id UUID)
+RETURNS TABLE(
+  user_id UUID,
+  display_name TEXT,
+  avatar_url TEXT,
+  joined_at TIMESTAMPTZ
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Caller must themselves be linked to this company
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND shared_company_id = p_company_id
+  ) THEN
+    RAISE EXCEPTION 'Not linked to company';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    ecl.user_id,
+    up.display_name,
+    up.avatar_url,
+    ecl.created_at AS joined_at
+  FROM employer_company_links ecl
+  JOIN user_profiles up ON up.id = ecl.user_id
+  WHERE ecl.shared_company_id = p_company_id
+  ORDER BY ecl.created_at ASC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_team_members(UUID) TO authenticated;
+
+COMMENT ON FUNCTION get_team_members(UUID) IS
+  'Returns all users linked to the given company. Caller must be on the team. (Feature 064)';
+
+-- T002: add_team_member — link a connection to a company and auto-upgrade their role.
+CREATE OR REPLACE FUNCTION add_team_member(p_company_id UUID, p_user_id UUID)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Validation 1: caller must be linked to the company
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE user_id = auth.uid() AND shared_company_id = p_company_id
+  ) THEN
+    RAISE EXCEPTION 'Not linked to company';
+  END IF;
+
+  -- Validation 2: cannot add yourself
+  IF p_user_id = auth.uid() THEN
+    RAISE EXCEPTION 'Cannot add yourself';
+  END IF;
+
+  -- Validation 3: target must be in caller's accepted connections (bidirectional)
+  IF NOT EXISTS (
+    SELECT 1 FROM user_connections
+    WHERE status = 'accepted'
+      AND (
+        (requester_id = auth.uid() AND addressee_id = p_user_id)
+        OR
+        (addressee_id = auth.uid() AND requester_id = p_user_id)
+      )
+  ) THEN
+    RAISE EXCEPTION 'User is not in your connections';
+  END IF;
+
+  -- Insert link (idempotent — UNIQUE constraint makes ON CONFLICT fire on re-add)
+  INSERT INTO employer_company_links (user_id, shared_company_id)
+  VALUES (p_user_id, p_company_id)
+  ON CONFLICT (user_id, shared_company_id) DO NOTHING;
+
+  -- Auto-upgrade teammate to employer role so they see the right dashboard.
+  -- Conditional on role='worker' — don't touch admins or existing employers.
+  UPDATE user_profiles
+  SET role = 'employer', updated_at = NOW()
+  WHERE id = p_user_id AND role = 'worker';
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION add_team_member(UUID, UUID) TO authenticated;
+
+COMMENT ON FUNCTION add_team_member(UUID, UUID) IS
+  'Grant a connected user access to a company you are linked to. Auto-upgrades their role to employer if currently worker. (Feature 064)';
+
+-- T003: remove_team_member — revoke a user's link. No role demotion.
+CREATE OR REPLACE FUNCTION remove_team_member(p_company_id UUID, p_user_id UUID)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Validation 1: caller must be linked to the company
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE user_id = auth.uid() AND shared_company_id = p_company_id
+  ) THEN
+    RAISE EXCEPTION 'Not linked to company';
+  END IF;
+
+  -- Validation 2: cannot remove yourself (prevents orphaning the company)
+  IF p_user_id = auth.uid() THEN
+    RAISE EXCEPTION 'Cannot remove yourself';
+  END IF;
+
+  DELETE FROM employer_company_links
+  WHERE user_id = p_user_id AND shared_company_id = p_company_id;
+
+  -- No role demotion — the removed user may still be on other companies' teams.
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION remove_team_member(UUID, UUID) TO authenticated;
+
+COMMENT ON FUNCTION remove_team_member(UUID, UUID) IS
+  'Revoke a user''s access to a company you are linked to. Does not demote their role. (Feature 064)';
+
+-- ============================================================================
+-- END FEATURE 064: Employer Team Management
+-- ============================================================================
+
+-- ============================================================================
+-- FEATURE 065: Employee Roster (team_members)
+-- Lightweight employee roster for a company. Unlike the Feature 064 RPCs
+-- (which manage registered-user access via employer_company_links), this table
+-- tracks all employees including non-registered people (name/email entries).
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS team_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES shared_companies(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  role_title TEXT,
+  start_date DATE,
+  added_by UUID NOT NULL REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_team_members_company ON team_members(company_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_email ON team_members(company_id, email);
+
+ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "team_members_employer_read" ON team_members
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM employer_company_links
+      WHERE employer_company_links.user_id = auth.uid()
+        AND employer_company_links.shared_company_id = team_members.company_id
+    )
+  );
+
+CREATE POLICY "team_members_employer_insert" ON team_members
+  FOR INSERT WITH CHECK (added_by = auth.uid() AND EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND employer_company_links.shared_company_id = team_members.company_id
+  ));
+
+CREATE POLICY "team_members_employer_update" ON team_members
+  FOR UPDATE USING (EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND employer_company_links.shared_company_id = team_members.company_id
+  ));
+
+CREATE POLICY "team_members_employer_delete" ON team_members
+  FOR DELETE USING (EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND employer_company_links.shared_company_id = team_members.company_id
+  ));
+
+CREATE TRIGGER set_team_members_updated_at
+  BEFORE UPDATE ON team_members
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Note: supabase_realtime publication is managed by Supabase.
+-- ALTER PUBLICATION supabase_realtime ADD TABLE team_members;
+
+-- ============================================================================
+-- END FEATURE 065: Employee Roster (team_members)
 -- ============================================================================
 
 -- Commit the transaction - everything succeeded

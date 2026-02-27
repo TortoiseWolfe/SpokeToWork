@@ -1,260 +1,119 @@
-import type { Meta, StoryObj } from '@storybook/nextjs-vite';
+import type { Meta, StoryObj, Decorator } from '@storybook/nextjs-vite';
 import ApplicationRow from './ApplicationRow';
-import type { JobApplication } from '@/types/company';
+import type { EmployerApplication } from '@/hooks/useEmployerApplications';
+
+const base: EmployerApplication = {
+  id: 'app-1',
+  shared_company_id: 'c1',
+  private_company_id: null,
+  user_id: 'u1',
+  position_title: 'Bike Mechanic',
+  job_link: null,
+  position_url: null,
+  status_url: null,
+  work_location_type: 'on_site',
+  status: 'screening',
+  outcome: 'pending',
+  date_applied: '2026-02-10',
+  interview_date: null,
+  follow_up_date: null,
+  priority: 3,
+  notes: null,
+  is_active: true,
+  created_at: '2026-02-10T00:00:00Z',
+  updated_at: '2026-02-10T00:00:00Z',
+  applicant_name: 'Maya Chen',
+  company_name: 'Velo Works',
+};
+
+// Per-story decorator (not meta-level) — Storybook composes decorators rather
+// than replacing them, so ThemeMatrix can opt out by simply not including it.
+const tableDecorator: Decorator = (Story) => (
+  <table className="table w-full">
+    <thead>
+      <tr>
+        <th>Applicant</th>
+        <th>Position</th>
+        <th>Status</th>
+        <th>Applied</th>
+        <th />
+      </tr>
+    </thead>
+    <tbody>
+      <Story />
+    </tbody>
+  </table>
+);
 
 const meta: Meta<typeof ApplicationRow> = {
   title: 'Atomic Design/Molecular/ApplicationRow',
   component: ApplicationRow,
-  parameters: {
-    layout: 'padded',
-    docs: {
-      description: {
-        component:
-          'Table row for displaying job application data with status, outcome, dates, and action buttons.',
-      },
-    },
-  },
+  parameters: { layout: 'padded' },
   tags: ['autodocs'],
-  decorators: [
-    (Story) => (
-      <table className="table">
-        <thead>
-          <tr>
-            <th>Position</th>
-            <th>Status</th>
-            <th className="hidden sm:table-cell">Outcome</th>
-            <th className="hidden lg:table-cell">Applied</th>
-            <th className="hidden lg:table-cell">Interview</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <Story />
-        </tbody>
-      </table>
-    ),
-  ],
-  argTypes: {
-    onClick: { action: 'clicked' },
-    onEdit: { action: 'edit' },
-    onDelete: { action: 'delete' },
-    onStatusChange: { action: 'statusChanged' },
-    onOutcomeChange: { action: 'outcomeChanged' },
-  },
 };
-
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const baseApplication: JobApplication = {
-  id: 'app-123',
-  shared_company_id: 'company-456',
-  private_company_id: null,
-  user_id: 'user-789',
-  position_title: 'Senior Software Engineer',
-  job_link: 'https://example.com/jobs/senior-engineer',
-  position_url: 'https://example.com/apply/senior-engineer',
-  status_url: null,
-  work_location_type: 'hybrid',
-  status: 'interviewing',
-  outcome: 'pending',
-  date_applied: '2024-01-15',
-  interview_date: '2024-01-25T10:00:00.000Z',
-  follow_up_date: '2024-01-30',
-  priority: 2,
-  notes: 'Interview scheduled',
-  is_active: true,
-  created_at: '2024-01-10T00:00:00.000Z',
-  updated_at: '2024-01-20T00:00:00.000Z',
-};
-
 export const Default: Story = {
+  decorators: [tableDecorator],
   args: {
-    application: baseApplication,
+    application: base,
+    onAdvance: () => {},
+    updating: false,
+    isRepeat: false,
   },
 };
 
-export const WithActions: Story = {
+export const Repeat: Story = {
+  decorators: [tableDecorator],
   args: {
-    application: baseApplication,
-    onEdit: () => console.log('Edit'),
-    onDelete: () => console.log('Delete'),
+    application: base,
+    onAdvance: () => {},
+    updating: false,
+    isRepeat: true,
   },
 };
 
-export const WithStatusDropdown: Story = {
+export const Updating: Story = {
+  decorators: [tableDecorator],
   args: {
-    application: baseApplication,
-    onStatusChange: (app, status) => console.log('Status:', status),
-    onOutcomeChange: (app, outcome) => console.log('Outcome:', outcome),
+    application: base,
+    onAdvance: () => {},
+    updating: true,
+    isRepeat: false,
   },
 };
 
-export const NotApplied: Story = {
+export const Closed: Story = {
+  decorators: [tableDecorator],
   args: {
-    application: {
-      ...baseApplication,
-      status: 'not_applied',
-      date_applied: null,
-      interview_date: null,
-    },
+    application: { ...base, status: 'closed', outcome: 'hired' },
+    onAdvance: () => {},
+    updating: false,
+    isRepeat: false,
   },
 };
 
-export const Applied: Story = {
-  args: {
-    application: {
-      ...baseApplication,
-      status: 'applied',
-      outcome: 'pending',
-    },
-  },
-};
+const themes = ['spoketowork-light', 'spoketowork-dark', 'synthwave'] as const;
 
-export const Interviewing: Story = {
-  args: {
-    application: baseApplication,
-  },
-};
-
-export const Offer: Story = {
-  args: {
-    application: {
-      ...baseApplication,
-      status: 'offer',
-      outcome: 'pending',
-      priority: 1,
-    },
-  },
-};
-
-export const Hired: Story = {
-  args: {
-    application: {
-      ...baseApplication,
-      status: 'closed',
-      outcome: 'hired',
-    },
-  },
-};
-
-export const Rejected: Story = {
-  args: {
-    application: {
-      ...baseApplication,
-      status: 'closed',
-      outcome: 'rejected',
-    },
-  },
-};
-
-export const Ghosted: Story = {
-  args: {
-    application: {
-      ...baseApplication,
-      status: 'closed',
-      outcome: 'ghosted',
-    },
-  },
-};
-
-export const RemoteJob: Story = {
-  args: {
-    application: {
-      ...baseApplication,
-      work_location_type: 'remote',
-      position_title: 'Remote Backend Developer',
-    },
-  },
-};
-
-export const OnSiteJob: Story = {
-  args: {
-    application: {
-      ...baseApplication,
-      work_location_type: 'on_site',
-      position_title: 'On-site Systems Engineer',
-    },
-  },
-};
-
-export const HighPriority: Story = {
-  args: {
-    application: {
-      ...baseApplication,
-      priority: 1,
-      position_title: 'Dream Job Position',
-    },
-  },
-};
-
-export const LowPriority: Story = {
-  args: {
-    application: {
-      ...baseApplication,
-      priority: 5,
-    },
-  },
-};
-
-export const Inactive: Story = {
-  args: {
-    application: {
-      ...baseApplication,
-      is_active: false,
-    },
-  },
-};
-
-export const Selected: Story = {
-  args: {
-    application: baseApplication,
-    isSelected: true,
-  },
-};
-
-export const NoJobLink: Story = {
-  args: {
-    application: {
-      ...baseApplication,
-      job_link: null,
-    },
-  },
-};
-
-export const NoTitle: Story = {
-  args: {
-    application: {
-      ...baseApplication,
-      position_title: null,
-    },
-  },
-};
-
-export const WithCompanyName: Story = {
-  args: {
-    application: baseApplication,
-    showCompany: true,
-    companyName: 'Acme Corporation',
-  },
-  decorators: [
-    (Story) => (
-      <table className="table">
-        <thead>
-          <tr>
-            <th>Position</th>
-            <th className="hidden md:table-cell">Company</th>
-            <th>Status</th>
-            <th className="hidden sm:table-cell">Outcome</th>
-            <th className="hidden lg:table-cell">Applied</th>
-            <th className="hidden lg:table-cell">Interview</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <Story />
-        </tbody>
-      </table>
-    ),
-  ],
+export const ThemeMatrix: Story = {
+  render: () => (
+    <div className="flex flex-col gap-4">
+      {themes.map((theme) => (
+        <div key={theme} data-theme={theme} className="bg-base-100 rounded p-4">
+          <div className="mb-2 text-xs opacity-60">{theme}</div>
+          <table className="table w-full">
+            <tbody>
+              <ApplicationRow
+                application={base}
+                onAdvance={() => {}}
+                updating={false}
+                isRepeat={false}
+              />
+            </tbody>
+          </table>
+        </div>
+      ))}
+    </div>
+  ),
 };

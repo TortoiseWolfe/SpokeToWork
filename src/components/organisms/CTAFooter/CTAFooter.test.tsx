@@ -51,4 +51,16 @@ describe('CTAFooter', () => {
     expect(cta.className).toContain('min-h-11');
     expect(cta.className).toContain('min-w-11');
   });
+
+  it('renders employer CTA linking to /sign-up?role=employer', () => {
+    render(<CTAFooter />);
+    const employerCta = screen.getByRole('link', { name: /Hiring cyclists/i });
+    expect(employerCta).toHaveAttribute('href', '/sign-up?role=employer');
+  });
+
+  it('employer CTA meets 44px touch target', () => {
+    render(<CTAFooter />);
+    const employerCta = screen.getByRole('link', { name: /Hiring cyclists/i });
+    expect(employerCta.className).toMatch(/min-h-11/);
+  });
 });

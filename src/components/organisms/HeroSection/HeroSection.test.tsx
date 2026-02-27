@@ -11,12 +11,12 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-// Mock SpinningLogo - destructure out non-DOM props to avoid React warnings
-vi.mock('@/components/atomic/SpinningLogo', () => ({
-  LayeredSpokeToWorkLogo: ({ speed, pauseOnHover, ...props }: any) => (
-    <div data-testid="spinning-logo" {...props}>
-      Mock Spinning Logo
-    </div>
+// Mock RouteHeroIllustration - renders a pin so queries still succeed
+vi.mock('@/components/atomic/illustrations', () => ({
+  RouteHeroIllustration: ({ animated, ...props }: any) => (
+    <svg {...props}>
+      <g data-testid="route-pin" />
+    </svg>
   ),
 }));
 
@@ -64,11 +64,6 @@ describe('HeroSection', () => {
     expect(tryMap).toHaveAttribute('href', '/map');
   });
 
-  it('renders the spinning logo', () => {
-    render(<HeroSection />);
-    expect(screen.getByTestId('spinning-logo')).toBeInTheDocument();
-  });
-
   it('renders the animated logo with project name', () => {
     render(<HeroSection />);
     const animated = screen.getByTestId('animated-logo');
@@ -76,47 +71,33 @@ describe('HeroSection', () => {
     expect(animated).toHaveTextContent('SpokeToWork');
   });
 
+  it('renders the route illustration', () => {
+    const { container } = render(<HeroSection />);
+    // The RouteHeroIllustration renders an SVG with route pins
+    expect(
+      container.querySelector('[data-testid="route-pin"]')
+    ).toBeInTheDocument();
+  });
+
+  it('does not render feature badge pills', () => {
+    render(<HeroSection />);
+    // old badges had role=listitem
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+  });
+
+  it('does not render secondary navigation', () => {
+    render(<HeroSection />);
+    // old secondary nav had Companies/Blog/Schedule/Contact links
+    expect(
+      screen.queryByRole('link', { name: /Companies/i })
+    ).not.toBeInTheDocument();
+  });
+
   it('renders primary navigation region', () => {
     render(<HeroSection />);
     expect(
       screen.getByRole('navigation', { name: 'Primary navigation' })
     ).toBeInTheDocument();
-  });
-
-  it('renders secondary navigation with expected links', () => {
-    render(<HeroSection />);
-    const secondaryNav = screen.getByRole('navigation', {
-      name: 'Secondary navigation',
-    });
-    expect(secondaryNav).toBeInTheDocument();
-
-    expect(screen.getByRole('link', { name: 'Companies' })).toHaveAttribute(
-      'href',
-      '/companies'
-    );
-    expect(screen.getByRole('link', { name: 'Blog' })).toHaveAttribute(
-      'href',
-      '/blog'
-    );
-    expect(screen.getByRole('link', { name: 'Schedule' })).toHaveAttribute(
-      'href',
-      '/schedule'
-    );
-    expect(screen.getByRole('link', { name: 'Contact' })).toHaveAttribute(
-      'href',
-      '/contact'
-    );
-  });
-
-  it('renders feature badges', () => {
-    render(<HeroSection />);
-    const featureList = screen.getByRole('list', { name: 'Key features' });
-    expect(featureList).toBeInTheDocument();
-
-    expect(screen.getByText('Track Applications')).toBeInTheDocument();
-    expect(screen.getByText('Route Planning')).toBeInTheDocument();
-    expect(screen.getByText('Offline Ready')).toBeInTheDocument();
-    expect(screen.getByText('Mobile First')).toBeInTheDocument();
   });
 
   it('renders section with id="main-content"', () => {

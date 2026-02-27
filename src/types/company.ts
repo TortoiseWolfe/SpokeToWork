@@ -480,6 +480,47 @@ export const JOB_STATUS_COLORS: Record<JobApplicationStatus, string> = {
   closed: 'badge-neutral',
 };
 
+const DEFAULT_STATUS_STYLE = 'badge-ghost';
+
+/** Runtime-safe status badge class lookup with fallback for unknown statuses */
+export function getStatusBadgeClass(status: string): string {
+  return (
+    (JOB_STATUS_COLORS as Record<string, string>)[status] ??
+    DEFAULT_STATUS_STYLE
+  );
+}
+
+/** Runtime-safe status label lookup with fallback for unknown statuses */
+export function getStatusLabel(status: string): string {
+  return (JOB_STATUS_LABELS as Record<string, string>)[status] ?? status;
+}
+
+/**
+ * Returns label + DaisyUI badge class for any status string.
+ * Unknown statuses fall back to badge-neutral + the raw string.
+ * Single source of truth — do not index JOB_STATUS_COLORS/LABELS directly.
+ */
+export function getStatusStyle(status: string): {
+  label: string;
+  className: string;
+} {
+  const known = status as JobApplicationStatus;
+  return {
+    label: JOB_STATUS_LABELS[known] ?? (status || 'Unknown'),
+    className: JOB_STATUS_COLORS[known] ?? 'badge-neutral',
+  };
+}
+
+/** Pipeline order. Advancing walks this left→right. 'closed' is terminal. */
+export const JOB_STATUS_ORDER: readonly JobApplicationStatus[] = [
+  'not_applied',
+  'applied',
+  'screening',
+  'interviewing',
+  'offer',
+  'closed',
+] as const;
+
 /**
  * Color classes for application outcomes (DaisyUI/Tailwind)
  */
@@ -922,3 +963,43 @@ export const MATCH_CONFIDENCE_COLORS: Record<MatchConfidence, string> = {
   medium: 'badge-warning',
   low: 'badge-ghost',
 };
+
+// =============================================================================
+// TEAM MEMBER TYPES (Employee Management)
+// =============================================================================
+
+/**
+ * Team member managed by an employer for a company
+ */
+export interface TeamMember {
+  id: string;
+  company_id: string;
+  user_id: string | null;
+  name: string;
+  email: string;
+  role_title: string | null;
+  start_date: string | null;
+  added_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Data required to add a new team member
+ */
+export interface AddTeamMemberData {
+  name: string;
+  email: string;
+  role_title?: string;
+  start_date?: string;
+}
+
+/**
+ * Data for updating an existing team member (all fields optional)
+ */
+export interface UpdateTeamMemberData {
+  name?: string;
+  email?: string;
+  role_title?: string | null;
+  start_date?: string | null;
+}
