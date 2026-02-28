@@ -25,7 +25,7 @@ describe('HowItWorksSection Accessibility', () => {
       screen.getByRole('heading', { level: 2, name: 'How It Works' })
     ).toBeInTheDocument();
     const h3s = screen.getAllByRole('heading', { level: 3 });
-    expect(h3s).toHaveLength(3);
+    expect(h3s).toHaveLength(6);
   });
 
   it('should have no violations with custom className', async () => {

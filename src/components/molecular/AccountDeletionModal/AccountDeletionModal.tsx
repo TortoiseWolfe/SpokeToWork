@@ -53,7 +53,7 @@ export default function AccountDeletionModal({
     }
   }, [isOpen]);
 
-  const isConfirmed = confirmationText === 'DELETE';
+  const isConfirmed = confirmationText.trim() === 'DELETE';
 
   const handleDelete = async () => {
     if (!isConfirmed) return;
@@ -142,14 +142,14 @@ export default function AccountDeletionModal({
               placeholder="DELETE"
               autoComplete="off"
               aria-required="true"
-              aria-invalid={confirmationText.length > 0 && !isConfirmed}
+              aria-invalid={confirmationText.trim().length > 0 && !isConfirmed}
               aria-describedby={
                 confirmationText.length > 0 && !isConfirmed
                   ? 'confirmation-error'
                   : undefined
               }
             />
-            {confirmationText.length > 0 && !isConfirmed && (
+            {confirmationText.trim().length > 0 && !isConfirmed && (
               <label id="confirmation-error" className="label">
                 <span className="label-text-alt text-error">
                   Please type DELETE exactly (case-sensitive)

@@ -22,20 +22,20 @@ describe('CTAFooter', () => {
   it('renders subtitle text', () => {
     render(<CTAFooter />);
     expect(
-      screen.getByText('Start planning your job search route today.')
+      screen.getByText(/chasing a job or building a crew/)
     ).toBeInTheDocument();
   });
 
-  it('renders "Get Started" CTA linking to /sign-up', () => {
+  it('renders "Find Work" CTA linking to /sign-up', () => {
     render(<CTAFooter />);
-    const cta = screen.getByRole('link', { name: 'Get Started' });
+    const cta = screen.getByRole('link', { name: 'Find Work' });
     expect(cta).toBeInTheDocument();
     expect(cta).toHaveAttribute('href', '/sign-up');
   });
 
   it('CTA has btn-primary class', () => {
     render(<CTAFooter />);
-    const cta = screen.getByRole('link', { name: 'Get Started' });
+    const cta = screen.getByRole('link', { name: 'Find Work' });
     expect(cta.className).toContain('btn-primary');
   });
 
@@ -47,8 +47,26 @@ describe('CTAFooter', () => {
 
   it('renders CTA with 44px touch targets', () => {
     render(<CTAFooter />);
-    const cta = screen.getByRole('link', { name: 'Get Started' });
+    const cta = screen.getByRole('link', { name: 'Find Work' });
     expect(cta.className).toContain('min-h-11');
     expect(cta.className).toContain('min-w-11');
+  });
+
+  it('renders employer CTA linking to /sign-up?role=employer', () => {
+    render(<CTAFooter />);
+    const employerCta = screen.getByRole('link', { name: /Hire & Schedule/i });
+    expect(employerCta).toHaveAttribute('href', '/sign-up?role=employer');
+  });
+
+  it('employer CTA has btn-secondary class', () => {
+    render(<CTAFooter />);
+    const employerCta = screen.getByRole('link', { name: /Hire & Schedule/i });
+    expect(employerCta.className).toContain('btn-secondary');
+  });
+
+  it('employer CTA meets 44px touch target', () => {
+    render(<CTAFooter />);
+    const employerCta = screen.getByRole('link', { name: /Hire & Schedule/i });
+    expect(employerCta.className).toMatch(/min-h-11/);
   });
 });

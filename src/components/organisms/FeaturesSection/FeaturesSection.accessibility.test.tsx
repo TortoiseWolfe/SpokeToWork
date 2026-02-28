@@ -36,13 +36,13 @@ describe('FeaturesSection Accessibility', () => {
     expect(section).toHaveAttribute('aria-label', 'Features');
   });
 
-  it('should have accessible link text via aria-label on each card', () => {
+  it('should have accessible link text on spotlight CTA and each grid card', () => {
     render(<FeaturesSection />);
     expect(
-      screen.getByRole('link', { name: 'Track Companies' })
+      screen.getByRole('link', { name: /Open the Map/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('link', { name: 'Plan Routes' })
+      screen.getByRole('link', { name: 'Track Companies' })
     ).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'Schedule Visits' })
@@ -52,13 +52,11 @@ describe('FeaturesSection Accessibility', () => {
     ).toBeInTheDocument();
   });
 
-  it('should have proper heading hierarchy (h2 > h3)', () => {
+  it('should have proper heading hierarchy (h3 feature titles)', () => {
     render(<FeaturesSection />);
-    expect(
-      screen.getByRole('heading', { level: 2, name: 'Features' })
-    ).toBeInTheDocument();
+    // No h2 — section heading removed. All features use h3.
     const h3s = screen.getAllByRole('heading', { level: 3 });
-    expect(h3s).toHaveLength(4);
+    expect(h3s).toHaveLength(5);
   });
 
   it('should have no violations with custom className', async () => {

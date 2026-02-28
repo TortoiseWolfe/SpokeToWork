@@ -3,10 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import SignUpForm from '@/components/auth/SignUpForm';
 import OAuthButtons from '@/components/auth/OAuthButtons';
+import AuthPageShell from '@/components/organisms/AuthPageShell';
+import RoleToggle from '@/components/molecular/RoleToggle';
 import Link from 'next/link';
+import type { RequestableRole } from '@/contexts/AuthContext';
 
 export default function SignUpPage() {
   const [returnUrl, setReturnUrl] = useState('/profile');
+  const [requestedRole, setRequestedRole] = useState<RequestableRole>('worker');
 
   useEffect(() => {
     // Read query params client-side for static export compatibility
@@ -19,33 +23,42 @@ export default function SignUpPage() {
         setReturnUrl(url);
       }
     }
+    const role = params.get('role');
+    if (role === 'worker' || role === 'employer') {
+      setRequestedRole(role);
+    }
   }, []);
 
   return (
-    <div className="container mx-auto px-4 py-12 sm:px-6 md:py-16 lg:px-8">
-      <div className="mx-auto max-w-md">
-        <h1 className="mb-6 text-center text-3xl font-bold sm:mb-8">
-          Create Account
-        </h1>
+    <AuthPageShell>
+      <h1 className="mb-6 text-3xl font-bold">Create Account</h1>
 
-        <SignUpForm
-          onSuccess={() => (window.location.href = '/verify-email')}
-        />
+      <RoleToggle
+        value={requestedRole}
+        onChange={setRequestedRole}
+        className="mb-6"
+      />
 
-        <div className="divider my-6">OR</div>
+      <OAuthButtons requestedRole={requestedRole} layout="row" />
 
-        <OAuthButtons />
-
-        <p className="mt-6 text-center text-sm">
-          Already have an account?{' '}
-          <Link
-            href={`/sign-in${returnUrl !== '/profile' ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ''}`}
-            className="link-primary"
-          >
-            Sign in
-          </Link>
-        </p>
+      <div className="divider my-6 text-xs opacity-70">
+        or continue with email
       </div>
-    </div>
+
+      <SignUpForm
+        requestedRole={requestedRole}
+        onSuccess={() => (window.location.href = '/verify-email')}
+      />
+
+      <p className="mt-6 text-center text-sm">
+        Already have an account?{' '}
+        <Link
+          href={`/sign-in${returnUrl !== '/profile' ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ''}`}
+          className="link-primary"
+        >
+          Sign in
+        </Link>
+      </p>
+    </AuthPageShell>
   );
 }

@@ -1,231 +1,223 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ApplicationRow from './ApplicationRow';
-import type { JobApplication } from '@/types/company';
+import type { EmployerApplication } from '@/hooks/useEmployerApplications';
 
-const mockApplication: JobApplication = {
-  id: 'app-123',
-  shared_company_id: 'company-456',
+const makeApp = (
+  over: Partial<EmployerApplication> = {}
+): EmployerApplication => ({
+  id: 'app-1',
+  shared_company_id: 'comp-1',
   private_company_id: null,
-  user_id: 'user-789',
-  position_title: 'Senior Software Engineer',
-  job_link: 'https://example.com/jobs/123',
-  position_url: 'https://example.com/apply/123',
+  user_id: 'user-1',
+  position_title: 'Bike Mechanic',
+  job_link: null,
+  position_url: null,
   status_url: null,
-  work_location_type: 'hybrid',
-  status: 'interviewing',
+  work_location_type: 'remote',
+  status: 'applied',
   outcome: 'pending',
-  date_applied: '2024-01-15',
-  interview_date: '2024-01-25T10:00:00.000Z',
-  follow_up_date: '2024-01-30',
-  priority: 2,
-  notes: 'Interview scheduled',
+  date_applied: '2026-01-15T00:00:00Z',
+  interview_date: null,
+  follow_up_date: null,
+  priority: 3,
+  notes: null,
   is_active: true,
-  created_at: '2024-01-10T00:00:00.000Z',
-  updated_at: '2024-01-20T00:00:00.000Z',
-};
+  created_at: '2026-01-15T00:00:00Z',
+  updated_at: '2026-01-15T00:00:00Z',
+  applicant_name: 'Jane Doe',
+  company_name: 'Acme Corp',
+  ...over,
+});
 
-// Wrapper to provide table context
-const TableWrapper = ({ children }: { children: React.ReactNode }) => (
+const wrap = (ui: React.ReactElement) => (
   <table>
-    <tbody>{children}</tbody>
+    <tbody>{ui}</tbody>
   </table>
 );
 
 describe('ApplicationRow', () => {
-  const mockOnClick = vi.fn();
-  const mockOnEdit = vi.fn();
-  const mockOnDelete = vi.fn();
-  const mockOnStatusChange = vi.fn();
-  const mockOnOutcomeChange = vi.fn();
-
-  beforeEach(() => {
-    vi.clearAllMocks();
+  it('renders applicant name, company, position and status badge', () => {
+    render(
+      wrap(
+        <ApplicationRow
+          application={makeApp()}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
+        />
+      )
+    );
+    expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+    expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+    expect(screen.getByText('Bike Mechanic')).toBeInTheDocument();
+    expect(screen.getByText('Applied')).toHaveClass('badge');
   });
 
-  it('renders application data correctly', () => {
+  it('renders priority indicator', () => {
     render(
-      <TableWrapper>
-        <ApplicationRow application={mockApplication} />
-      </TableWrapper>
+      wrap(
+        <ApplicationRow
+          application={makeApp({ priority: 2 })}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
+        />
+      )
     );
+    expect(
+      screen.getByRole('img', { name: /priority 2/i })
+    ).toBeInTheDocument();
+  });
 
-    expect(screen.getByText('Senior Software Engineer')).toBeInTheDocument();
+  it('renders work location badge', () => {
+    render(
+      wrap(
+        <ApplicationRow
+          application={makeApp({ work_location_type: 'hybrid' })}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
+        />
+      )
+    );
     expect(screen.getByText('Hybrid')).toBeInTheDocument();
-    expect(screen.getByText('Careers')).toBeInTheDocument();
   });
 
-  it('displays status badge', () => {
+  it('renders interview date chip when present', () => {
     render(
-      <TableWrapper>
-        <ApplicationRow application={mockApplication} />
-      </TableWrapper>
+      wrap(
+        <ApplicationRow
+          application={makeApp({ interview_date: '2026-03-15T10:00:00Z' })}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
+        />
+      )
     );
-
-    expect(screen.getByText('Interviewing')).toBeInTheDocument();
+    expect(screen.getByText(/mar/i)).toBeInTheDocument();
   });
 
-  it('displays outcome badge', () => {
+  it('renders repeat badge when isRepeat is true', () => {
     render(
-      <TableWrapper>
-        <ApplicationRow application={mockApplication} />
-      </TableWrapper>
+      wrap(
+        <ApplicationRow
+          application={makeApp()}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={true}
+        />
+      )
     );
-
-    expect(screen.getByText('Pending')).toBeInTheDocument();
+    expect(screen.getByText(/repeat/i)).toBeInTheDocument();
   });
 
-  it('shows priority indicator for high priority', () => {
+  it('does not render repeat badge when isRepeat is false', () => {
     render(
-      <TableWrapper>
-        <ApplicationRow application={mockApplication} />
-      </TableWrapper>
+      wrap(
+        <ApplicationRow
+          application={makeApp()}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
+        />
+      )
     );
-
-    expect(screen.getByTitle('Priority 2')).toBeInTheDocument();
+    expect(screen.queryByText(/repeat/i)).not.toBeInTheDocument();
   });
 
-  it('calls onClick when row clicked', async () => {
+  it('advance button has aria-label with applicant name and next status', () => {
+    render(
+      wrap(
+        <ApplicationRow
+          application={makeApp({ status: 'applied' })}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
+        />
+      )
+    );
+    expect(
+      screen.getByRole('button', { name: /Advance Jane Doe to Screening/i })
+    ).toBeInTheDocument();
+  });
+
+  it('advance button is disabled when updating', () => {
+    render(
+      wrap(
+        <ApplicationRow
+          application={makeApp()}
+          onAdvance={vi.fn()}
+          updating={true}
+          isRepeat={false}
+        />
+      )
+    );
+    expect(screen.getByRole('button')).toBeDisabled();
+  });
+
+  it('no advance button for closed status', () => {
+    render(
+      wrap(
+        <ApplicationRow
+          application={makeApp({ status: 'closed' })}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
+        />
+      )
+    );
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('calls onAdvance with the application when clicked', async () => {
+    const onAdvance = vi.fn();
+    const app = makeApp();
     const user = userEvent.setup();
-
     render(
-      <TableWrapper>
-        <ApplicationRow application={mockApplication} onClick={mockOnClick} />
-      </TableWrapper>
+      wrap(
+        <ApplicationRow
+          application={app}
+          onAdvance={onAdvance}
+          updating={false}
+          isRepeat={false}
+        />
+      )
     );
+    await user.click(screen.getByRole('button'));
+    expect(onAdvance).toHaveBeenCalledWith(app);
+  });
 
+  it('falls back to Not specified when position_title is null', () => {
+    render(
+      wrap(
+        <ApplicationRow
+          application={makeApp({ position_title: null })}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
+        />
+      )
+    );
+    expect(screen.getByText('Not specified')).toBeInTheDocument();
+  });
+
+  it('calls onClick when row is clicked', async () => {
+    const onClick = vi.fn();
+    const user = userEvent.setup();
+    render(
+      wrap(
+        <ApplicationRow
+          application={makeApp({ status: 'closed' })}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
+          onClick={onClick}
+        />
+      )
+    );
     await user.click(screen.getByTestId('application-row'));
-    expect(mockOnClick).toHaveBeenCalledWith(mockApplication);
-  });
-
-  it('calls onEdit when edit button clicked', async () => {
-    const user = userEvent.setup();
-
-    render(
-      <TableWrapper>
-        <ApplicationRow application={mockApplication} onEdit={mockOnEdit} />
-      </TableWrapper>
-    );
-
-    await user.click(screen.getByLabelText(/edit/i));
-    expect(mockOnEdit).toHaveBeenCalledWith(mockApplication);
-    expect(mockOnClick).not.toHaveBeenCalled();
-  });
-
-  it('calls onDelete when delete button clicked', async () => {
-    const user = userEvent.setup();
-
-    render(
-      <TableWrapper>
-        <ApplicationRow application={mockApplication} onDelete={mockOnDelete} />
-      </TableWrapper>
-    );
-
-    await user.click(screen.getByLabelText(/delete/i));
-    expect(mockOnDelete).toHaveBeenCalledWith(mockApplication);
-  });
-
-  it('shows status dropdown when onStatusChange provided', () => {
-    render(
-      <TableWrapper>
-        <ApplicationRow
-          application={mockApplication}
-          onStatusChange={mockOnStatusChange}
-        />
-      </TableWrapper>
-    );
-
-    expect(screen.getByLabelText(/change status/i)).toBeInTheDocument();
-  });
-
-  it('calls onStatusChange when status changed', async () => {
-    const user = userEvent.setup();
-
-    render(
-      <TableWrapper>
-        <ApplicationRow
-          application={mockApplication}
-          onStatusChange={mockOnStatusChange}
-        />
-      </TableWrapper>
-    );
-
-    await user.selectOptions(screen.getByLabelText(/change status/i), 'offer');
-    expect(mockOnStatusChange).toHaveBeenCalledWith(mockApplication, 'offer');
-  });
-
-  it('shows outcome dropdown when onOutcomeChange provided', () => {
-    render(
-      <TableWrapper>
-        <ApplicationRow
-          application={mockApplication}
-          onOutcomeChange={mockOnOutcomeChange}
-        />
-      </TableWrapper>
-    );
-
-    expect(screen.getByLabelText(/change outcome/i)).toBeInTheDocument();
-  });
-
-  it('shows company name when showCompany is true', () => {
-    render(
-      <TableWrapper>
-        <ApplicationRow
-          application={mockApplication}
-          showCompany={true}
-          companyName="Test Company"
-        />
-      </TableWrapper>
-    );
-
-    expect(screen.getByText('Test Company')).toBeInTheDocument();
-  });
-
-  it('applies inactive styling when not active', () => {
-    const inactiveApp = { ...mockApplication, is_active: false };
-
-    render(
-      <TableWrapper>
-        <ApplicationRow application={inactiveApp} />
-      </TableWrapper>
-    );
-
-    expect(screen.getByTestId('application-row')).toHaveClass('opacity-60');
-    expect(screen.getByText('Inactive')).toBeInTheDocument();
-  });
-
-  it('applies selected styling when isSelected', () => {
-    render(
-      <TableWrapper>
-        <ApplicationRow application={mockApplication} isSelected={true} />
-      </TableWrapper>
-    );
-
-    expect(screen.getByTestId('application-row')).toHaveClass('active');
-  });
-
-  it('shows fallback text for untitled position', () => {
-    const untitledApp = { ...mockApplication, position_title: null };
-
-    render(
-      <TableWrapper>
-        <ApplicationRow application={untitledApp} />
-      </TableWrapper>
-    );
-
-    expect(screen.getByText('Untitled Position')).toBeInTheDocument();
-  });
-
-  it('job link opens in new tab', () => {
-    render(
-      <TableWrapper>
-        <ApplicationRow application={mockApplication} />
-      </TableWrapper>
-    );
-
-    const jobLink = screen.getByText('Careers');
-    expect(jobLink).toHaveAttribute('target', '_blank');
-    expect(jobLink).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(onClick).toHaveBeenCalled();
   });
 });

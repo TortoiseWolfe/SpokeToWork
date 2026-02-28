@@ -736,6 +736,12 @@ export type Database = {
         };
         Returns: void;
       };
+      set_own_role: {
+        Args: {
+          p_role: string;
+        };
+        Returns: void;
+      };
     };
     Enums: {
       [_ in never]: never;

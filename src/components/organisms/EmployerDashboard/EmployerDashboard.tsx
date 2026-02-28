@@ -1,9 +1,22 @@
 'use client';
 
-import React, { useState } from 'react';
-import type { JobApplicationStatus } from '@/types/company';
-import { JOB_STATUS_LABELS, JOB_STATUS_COLORS } from '@/types/company';
+import React, { useState, useMemo } from 'react';
+import {
+  JOB_STATUS_ORDER,
+  JOB_STATUS_LABELS,
+  type JobApplicationStatus,
+} from '@/types/company';
+import type { JobApplicationSort } from '@/types/company';
 import type { EmployerApplication } from '@/hooks/useEmployerApplications';
+import ApplicationRow from '@/components/molecular/ApplicationRow';
+import StatusFunnel from '@/components/molecular/StatusFunnel';
+import StatusColumn from '@/components/molecular/StatusColumn';
+import ViewModeToggle, {
+  type ViewMode,
+} from '@/components/atomic/ViewModeToggle';
+
+type SortField = JobApplicationSort['field'];
+type SortDirection = JobApplicationSort['direction'];
 
 export interface EmployerDashboardProps {
   applications: EmployerApplication[];
@@ -14,22 +27,32 @@ export interface EmployerDashboardProps {
     status: JobApplicationStatus
   ) => Promise<void>;
   onRefresh: () => Promise<void>;
+  /** Per-status counts across all applications (not just loaded page). */
+  statusCounts?: Partial<Record<JobApplicationStatus, number>>;
+  /** Total count across all applications. Drives the "All" badge. */
+  totalCount?: number;
+  /** user_ids appearing more than once in the full dataset. */
+  repeatUserIds?: Set<string>;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => Promise<void>;
+  /** Called when user clicks a row. */
+  onSelectApplication?: (app: EmployerApplication) => void;
 }
 
-const STATUS_ORDER: JobApplicationStatus[] = [
-  'not_applied',
-  'applied',
-  'screening',
-  'interviewing',
-  'offer',
-  'closed',
+/** Sortable column definitions. */
+const SORT_COLUMNS: { field: SortField; label: string }[] = [
+  { field: 'priority', label: 'P' },
+  { field: 'status', label: 'Status' },
+  { field: 'interview_date', label: 'Interview' },
+  { field: 'date_applied', label: 'Applied' },
 ];
 
 /**
- * EmployerDashboard - Displays job applications with filtering and status management
+ * EmployerDashboard - Application pipeline with funnel, sortable table,
+ * kanban board, and search.
  *
  * @category organisms
- * @see specs/063-employer-dashboard/spec.md
  */
 export default function EmployerDashboard({
   applications,
@@ -37,51 +60,182 @@ export default function EmployerDashboard({
   error,
   onUpdateStatus,
   onRefresh,
+  statusCounts,
+  totalCount,
+  repeatUserIds,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
+  onSelectApplication,
 }: EmployerDashboardProps) {
   const [statusFilter, setStatusFilter] = useState<
     JobApplicationStatus | 'all'
   >('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
+  const [sort, setSort] = useState<{
+    field: SortField;
+    direction: SortDirection;
+  }>({
+    field: 'created_at',
+    direction: 'desc',
+  });
 
-  const filtered =
+  // Local-derivation fallbacks for standalone usage (stories/tests)
+  const localCounts = useMemo(() => {
+    if (statusCounts) return null;
+    return applications.reduce<Partial<Record<JobApplicationStatus, number>>>(
+      (acc, a) => {
+        acc[a.status] = (acc[a.status] ?? 0) + 1;
+        return acc;
+      },
+      {}
+    );
+  }, [applications, statusCounts]);
+
+  const localRepeats = useMemo(() => {
+    if (repeatUserIds) return null;
+    const counts = applications.reduce<Record<string, number>>((acc, a) => {
+      acc[a.user_id] = (acc[a.user_id] ?? 0) + 1;
+      return acc;
+    }, {});
+    return new Set(
+      Object.entries(counts)
+        .filter(([, n]) => n > 1)
+        .map(([uid]) => uid)
+    );
+  }, [applications, repeatUserIds]);
+
+  const resolvedCounts = statusCounts ?? localCounts!;
+  const total = totalCount ?? applications.length;
+  const isRepeat = (uid: string) => (repeatUserIds ?? localRepeats!).has(uid);
+
+  // Filter by status
+  const statusFiltered =
     statusFilter === 'all'
       ? applications
       : applications.filter((a) => a.status === statusFilter);
 
-  // Stats
-  const statusCounts = STATUS_ORDER.reduce(
-    (acc, status) => {
-      acc[status] = applications.filter((a) => a.status === status).length;
-      return acc;
-    },
-    {} as Record<JobApplicationStatus, number>
-  );
+  // Filter by search query
+  const searched = useMemo(() => {
+    if (!searchQuery.trim()) return statusFiltered;
+    const q = searchQuery.toLowerCase();
+    return statusFiltered.filter(
+      (a) =>
+        a.applicant_name.toLowerCase().includes(q) ||
+        a.company_name.toLowerCase().includes(q) ||
+        (a.position_title?.toLowerCase().includes(q) ?? false)
+    );
+  }, [statusFiltered, searchQuery]);
+
+  // Sort (table view only)
+  const sorted = useMemo(() => {
+    const arr = [...searched];
+    const { field, direction } = sort;
+    const mult = direction === 'asc' ? 1 : -1;
+
+    arr.sort((a, b) => {
+      let cmp = 0;
+      switch (field) {
+        case 'priority':
+          cmp = a.priority - b.priority;
+          break;
+        case 'status':
+          cmp =
+            JOB_STATUS_ORDER.indexOf(a.status) -
+            JOB_STATUS_ORDER.indexOf(b.status);
+          break;
+        case 'interview_date':
+          cmp = (a.interview_date ?? '').localeCompare(b.interview_date ?? '');
+          break;
+        case 'date_applied':
+          cmp = (a.date_applied ?? '').localeCompare(b.date_applied ?? '');
+          break;
+        case 'position_title':
+          cmp = (a.position_title ?? '').localeCompare(b.position_title ?? '');
+          break;
+        default:
+          cmp = a.created_at.localeCompare(b.created_at);
+      }
+      return cmp * mult;
+    });
+    return arr;
+  }, [searched, sort]);
+
+  // Kanban: group by status
+  const kanbanGroups = useMemo(() => {
+    const groups: Record<string, EmployerApplication[]> = {};
+    for (const s of JOB_STATUS_ORDER) {
+      groups[s] = [];
+    }
+    for (const app of searched) {
+      if (groups[app.status]) {
+        groups[app.status].push(app);
+      }
+    }
+    return groups;
+  }, [searched]);
+
+  const handleSort = (field: SortField) => {
+    setSort((prev) =>
+      prev.field === field
+        ? { field, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+        : { field, direction: 'asc' }
+    );
+  };
 
   const handleAdvanceStatus = async (app: EmployerApplication) => {
-    const currentIdx = STATUS_ORDER.indexOf(app.status);
-    if (currentIdx < STATUS_ORDER.length - 1) {
-      setUpdatingId(app.id);
-      try {
-        await onUpdateStatus(app.id, STATUS_ORDER[currentIdx + 1]);
-      } finally {
-        setUpdatingId(null);
-      }
+    const next = JOB_STATUS_ORDER[JOB_STATUS_ORDER.indexOf(app.status) + 1];
+    if (!next) return;
+    setUpdatingId(app.id);
+    try {
+      await onUpdateStatus(app.id, next);
+    } finally {
+      setUpdatingId(null);
     }
   };
 
-  if (loading) {
+  // Kanban card handlers — adapt to StatusColumn/ApplicationCard interface
+  const handleKanbanAdvance = async (
+    applicationId: string,
+    interviewDate?: string
+  ) => {
+    const app = applications.find((a) => a.id === applicationId);
+    if (!app) return;
+    const next = JOB_STATUS_ORDER[JOB_STATUS_ORDER.indexOf(app.status) + 1];
+    if (!next) return;
+    setUpdatingId(applicationId);
+    try {
+      await onUpdateStatus(applicationId, next);
+      // If interview date was provided, we'd update it here in the future
+      void interviewDate;
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleKanbanReject = async (applicationId: string) => {
+    setUpdatingId(applicationId);
+    try {
+      await onUpdateStatus(applicationId, 'closed');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  if (loading)
     return (
       <div className="flex justify-center py-12">
         <span
           className="loading loading-spinner loading-lg"
           role="status"
           aria-label="Loading applications"
-        ></span>
+        />
       </div>
     );
-  }
 
-  if (error) {
+  if (error)
     return (
       <div className="alert alert-error" role="alert">
         <span>{error}</span>
@@ -93,117 +247,166 @@ export default function EmployerDashboard({
         </button>
       </div>
     );
-  }
 
   return (
     <div data-testid="employer-dashboard">
-      {/* Stats Bar */}
-      <div
-        className="mb-6 flex flex-wrap gap-2"
-        role="group"
-        aria-label="Application status counts"
-      >
-        {STATUS_ORDER.map((status) => (
-          <button
-            key={status}
-            onClick={() =>
-              setStatusFilter(statusFilter === status ? 'all' : status)
-            }
-            className={`badge min-h-11 cursor-pointer gap-1 px-3 ${
-              statusFilter === status
-                ? 'badge-primary'
-                : JOB_STATUS_COLORS[status]
-            }`}
-            aria-pressed={statusFilter === status}
-          >
-            {JOB_STATUS_LABELS[status]}
-            <span className="font-bold">{statusCounts[status]}</span>
-          </button>
-        ))}
-        <button
-          onClick={() => setStatusFilter('all')}
-          className={`badge min-h-11 cursor-pointer gap-1 px-3 ${
-            statusFilter === 'all' ? 'badge-primary' : 'badge-outline'
-          }`}
-          aria-pressed={statusFilter === 'all'}
-        >
-          All
-          <span className="font-bold">{applications.length}</span>
-        </button>
+      {/* Pipeline Funnel */}
+      <StatusFunnel
+        statusCounts={resolvedCounts}
+        totalCount={total}
+        activeFilter={statusFilter}
+        onFilterChange={setStatusFilter}
+        className="mb-6"
+      />
+
+      {/* Toolbar: Search + View Toggle */}
+      <div className="mb-4 flex items-center gap-4">
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by name, company, or position..."
+          className="input input-bordered min-h-11 max-w-md flex-1"
+          aria-label="Search applications"
+        />
+        <ViewModeToggle value={viewMode} onChange={setViewMode} />
       </div>
 
-      {/* Applications Table */}
-      {filtered.length === 0 ? (
+      {/* Content area */}
+      {searched.length === 0 ? (
         <div className="text-base-content/85 py-12 text-center">
           <p>
-            {applications.length === 0
+            {total === 0
               ? 'No applications yet'
-              : `No ${statusFilter} applications`}
+              : searchQuery
+                ? 'No matching applications'
+                : `No ${statusFilter} applications`}
           </p>
         </div>
-      ) : (
+      ) : viewMode === 'table' ? (
+        /* Table View */
         <div className="overflow-x-auto">
           <table className="table" aria-label="Job applications">
             <thead>
               <tr>
                 <th>Applicant</th>
-                <th>Position</th>
-                <th>Status</th>
-                <th>Applied</th>
+                <th>
+                  <button
+                    onClick={() => handleSort('position_title')}
+                    className="btn btn-ghost btn-xs gap-1"
+                    aria-label="Sort by position"
+                  >
+                    Position
+                    <SortArrow
+                      active={sort.field === 'position_title'}
+                      direction={sort.direction}
+                    />
+                  </button>
+                </th>
+                {SORT_COLUMNS.map(({ field, label }) => (
+                  <th key={field}>
+                    <button
+                      onClick={() => handleSort(field)}
+                      className="btn btn-ghost btn-xs gap-1"
+                      aria-label={`Sort by ${label.toLowerCase()}`}
+                    >
+                      {label}
+                      <SortArrow
+                        active={sort.field === field}
+                        direction={sort.direction}
+                      />
+                    </button>
+                  </th>
+                ))}
+                <th>Location</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((app) => (
-                <tr key={app.id} data-testid="application-row">
-                  <td>
-                    <div className="font-medium">{app.applicant_name}</div>
-                    <div className="text-base-content/75 text-sm">
-                      {app.company_name}
-                    </div>
-                  </td>
-                  <td>{app.position_title || 'Not specified'}</td>
-                  <td>
-                    <span className={`badge ${JOB_STATUS_COLORS[app.status]}`}>
-                      {JOB_STATUS_LABELS[app.status]}
-                    </span>
-                  </td>
-                  <td className="text-sm">
-                    {app.date_applied
-                      ? new Date(app.date_applied).toLocaleDateString()
-                      : 'N/A'}
-                  </td>
-                  <td>
-                    {STATUS_ORDER.indexOf(app.status) <
-                      STATUS_ORDER.length - 1 && (
-                      <button
-                        onClick={() => handleAdvanceStatus(app)}
-                        disabled={updatingId === app.id}
-                        className="btn btn-sm btn-ghost min-h-11 min-w-11"
-                        aria-label={`Advance ${app.applicant_name} to ${
-                          JOB_STATUS_LABELS[
-                            STATUS_ORDER[STATUS_ORDER.indexOf(app.status) + 1]
-                          ]
-                        }`}
-                      >
-                        {updatingId === app.id
-                          ? '...'
-                          : `→ ${
-                              JOB_STATUS_LABELS[
-                                STATUS_ORDER[
-                                  STATUS_ORDER.indexOf(app.status) + 1
-                                ]
-                              ]
-                            }`}
-                      </button>
-                    )}
-                  </td>
-                </tr>
+              {sorted.map((app) => (
+                <ApplicationRow
+                  key={app.id}
+                  application={app}
+                  onAdvance={handleAdvanceStatus}
+                  updating={updatingId === app.id}
+                  isRepeat={isRepeat(app.user_id)}
+                  onClick={
+                    onSelectApplication
+                      ? () => onSelectApplication(app)
+                      : undefined
+                  }
+                />
               ))}
             </tbody>
           </table>
         </div>
+      ) : (
+        /* Kanban View */
+        <div
+          className="flex gap-3 overflow-x-auto pb-4"
+          role="region"
+          aria-label="Kanban board"
+        >
+          {JOB_STATUS_ORDER.map((status) => (
+            <StatusColumn
+              key={status}
+              status={status}
+              label={JOB_STATUS_LABELS[status]}
+              applications={kanbanGroups[status].map((a) => ({
+                id: a.id,
+                applicant_name: a.applicant_name,
+                company_name: a.company_name,
+                position_title: a.position_title,
+                status: a.status,
+                outcome: a.outcome,
+                date_applied: a.date_applied,
+                interview_date: a.interview_date,
+              }))}
+              onAdvance={handleKanbanAdvance}
+              onReject={handleKanbanReject}
+              updatingId={updatingId}
+              className="min-h-[300px]"
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Load-more (table view only) */}
+      {viewMode === 'table' && hasMore && onLoadMore && (
+        <div className="mt-4 flex justify-center">
+          <button
+            onClick={onLoadMore}
+            disabled={loadingMore}
+            className="btn btn-outline min-h-11"
+            aria-label="Load more applications"
+          >
+            {loadingMore ? (
+              <>
+                <span className="loading loading-spinner loading-sm" />
+                Loading...
+              </>
+            ) : (
+              `Load more (${applications.length} of ${total})`
+            )}
+          </button>
+        </div>
       )}
     </div>
+  );
+}
+
+/** Tiny sort direction arrow indicator. */
+function SortArrow({
+  active,
+  direction,
+}: {
+  active: boolean;
+  direction: SortDirection;
+}) {
+  if (!active) return <span className="text-base-content/20">&#x2195;</span>;
+  return (
+    <span className="text-primary">
+      {direction === 'asc' ? '\u2191' : '\u2193'}
+    </span>
   );
 }
