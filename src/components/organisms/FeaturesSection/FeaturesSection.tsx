@@ -52,6 +52,7 @@ export default function FeaturesSection({
   return (
     <section aria-label="Features" className={`py-8 sm:py-10 ${className}`}>
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <h2 className="sr-only">Features</h2>
         <div className="mb-6">
           <FeatureSpotlight
             title="Plan Routes"
