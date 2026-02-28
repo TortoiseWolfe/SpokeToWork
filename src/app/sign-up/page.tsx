@@ -4,14 +4,13 @@ import React, { useState, useEffect } from 'react';
 import SignUpForm from '@/components/auth/SignUpForm';
 import OAuthButtons from '@/components/auth/OAuthButtons';
 import AuthPageShell from '@/components/organisms/AuthPageShell';
+import RoleToggle from '@/components/molecular/RoleToggle';
 import Link from 'next/link';
 import type { RequestableRole } from '@/contexts/AuthContext';
 
 export default function SignUpPage() {
   const [returnUrl, setReturnUrl] = useState('/profile');
-  const [requestedRole, setRequestedRole] = useState<
-    RequestableRole | undefined
-  >(undefined);
+  const [requestedRole, setRequestedRole] = useState<RequestableRole>('worker');
 
   useEffect(() => {
     // Read query params client-side for static export compatibility
@@ -33,6 +32,12 @@ export default function SignUpPage() {
   return (
     <AuthPageShell>
       <h1 className="mb-6 text-3xl font-bold">Create Account</h1>
+
+      <RoleToggle
+        value={requestedRole}
+        onChange={setRequestedRole}
+        className="mb-6"
+      />
 
       <OAuthButtons requestedRole={requestedRole} layout="row" />
 

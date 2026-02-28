@@ -81,22 +81,20 @@ describe('EmployerDashboard', () => {
     expect(screen.getByText('Software Engineer')).toBeInTheDocument();
   });
 
-  it('renders status filter badges with counts', () => {
+  it('renders pipeline funnel with status counts', () => {
     const apps = [
       mockApplication({ id: '1', status: 'applied' }),
       mockApplication({ id: '2', status: 'applied' }),
       mockApplication({ id: '3', status: 'screening' }),
     ];
     render(<EmployerDashboard {...defaultProps} applications={apps} />);
-
-    const statusGroup = screen.getByRole('group', {
-      name: 'Application status counts',
+    const pipeline = screen.getByRole('group', {
+      name: 'Application pipeline stages',
     });
-    expect(statusGroup).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /All/ })).toBeInTheDocument();
+    expect(pipeline).toBeInTheDocument();
   });
 
-  it('filters applications when status badge is clicked', async () => {
+  it('filters applications when funnel stage is clicked', async () => {
     const user = userEvent.setup();
     const apps = [
       mockApplication({ id: '1', status: 'applied', applicant_name: 'Alice' }),
@@ -108,18 +106,41 @@ describe('EmployerDashboard', () => {
     ];
     render(<EmployerDashboard {...defaultProps} applications={apps} />);
 
-    // Click the Screening badge in the stats bar
-    const statusBar = screen.getByRole('group', {
-      name: 'Application status counts',
+    const pipeline = screen.getByRole('group', {
+      name: 'Application pipeline stages',
     });
-    const screeningBadge = within(statusBar).getByRole('button', {
-      name: /^Screening/,
+    const screeningBtn = within(pipeline).getByRole('button', {
+      name: /screening: 1 application/i,
     });
-    await user.click(screeningBadge);
+    await user.click(screeningBtn);
 
-    // Only Bob should be visible
     expect(screen.getByText('Bob')).toBeInTheDocument();
     expect(screen.queryByText('Alice')).not.toBeInTheDocument();
+  });
+
+  it('filters by search query', async () => {
+    const user = userEvent.setup();
+    const apps = [
+      mockApplication({
+        id: '1',
+        applicant_name: 'Alice Smith',
+        position_title: 'Engineer',
+      }),
+      mockApplication({
+        id: '2',
+        applicant_name: 'Bob Jones',
+        position_title: 'Designer',
+      }),
+    ];
+    render(<EmployerDashboard {...defaultProps} applications={apps} />);
+
+    const search = screen.getByRole('searchbox', {
+      name: 'Search applications',
+    });
+    await user.type(search, 'alice');
+
+    expect(screen.getByText('Alice Smith')).toBeInTheDocument();
+    expect(screen.queryByText('Bob Jones')).not.toBeInTheDocument();
   });
 
   it('calls onUpdateStatus when advance button is clicked', async () => {
@@ -151,7 +172,7 @@ describe('EmployerDashboard', () => {
     expect(screen.getByText('Not specified')).toBeInTheDocument();
   });
 
-  it('toggles filter off when clicking active badge', async () => {
+  it('toggles filter off when clicking active funnel stage', async () => {
     const user = userEvent.setup();
     const apps = [
       mockApplication({ id: '1', status: 'applied', applicant_name: 'Alice' }),
@@ -163,19 +184,16 @@ describe('EmployerDashboard', () => {
     ];
     render(<EmployerDashboard {...defaultProps} applications={apps} />);
 
-    // Use within() to scope to the stats bar
-    const statusBar = screen.getByRole('group', {
-      name: 'Application status counts',
+    const pipeline = screen.getByRole('group', {
+      name: 'Application pipeline stages',
     });
-    const appliedBadge = within(statusBar).getByRole('button', {
-      name: /^Applied/,
+    const appliedBtn = within(pipeline).getByRole('button', {
+      name: /applied: 1 application/i,
     });
-    // Enable filter
-    await user.click(appliedBadge);
+    await user.click(appliedBtn);
     expect(screen.queryByText('Bob')).not.toBeInTheDocument();
 
-    // Click again to disable filter
-    await user.click(appliedBadge);
+    await user.click(appliedBtn);
     expect(screen.getByText('Bob')).toBeInTheDocument();
   });
 
@@ -234,9 +252,7 @@ describe('EmployerDashboard', () => {
     expect(btn).toHaveTextContent('Loading');
   });
 
-  it('uses statusCounts prop for badge numbers instead of loaded applications', () => {
-    // Only 1 app loaded, but full dataset has 42 applied. The badge should
-    // show 42 (funnel reflects full dataset, not just the visible page).
+  it('uses statusCounts prop for funnel numbers instead of loaded applications', () => {
     render(
       <EmployerDashboard
         {...defaultProps}
@@ -245,20 +261,16 @@ describe('EmployerDashboard', () => {
         totalCount={50}
       />
     );
-    const statusBar = screen.getByRole('group', {
-      name: 'Application status counts',
+    const pipeline = screen.getByRole('group', {
+      name: 'Application pipeline stages',
     });
-    const appliedBadge = within(statusBar).getByRole('button', {
-      name: /^Applied/,
+    const appliedBtn = within(pipeline).getByRole('button', {
+      name: /applied: 42 applications/i,
     });
-    expect(appliedBadge).toHaveTextContent('42');
-    const allBadge = within(statusBar).getByRole('button', { name: /^All/ });
-    expect(allBadge).toHaveTextContent('50');
+    expect(appliedBtn).toBeInTheDocument();
   });
 
-  it('uses repeatUserIds prop for isRepeat badge instead of loaded applications', () => {
-    // user-1 appears once on this page, but repeatUserIds says they have
-    // more applications on a not-yet-loaded page → still flagged as repeat.
+  it('uses repeatUserIds prop for isRepeat badge', () => {
     render(
       <EmployerDashboard
         {...defaultProps}
@@ -266,7 +278,6 @@ describe('EmployerDashboard', () => {
         repeatUserIds={new Set(['user-1'])}
       />
     );
-    // ApplicationRow renders a "Repeat" badge when isRepeat is true.
     expect(screen.getByText(/repeat/i)).toBeInTheDocument();
   });
 });

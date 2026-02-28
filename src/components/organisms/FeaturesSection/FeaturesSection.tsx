@@ -33,6 +33,13 @@ const secondaryFeatures = [
     href: '/messages',
     Illustration: IsometricChat,
   },
+  {
+    title: 'Manage Your Team',
+    description:
+      'Build your roster, set weekly schedules, and track applicants from one dashboard.',
+    href: '/employer',
+    Illustration: IsometricCalendar,
+  },
 ];
 
 /**
@@ -43,12 +50,9 @@ export default function FeaturesSection({
   className = '',
 }: FeaturesSectionProps) {
   return (
-    <section aria-label="Features" className={`py-12 sm:py-16 ${className}`}>
+    <section aria-label="Features" className={`py-8 sm:py-10 ${className}`}>
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <h2 className="text-base-content mb-8 text-center text-3xl font-bold sm:mb-12 sm:text-4xl">
-          Features
-        </h2>
-        <div className="mb-10">
+        <div className="mb-6">
           <FeatureSpotlight
             title="Plan Routes"
             description="Map bicycle-friendly routes between interviews and drop-offs."
@@ -57,7 +61,7 @@ export default function FeaturesSection({
             illustration={<IsometricBicycle className="w-48 md:w-56" />}
           />
         </div>
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {secondaryFeatures.map(
             ({ title, description, href, Illustration }) => (
               <Link

@@ -26,17 +26,18 @@ const base: EmployerApplication = {
   company_name: 'Velo Works',
 };
 
-// Per-story decorator (not meta-level) — Storybook composes decorators rather
-// than replacing them, so ThemeMatrix can opt out by simply not including it.
 const tableDecorator: Decorator = (Story) => (
   <table className="table w-full">
     <thead>
       <tr>
         <th>Applicant</th>
         <th>Position</th>
+        <th>P</th>
         <th>Status</th>
+        <th>Interview</th>
         <th>Applied</th>
-        <th />
+        <th>Location</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -58,6 +59,22 @@ export const Default: Story = {
   decorators: [tableDecorator],
   args: {
     application: base,
+    onAdvance: () => {},
+    updating: false,
+    isRepeat: false,
+  },
+};
+
+export const WithInterview: Story = {
+  decorators: [tableDecorator],
+  args: {
+    application: {
+      ...base,
+      status: 'interviewing',
+      interview_date: '2026-03-05T14:00:00Z',
+      priority: 1,
+      work_location_type: 'remote',
+    },
     onAdvance: () => {},
     updating: false,
     isRepeat: false,
@@ -88,6 +105,21 @@ export const Closed: Story = {
   decorators: [tableDecorator],
   args: {
     application: { ...base, status: 'closed', outcome: 'hired' },
+    onAdvance: () => {},
+    updating: false,
+    isRepeat: false,
+  },
+};
+
+export const HighPriority: Story = {
+  decorators: [tableDecorator],
+  args: {
+    application: {
+      ...base,
+      priority: 1,
+      work_location_type: 'hybrid',
+      interview_date: '2026-03-10T10:00:00Z',
+    },
     onAdvance: () => {},
     updating: false,
     isRepeat: false,

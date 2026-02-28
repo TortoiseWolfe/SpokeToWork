@@ -2347,6 +2347,12 @@ DROP INDEX IF EXISTS idx_job_applications_company;
 COMMENT ON COLUMN job_applications.shared_company_id IS 'FK to shared_companies for community companies (Feature 014)';
 COMMENT ON COLUMN job_applications.private_company_id IS 'FK to private_companies for user-created companies (Feature 014)';
 
+-- PostgREST needs a FK to user_profiles (not just auth.users) for join queries
+ALTER TABLE job_applications
+  ADD CONSTRAINT job_applications_user_id_profile_fkey
+  FOREIGN KEY (user_id) REFERENCES public.user_profiles(id)
+  NOT VALID;  -- NOT VALID: don't block if orphan rows exist; enforce on new inserts only
+
 -- T005: Update RLS policies for job_applications (ensure they work with new schema)
 -- Policies already exist from original table creation, just verify they use user_id correctly
 -- The existing policies use auth.uid() = user_id which is correct for multi-tenant isolation
@@ -2941,6 +2947,68 @@ GRANT EXECUTE ON FUNCTION remove_team_member(UUID, UUID) TO authenticated;
 COMMENT ON FUNCTION remove_team_member(UUID, UUID) IS
   'Revoke a user''s access to a company you are linked to. Does not demote their role. (Feature 064)';
 
+-- T004: hire_applicant — one-click hire from the application pipeline.
+-- Atomically: mark application as hired, create accepted connection, add to team.
+CREATE OR REPLACE FUNCTION hire_applicant(p_application_id UUID)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_company_id UUID;
+  v_applicant_id UUID;
+  v_caller_id UUID := auth.uid();
+BEGIN
+  -- 1. Look up the application and verify it belongs to one of the caller's companies
+  SELECT ja.shared_company_id, ja.user_id
+  INTO v_company_id, v_applicant_id
+  FROM job_applications ja
+  WHERE ja.id = p_application_id;
+
+  IF v_company_id IS NULL OR v_applicant_id IS NULL THEN
+    RAISE EXCEPTION 'Application not found';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE user_id = v_caller_id AND shared_company_id = v_company_id
+  ) THEN
+    RAISE EXCEPTION 'Not linked to this company';
+  END IF;
+
+  -- 2. Cannot hire yourself
+  IF v_applicant_id = v_caller_id THEN
+    RAISE EXCEPTION 'Cannot hire yourself';
+  END IF;
+
+  -- 3. Update application outcome to 'hired' and status to 'closed'
+  UPDATE job_applications
+  SET outcome = 'hired', status = 'closed', updated_at = NOW()
+  WHERE id = p_application_id;
+
+  -- 4. Create accepted connection (skip if already exists)
+  INSERT INTO user_connections (requester_id, addressee_id, status)
+  VALUES (v_caller_id, v_applicant_id, 'accepted')
+  ON CONFLICT (requester_id, addressee_id) DO UPDATE SET status = 'accepted';
+
+  -- 5. Add applicant to the company team
+  INSERT INTO employer_company_links (user_id, shared_company_id)
+  VALUES (v_applicant_id, v_company_id)
+  ON CONFLICT (user_id, shared_company_id) DO NOTHING;
+
+  -- 6. Auto-upgrade worker role to employer
+  UPDATE user_profiles
+  SET role = 'employer', updated_at = NOW()
+  WHERE id = v_applicant_id AND role = 'worker';
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION hire_applicant(UUID) TO authenticated;
+
+COMMENT ON FUNCTION hire_applicant(UUID) IS
+  'One-click hire: mark application as hired, create accepted connection, add applicant to company team. (Feature 064)';
+
 -- ============================================================================
 -- END FEATURE 064: Employer Team Management
 -- ============================================================================
@@ -3009,6 +3077,361 @@ CREATE TRIGGER set_team_members_updated_at
 
 -- ============================================================================
 -- END FEATURE 065: Employee Roster (team_members)
+-- ============================================================================
+
+-- ============================================================================
+-- FEATURE 066: Workforce Scheduling (team_shifts)
+-- Weekly shift scheduling for team members. Employer assigns shift blocks
+-- to team members for a given company. Supports shift types (regular, on-call,
+-- interview, training, meeting) and optional notes.
+-- ============================================================================
+
+-- Business hours columns on shared_companies
+ALTER TABLE shared_companies ADD COLUMN IF NOT EXISTS business_open_time TIME DEFAULT '08:00';
+ALTER TABLE shared_companies ADD COLUMN IF NOT EXISTS business_close_time TIME DEFAULT '18:00';
+
+CREATE TABLE IF NOT EXISTS team_shifts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES shared_companies(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  shift_date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  shift_type TEXT NOT NULL DEFAULT 'regular'
+    CHECK (shift_type IN ('regular', 'on_call', 'interview', 'training', 'meeting')),
+  notes TEXT,
+  created_by UUID NOT NULL REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT no_negative_duration CHECK (end_time > start_time)
+);
+
+CREATE INDEX IF NOT EXISTS idx_team_shifts_company_date
+  ON team_shifts(company_id, shift_date);
+CREATE INDEX IF NOT EXISTS idx_team_shifts_user_date
+  ON team_shifts(user_id, shift_date);
+
+ALTER TABLE team_shifts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "team_shifts_employer_read" ON team_shifts
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM employer_company_links
+      WHERE employer_company_links.user_id = auth.uid()
+        AND employer_company_links.shared_company_id = team_shifts.company_id
+    )
+  );
+
+CREATE POLICY "team_shifts_employer_insert" ON team_shifts
+  FOR INSERT WITH CHECK (created_by = auth.uid() AND EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND employer_company_links.shared_company_id = team_shifts.company_id
+  ));
+
+CREATE POLICY "team_shifts_employer_update" ON team_shifts
+  FOR UPDATE USING (EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND employer_company_links.shared_company_id = team_shifts.company_id
+  ));
+
+CREATE POLICY "team_shifts_employer_delete" ON team_shifts
+  FOR DELETE USING (EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND employer_company_links.shared_company_id = team_shifts.company_id
+  ));
+
+CREATE TRIGGER set_team_shifts_updated_at
+  BEFORE UPDATE ON team_shifts
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- S001: get_team_shifts — returns shifts for a date range with joined profile
+CREATE OR REPLACE FUNCTION get_team_shifts(
+  p_company_id UUID,
+  p_start_date DATE,
+  p_end_date DATE
+)
+RETURNS TABLE(
+  id UUID,
+  company_id UUID,
+  user_id UUID,
+  display_name TEXT,
+  avatar_url TEXT,
+  shift_date DATE,
+  start_time TIME,
+  end_time TIME,
+  shift_type TEXT,
+  notes TEXT,
+  created_by UUID,
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND shared_company_id = p_company_id
+  ) THEN
+    RAISE EXCEPTION 'Not linked to company';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    ts.id,
+    ts.company_id,
+    ts.user_id,
+    up.display_name,
+    up.avatar_url,
+    ts.shift_date,
+    ts.start_time,
+    ts.end_time,
+    ts.shift_type,
+    ts.notes,
+    ts.created_by,
+    ts.created_at,
+    ts.updated_at
+  FROM team_shifts ts
+  LEFT JOIN user_profiles up ON up.id = ts.user_id
+  WHERE ts.company_id = p_company_id
+    AND ts.shift_date >= p_start_date
+    AND ts.shift_date <= p_end_date
+  ORDER BY ts.shift_date ASC, ts.start_time ASC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_team_shifts(UUID, DATE, DATE) TO authenticated;
+
+-- S002: upsert_shift — create or update a shift
+CREATE OR REPLACE FUNCTION upsert_shift(
+  p_company_id UUID,
+  p_shift_id UUID,
+  p_user_id UUID,
+  p_shift_date DATE,
+  p_start_time TIME,
+  p_end_time TIME,
+  p_shift_type TEXT DEFAULT 'regular',
+  p_notes TEXT DEFAULT NULL
+)
+RETURNS UUID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_id UUID;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND shared_company_id = p_company_id
+  ) THEN
+    RAISE EXCEPTION 'Not linked to company';
+  END IF;
+
+  IF p_end_time <= p_start_time THEN
+    RAISE EXCEPTION 'End time must be after start time';
+  END IF;
+
+  IF p_shift_id IS NULL THEN
+    INSERT INTO team_shifts (company_id, user_id, shift_date, start_time, end_time, shift_type, notes, created_by)
+    VALUES (p_company_id, p_user_id, p_shift_date, p_start_time, p_end_time, p_shift_type, p_notes, auth.uid())
+    RETURNING team_shifts.id INTO v_id;
+  ELSE
+    UPDATE team_shifts
+    SET user_id = p_user_id,
+        shift_date = p_shift_date,
+        start_time = p_start_time,
+        end_time = p_end_time,
+        shift_type = p_shift_type,
+        notes = p_notes,
+        updated_at = NOW()
+    WHERE team_shifts.id = p_shift_id AND team_shifts.company_id = p_company_id
+    RETURNING team_shifts.id INTO v_id;
+
+    IF v_id IS NULL THEN
+      RAISE EXCEPTION 'Shift not found or not in this company';
+    END IF;
+  END IF;
+
+  RETURN v_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION upsert_shift(UUID, UUID, UUID, DATE, TIME, TIME, TEXT, TEXT) TO authenticated;
+
+-- S003: delete_shift — remove a shift
+CREATE OR REPLACE FUNCTION delete_shift(p_company_id UUID, p_shift_id UUID)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND shared_company_id = p_company_id
+  ) THEN
+    RAISE EXCEPTION 'Not linked to company';
+  END IF;
+
+  DELETE FROM team_shifts WHERE team_shifts.id = p_shift_id AND team_shifts.company_id = p_company_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION delete_shift(UUID, UUID) TO authenticated;
+
+-- S004: update_business_hours — update company open/close times
+CREATE OR REPLACE FUNCTION update_business_hours(
+  p_company_id UUID,
+  p_open_time TIME,
+  p_close_time TIME
+)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Auth: caller must be linked to the company
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE shared_company_id = p_company_id AND user_id = auth.uid()
+  ) THEN
+    RAISE EXCEPTION 'Not authorized for this company';
+  END IF;
+
+  -- Validate close > open
+  IF p_close_time <= p_open_time THEN
+    RAISE EXCEPTION 'Close time must be after open time';
+  END IF;
+
+  UPDATE shared_companies
+  SET business_open_time = p_open_time,
+      business_close_time = p_close_time
+  WHERE id = p_company_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION update_business_hours(UUID, TIME, TIME) TO authenticated;
+
+-- S005: copy_week_shifts — duplicate shifts from one week to another
+CREATE OR REPLACE FUNCTION copy_week_shifts(
+  p_company_id UUID,
+  p_source_start DATE,
+  p_target_start DATE
+)
+RETURNS INT
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_offset INT;
+  v_count INT;
+BEGIN
+  -- Auth: caller must be linked to the company
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE shared_company_id = p_company_id AND user_id = auth.uid()
+  ) THEN
+    RAISE EXCEPTION 'Not authorized for this company';
+  END IF;
+
+  -- Calculate day offset between source and target weeks
+  v_offset := p_target_start - p_source_start;
+
+  IF v_offset = 0 THEN
+    RAISE EXCEPTION 'Source and target weeks must be different';
+  END IF;
+
+  -- Copy shifts with date offset (additive — does not remove existing target shifts)
+  INSERT INTO team_shifts (company_id, user_id, shift_date, start_time, end_time, shift_type, notes, created_by)
+  SELECT
+    company_id,
+    user_id,
+    shift_date + v_offset,
+    start_time,
+    end_time,
+    shift_type,
+    notes,
+    auth.uid()
+  FROM team_shifts
+  WHERE company_id = p_company_id
+    AND shift_date >= p_source_start
+    AND shift_date <= p_source_start + 6;
+
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION copy_week_shifts(UUID, DATE, DATE) TO authenticated;
+
+-- S006: batch_create_shifts — create multiple shifts in one call (for weekly patterns)
+CREATE OR REPLACE FUNCTION batch_create_shifts(
+  p_company_id UUID,
+  p_user_id UUID,
+  p_entries JSONB
+)
+RETURNS INT
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_min_date DATE;
+  v_max_date DATE;
+  v_count INT;
+BEGIN
+  -- Auth: caller must be linked to the company
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE shared_company_id = p_company_id AND user_id = auth.uid()
+  ) THEN
+    RAISE EXCEPTION 'Not authorized for this company';
+  END IF;
+
+  -- Find date range covered by entries
+  SELECT MIN((e->>'shift_date')::DATE), MAX((e->>'shift_date')::DATE)
+  INTO v_min_date, v_max_date
+  FROM jsonb_array_elements(p_entries) AS e;
+
+  -- Delete existing shifts for this user in the date range (clean replace)
+  DELETE FROM team_shifts
+  WHERE company_id = p_company_id
+    AND user_id IS NOT DISTINCT FROM p_user_id
+    AND shift_date >= v_min_date
+    AND shift_date <= v_max_date;
+
+  -- Insert all entries
+  INSERT INTO team_shifts (company_id, user_id, shift_date, start_time, end_time, shift_type, notes, created_by)
+  SELECT
+    p_company_id,
+    p_user_id,
+    (e->>'shift_date')::DATE,
+    (e->>'start_time')::TIME,
+    (e->>'end_time')::TIME,
+    COALESCE(e->>'shift_type', 'regular'),
+    e->>'notes',
+    auth.uid()
+  FROM jsonb_array_elements(p_entries) AS e;
+
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION batch_create_shifts(UUID, UUID, JSONB) TO authenticated;
+
+-- ============================================================================
+-- END FEATURE 066: Workforce Scheduling (team_shifts)
 -- ============================================================================
 
 -- Commit the transaction - everything succeeded

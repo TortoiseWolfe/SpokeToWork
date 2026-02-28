@@ -18,7 +18,7 @@ const MAX_LOADED = 500;
 /** Shared select string with applicant profile + company name joins. */
 const APP_SELECT = `
   *,
-  user_profiles!job_applications_user_id_fkey(display_name, username),
+  user_profiles!job_applications_user_id_profile_fkey(display_name, username),
   shared_companies!job_applications_shared_company_id_fkey(name)
 `;
 
@@ -51,6 +51,8 @@ export interface UseEmployerApplicationsReturn {
   loadingMore: boolean;
   /** Fetch the next PAGE_SIZE rows and append to `applications`. */
   loadMore: () => Promise<void>;
+  /** Hire an applicant: set outcome=hired, create connection, add to team. */
+  hireApplicant: (applicationId: string) => Promise<void>;
 }
 
 /** Map a raw joined row → EmployerApplication. */
@@ -367,6 +369,32 @@ export function useEmployerApplications(): UseEmployerApplicationsReturn {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Re-subscribe when we first get company data
   }, [applications.length > 0]);
 
+  const hireApplicant = useCallback(async (applicationId: string) => {
+    const supabase = getClient();
+    const { error: rpcError } = await supabase.rpc('hire_applicant', {
+      p_application_id: applicationId,
+    });
+    if (rpcError) throw new Error(rpcError.message);
+
+    // Optimistic update: mark as hired + closed
+    const next = applicationsRef.current.map((a) =>
+      a.id === applicationId
+        ? { ...a, outcome: 'hired' as const, status: 'closed' as const }
+        : a
+    );
+    const old = applicationsRef.current.find((a) => a.id === applicationId);
+    applicationsRef.current = next;
+    setApplications(next);
+
+    if (old && old.status !== 'closed') {
+      setStatusCounts((c) => ({
+        ...c,
+        [old.status]: Math.max(0, (c[old.status] ?? 1) - 1),
+        closed: (c.closed ?? 0) + 1,
+      }));
+    }
+  }, []);
+
   // Initial fetch
   useEffect(() => {
     fetchApplications();
@@ -387,5 +415,6 @@ export function useEmployerApplications(): UseEmployerApplicationsReturn {
     hasMore,
     loadingMore,
     loadMore,
+    hireApplicant,
   };
 }

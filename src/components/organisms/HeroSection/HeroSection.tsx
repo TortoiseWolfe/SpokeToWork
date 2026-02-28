@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { AnimatedLogo } from '@/components/atomic/AnimatedLogo';
-import { RouteHeroIllustration } from '@/components/atomic/illustrations';
+import { LayeredSpokeToWorkLogo } from '@/components/atomic/SpinningLogo';
 import { detectedConfig } from '@/config/project-detected';
 
 export interface HeroSectionProps {
@@ -20,14 +20,13 @@ export default function HeroSection({ className = '' }: HeroSectionProps) {
     <section
       id="main-content"
       aria-label="Welcome hero"
-      className={`hero bg-base-100 min-h-[60vh] ${className}`}
+      className={`hero bg-base-100 py-12 sm:py-16 ${className}`}
     >
       <div className="hero-content flex-col gap-8 text-center lg:flex-row lg:gap-16 lg:text-left">
-        {/* Route visual — the "reason to exist" */}
-        <RouteHeroIllustration
-          className="w-64 max-w-full md:w-80 lg:w-96"
-          aria-hidden
-        />
+        {/* Spinning wheel logo */}
+        <div className="h-64 w-64 flex-shrink-0 sm:h-72 sm:w-72 md:h-80 md:w-80 lg:h-[450px] lg:w-[450px]">
+          <LayeredSpokeToWorkLogo speed="slow" pauseOnHover />
+        </div>
 
         <div className="max-w-xl">
           <h1 className="mb-4 sm:mb-6">
@@ -43,7 +42,8 @@ export default function HeroSection({ className = '' }: HeroSectionProps) {
           </p>
 
           <p className="text-base-content/80 mb-8">
-            Plan bicycle routes, track applications, land the job.
+            Plan bicycle routes, track applications, and manage your team — all
+            in one ride.
           </p>
 
           <nav
