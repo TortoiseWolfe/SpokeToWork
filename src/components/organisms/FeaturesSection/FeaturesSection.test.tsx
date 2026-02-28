@@ -26,7 +26,7 @@ describe('FeaturesSection', () => {
       screen.getByRole('heading', { level: 3, name: 'Track Companies' })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { level: 3, name: 'Plan Routes' })
+      screen.getByRole('heading', { level: 2, name: 'Plan Routes' })
     ).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { level: 3, name: 'Schedule Visits' })
@@ -57,15 +57,15 @@ describe('FeaturesSection', () => {
 
   it('renders Plan Routes as a spotlight, not in the grid', () => {
     render(<FeaturesSection />);
-    // Spotlight uses h3; the 4 grid cards also use h3.
-    // Plan Routes heading should exist exactly once.
+    // Spotlight uses h2; the 4 grid cards use h3.
+    // Plan Routes heading should exist exactly once as h2.
     const headings = screen.getAllByRole('heading', {
-      level: 3,
+      level: 2,
       name: /Plan Routes/i,
     });
     expect(headings).toHaveLength(1);
-    // All 5 feature headings are h3 (sr-only h2 "Features" above them)
-    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(5);
+    // 4 grid card headings are h3
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(4);
   });
 
   it('spotlight CTA links to /map', () => {

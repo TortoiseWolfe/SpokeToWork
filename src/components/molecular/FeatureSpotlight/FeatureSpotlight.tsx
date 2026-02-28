@@ -32,7 +32,7 @@ export default function FeatureSpotlight({
           {illustration}
         </div>
         <div className="flex flex-col gap-4 md:w-2/3">
-          <h3 className="text-2xl font-bold md:text-3xl">{title}</h3>
+          <h2 className="text-2xl font-bold md:text-3xl">{title}</h2>
           <p className="text-base-content/80">{description}</p>
           <div>
             <Link href={href} className="btn btn-primary min-h-11 min-w-11">
