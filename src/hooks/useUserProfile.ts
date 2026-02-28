@@ -18,6 +18,7 @@ export interface UserProfile {
   display_name: string | null;
   avatar_url: string | null;
   bio: string | null;
+  role: string | null;
   // Home location fields (Feature 041 - Route Planning)
   home_address: string | null;
   home_latitude: number | null;
@@ -67,7 +68,7 @@ export function useUserProfile(): UseUserProfileReturn {
           setError('Failed to load profile');
         }
       } else {
-        setProfile(data as UserProfile);
+        setProfile(data as unknown as UserProfile);
       }
     } catch (err) {
       logger.error('Error in useUserProfile', { error: err });

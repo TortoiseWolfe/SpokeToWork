@@ -52,6 +52,7 @@ const sharedTestConfig = {
     'tests/contract/email-notifications.test.ts',
     'tests/contract/stripe-webhook.test.ts',
     'tests/contract/paypal-webhook.test.ts',
+    'tests/contract/employer-team.contract.test.ts',
     // Contract/integration tests requiring real Supabase
     'tests/contract/auth/oauth.contract.test.ts',
     'tests/contract/auth/password-reset.contract.test.ts',

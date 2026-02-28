@@ -86,9 +86,9 @@ describe('EmployerDashboard Accessibility', () => {
     ).toBeInTheDocument();
   });
 
-  it('should have aria-pressed on filter badges', () => {
+  it('should have aria-pressed on funnel All button', () => {
     render(<EmployerDashboard {...defaultProps} />);
-    const allButton = screen.getByRole('button', { name: /All/ });
+    const allButton = screen.getByRole('button', { name: /All Applications/ });
     expect(allButton).toHaveAttribute('aria-pressed', 'true');
   });
 
@@ -99,10 +99,34 @@ describe('EmployerDashboard Accessibility', () => {
     ).toBeInTheDocument();
   });
 
-  it('should have role="group" on status counts bar', () => {
+  it('should have role="group" on pipeline stages', () => {
     render(<EmployerDashboard {...defaultProps} />);
     expect(
-      screen.getByRole('group', { name: 'Application status counts' })
+      screen.getByRole('group', { name: 'Application pipeline stages' })
     ).toBeInTheDocument();
+  });
+
+  it('should have aria-label on search input', () => {
+    render(<EmployerDashboard {...defaultProps} />);
+    expect(
+      screen.getByRole('searchbox', { name: 'Search applications' })
+    ).toBeInTheDocument();
+  });
+
+  it('should have no violations when load-more button is shown', async () => {
+    const { container } = render(
+      <EmployerDashboard
+        {...defaultProps}
+        hasMore
+        totalCount={50}
+        onLoadMore={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+    // Button has accessible name even when label is the count string.
+    expect(
+      screen.getByRole('button', { name: 'Load more applications' })
+    ).toBeInTheDocument();
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 });

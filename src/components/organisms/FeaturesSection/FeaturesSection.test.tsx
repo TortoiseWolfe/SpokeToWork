@@ -20,14 +20,7 @@ vi.mock('@/components/atomic/illustrations', () => ({
 }));
 
 describe('FeaturesSection', () => {
-  it('renders the "Features" heading', () => {
-    render(<FeaturesSection />);
-    expect(
-      screen.getByRole('heading', { level: 2, name: 'Features' })
-    ).toBeInTheDocument();
-  });
-
-  it('renders all 4 feature card titles', () => {
+  it('renders all 5 feature card titles', () => {
     render(<FeaturesSection />);
     expect(
       screen.getByRole('heading', { level: 3, name: 'Track Companies' })
@@ -41,53 +34,54 @@ describe('FeaturesSection', () => {
     expect(
       screen.getByRole('heading', { level: 3, name: 'Stay Connected' })
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Manage Your Team' })
+    ).toBeInTheDocument();
   });
 
-  it('links cards to correct pages', () => {
+  it('links secondary cards to correct pages', () => {
     render(<FeaturesSection />);
     expect(
       screen.getByRole('link', { name: 'Track Companies' })
     ).toHaveAttribute('href', '/companies');
-    expect(
-      screen.getByRole('link', { name: 'Plan Routes' })
-    ).toHaveAttribute('href', '/map');
     expect(
       screen.getByRole('link', { name: 'Schedule Visits' })
     ).toHaveAttribute('href', '/schedule');
     expect(
       screen.getByRole('link', { name: 'Stay Connected' })
     ).toHaveAttribute('href', '/messages');
+    expect(
+      screen.getByRole('link', { name: 'Manage Your Team' })
+    ).toHaveAttribute('href', '/employer');
   });
 
-  it('visually distinguishes the Plan Routes card with border-accent', () => {
+  it('renders Plan Routes as a spotlight, not in the grid', () => {
     render(<FeaturesSection />);
-    const planRoutesCard = screen.getByRole('link', { name: 'Plan Routes' });
-    expect(planRoutesCard.className).toContain('border-accent');
-    expect(planRoutesCard.className).toContain('border-2');
+    // Spotlight uses h3; the 4 grid cards also use h3.
+    // Plan Routes heading should exist exactly once.
+    const headings = screen.getAllByRole('heading', {
+      level: 3,
+      name: /Plan Routes/i,
+    });
+    expect(headings).toHaveLength(1);
+    // All 5 feature headings are h3 (no h2 — section heading removed)
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(5);
   });
 
-  it('does not apply border-accent to other cards', () => {
+  it('spotlight CTA links to /map', () => {
     render(<FeaturesSection />);
-    const trackCompanies = screen.getByRole('link', {
-      name: 'Track Companies',
-    });
-    const scheduleVisits = screen.getByRole('link', {
-      name: 'Schedule Visits',
-    });
-    const stayConnected = screen.getByRole('link', {
-      name: 'Stay Connected',
-    });
-
-    expect(trackCompanies.className).not.toContain('border-accent');
-    expect(scheduleVisits.className).not.toContain('border-accent');
-    expect(stayConnected.className).not.toContain('border-accent');
+    expect(screen.getByRole('link', { name: /Open the Map/i })).toHaveAttribute(
+      'href',
+      '/map'
+    );
   });
 
-  it('renders all 4 illustrations', () => {
+  it('renders all 5 illustrations', () => {
     render(<FeaturesSection />);
     expect(screen.getByTestId('illustration-desk')).toBeInTheDocument();
     expect(screen.getByTestId('illustration-bicycle')).toBeInTheDocument();
-    expect(screen.getByTestId('illustration-calendar')).toBeInTheDocument();
+    // IsometricCalendar is used twice (Schedule Visits + Manage Your Team)
+    expect(screen.getAllByTestId('illustration-calendar')).toHaveLength(2);
     expect(screen.getByTestId('illustration-chat')).toBeInTheDocument();
   });
 
@@ -123,6 +117,11 @@ describe('FeaturesSection', () => {
     expect(
       screen.getByText(
         'Message hiring managers and get real-time updates on your applications.'
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Build your roster, set weekly schedules, and track applicants from one dashboard.'
       )
     ).toBeInTheDocument();
   });

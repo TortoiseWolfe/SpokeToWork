@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { createLogger } from '@/lib/logger/logger';
+import type { RequestableRole } from '@/contexts/AuthContext';
 
 const logger = createLogger('components:auth:OAuthButtons');
 
@@ -12,6 +13,10 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 export interface OAuthButtonsProps {
   /** Additional CSS classes */
   className?: string;
+  /** Stored in localStorage before redirect; callback page reads + applies via set_own_role RPC. */
+  requestedRole?: RequestableRole;
+  /** Side-by-side on ≥sm, stacked below. Default: 'column' (stacked always). */
+  layout?: 'column' | 'row';
 }
 
 /**
@@ -20,7 +25,11 @@ export interface OAuthButtonsProps {
  *
  * @category molecular
  */
-export default function OAuthButtons({ className = '' }: OAuthButtonsProps) {
+export default function OAuthButtons({
+  className = '',
+  requestedRole,
+  layout = 'column',
+}: OAuthButtonsProps) {
   const supabase = createClient();
   const [loading, setLoading] = useState<'github' | 'google' | null>(null);
 
@@ -28,6 +37,13 @@ export default function OAuthButtons({ className = '' }: OAuthButtonsProps) {
     setLoading(provider);
 
     try {
+      // Stash role before redirect — signInWithOAuth doesn't accept options.data,
+      // and the redirect loop destroys in-memory state. Callback page will read
+      // pending_auth_role and call set_own_role RPC.
+      if (requestedRole) {
+        localStorage.setItem('pending_auth_role', requestedRole);
+      }
+
       // Supabase handles CSRF protection via built-in state parameter (PKCE flow)
       // No need to manually manage state tokens
       await supabase.auth.signInWithOAuth({
@@ -37,17 +53,24 @@ export default function OAuthButtons({ className = '' }: OAuthButtonsProps) {
         },
       });
     } catch (error) {
+      // Clear stashed role so a failed init doesn't poison a later non-employer signup
+      localStorage.removeItem('pending_auth_role');
       logger.error('OAuth initialization error', { error, provider });
       setLoading(null);
       // Could show error to user here
     }
   };
 
+  const containerClasses =
+    layout === 'row'
+      ? 'flex flex-col sm:flex-row gap-3'
+      : 'flex flex-col gap-2';
+
   return (
-    <div className={`flex flex-col gap-2${className ? ` ${className}` : ''}`}>
+    <div className={`${containerClasses}${className ? ` ${className}` : ''}`}>
       <button
         onClick={() => handleOAuth('github')}
-        className="btn btn-outline min-h-11 w-full"
+        className={`btn btn-outline min-h-11 w-full${layout === 'row' ? 'sm:flex-1' : ''}`}
         disabled={loading !== null}
       >
         <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
@@ -61,7 +84,7 @@ export default function OAuthButtons({ className = '' }: OAuthButtonsProps) {
       </button>
       <button
         onClick={() => handleOAuth('google')}
-        className="btn btn-outline min-h-11 w-full"
+        className={`btn btn-outline min-h-11 w-full${layout === 'row' ? 'sm:flex-1' : ''}`}
         disabled={loading !== null}
       >
         <svg className="h-5 w-5" viewBox="0 0 24 24">

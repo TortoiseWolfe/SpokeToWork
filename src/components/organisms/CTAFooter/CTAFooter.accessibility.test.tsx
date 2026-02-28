@@ -30,7 +30,7 @@ describe('CTAFooter Accessibility', () => {
 
   it('should have CTA link with proper accessible text', () => {
     render(<CTAFooter />);
-    const cta = screen.getByRole('link', { name: 'Get Started' });
+    const cta = screen.getByRole('link', { name: 'Find Work' });
     expect(cta).toBeInTheDocument();
     expect(cta).toHaveAttribute('href', '/sign-up');
   });

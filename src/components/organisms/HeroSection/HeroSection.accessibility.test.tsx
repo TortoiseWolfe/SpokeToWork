@@ -14,13 +14,9 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-// Mock SpinningLogo - destructure out non-DOM props to avoid React warnings
+// Mock LayeredSpokeToWorkLogo (spinning wheel)
 vi.mock('@/components/atomic/SpinningLogo', () => ({
-  LayeredSpokeToWorkLogo: ({ speed, pauseOnHover, ...props }: any) => (
-    <div data-testid="spinning-logo" {...props}>
-      Mock Spinning Logo
-    </div>
-  ),
+  LayeredSpokeToWorkLogo: (props: any) => <div data-testid="spinning-logo" />,
 }));
 
 // Mock AnimatedLogo
@@ -54,20 +50,10 @@ describe('HeroSection Accessibility', () => {
     expect(section).toHaveAttribute('aria-label', 'Welcome hero');
   });
 
-  it('should have labeled navigation regions', () => {
+  it('should have a labeled primary navigation region', () => {
     render(<HeroSection />);
     expect(
       screen.getByRole('navigation', { name: 'Primary navigation' })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('navigation', { name: 'Secondary navigation' })
-    ).toBeInTheDocument();
-  });
-
-  it('should have a labeled feature list', () => {
-    render(<HeroSection />);
-    expect(
-      screen.getByRole('list', { name: 'Key features' })
     ).toBeInTheDocument();
   });
 
