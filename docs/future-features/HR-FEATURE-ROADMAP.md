@@ -172,17 +172,19 @@ Workers have no way to present themselves to employers. Every application requir
 
 ### Proposed features
 
-| Feature                 | Description                                                                                                                     | Priority |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| **Resume upload**       | Supabase Storage bucket for PDF/DOCX resumes. `user_profiles.resume_url` column.                                                | High     |
-| **Skills/trades list**  | `user_skills` junction table linking user → industry/skill tags. "I'm a cook, I can also do prep and dishwashing."              | High     |
-| **Work history**        | `user_work_history` table: company_name, role, start_date, end_date, description. Optional — not everyone has a formal history. | Medium   |
-| **Worker profile page** | `/profile/[id]` public-facing page showing name, bio, skills, resume download. Visible to employers.                            | Medium   |
-| **Contact preferences** | `user_profiles.preferred_contact` (email, phone, in-app). Phone number field.                                                   | Low      |
+| Feature                 | Description                                                                                                                                                                                                                                                                      | Priority |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| **Resume upload**       | Supabase Storage bucket for PDF/DOCX/RTF resumes. `user_profiles.resume_url` column. RTF recommended as primary format — plain structured text that ATS and AI systems parse most reliably (no binary blobs, no layout artifacts). Accept all three, but nudge users toward RTF. | High     |
+| **Skills/trades list**  | `user_skills` junction table linking user → industry/skill tags. "I'm a cook, I can also do prep and dishwashing."                                                                                                                                                               | High     |
+| **Work history**        | `user_work_history` table: company_name, role, start_date, end_date, description. Optional — not everyone has a formal history.                                                                                                                                                  | Medium   |
+| **Worker profile page** | `/profile/[id]` public-facing page showing name, bio, skills, resume download. Visible to employers.                                                                                                                                                                             | Medium   |
+| **Contact preferences** | `user_profiles.preferred_contact` (email, phone, in-app). Phone number field.                                                                                                                                                                                                    | Low      |
 
-### Design note
+### Design notes
 
-Resume upload uses Supabase Storage (already in the stack). The profile page is the worker's equivalent of the company profile page — symmetry between the two sides of the marketplace.
+- Resume upload uses Supabase Storage (already in the stack). The profile page is the worker's equivalent of the company profile page — symmetry between the two sides of the marketplace.
+- **RTF as preferred format**: RTF files are plain structured text that ATS (Applicant Tracking Systems) and AI resume parsers handle best. PDF can lose structure in parsing; DOCX has binary XML complexity. RTF is the sweet spot — formatted enough for humans, clean enough for machines. The upload UI should accept `.rtf`, `.pdf`, and `.docx` but display a hint like "RTF format recommended for best compatibility with hiring systems."
+- **Future: server-side parsing**: When resume parsing is added (auto-extract name, skills, work history into structured fields), RTF will be the easiest format to parse reliably via a Supabase Edge Function.
 
 ---
 
