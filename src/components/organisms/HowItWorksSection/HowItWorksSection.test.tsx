@@ -10,7 +10,7 @@ describe('HowItWorksSection', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders all 3 step titles', () => {
+  it('renders worker step titles', () => {
     render(<HowItWorksSection />);
     expect(
       screen.getByRole('heading', { level: 3, name: 'Sign Up' })
@@ -23,24 +23,53 @@ describe('HowItWorksSection', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders all 3 step descriptions', () => {
+  it('renders employer step titles', () => {
     render(<HowItWorksSection />);
     expect(
-      screen.getByText('Create your account')
+      screen.getByRole('heading', { level: 3, name: 'Sign Up as Employer' })
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Track where you've applied")
+      screen.getByRole('heading', { level: 3, name: 'Build Your Team' })
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Set Schedules' })
+    ).toBeInTheDocument();
+  });
+
+  it('renders worker step descriptions', () => {
+    render(<HowItWorksSection />);
+    expect(screen.getByText('Create your account')).toBeInTheDocument();
+    expect(screen.getByText("Track where you've applied")).toBeInTheDocument();
     expect(
       screen.getByText('Generate an optimized bicycle route')
     ).toBeInTheDocument();
   });
 
-  it('renders step numbers "1", "2", "3"', () => {
+  it('renders employer step descriptions', () => {
     render(<HowItWorksSection />);
-    expect(screen.getByText('1')).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument();
-    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(
+      screen.getByText('Create your employer account')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Add connections to your roster')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Assign weekly shifts in one click')
+    ).toBeInTheDocument();
+  });
+
+  it('renders step numbers for both paths', () => {
+    render(<HowItWorksSection />);
+    // Each path has 1, 2, 3 — so 2 of each
+    expect(screen.getAllByText('1')).toHaveLength(2);
+    expect(screen.getAllByText('2')).toHaveLength(2);
+    expect(screen.getAllByText('3')).toHaveLength(2);
+  });
+
+  it('renders path labels', () => {
+    render(<HowItWorksSection />);
+    expect(screen.getByText('For Job Seekers')).toBeInTheDocument();
+    expect(screen.getByText('For Employers')).toBeInTheDocument();
   });
 
   it('renders the section with aria-label "How it works"', () => {

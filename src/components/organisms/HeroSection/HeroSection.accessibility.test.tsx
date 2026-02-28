@@ -14,13 +14,9 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-// Mock RouteHeroIllustration
-vi.mock('@/components/atomic/illustrations', () => ({
-  RouteHeroIllustration: ({ animated, ...props }: any) => (
-    <svg {...props}>
-      <g data-testid="route-pin" />
-    </svg>
-  ),
+// Mock LayeredSpokeToWorkLogo (spinning wheel)
+vi.mock('@/components/atomic/SpinningLogo', () => ({
+  LayeredSpokeToWorkLogo: (props: any) => <div data-testid="spinning-logo" />,
 }));
 
 // Mock AnimatedLogo

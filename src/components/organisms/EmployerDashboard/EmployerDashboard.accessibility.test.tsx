@@ -86,9 +86,9 @@ describe('EmployerDashboard Accessibility', () => {
     ).toBeInTheDocument();
   });
 
-  it('should have aria-pressed on filter badges', () => {
+  it('should have aria-pressed on funnel All button', () => {
     render(<EmployerDashboard {...defaultProps} />);
-    const allButton = screen.getByRole('button', { name: /All/ });
+    const allButton = screen.getByRole('button', { name: /All Applications/ });
     expect(allButton).toHaveAttribute('aria-pressed', 'true');
   });
 
@@ -99,10 +99,17 @@ describe('EmployerDashboard Accessibility', () => {
     ).toBeInTheDocument();
   });
 
-  it('should have role="group" on status counts bar', () => {
+  it('should have role="group" on pipeline stages', () => {
     render(<EmployerDashboard {...defaultProps} />);
     expect(
-      screen.getByRole('group', { name: 'Application status counts' })
+      screen.getByRole('group', { name: 'Application pipeline stages' })
+    ).toBeInTheDocument();
+  });
+
+  it('should have aria-label on search input', () => {
+    render(<EmployerDashboard {...defaultProps} />);
+    expect(
+      screen.getByRole('searchbox', { name: 'Search applications' })
     ).toBeInTheDocument();
   });
 

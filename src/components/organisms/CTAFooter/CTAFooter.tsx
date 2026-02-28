@@ -15,25 +15,25 @@ export default function CTAFooter({ className = '' }: CTAFooterProps) {
   return (
     <section
       aria-label="Call to action"
-      className={`px-4 py-16 sm:px-6 lg:px-8 ${className}`}
+      className={`px-4 py-8 sm:px-6 sm:py-10 lg:px-8 ${className}`}
     >
       <div className="text-center">
         <h2 className="text-3xl font-bold sm:text-4xl">Ready to ride?</h2>
         <p className="text-base-content/80 mt-4 text-lg">
-          Start planning your job search route today.
+          Whether you&apos;re chasing a job or building a crew — start here.
         </p>
         <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
           <Link
             href="/sign-up"
             className="btn btn-primary btn-lg min-h-11 min-w-11"
           >
-            Get Started
+            Find Work
           </Link>
           <Link
             href="/sign-up?role=employer"
-            className="btn btn-outline btn-lg min-h-11 min-w-11"
+            className="btn btn-secondary btn-lg min-h-11 min-w-11"
           >
-            Hiring cyclists? Post jobs →
+            Hire &amp; Schedule
           </Link>
         </div>
       </div>

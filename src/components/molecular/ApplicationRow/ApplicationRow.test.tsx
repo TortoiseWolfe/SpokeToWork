@@ -55,6 +55,50 @@ describe('ApplicationRow', () => {
     expect(screen.getByText('Applied')).toHaveClass('badge');
   });
 
+  it('renders priority indicator', () => {
+    render(
+      wrap(
+        <ApplicationRow
+          application={makeApp({ priority: 2 })}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
+        />
+      )
+    );
+    expect(
+      screen.getByRole('img', { name: /priority 2/i })
+    ).toBeInTheDocument();
+  });
+
+  it('renders work location badge', () => {
+    render(
+      wrap(
+        <ApplicationRow
+          application={makeApp({ work_location_type: 'hybrid' })}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
+        />
+      )
+    );
+    expect(screen.getByText('Hybrid')).toBeInTheDocument();
+  });
+
+  it('renders interview date chip when present', () => {
+    render(
+      wrap(
+        <ApplicationRow
+          application={makeApp({ interview_date: '2026-03-15T10:00:00Z' })}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
+        />
+      )
+    );
+    expect(screen.getByText(/mar/i)).toBeInTheDocument();
+  });
+
   it('renders repeat badge when isRepeat is true', () => {
     render(
       wrap(
@@ -94,7 +138,6 @@ describe('ApplicationRow', () => {
         />
       )
     );
-    // next status after 'applied' is 'screening'
     expect(
       screen.getByRole('button', { name: /Advance Jane Doe to Screening/i })
     ).toBeInTheDocument();
@@ -158,5 +201,23 @@ describe('ApplicationRow', () => {
       )
     );
     expect(screen.getByText('Not specified')).toBeInTheDocument();
+  });
+
+  it('calls onClick when row is clicked', async () => {
+    const onClick = vi.fn();
+    const user = userEvent.setup();
+    render(
+      wrap(
+        <ApplicationRow
+          application={makeApp({ status: 'closed' })}
+          onAdvance={vi.fn()}
+          updating={false}
+          isRepeat={false}
+          onClick={onClick}
+        />
+      )
+    );
+    await user.click(screen.getByTestId('application-row'));
+    expect(onClick).toHaveBeenCalled();
   });
 });

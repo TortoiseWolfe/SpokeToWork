@@ -35,6 +35,8 @@ const sampleApplications: EmployerApplication[] = [
     applicant_name: 'Alice Johnson',
     position_title: 'Frontend Developer',
     status: 'applied',
+    priority: 2,
+    work_location_type: 'hybrid',
     date_applied: '2026-02-10T00:00:00Z',
   }),
   createApp({
@@ -42,28 +44,44 @@ const sampleApplications: EmployerApplication[] = [
     applicant_name: 'Bob Smith',
     position_title: 'Backend Engineer',
     status: 'screening',
+    priority: 1,
+    work_location_type: 'on_site',
     date_applied: '2026-02-08T00:00:00Z',
+    interview_date: '2026-03-05T14:00:00Z',
   }),
   createApp({
     id: '3',
+    user_id: 'user-2',
     applicant_name: 'Carol Davis',
     position_title: 'Full Stack Developer',
     status: 'interviewing',
+    priority: 1,
+    work_location_type: 'remote',
     date_applied: '2026-02-05T00:00:00Z',
+    interview_date: '2026-03-01T10:00:00Z',
+    company_name: 'TechCo',
   }),
   createApp({
     id: '4',
+    user_id: 'user-3',
     applicant_name: 'Dan Wilson',
     position_title: 'DevOps Engineer',
     status: 'offer',
+    priority: 2,
+    work_location_type: 'remote',
     date_applied: '2026-01-28T00:00:00Z',
+    notes: 'Salary negotiation pending',
   }),
   createApp({
     id: '5',
+    user_id: 'user-4',
     applicant_name: 'Eve Brown',
     position_title: 'UX Designer',
     status: 'closed',
+    priority: 4,
+    work_location_type: 'hybrid',
     date_applied: '2026-01-20T00:00:00Z',
+    outcome: 'hired',
   }),
 ];
 
@@ -139,10 +157,6 @@ export const SingleApplication: Story = {
   },
 };
 
-/**
- * Paginated mode — only page 1 loaded but funnel shows the full dataset.
- * Note the badge numbers sum to 200 while only 5 rows are visible.
- */
 export const HasMore: Story = {
   args: {
     applications: sampleApplications,
@@ -165,7 +179,6 @@ export const HasMore: Story = {
   },
 };
 
-/** Load-more button disabled with spinner while the next page fetches. */
 export const LoadingMore: Story = {
   args: {
     ...HasMore.args,

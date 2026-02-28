@@ -11,13 +11,9 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-// Mock RouteHeroIllustration - renders a pin so queries still succeed
-vi.mock('@/components/atomic/illustrations', () => ({
-  RouteHeroIllustration: ({ animated, ...props }: any) => (
-    <svg {...props}>
-      <g data-testid="route-pin" />
-    </svg>
-  ),
+// Mock LayeredSpokeToWorkLogo (spinning wheel)
+vi.mock('@/components/atomic/SpinningLogo', () => ({
+  LayeredSpokeToWorkLogo: (props: any) => <div data-testid="spinning-logo" />,
 }));
 
 // Mock AnimatedLogo
@@ -46,7 +42,9 @@ describe('HeroSection', () => {
   it('renders the subtitle', () => {
     render(<HeroSection />);
     expect(
-      screen.getByText('Plan bicycle routes, track applications, land the job.')
+      screen.getByText(
+        /Plan bicycle routes, track applications, and manage your team/
+      )
     ).toBeInTheDocument();
   });
 
@@ -71,12 +69,9 @@ describe('HeroSection', () => {
     expect(animated).toHaveTextContent('SpokeToWork');
   });
 
-  it('renders the route illustration', () => {
-    const { container } = render(<HeroSection />);
-    // The RouteHeroIllustration renders an SVG with route pins
-    expect(
-      container.querySelector('[data-testid="route-pin"]')
-    ).toBeInTheDocument();
+  it('renders the spinning wheel logo', () => {
+    render(<HeroSection />);
+    expect(screen.getByTestId('spinning-logo')).toBeInTheDocument();
   });
 
   it('does not render feature badge pills', () => {
