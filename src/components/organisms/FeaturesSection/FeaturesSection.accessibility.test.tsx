@@ -52,11 +52,11 @@ describe('FeaturesSection Accessibility', () => {
     ).toBeInTheDocument();
   });
 
-  it('should have proper heading hierarchy (h3 feature titles)', () => {
+  it('should have proper heading hierarchy (h2 spotlight + h3 grid cards)', () => {
     render(<FeaturesSection />);
-    // sr-only h2 "Features" provides heading hierarchy. All features use h3.
+    // Plan Routes spotlight uses h2; 4 grid cards use h3.
     const h3s = screen.getAllByRole('heading', { level: 3 });
-    expect(h3s).toHaveLength(5);
+    expect(h3s).toHaveLength(4);
   });
 
   it('should have no violations with custom className', async () => {
