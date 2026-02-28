@@ -91,7 +91,7 @@ body {
   --color-primary: oklch(42% 0.14 43.9); /* Dark burnt orange — AAA on cream */
   --color-primary-content: oklch(100% 0 0); /* White */
 
-  --color-secondary: oklch(60.9% 0.111 221.7); /* Darker cyan #0891b2 */
+  --color-secondary: oklch(42% 0.111 221.7); /* Dark cyan — AAA on cream */
   --color-secondary-content: oklch(100% 0 0); /* White */
 
   --color-accent: oklch(62.7% 0.17 149.2); /* Darker green #16a34a */

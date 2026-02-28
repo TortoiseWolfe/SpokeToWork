@@ -54,7 +54,7 @@ describe('FeaturesSection Accessibility', () => {
 
   it('should have proper heading hierarchy (h3 feature titles)', () => {
     render(<FeaturesSection />);
-    // No h2 — section heading removed. All features use h3.
+    // sr-only h2 "Features" provides heading hierarchy. All features use h3.
     const h3s = screen.getAllByRole('heading', { level: 3 });
     expect(h3s).toHaveLength(5);
   });

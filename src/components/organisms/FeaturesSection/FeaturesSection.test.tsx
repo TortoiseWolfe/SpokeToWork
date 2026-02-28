@@ -64,7 +64,7 @@ describe('FeaturesSection', () => {
       name: /Plan Routes/i,
     });
     expect(headings).toHaveLength(1);
-    // All 5 feature headings are h3 (no h2 — section heading removed)
+    // All 5 feature headings are h3 (sr-only h2 "Features" above them)
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(5);
   });
 
