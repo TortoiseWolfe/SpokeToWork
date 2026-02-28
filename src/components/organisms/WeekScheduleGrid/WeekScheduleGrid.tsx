@@ -203,8 +203,14 @@ export default function WeekScheduleGrid({
 
   return (
     <div data-testid="week-schedule-grid">
-      {/* Week navigation */}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      {/* Print-only header (hidden on screen) */}
+      <div className="hidden print:mb-4 print:block print:text-center">
+        <h1 className="text-xl font-bold">Weekly Schedule</h1>
+        <p className="text-sm">{getWeekLabel(weekStart)}</p>
+      </div>
+
+      {/* Week navigation (hidden in print) */}
+      <div className="mb-4 flex flex-wrap items-center gap-2 print:hidden">
         <button
           onClick={onPrevWeek}
           className="btn btn-ghost btn-sm min-h-11 min-w-11"
@@ -500,8 +506,8 @@ export default function WeekScheduleGrid({
         })}
       </div>
 
-      {/* Business hours footer */}
-      <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+      {/* Business hours footer (hidden in print) */}
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-sm print:hidden">
         {onUpdateBusinessHours ? (
           <>
             <label htmlFor="bh-open" className="text-base-content/60">
