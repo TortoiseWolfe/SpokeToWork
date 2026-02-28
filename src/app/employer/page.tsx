@@ -345,7 +345,7 @@ export default function EmployerPage() {
         >
           <button
             role="tab"
-            className={`tab min-h-11 ${activeTab === 'schedule' ? 'tab-active' : ''}`}
+            className={`tab min-h-11 ${activeTab === 'schedule' ? 'tab-active bg-base-300 font-semibold' : ''}`}
             onClick={() => setActiveTab('schedule')}
             aria-selected={activeTab === 'schedule'}
           >
@@ -356,7 +356,7 @@ export default function EmployerPage() {
           </button>
           <button
             role="tab"
-            className={`tab min-h-11 ${activeTab === 'team' ? 'tab-active' : ''}`}
+            className={`tab min-h-11 ${activeTab === 'team' ? 'tab-active bg-base-300 font-semibold' : ''}`}
             onClick={() => setActiveTab('team')}
             aria-selected={activeTab === 'team'}
           >
@@ -372,7 +372,7 @@ export default function EmployerPage() {
           </button>
           <button
             role="tab"
-            className={`tab min-h-11 ${activeTab === 'applications' ? 'tab-active' : ''}`}
+            className={`tab min-h-11 ${activeTab === 'applications' ? 'tab-active bg-base-300 font-semibold' : ''}`}
             onClick={() => setActiveTab('applications')}
             aria-selected={activeTab === 'applications'}
           >

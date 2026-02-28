@@ -229,6 +229,58 @@ export default function WeekScheduleGrid({
         <button onClick={onToday} className="btn btn-ghost btn-sm min-h-11">
           Today
         </button>
+
+        {/* Business hours (hidden in print) */}
+        <div className="flex items-center gap-2 text-sm print:hidden">
+          {onUpdateBusinessHours ? (
+            <>
+              <label htmlFor="bh-open" className="text-base-content/60">
+                Business hours:
+              </label>
+              <input
+                id="bh-open"
+                type="time"
+                value={editOpen}
+                onChange={(e) => setEditOpen(e.target.value)}
+                className="input input-bordered input-sm min-h-11 w-28"
+                aria-label="Opening time"
+              />
+              <span className="text-base-content/60">–</span>
+              <input
+                id="bh-close"
+                type="time"
+                value={editClose}
+                onChange={(e) => setEditClose(e.target.value)}
+                className="input input-bordered input-sm min-h-11 w-28"
+                aria-label="Closing time"
+              />
+              {hoursDirty && (
+                <button
+                  onClick={handleSaveHours}
+                  disabled={hoursSaving || editClose <= editOpen}
+                  className="btn btn-primary btn-sm min-h-11"
+                >
+                  {hoursSaving ? (
+                    <span className="loading loading-spinner loading-xs" />
+                  ) : (
+                    'Save Hours'
+                  )}
+                </button>
+              )}
+              {editClose <= editOpen && hoursDirty && (
+                <span className="text-error text-xs">
+                  Close must be after open
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-base-content/50">
+              Business hours: {formatTime(businessHours.open)} –{' '}
+              {formatTime(businessHours.close)}
+            </span>
+          )}
+        </div>
+
         <div className="flex-1" />
         {onCopyLastWeek && (
           <div className="flex items-center gap-1">
@@ -507,57 +559,6 @@ export default function WeekScheduleGrid({
             </div>
           );
         })}
-      </div>
-
-      {/* Business hours footer (hidden in print) */}
-      <div className="mt-4 flex flex-wrap items-center gap-2 text-sm print:hidden">
-        {onUpdateBusinessHours ? (
-          <>
-            <label htmlFor="bh-open" className="text-base-content/60">
-              Business hours:
-            </label>
-            <input
-              id="bh-open"
-              type="time"
-              value={editOpen}
-              onChange={(e) => setEditOpen(e.target.value)}
-              className="input input-bordered input-sm min-h-11 w-28"
-              aria-label="Opening time"
-            />
-            <span className="text-base-content/60">–</span>
-            <input
-              id="bh-close"
-              type="time"
-              value={editClose}
-              onChange={(e) => setEditClose(e.target.value)}
-              className="input input-bordered input-sm min-h-11 w-28"
-              aria-label="Closing time"
-            />
-            {hoursDirty && (
-              <button
-                onClick={handleSaveHours}
-                disabled={hoursSaving || editClose <= editOpen}
-                className="btn btn-primary btn-sm min-h-11"
-              >
-                {hoursSaving ? (
-                  <span className="loading loading-spinner loading-xs" />
-                ) : (
-                  'Save Hours'
-                )}
-              </button>
-            )}
-            {editClose <= editOpen && hoursDirty && (
-              <span className="text-error text-xs">
-                Close must be after open
-              </span>
-            )}
-          </>
-        ) : (
-          <span className="text-base-content/50">
-            Business hours: {formatTime(businessHours.open)} –{' '}
-            {formatTime(businessHours.close)}
-          </span>
-        )}
       </div>
     </div>
   );
