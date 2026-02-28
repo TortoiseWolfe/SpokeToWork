@@ -40,7 +40,13 @@ function auditComponents(options = {}) {
     includeIgnored = false,
     verbose = false,
     output = null,
-    ignore = ['__tests__', '__mocks__', '*.test.js', '*.spec.js'],
+    ignore = [
+      '__tests__',
+      '__mocks__',
+      '*.test.js',
+      '*.spec.js',
+      'illustrations',
+    ],
   } = options;
 
   // Initialize report

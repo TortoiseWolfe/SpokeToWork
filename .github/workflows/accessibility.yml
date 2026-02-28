@@ -34,7 +34,10 @@ jobs:
       - name: Build application
         run: pnpm run build
 
-      - name: Run accessibility tests
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run accessibility tests (axe-playwright)
         run: pnpm run test:a11y:ci
 
       - name: Run component accessibility tests (happy-dom)
@@ -56,13 +59,6 @@ jobs:
           pnpm exec vitest run src/components/atomic/Card/Card.accessibility.test.tsx --project jsdom
         env:
           NODE_OPTIONS: '--max-old-space-size=2048'
-
-      - name: Upload Pa11y screenshots
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pa11y-screenshots
-          path: .pa11y-screenshots/
 
       - name: Comment PR with results
         if: github.event_name == 'pull_request' && failure()
