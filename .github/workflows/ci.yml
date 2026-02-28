@@ -66,8 +66,9 @@ jobs:
           # Exclusions:
           # - escapeSQL/safe* variables: properly escaped values
           # - database-setup.test.ts: uses hardcoded constant table names only
+          # - global-setup.ts: uses hardcoded ADMIN_USER constants only
           # - node_modules: third-party code
-          UNSAFE_PATTERNS=$(grep -rn "'\\\${" tests/ | grep -v "escapeSQL\|safeUserId\|safeEmail\|safePassword\|safeAdminId" | grep -v "database-setup.test.ts" | grep -v "node_modules" || true)
+          UNSAFE_PATTERNS=$(grep -rn "'\\\${" tests/ | grep -v "escapeSQL\|safeUserId\|safeEmail\|safePassword\|safeAdminId" | grep -v "database-setup.test.ts\|global-setup.ts" | grep -v "node_modules" || true)
 
           if [ -n "$UNSAFE_PATTERNS" ]; then
             echo "ERROR: Found potentially unsafe SQL interpolation patterns:"

@@ -63,7 +63,7 @@
     "generate:blog": "node scripts/generate-blog-data.js",
     "test:e2e": "playwright test",
     "test:a11y": "playwright test tests/e2e/tests/accessibility.spec.ts",
-    "test:a11y:ci": "start-server-and-test 'serve out -p 3000' http://localhost:3000 'playwright test tests/e2e/tests/accessibility.spec.ts'",
+    "test:a11y:ci": "playwright test tests/e2e/tests/accessibility.spec.ts",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
