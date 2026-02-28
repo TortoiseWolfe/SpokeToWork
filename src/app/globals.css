@@ -507,6 +507,106 @@ p:not([class*='text-']) {
   font-size: var(--text-base);
 }
 
+/* ===== Print Stylesheet — Schedule Grid ===== */
+@media print {
+  /* Hide chrome: nav, footer, buttons, drawers, banners, cookie consent */
+  header,
+  footer,
+  .drawer-side,
+  .btn,
+  button,
+  [role='button'],
+  .cookie-consent,
+  .navbar,
+  nav,
+  #pwa-install,
+  .loading {
+    display: none !important;
+  }
+
+  /* Re-show table cells that use role="button" for shift display */
+  td [role='button'],
+  td div[role='button'] {
+    display: block !important;
+    cursor: default !important;
+  }
+
+  /* Hide mobile view, force desktop table */
+  .md\:hidden {
+    display: none !important;
+  }
+  .hidden.md\:block {
+    display: block !important;
+  }
+
+  /* Remove dark backgrounds — print-friendly white */
+  body,
+  html,
+  main,
+  [data-testid='week-schedule-grid'] {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Table styling for print */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 11pt !important;
+  }
+
+  th,
+  td {
+    border: 1px solid #ccc !important;
+    padding: 4px 6px !important;
+    color: black !important;
+    background: white !important;
+  }
+
+  th {
+    background: #f0f0f0 !important;
+    font-weight: bold !important;
+  }
+
+  /* Today highlight — subtle gray instead of theme color */
+  .bg-primary\/5,
+  .bg-primary\/10 {
+    background: #f5f5f5 !important;
+  }
+
+  /* Repeat table headers on every printed page */
+  thead {
+    display: table-header-group !important;
+  }
+
+  /* Prevent rows from splitting across pages */
+  tr {
+    page-break-inside: avoid !important;
+  }
+
+  /* Week label as print header */
+  [data-testid='week-schedule-grid'] h2 {
+    display: block !important;
+    font-size: 16pt !important;
+    font-weight: bold !important;
+    text-align: center !important;
+    margin-bottom: 12pt !important;
+    color: black !important;
+  }
+
+  /* Remove overflow constraints */
+  .overflow-x-auto,
+  .overflow-hidden {
+    overflow: visible !important;
+  }
+
+  /* Landscape orientation for 7-column schedule */
+  @page {
+    size: landscape;
+    margin: 0.5in;
+  }
+}
+
 /* Spinning Logo Animations */
 @keyframes spin-clockwise {
   from {

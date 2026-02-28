@@ -327,7 +327,35 @@ The app already has service worker support for offline. Adding push notification
 
 ---
 
-## 13. Reporting & Analytics
+## 13. Schedule Printing & Export
+
+### What exists today
+
+- No `@media print` styles on the schedule grid
+- No export-to-PDF button
+- Ctrl+P renders interactive buttons, nav, drawers — unusable on paper
+- Multi-page schedules (20+ employees) have no page-break logic
+
+### Implemented (v1 — CSS print stylesheet)
+
+- `@media print` in `globals.css`: hides nav, footer, buttons, drawers, mobile view
+- Forces desktop table view for all screen sizes
+- Adds company/week header visible only in print
+- `page-break-inside: avoid` on table rows so employees don't split across pages
+- Repeating table headers on each page via `thead { display: table-header-group }`
+
+### Future enhancements
+
+| Feature                  | Description                                                                                                 | Priority |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------- | -------- |
+| **Export to PDF button** | Client-side PDF generation (html2canvas/jsPDF or server-side via Edge Function) for a polished, branded PDF | Medium   |
+| **Print preview mode**   | In-app preview showing exactly what will print, with page-break indicators                                  | Low      |
+| **Export to CSV/Excel**  | Download schedule data as spreadsheet for payroll integration                                               | Medium   |
+| **Filtered print**       | Print only selected departments or date ranges                                                              | Low      |
+
+---
+
+## 14. Reporting & Analytics
 
 ### What exists today
 
@@ -350,7 +378,7 @@ Managers get dashboards showing: headcount, turnover rate, hours worked by depar
 
 ---
 
-## 14. Compliance & Labor Law
+## 15. Compliance & Labor Law
 
 ### What exists today
 
