@@ -9,13 +9,10 @@
  */
 import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
-import * as path from 'path';
 
 const STORYBOOK_URL = process.env.STORYBOOK_URL || 'http://localhost:6006';
 const AXE_SOURCE = fs.readFileSync(
-  path.resolve(
-    '/app/node_modules/.pnpm/axe-core@4.10.3/node_modules/axe-core/axe.min.js'
-  ),
+  require.resolve('axe-core/axe.min.js'),
   'utf-8'
 );
 
