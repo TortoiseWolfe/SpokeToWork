@@ -334,7 +334,7 @@ export default function EmployerPage() {
         onHire={handleHire}
         hiring={drawerHiring}
       />
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-6" data-print-schedule>
         <h1 className="mb-6 text-2xl font-bold">Employer Dashboard</h1>
 
         {/* Tab Navigation — HR priority order: Schedule | Team | Applications */}

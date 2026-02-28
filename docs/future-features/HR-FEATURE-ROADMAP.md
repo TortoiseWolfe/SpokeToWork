@@ -10,7 +10,8 @@ High-level planning document for features to be worked through over time. No cod
 
 - `team_members` table has **nullable `user_id`** — HR can add people by name+email without a Supabase auth account
 - `team_shifts.user_id` is also nullable — shifts can reference a `team_member` by `company_id` match even when they have no login
-- RPCs `add_team_member` and `get_team_members` already work with name-only records
+- RPCs `add_team_member` and `get_team_members` manage team membership for **registered users** (accept `user_id`). The `useTeamMembers` hook does direct table CRUD for name-only records.
+- **Gap**: `team_shifts` has no `team_member_id` FK — shifts for unregistered employees can only be linked via `company_id` match, not directly attributed to a specific named team member
 
 ### What's missing
 
@@ -114,30 +115,29 @@ The current system works fine for small teams (5-20 people). Departments become 
 
 ## 5. Candidate Pipeline (Application Tracking for Employers)
 
-### What exists today
+### What exists today — ALREADY BUILT
 
-- `job_applications` already has pipeline stages: `status` (not_applied, applied, screening, interviewing, offer, closed) and `outcome` (pending, hired, rejected, withdrawn, ghosted, offer_declined)
-- `hire_applicant` RPC moves someone from applicant → team member
-- But these are **worker-side only** — the worker sets their own status. No employer-facing view exists.
+The employer-facing pipeline is **fully implemented** (Feature 063):
 
-### What's missing
+- **Employer RLS policies**: `job_applications` has SELECT and UPDATE policies for employers via `employer_company_links` (monolithic migration line ~2748)
+- **EmployerDashboard component** (`src/components/organisms/EmployerDashboard/`): Full Kanban board + table view with drag-and-drop stage transitions
+- **StatusFunnel component** (`src/components/organisms/StatusFunnel/`): Visual hiring funnel showing conversion rates across pipeline stages
+- **`useEmployerApplications` hook** (`src/hooks/useEmployerApplications.ts`): Two-query architecture fetching applications for all employer-linked companies, with realtime subscription for new applications
+- **`hire_applicant` RPC**: Moves applicant → team member in one transaction
+- **ApplicationDetailDrawer**: Side-panel detail view with stage advancement + hire button
+- **Realtime toast notifications**: New application alerts via Supabase realtime subscription
 
-- Employers can't see inbound applications to their company
-- Employers can't change application status (only the worker can today via RLS)
-- No employer-facing inbox or Kanban board
+### What's still missing
 
-### Proposed features
-
-| Feature                           | Description                                                                                                               | Priority |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------- |
-| **Employer application view RPC** | SECURITY DEFINER RPC: get all `job_applications` where the company is linked to the employer via `employer_company_links` | Medium   |
-| **Employer application inbox**    | `/employer/applications` page showing all inbound applications grouped by stage (Kanban-style)                            | Medium   |
-| **Employer stage transitions**    | New RPC letting employer advance/reject an application (updates `status`/`outcome`)                                       | Medium   |
-| **Applicant notifications**       | When employer changes stage, notify the worker (in-app or email)                                                          | Low      |
+| Feature                     | Description                                                                     | Priority |
+| --------------------------- | ------------------------------------------------------------------------------- | -------- |
+| **Applicant notifications** | When employer changes stage, notify the worker (in-app or email)                | Low      |
+| **Resume attachment view**  | Display attached resume in the ApplicationDetailDrawer (requires resume upload) | Medium   |
+| **Bulk stage transitions**  | Select multiple applications and advance/reject in batch                        | Low      |
 
 ### Schema note
 
-The pipeline columns already exist — the work is RLS/RPC access + UI, not new tables.
+The pipeline columns and employer RLS already exist. `job_applications` references companies via `shared_company_id` and `private_company_id` (with a CHECK constraint ensuring exactly one is set), not a simple `company_id`.
 
 ---
 
@@ -359,8 +359,9 @@ The app already has service worker support for offline. Adding push notification
 
 ### What exists today
 
-- No reporting or analytics of any kind
-- No dashboard metrics, no export capability
+- **StatusFunnel** component shows hiring pipeline conversion rates (applications → screened → interviewed → hired)
+- **statusCounts** in `useEmployerApplications` provides per-stage tallies
+- No other reporting, no export capability, no time-based analytics
 
 ### Industry standard
 
@@ -423,7 +424,7 @@ SpokeToWork targets gig/bicycle workers and small businesses. Full compliance to
 
 10. Open positions / job postings
 11. Quick apply + auto-fill from profile
-12. Employer application inbox (view + stage transitions)
+12. ~~Employer application inbox~~ (**DONE** — Kanban + table + realtime alerts)
 13. Bulk employee import (CSV)
 14. **Push notifications (PWA)**
 
@@ -450,17 +451,17 @@ SpokeToWork targets gig/bicycle workers and small businesses. Full compliance to
 
 These tables/columns already support the roadmap and should NOT be recreated:
 
-| Table                    | Key Columns                                                  | Roadmap Relevance                                         |
-| ------------------------ | ------------------------------------------------------------ | --------------------------------------------------------- |
-| `shared_companies`       | `is_verified`                                                | Company verification tiers                                |
-| `employer_company_links` | `user_id`, `shared_company_id`                               | Company claiming                                          |
-| `team_members`           | `user_id` (nullable), `email`                                | Invite flow, auto-linking                                 |
-| `team_shifts`            | `user_id` (nullable), `shift_date`, `start_time`, `end_time` | Scheduling + time tracking anchor                         |
-| `user_profiles`          | `display_name`, `bio`, `avatar_url`                          | Worker profile expansion (add resume_url, skills)         |
-| `job_applications`       | `status`, `outcome`, `position_title`                        | Pipeline stages already exist — need employer access RPCs |
-| Supabase Storage         | (bucket)                                                     | Resume PDF/DOCX uploads                                   |
-| Service Worker           | (existing PWA)                                               | Push notification foundation                              |
-| Messaging system         | (encrypted)                                                  | Notification delivery channel                             |
+| Table                    | Key Columns                                                                  | Roadmap Relevance                                                         |
+| ------------------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `shared_companies`       | `is_verified`, `business_open_time`, `business_close_time`                   | Company verification tiers, business hours already stored                 |
+| `employer_company_links` | `user_id`, `shared_company_id` (SELECT-only RLS — needs INSERT for claiming) | Company claiming (INSERT policy needed)                                   |
+| `team_members`           | `user_id` (nullable), `email` (NOT NULL)                                     | Invite flow, auto-linking. Note: email is required, not optional          |
+| `team_shifts`            | `user_id` (nullable), `shift_date`, `start_time`, `end_time`                 | Scheduling + time tracking anchor. Gap: no `team_member_id` FK            |
+| `user_profiles`          | `display_name`, `bio`, `avatar_url`, `role`                                  | Worker profile expansion (add resume_url, skills). `role` gates dashboard |
+| `job_applications`       | `status`, `outcome`, `shared_company_id`, `private_company_id`               | Pipeline fully built — employer RLS + Kanban UI exist (Feature 063)       |
+| Supabase Storage         | (bucket)                                                                     | Resume PDF/DOCX/RTF uploads                                               |
+| Service Worker           | (existing PWA)                                                               | Push notification foundation                                              |
+| Messaging system         | (encrypted)                                                                  | Notification delivery channel                                             |
 
 ---
 
