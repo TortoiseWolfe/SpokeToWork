@@ -273,7 +273,10 @@ export default function WeekScheduleGrid({
       </div>
 
       {/* Desktop grid (hidden on mobile) */}
-      <div className="hidden overflow-x-auto md:block">
+      <div
+        className="hidden overflow-x-auto md:block"
+        data-testid="schedule-desktop-grid"
+      >
         <table className="table-sm table w-full" aria-label="Weekly schedule">
           <thead>
             <tr>
@@ -445,7 +448,7 @@ export default function WeekScheduleGrid({
       </div>
 
       {/* Mobile day-by-day list (visible on mobile only) */}
-      <div className="space-y-4 md:hidden">
+      <div className="space-y-4 md:hidden print:hidden">
         {days.map((d, i) => {
           const dayShifts = shifts.filter((s) => s.shift_date === d);
           const isToday = d === new Date().toISOString().slice(0, 10);

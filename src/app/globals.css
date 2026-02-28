@@ -508,102 +508,110 @@ p:not([class*='text-']) {
 }
 
 /* ===== Print Stylesheet — Schedule Grid ===== */
+/* Scoped to pages with [data-print-schedule] to avoid interfering with other pages.
+ * The employer/page.tsx sets this attribute on its container. */
+
+/* Landscape orientation for schedule printing */
+@page schedule {
+  size: landscape;
+  margin: 0.5in;
+}
+
 @media print {
-  /* Hide chrome: nav, footer, buttons, drawers, banners, cookie consent */
+  /* Page-level chrome — always hide in print */
   header,
   footer,
   .drawer-side,
-  .btn,
-  button,
-  [role='button'],
   .cookie-consent,
   .navbar,
   nav,
-  #pwa-install,
-  .loading {
+  #pwa-install {
     display: none !important;
   }
 
-  /* Re-show table cells that use role="button" for shift display */
-  td [role='button'],
-  td div[role='button'] {
-    display: block !important;
-    cursor: default !important;
-  }
-
-  /* Hide mobile view, force desktop table */
-  .md\:hidden {
-    display: none !important;
-  }
-  .hidden.md\:block {
-    display: block !important;
-  }
-
-  /* Remove dark backgrounds — print-friendly white */
-  body,
-  html,
-  main,
+  /* Schedule-scoped rules — only apply inside the schedule grid */
   [data-testid='week-schedule-grid'] {
     background: white !important;
     color: black !important;
   }
 
+  /* Hide interactive controls inside the schedule */
+  [data-testid='week-schedule-grid'] .loading {
+    display: none !important;
+  }
+
+  /* Force desktop table visible (mobile view hidden via print:hidden in component) */
+  [data-testid='schedule-desktop-grid'] {
+    display: block !important;
+  }
+
+  /* Show all content inside table cells — shift blocks, role=button wrappers */
+  [data-testid='week-schedule-grid'] td button,
+  [data-testid='week-schedule-grid'] td [role='button'],
+  [data-testid='week-schedule-grid'] td div[role='button'] {
+    display: block !important;
+    cursor: default !important;
+    color: black !important;
+  }
+
   /* Table styling for print */
-  table {
+  [data-testid='week-schedule-grid'] table {
     width: 100% !important;
     border-collapse: collapse !important;
     font-size: 11pt !important;
   }
 
-  th,
-  td {
+  [data-testid='week-schedule-grid'] th,
+  [data-testid='week-schedule-grid'] td {
     border: 1px solid #ccc !important;
     padding: 4px 6px !important;
     color: black !important;
     background: white !important;
   }
 
-  th {
+  [data-testid='week-schedule-grid'] th {
     background: #f0f0f0 !important;
     font-weight: bold !important;
   }
 
   /* Today highlight — subtle gray instead of theme color */
-  .bg-primary\/5,
-  .bg-primary\/10 {
+  [data-testid='week-schedule-grid'] .bg-primary\/5,
+  [data-testid='week-schedule-grid'] .bg-primary\/10 {
     background: #f5f5f5 !important;
   }
 
   /* Repeat table headers on every printed page */
-  thead {
+  [data-testid='week-schedule-grid'] thead {
     display: table-header-group !important;
   }
 
   /* Prevent rows from splitting across pages */
-  tr {
+  [data-testid='week-schedule-grid'] tr {
     page-break-inside: avoid !important;
   }
 
-  /* Week label as print header */
-  [data-testid='week-schedule-grid'] h2 {
-    display: block !important;
-    font-size: 16pt !important;
-    font-weight: bold !important;
-    text-align: center !important;
-    margin-bottom: 12pt !important;
-    color: black !important;
-  }
-
   /* Remove overflow constraints */
-  .overflow-x-auto,
+  [data-testid='week-schedule-grid'] .overflow-x-auto,
   .overflow-hidden {
     overflow: visible !important;
   }
 
-  /* Landscape orientation for 7-column schedule */
-  @page {
-    size: landscape;
-    margin: 0.5in;
+  /* Employer page: hide tabs, heading, and non-schedule content */
+  [data-print-schedule] [role='tablist'],
+  [data-print-schedule] > .container > h1 {
+    display: none !important;
+  }
+
+  [data-print-schedule] {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Shift block colors — print as bordered with text instead of themed backgrounds */
+  [data-testid='week-schedule-grid'] td button {
+    border: 1px solid #999 !important;
+    background: white !important;
+    padding: 1px 3px !important;
   }
 }
 
