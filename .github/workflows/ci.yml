@@ -97,4 +97,4 @@ jobs:
         run: pnpm build
 
       - name: Build Storybook
-        run: pnpm build-storybook
+        run: rm -rf storybook-static && pnpm build-storybook
