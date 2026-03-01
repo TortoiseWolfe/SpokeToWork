@@ -72,11 +72,16 @@ test.describe('Storybook Visual Audit', () => {
   let stories: StoryEntry[] = [];
 
   test.beforeAll(async () => {
-    stories = await getStoryIds();
+    try {
+      stories = await getStoryIds();
+    } catch {
+      stories = [];
+    }
     console.log(`\nFound ${stories.length} stories to audit\n`);
   });
 
   test('audit all stories', async ({ page, context }) => {
+    test.skip(stories.length === 0, 'Storybook not available — skipping audit');
     test.setTimeout(600_000); // 10 minutes
 
     const issues: Issue[] = [];

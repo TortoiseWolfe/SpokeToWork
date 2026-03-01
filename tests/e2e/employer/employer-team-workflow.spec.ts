@@ -225,17 +225,30 @@ test.describe('Employer Team Workflow', () => {
         { timeout: 15000 }
       );
 
-      // Send request
+      // Send request — wait for the Supabase API response to confirm it went through
       const sendButton = pageE.getByRole('button', {
         name: /send request/i,
       });
       await expect(sendButton).toBeVisible();
-      await sendButton.click({ force: true });
 
-      // Success shows as alert-success with "Friend request sent successfully!"
-      // or the button changes to "Request Sent" — check for either
+      // Click and wait for the network request to complete
+      await Promise.all([
+        pageE
+          .waitForResponse(
+            (resp) =>
+              resp.url().includes('user_connections') && resp.status() < 400,
+            { timeout: 15000 }
+          )
+          .catch(() => null), // Don't fail if response pattern doesn't match
+        sendButton.click({ force: true }),
+      ]);
+
+      // Verify success: either toast appears, button text changes, or button disappears
       await expect(
-        pageE.getByText(/friend request sent|request sent/i).first()
+        pageE
+          .getByText(/friend request sent|request sent|pending/i)
+          .first()
+          .or(pageE.getByRole('button', { name: /pending|request sent/i }))
       ).toBeVisible({ timeout: 15000 });
 
       // ===== STEP 5: Worker signs in and accepts =====

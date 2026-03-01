@@ -40,8 +40,8 @@ test.describe('Homepage Navigation', () => {
       await blogButton.scrollIntoViewIfNeeded();
       await blogButton.click({ force: true });
     } else {
-      // Try nav Blog link
-      const blogNavLink = page.locator('nav a:has-text("Blog")');
+      // Try nav Blog link (use .first() — nav has desktop + mobile instances)
+      const blogNavLink = page.locator('nav a:has-text("Blog")').first();
       if ((await blogNavLink.count()) > 0) {
         await blogNavLink.click();
       } else {
@@ -60,9 +60,7 @@ test.describe('Homepage Navigation', () => {
 
   test('feature badges display correctly', async ({ page }) => {
     // Check that feature badges are visible (on larger screens)
-    const badges = page.locator(
-      '[role="list"][aria-label="Key features"] .badge'
-    );
+    const badges = page.locator('[role="list"][aria-label="Features"] .badge');
     const badgeCount = await badges.count();
 
     // On mobile, badges may be hidden - only check if visible
@@ -77,14 +75,12 @@ test.describe('Homepage Navigation', () => {
 
   test('feature cards are present', async ({ page }) => {
     // Scroll to feature cards section (below hero)
-    const featureSection = page.locator('[aria-label="Key features"]').last();
+    const featureSection = page.locator('[aria-label="Features"]').last();
     await featureSection.scrollIntoViewIfNeeded();
     await page.waitForTimeout(500);
 
     // Check that feature card links exist (cards are links with h3 headings)
-    const featureCardLinks = page.locator(
-      'section[aria-label="Key features"] a'
-    );
+    const featureCardLinks = page.locator('section[aria-label="Features"] a');
     const cardCount = await featureCardLinks.count();
     expect(cardCount).toBeGreaterThanOrEqual(4);
 
