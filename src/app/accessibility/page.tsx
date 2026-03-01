@@ -147,15 +147,19 @@ const settings = {
           {/* Current Settings Display */}
           <div className="stats mt-8 shadow">
             <div className="stat">
-              <div className="stat-title">Current Font Size</div>
+              <div className="stat-title text-base-content">
+                Current Font Size
+              </div>
               <div className="stat-value text-primary">{fontSize}</div>
             </div>
             <div className="stat">
-              <div className="stat-title">Current Line Height</div>
+              <div className="stat-title text-base-content">
+                Current Line Height
+              </div>
               <div className="stat-value text-secondary">{lineHeight}</div>
             </div>
             <div className="stat">
-              <div className="stat-title">Current Font</div>
+              <div className="stat-title text-base-content">Current Font</div>
               <div className="stat-value text-base-content">
                 {fontFamily === 'sans-serif'
                   ? 'Sans'
