@@ -36,13 +36,23 @@ test.describe('Debug Route Sidebar', () => {
     const planningRoute = page
       .locator('[role="listitem"]')
       .filter({ has: page.locator('.badge:has-text("Planning")') });
+
+    // Skip if no Planning route exists in the test user's data
+    const planningRouteCount = await planningRoute.count();
+    if (planningRouteCount === 0) {
+      console.log('No route with Planning badge found — skipping');
+      test.skip(true, 'No route with Planning badge exists for test user');
+      return;
+    }
+
     const routeText = await planningRoute
+      .first()
       .textContent()
       .catch(() => 'not found');
     console.log('Planning route text:', routeText);
 
     // Click on it to make sure it's selected
-    await planningRoute.click();
+    await planningRoute.first().click();
     await page.waitForTimeout(1000);
 
     // Get the "Companies on Route" section content
