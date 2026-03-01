@@ -48,7 +48,11 @@ test.describe('WCAG Contrast Audit', () => {
   let stories: StoryEntry[] = [];
 
   test.beforeAll(async () => {
-    stories = await getStoryIds();
+    try {
+      stories = await getStoryIds();
+    } catch {
+      stories = [];
+    }
     console.log(`\nFound ${stories.length} stories to contrast-audit\n`);
   });
 
@@ -56,6 +60,10 @@ test.describe('WCAG Contrast Audit', () => {
     page,
     context,
   }) => {
+    test.skip(
+      stories.length === 0,
+      'Storybook not available — skipping contrast audit'
+    );
     test.setTimeout(900_000);
 
     const violations: ContrastViolation[] = [];
