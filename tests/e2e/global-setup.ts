@@ -161,11 +161,16 @@ async function ensureAdminUser(): Promise<void> {
       ON CONFLICT DO NOTHING
     `);
 
-    // Step 3: Create user profile
+    // Step 3: Create user profile (use DO UPDATE SET because the
+    // create_user_profile() trigger already fires on auth.users INSERT and
+    // creates a row with NULL username — DO NOTHING would silently skip).
     await executeSQL(`
       INSERT INTO user_profiles (id, username, display_name, welcome_message_sent)
       VALUES ('${ADMIN_USER.id}', '${ADMIN_USER.username}', '${ADMIN_USER.displayName}', true)
-      ON CONFLICT (id) DO NOTHING
+      ON CONFLICT (id) DO UPDATE SET
+        username = EXCLUDED.username,
+        display_name = EXCLUDED.display_name,
+        welcome_message_sent = EXCLUDED.welcome_message_sent
     `);
 
     // Step 4: Generate and store ECDH keys

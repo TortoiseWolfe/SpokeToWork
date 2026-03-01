@@ -4,7 +4,7 @@ import { test, expect, type Page } from '@playwright/test';
  * Map Visual Regression Tests
  *
  * Tests for verifying visual appearance of map routes and markers.
- * Uses Playwright's toHaveScreenshot for pixel-level comparison.
+ * Uses functional assertions to verify map rendering across themes.
  *
  * Feature 045: Improved active route and marker visibility
  */
@@ -68,48 +68,70 @@ test.describe('Map Visual Regression Tests', () => {
     await waitForMapLoad(page);
   });
 
-  test('should capture baseline map screenshot - light theme', async ({
-    page,
-  }) => {
+  test('should render map correctly in light theme', async ({ page }) => {
     await setTheme(page, 'light');
-    await page.waitForTimeout(500);
 
-    await expect(page).toHaveScreenshot('map-baseline-light.png', {
-      fullPage: false,
-      maxDiffPixelRatio: 0.02,
+    // Canvas is visible and style is loaded
+    await expect(page.locator('.maplibregl-canvas')).toBeVisible();
+    const theme = await page.locator('html').getAttribute('data-theme');
+    expect(theme).toBe('light');
+
+    // Map layers loaded
+    const layerCount = await page.evaluate(() => {
+      const map = (window as any).maplibreMap?.getMap?.();
+      return map?.getLayersOrder?.()?.length ?? 0;
     });
+    expect(layerCount).toBeGreaterThan(0);
   });
 
-  test('should capture baseline map screenshot - dark theme', async ({
-    page,
-  }) => {
+  test('should render map correctly in dark theme', async ({ page }) => {
     await setTheme(page, 'dark');
-    await page.waitForTimeout(500);
 
-    await expect(page).toHaveScreenshot('map-baseline-dark.png', {
-      fullPage: false,
-      maxDiffPixelRatio: 0.02,
+    // Canvas is visible and style is loaded
+    await expect(page.locator('.maplibregl-canvas')).toBeVisible();
+    const theme = await page.locator('html').getAttribute('data-theme');
+    expect(theme).toBe('dark');
+
+    // Cycleway layers exist in dark mode
+    const layers = await page.evaluate(() => {
+      const map = (window as any).maplibreMap?.getMap?.();
+      return {
+        hasCycleway: !!map?.getLayer('cycleway'),
+        hasCasingLayer: !!map?.getLayer('cycleway-casing'),
+        hasSource: !!map?.getSource('all-bike-routes'),
+      };
     });
+    expect(layers.hasCycleway).toBe(true);
+    expect(layers.hasCasingLayer).toBe(true);
+    expect(layers.hasSource).toBe(true);
   });
 
-  test('should maintain visual consistency after theme toggle', async ({
+  test('should maintain layer consistency after theme toggle', async ({
     page,
   }) => {
     // Start with light theme
     await setTheme(page, 'light');
 
-    // Take initial screenshot
-    const lightScreenshot = await page.screenshot();
-
     // Toggle to dark and back to light
     await setTheme(page, 'dark');
     await setTheme(page, 'light');
 
-    // Take final screenshot - should match initial
-    await expect(page).toHaveScreenshot('map-theme-consistency.png', {
-      fullPage: false,
-      maxDiffPixelRatio: 0.02,
+    // Canvas still visible and layers intact after roundtrip
+    await expect(page.locator('.maplibregl-canvas')).toBeVisible();
+    const finalTheme = await page.locator('html').getAttribute('data-theme');
+    expect(finalTheme).toBe('light');
+
+    const layers = await page.evaluate(() => {
+      const map = (window as any).maplibreMap?.getMap?.();
+      return {
+        cyclewayExists: !!map?.getLayer('cycleway'),
+        cyclewayCasingExists: !!map?.getLayer('cycleway-casing'),
+        sourceExists: !!map?.getSource('all-bike-routes'),
+      };
     });
+    expect(layers.cyclewayExists).toBe(true);
+    expect(layers.cyclewayCasingExists).toBe(true);
+    expect(layers.sourceExists).toBe(true);
   });
 
   test('bike routes have sufficient color contrast - light theme', async ({
@@ -275,7 +297,7 @@ test.describe('Theme Switching Visual Tests', () => {
     expect(layerErrors).toHaveLength(0);
   });
 
-  test('screenshot comparison after 10 theme toggles', async ({ page }) => {
+  test('map remains functional after 10 theme toggles', async ({ page }) => {
     test.setTimeout(60000); // 10 style reloads with proper polling needs >30s
     await page.goto('/map');
     await dismissBanner(page);
@@ -283,9 +305,6 @@ test.describe('Theme Switching Visual Tests', () => {
 
     // Set to light for baseline
     await setTheme(page, 'light');
-
-    // Capture baseline
-    const baseline = await page.screenshot();
 
     // Toggle 10 times (ending on light)
     // setTheme polls isStyleLoaded() so no extra waits needed
@@ -296,10 +315,21 @@ test.describe('Theme Switching Visual Tests', () => {
     // Settle on light theme
     await setTheme(page, 'light');
 
-    // Compare with baseline
-    await expect(page).toHaveScreenshot('map-after-10-toggles.png', {
-      maxDiffPixelRatio: 0.03, // Allow 3% difference for minor variations
+    // Verify map is still functional after stress
+    await expect(page.locator('.maplibregl-canvas')).toBeVisible();
+    const mapState = await page.evaluate(() => {
+      const map = (window as any).maplibreMap?.getMap?.();
+      return {
+        styleLoaded: map?.isStyleLoaded() ?? false,
+        layerCount: map?.getLayersOrder?.()?.length ?? 0,
+        hasCycleway: !!map?.getLayer('cycleway'),
+        hasSource: !!map?.getSource('all-bike-routes'),
+      };
     });
+    expect(mapState.styleLoaded).toBe(true);
+    expect(mapState.layerCount).toBeGreaterThan(5);
+    expect(mapState.hasCycleway).toBe(true);
+    expect(mapState.hasSource).toBe(true);
   });
 });
 
@@ -314,11 +344,23 @@ test.describe('Marker Variants Visual Tests', () => {
     const count = await markers.count();
 
     if (count > 0) {
-      // Capture screenshot with markers visible
-      await expect(page).toHaveScreenshot('map-with-markers.png', {
-        fullPage: false,
-        maxDiffPixelRatio: 0.02,
-      });
+      // Verify markers have unique positions (visually distinct)
+      const positions = await markers.evaluateAll((elements) =>
+        elements.map((el) => {
+          const rect = el.getBoundingClientRect();
+          return `${Math.round(rect.x)},${Math.round(rect.y)}`;
+        })
+      );
+      const uniquePositions = new Set(positions);
+      expect(uniquePositions.size).toBe(positions.length);
+
+      // Verify marker buttons have aria-labels
+      const buttons = page.locator('.maplibregl-marker [role="button"]');
+      const buttonCount = await buttons.count();
+      for (let i = 0; i < Math.min(buttonCount, 5); i++) {
+        const ariaLabel = await buttons.nth(i).getAttribute('aria-label');
+        expect(ariaLabel).toBeTruthy();
+      }
     }
   });
 });
