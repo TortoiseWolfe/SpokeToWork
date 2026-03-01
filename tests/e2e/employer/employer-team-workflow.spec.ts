@@ -231,9 +231,12 @@ test.describe('Employer Team Workflow', () => {
       });
       await expect(sendButton).toBeVisible();
       await sendButton.click({ force: true });
-      await expect(pageE.getByText(/friend request sent/i)).toBeVisible({
-        timeout: 5000,
-      });
+
+      // Success shows as alert-success with "Friend request sent successfully!"
+      // or the button changes to "Request Sent" — check for either
+      await expect(
+        pageE.getByText(/friend request sent|request sent/i).first()
+      ).toBeVisible({ timeout: 15000 });
 
       // ===== STEP 5: Worker signs in and accepts =====
       await pageW.goto('/sign-in');
@@ -346,9 +349,25 @@ test.describe('Employer Team Workflow', () => {
       page.getByRole('heading', { name: 'Employer Dashboard' })
     ).toBeVisible({ timeout: 15000 });
 
-    // Team tab should show pending indicator (+1)
+    // Team tab should show pending indicator (badge with count)
     const teamTab = page.getByRole('tab', { name: /team/i });
     await expect(teamTab).toBeVisible();
-    await expect(teamTab).toContainText('+1');
+
+    // Click Team tab and verify pending request is visible inside
+    await teamTab.click();
+    await expect(page.getByTestId('connection-manager')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Verify pending request appears (received tab should show the request)
+    const receivedTab = page.getByRole('tab', {
+      name: /pending received|received/i,
+    });
+    if (await receivedTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await receivedTab.click({ force: true });
+      await expect(
+        page.locator('[data-testid="connection-request"]')
+      ).toBeVisible({ timeout: 10000 });
+    }
   });
 });

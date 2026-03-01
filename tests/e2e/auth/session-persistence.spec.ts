@@ -119,10 +119,17 @@ test.describe('Session Persistence E2E', () => {
     await page.getByRole('button', { name: 'Sign In' }).click();
     await page.waitForURL(/\/profile/);
 
-    // Get initial access token
+    // Get initial access token (Supabase SSR key: sb-{ref}-auth-token)
     const initialToken = await page.evaluate(() => {
-      const data = localStorage.getItem('supabase.auth.token');
-      return data ? JSON.parse(data).access_token : null;
+      const keys = Object.keys(localStorage);
+      const authKey = keys.find((k) => k.match(/^sb-.*-auth-token$/));
+      if (!authKey) return null;
+      try {
+        const data = JSON.parse(localStorage.getItem(authKey)!);
+        return data.access_token ?? null;
+      } catch {
+        return null;
+      }
     });
 
     // Wait a short time (in real scenario, wait closer to expiry)
@@ -134,8 +141,15 @@ test.describe('Session Persistence E2E', () => {
 
     // Get current token
     const currentToken = await page.evaluate(() => {
-      const data = localStorage.getItem('supabase.auth.token');
-      return data ? JSON.parse(data).access_token : null;
+      const keys = Object.keys(localStorage);
+      const authKey = keys.find((k) => k.match(/^sb-.*-auth-token$/));
+      if (!authKey) return null;
+      try {
+        const data = JSON.parse(localStorage.getItem(authKey)!);
+        return data.access_token ?? null;
+      } catch {
+        return null;
+      }
     });
 
     // Tokens might be same if not near expiry, but refresh mechanism should exist
@@ -197,10 +211,11 @@ test.describe('Session Persistence E2E', () => {
     await page.waitForURL(/\/profile/);
 
     // Verify localStorage has session data
+    // Supabase SSR stores auth as `sb-{project-ref}-auth-token`, not `supabase`
     const beforeSignOut = await page.evaluate(() =>
       JSON.stringify(window.localStorage)
     );
-    expect(beforeSignOut).toContain('supabase');
+    expect(beforeSignOut).toMatch(/sb-.*-auth-token/);
 
     // Sign out (with verify: false since we verify manually below)
     await signOut(page, { verify: false });
@@ -213,9 +228,19 @@ test.describe('Session Persistence E2E', () => {
     );
 
     // Session data should be removed or cleared
+    // Supabase SSR uses `sb-{ref}-auth-token` key, not `supabase.auth.token`
     const hasActiveSession = await page.evaluate(() => {
-      const authData = localStorage.getItem('supabase.auth.token');
-      return authData && JSON.parse(authData).access_token;
+      const keys = Object.keys(localStorage);
+      const authKey = keys.find((k) => k.match(/^sb-.*-auth-token$/));
+      if (!authKey) return false;
+      const authData = localStorage.getItem(authKey);
+      if (!authData) return false;
+      try {
+        const parsed = JSON.parse(authData);
+        return !!parsed.access_token;
+      } catch {
+        return false;
+      }
     });
 
     expect(hasActiveSession).toBeFalsy();
@@ -304,13 +329,21 @@ test.describe('Session Persistence E2E', () => {
     await page.getByRole('button', { name: 'Sign In' }).click();
     await page.waitForURL(/\/profile/);
 
-    // Clear refresh token to simulate expired session
+    // Clear refresh token to simulate expired session (Supabase SSR key format)
     await page.evaluate(() => {
-      const data = localStorage.getItem('supabase.auth.token');
-      if (data) {
-        const parsed = JSON.parse(data);
-        delete parsed.refresh_token;
-        localStorage.setItem('supabase.auth.token', JSON.stringify(parsed));
+      const keys = Object.keys(localStorage);
+      const authKey = keys.find((k) => k.match(/^sb-.*-auth-token$/));
+      if (authKey) {
+        const data = localStorage.getItem(authKey);
+        if (data) {
+          try {
+            const parsed = JSON.parse(data);
+            delete parsed.refresh_token;
+            localStorage.setItem(authKey, JSON.stringify(parsed));
+          } catch {
+            // ignore parse errors
+          }
+        }
       }
     });
 
