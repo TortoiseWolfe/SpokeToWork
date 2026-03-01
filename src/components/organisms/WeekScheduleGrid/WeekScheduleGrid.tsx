@@ -27,10 +27,17 @@ export interface WeekScheduleGridProps {
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+function toLocalDate(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr + 'T00:00:00');
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return toLocalDate(d);
 }
 
 function formatDateShort(dateStr: string): string {
@@ -334,7 +341,7 @@ export default function WeekScheduleGrid({
             <tr>
               <th className="w-32">Team Member</th>
               {days.map((d, i) => {
-                const isToday = d === new Date().toISOString().slice(0, 10);
+                const isToday = d === toLocalDate(new Date());
                 return (
                   <th
                     key={d}
@@ -409,7 +416,7 @@ export default function WeekScheduleGrid({
                 </td>
                 {days.map((d) => {
                   const cellShifts = getShiftsFor(member.user_id, d);
-                  const isToday = d === new Date().toISOString().slice(0, 10);
+                  const isToday = d === toLocalDate(new Date());
                   return (
                     <td
                       key={d}
@@ -503,7 +510,7 @@ export default function WeekScheduleGrid({
       <div className="space-y-4 md:hidden print:hidden">
         {days.map((d, i) => {
           const dayShifts = shifts.filter((s) => s.shift_date === d);
-          const isToday = d === new Date().toISOString().slice(0, 10);
+          const isToday = d === toLocalDate(new Date());
           return (
             <div
               key={d}

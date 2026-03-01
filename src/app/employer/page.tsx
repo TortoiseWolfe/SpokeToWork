@@ -247,7 +247,10 @@ export default function EmployerPage() {
     const prevWeekStart = (() => {
       const d = new Date(weekStart + 'T00:00:00');
       d.setDate(d.getDate() - 7);
-      return d.toISOString().slice(0, 10);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     })();
     return copyWeekShifts(prevWeekStart);
   }, [weekStart, copyWeekShifts]);
@@ -414,7 +417,13 @@ export default function EmployerPage() {
               businessHours={businessHours}
               onPrevWeek={prevWeek}
               onNextWeek={nextWeek}
-              onToday={() => goToDate(new Date().toISOString().slice(0, 10))}
+              onToday={() => {
+                const now = new Date();
+                const y = now.getFullYear();
+                const m = String(now.getMonth() + 1).padStart(2, '0');
+                const dy = String(now.getDate()).padStart(2, '0');
+                goToDate(`${y}-${m}-${dy}`);
+              }}
               onAddShift={handleAddShift}
               onEditShift={handleEditShift}
               onRefresh={refreshSchedule}

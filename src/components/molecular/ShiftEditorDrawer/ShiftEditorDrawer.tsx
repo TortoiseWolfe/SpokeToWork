@@ -65,7 +65,16 @@ export default function ShiftEditorDrawer({
       setNotes(shift.notes ?? '');
     } else {
       setUserId(defaultUserId ?? '');
-      setShiftDate(defaultDate ?? new Date().toISOString().slice(0, 10));
+      setShiftDate(
+        defaultDate ??
+          (() => {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const dy = String(now.getDate()).padStart(2, '0');
+            return `${y}-${m}-${dy}`;
+          })()
+      );
       setStartTime('09:00');
       setEndTime('17:00');
       setShiftType('regular');
