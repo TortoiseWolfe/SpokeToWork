@@ -361,7 +361,7 @@ INSERT INTO auth.users (
   confirmation_token, email_change, email_change_token_new, recovery_token
 ) VALUES (
   gen_random_uuid(),
-  'test@example.com',
+  'your-test-user@your-domain.com',
   crypt('PASSWORD_FROM_ENV', gen_salt('bf')),
   NOW(), NOW(), NOW(),
   '00000000-0000-0000-0000-000000000000',
@@ -378,9 +378,9 @@ INSERT INTO auth.identities (
 ) VALUES (
   gen_random_uuid(),
   '<user_id_from_above>',
-  'test@example.com',
+  'your-test-user@your-domain.com',
   'email',
-  '{"sub":"<user_id>","email":"test@example.com","email_verified":true}'::jsonb,
+  '{"sub":"<user_id>","email":"your-test-user@your-domain.com","email_verified":true}'::jsonb,
   NOW(), NOW(), NOW()
 );
 ```
