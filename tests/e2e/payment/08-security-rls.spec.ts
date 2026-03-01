@@ -74,7 +74,6 @@ test.describe('Row Level Security Policies', () => {
   });
 
   test('should prevent users from deleting payment_results', async () => {
-    test.fail(true, 'payment_results table may not exist');
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     // Try to delete a payment result
@@ -91,7 +90,6 @@ test.describe('Row Level Security Policies', () => {
   });
 
   test('should allow service role to write payment data', async () => {
-    test.fail(true, 'payment_intents table may not exist');
     // This test would use service role key
     // Skip if not in test environment
 
@@ -157,7 +155,6 @@ test.describe('Row Level Security Policies', () => {
   });
 
   test('should prevent SQL injection in payment queries', async () => {
-    test.fail(true, 'payment_intents table may not exist');
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     // Try SQL injection in email field

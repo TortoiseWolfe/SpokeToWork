@@ -78,8 +78,10 @@ async function getUserIds(client: SupabaseClient) {
 async function ensureEmployerSetup(client: SupabaseClient) {
   const { employerId, workerId } = await getUserIds(client);
   if (!employerId || !workerId) {
-    console.warn('ensureEmployerSetup: Could not find user IDs');
-    return;
+    throw new Error(
+      `Test users not found in auth.users (employer=${employerId}, worker=${workerId}). ` +
+        `Ensure TEST_USER_PRIMARY_EMAIL and TEST_USER_TERTIARY_EMAIL exist.`
+    );
   }
 
   // Ensure employer profile with role='employer'
@@ -151,6 +153,10 @@ async function cleanup(client: SupabaseClient) {
 }
 
 test.describe('Employer Team Workflow', () => {
+  // Clear inherited storage state — tests use separate browser contexts
+  // with explicit sign-in for each user (employer + worker).
+  test.use({ storageState: { cookies: [], origins: [] } });
+
   test.beforeEach(async () => {
     const client = getAdminClient();
     if (!client) {

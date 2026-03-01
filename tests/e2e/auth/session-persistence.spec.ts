@@ -20,6 +20,10 @@ import {
 import { loginAndVerify, signOut } from '../utils/auth-helpers';
 
 test.describe('Session Persistence E2E', () => {
+  // Clear inherited storage state from 'chromium' project so tests can
+  // navigate to /sign-in and sign in as a freshly-created test user.
+  test.use({ storageState: { cookies: [], origins: [] } });
+
   let testUser: { id: string; email: string; password: string };
 
   test.beforeAll(async () => {
