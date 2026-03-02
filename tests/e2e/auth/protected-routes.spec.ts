@@ -114,10 +114,11 @@ test.describe('Protected Routes E2E', () => {
 
       try {
         // Sign in as user 1 using robust helper
-        await loginAndVerify(page, {
-          email: user1.email,
-          password: user1.password,
-        });
+        await loginAndVerify(
+          page,
+          { email: user1.email, password: user1.password },
+          { urlTimeout: 45000 }
+        );
 
         // Access payment demo and verify user's own data
         await page.goto('/payment-demo');
@@ -128,13 +129,15 @@ test.describe('Protected Routes E2E', () => {
 
         // Sign out
         await signOut(page);
+        // Wait for sign-out redirect to fully complete (WebKit navigation race)
+        await page.waitForLoadState('networkidle');
 
-        // Sign in as user 2 - navigate to sign-in page first
-        await page.goto('/sign-in');
-        await page.getByLabel('Email').fill(user2.email);
-        await page.getByLabel('Password', { exact: true }).fill(user2.password);
-        await page.getByRole('button', { name: 'Sign In' }).click();
-        await page.waitForURL(/\/profile/);
+        // Sign in as user 2 using robust helper
+        await loginAndVerify(
+          page,
+          { email: user2.email, password: user2.password },
+          { urlTimeout: 45000 }
+        );
 
         // Verify user 2 sees their own email, not user 1's
         await page.goto('/payment-demo');

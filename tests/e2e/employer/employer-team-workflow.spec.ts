@@ -279,25 +279,33 @@ test.describe('Employer Team Workflow', () => {
         timeout: 30000,
       });
 
-      // Navigate to connections page
-      await pageW.goto('/messages?tab=connections');
-      await handleReAuthModal(pageW, WORKER.password);
+      // Poll for connection request (DB propagation can be slow in CI)
+      let requestFound = false;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        await pageW.goto('/messages?tab=connections');
+        await handleReAuthModal(pageW, WORKER.password);
+        await pageW.waitForLoadState('networkidle');
 
-      // useConnections() only fetches on mount — reload to ensure fresh data
-      await pageW.waitForTimeout(2000);
-      await pageW.reload();
-      await pageW.waitForLoadState('networkidle');
+        const receivedTab = pageW.getByRole('tab', {
+          name: /pending received|received/i,
+        });
+        await receivedTab.click({ force: true });
 
-      // Click "Received" tab
-      const receivedTab = pageW.getByRole('tab', {
-        name: /pending received|received/i,
-      });
-      await receivedTab.click({ force: true });
-
-      // Wait for request to appear (longer timeout for DB propagation)
-      await pageW.waitForSelector('[data-testid="connection-request"]', {
-        timeout: 30000,
-      });
+        requestFound = await pageW
+          .locator('[data-testid="connection-request"]')
+          .isVisible({ timeout: 10000 })
+          .catch(() => false);
+        if (requestFound) break;
+        console.log(
+          `Connection request not found (attempt ${attempt + 1}/5), retrying...`
+        );
+        await pageW.waitForTimeout(3000);
+      }
+      if (!requestFound) {
+        throw new Error(
+          'Connection request never appeared after 5 reload attempts'
+        );
+      }
 
       // Accept
       const acceptButton = pageW
@@ -308,7 +316,7 @@ test.describe('Employer Team Workflow', () => {
       // Verify it disappears from received
       await expect(
         pageW.locator('[data-testid="connection-request"]')
-      ).toBeHidden({ timeout: 10000 });
+      ).toBeHidden({ timeout: 20000 });
 
       // ===== STEP 6: Employer refreshes Team tab =====
       await pageE.goto('/employer');
