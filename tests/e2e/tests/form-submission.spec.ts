@@ -229,7 +229,8 @@ test.describe('Form Submission', () => {
         style.position === 'absolute' ||
         style.clip === 'rect(0px, 0px, 0px, 0px)' ||
         el.parentElement?.classList.contains('sr-only') ||
-        style.height === '0px'
+        style.height === '0px' ||
+        parseInt(style.left) < -9000
       );
     });
 

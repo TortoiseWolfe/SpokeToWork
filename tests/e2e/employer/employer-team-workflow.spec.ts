@@ -269,6 +269,33 @@ test.describe('Employer Team Workflow', () => {
         );
       }
 
+      // ===== STEP 4b: Verify connection exists in DB before worker checks =====
+      const verifyClient = getAdminClient()!;
+      const { employerId, workerId } = await getUserIds(verifyClient);
+      let connectionVerified = false;
+      for (let i = 0; i < 10; i++) {
+        const { data } = await verifyClient
+          .from('user_connections')
+          .select('status')
+          .eq('requester_id', employerId!)
+          .eq('addressee_id', workerId!)
+          .maybeSingle();
+        if (data?.status === 'pending') {
+          connectionVerified = true;
+          break;
+        }
+        console.log(
+          `DB verification attempt ${i + 1}/10: connection not yet visible`
+        );
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+      if (!connectionVerified) {
+        throw new Error(
+          'Connection request not found in DB after employer sent it'
+        );
+      }
+      console.log('Connection verified in DB — proceeding to worker');
+
       // ===== STEP 5: Worker signs in and accepts =====
       await pageW.goto('/sign-in');
       await pageW.waitForLoadState('networkidle');
@@ -279,9 +306,14 @@ test.describe('Employer Team Workflow', () => {
         timeout: 30000,
       });
 
-      // Poll for connection request (DB propagation can be slow in CI)
+      // Verify worker auth is fully hydrated before checking connections
+      await pageW.goto('/profile');
+      await pageW.waitForLoadState('networkidle');
+      await pageW.waitForTimeout(2000);
+
+      // Poll for connection request (useConnections hook fetches on mount)
       let requestFound = false;
-      for (let attempt = 0; attempt < 5; attempt++) {
+      for (let attempt = 0; attempt < 8; attempt++) {
         await pageW.goto('/messages?tab=connections');
         await handleReAuthModal(pageW, WORKER.password);
         await pageW.waitForLoadState('networkidle');
@@ -297,13 +329,13 @@ test.describe('Employer Team Workflow', () => {
           .catch(() => false);
         if (requestFound) break;
         console.log(
-          `Connection request not found (attempt ${attempt + 1}/5), retrying...`
+          `Connection request not found (attempt ${attempt + 1}/8), retrying...`
         );
         await pageW.waitForTimeout(3000);
       }
       if (!requestFound) {
         throw new Error(
-          'Connection request never appeared after 5 reload attempts'
+          'Connection request never appeared after 8 reload attempts'
         );
       }
 
