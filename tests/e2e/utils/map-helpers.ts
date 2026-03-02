@@ -35,7 +35,7 @@ export async function waitForMapReady(
     .poll(
       async () => {
         return page.evaluate(() => {
-          const map = (window as any).maplibreMap?.getMap?.();
+          const map = (window as any).maplibreMap;
           if (!map) return false;
           // isStyleLoaded() returns true when all sources and layers are ready
           return map.isStyleLoaded();
@@ -67,7 +67,7 @@ export async function waitForRouteLayers(
     .poll(
       async () => {
         return page.evaluate(() => {
-          const map = (window as any).maplibreMap?.getMap?.();
+          const map = (window as any).maplibreMap;
           if (!map) return false;
 
           const style = map.getStyle();
@@ -94,7 +94,7 @@ export async function getMapCenter(
   page: Page
 ): Promise<[number, number] | null> {
   return page.evaluate(() => {
-    const map = (window as any).maplibreMap?.getMap?.();
+    const map = (window as any).maplibreMap;
     if (!map) return null;
     const center = map.getCenter();
     return [center.lng, center.lat];
@@ -109,7 +109,7 @@ export async function getMapCenter(
  */
 export async function getMapZoom(page: Page): Promise<number | null> {
   return page.evaluate(() => {
-    const map = (window as any).maplibreMap?.getMap?.();
+    const map = (window as any).maplibreMap;
     if (!map) return null;
     return map.getZoom();
   });

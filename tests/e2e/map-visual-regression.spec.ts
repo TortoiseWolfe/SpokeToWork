@@ -31,7 +31,7 @@ async function waitForMapLoad(page: Page, timeout = 30000) {
     .poll(
       async () => {
         return page.evaluate(() => {
-          const map = (window as any).maplibreMap?.getMap?.();
+          const map = (window as any).maplibreMap;
           return map ? map.isStyleLoaded() : false;
         });
       },
@@ -50,7 +50,7 @@ async function setTheme(page: Page, theme: 'light' | 'dark') {
     .poll(
       async () => {
         return page.evaluate(() => {
-          const map = (window as any).maplibreMap?.getMap?.();
+          const map = (window as any).maplibreMap;
           return map ? map.isStyleLoaded() : false;
         });
       },
@@ -79,7 +79,7 @@ test.describe('Map Visual Regression Tests', () => {
 
     // Map layers loaded
     const layerCount = await page.evaluate(() => {
-      const map = (window as any).maplibreMap?.getMap?.();
+      const map = (window as any).maplibreMap;
       return map?.getLayersOrder?.()?.length ?? 0;
     });
     expect(layerCount).toBeGreaterThan(0);
@@ -95,7 +95,7 @@ test.describe('Map Visual Regression Tests', () => {
 
     // Cycleway layers exist in dark mode
     const layers = await page.evaluate(() => {
-      const map = (window as any).maplibreMap?.getMap?.();
+      const map = (window as any).maplibreMap;
       return {
         hasCycleway: !!map?.getLayer('cycleway'),
         hasCasingLayer: !!map?.getLayer('cycleway-casing'),
@@ -123,7 +123,7 @@ test.describe('Map Visual Regression Tests', () => {
     expect(finalTheme).toBe('light');
 
     const layers = await page.evaluate(() => {
-      const map = (window as any).maplibreMap?.getMap?.();
+      const map = (window as any).maplibreMap;
       return {
         cyclewayExists: !!map?.getLayer('cycleway'),
         cyclewayCasingExists: !!map?.getLayer('cycleway-casing'),
@@ -142,7 +142,7 @@ test.describe('Map Visual Regression Tests', () => {
 
     // Check that bike route layers exist and have correct colors
     const routeColors = await page.evaluate(() => {
-      const map = (window as any).maplibreMap?.getMap?.();
+      const map = (window as any).maplibreMap;
       if (!map) return null;
 
       // Get the cycleway layer paint properties
@@ -167,7 +167,7 @@ test.describe('Map Visual Regression Tests', () => {
 
     // Check that bike route layers exist with dark theme styling
     const routeColors = await page.evaluate(() => {
-      const map = (window as any).maplibreMap?.getMap?.();
+      const map = (window as any).maplibreMap;
       if (!map) return null;
 
       return {
@@ -228,7 +228,7 @@ test.describe('Route Layer Visibility', () => {
     page,
   }) => {
     const layerInfo = await page.evaluate(() => {
-      const map = (window as any).maplibreMap?.getMap?.();
+      const map = (window as any).maplibreMap;
       if (!map) return null;
 
       const source = map.getSource('all-bike-routes');
@@ -249,7 +249,7 @@ test.describe('Route Layer Visibility', () => {
 
   test('cycleway layers render from vector tiles', async ({ page }) => {
     const layerInfo = await page.evaluate(() => {
-      const map = (window as any).maplibreMap?.getMap?.();
+      const map = (window as any).maplibreMap;
       if (!map) return null;
 
       return {
@@ -319,7 +319,7 @@ test.describe('Theme Switching Visual Tests', () => {
     // Verify map is still functional after stress
     await expect(page.locator('.maplibregl-canvas')).toBeVisible();
     const mapState = await page.evaluate(() => {
-      const map = (window as any).maplibreMap?.getMap?.();
+      const map = (window as any).maplibreMap;
       return {
         styleLoaded: map?.isStyleLoaded() ?? false,
         layerCount: map?.getLayersOrder?.()?.length ?? 0,

@@ -359,7 +359,7 @@ test.describe('Flow 1: Email/Password Signup → Welcome Message', () => {
   test('New user sign-in triggers key initialization and welcome message', async ({
     page,
   }) => {
-    test.setTimeout(90000); // Key creation polling can take up to 20s in CI
+    test.setTimeout(120000); // Key creation polling can take up to 45s on Firefox CI
     const testEmail = `e2e-flow1-${Date.now()}@mailinator.com`;
     let testUserId: string | null = null;
 
@@ -405,13 +405,13 @@ test.describe('Flow 1: Email/Password Signup → Welcome Message', () => {
       }
       console.log(`Signed in, URL: ${page.url()}`);
 
-      // Poll for async operations (key generation, welcome message) — CI can be slow
+      // Poll for async operations (key generation, welcome message) — Firefox CI can be very slow
       let keysAfterSignIn = false;
-      for (let attempt = 0; attempt < 10; attempt++) {
-        await page.waitForTimeout(2000);
+      for (let attempt = 0; attempt < 15; attempt++) {
+        await page.waitForTimeout(3000);
         keysAfterSignIn = await hasEncryptionKeys(testUserId);
         if (keysAfterSignIn) break;
-        console.log(`Keys not yet created (attempt ${attempt + 1}/10)...`);
+        console.log(`Keys not yet created (attempt ${attempt + 1}/15)...`);
       }
       console.log(`Keys created: ${keysAfterSignIn}`);
       expect(keysAfterSignIn).toBe(true);
@@ -464,7 +464,15 @@ test.describe('Flow 4: Account Deletion', () => {
       await page.locator('#password').fill(TEST_PASSWORD);
       await page.getByRole('button', { name: /sign in/i }).click();
 
-      await page.waitForURL(/\/(profile|companies)/, { timeout: 20000 });
+      // WebKit/Firefox may not detect window.location.href hard navigation
+      try {
+        await page.waitForURL(/\/(profile|companies)/, { timeout: 30000 });
+      } catch {
+        await page.waitForLoadState('networkidle');
+        if (page.url().includes('/sign-in')) {
+          throw new Error('Sign-in redirect failed after 30s');
+        }
+      }
       await page.waitForTimeout(3000);
 
       // Dismiss floating UI on account page too
@@ -617,6 +625,7 @@ test.describe('Flow 4: Account Deletion', () => {
 
 test.describe('Flow 5: Sign Out and Sign Back In', () => {
   test('Sign out clears session, sign in restores access', async ({ page }) => {
+    test.setTimeout(120000); // Two sign-ins + key polling on Firefox CI
     const testEmail = `e2e-flow5-${Date.now()}@mailinator.com`;
     let testUserId: string | null = null;
 
@@ -637,13 +646,27 @@ test.describe('Flow 5: Sign Out and Sign Back In', () => {
       await page.locator('#password').fill(TEST_PASSWORD);
       await page.getByRole('button', { name: /sign in/i }).click();
 
-      await page.waitForURL(/\/(profile|companies)/, { timeout: 20000 });
+      // WebKit/Firefox may not detect window.location.href hard navigation
+      try {
+        await page.waitForURL(/\/(profile|companies)/, { timeout: 30000 });
+      } catch {
+        await page.waitForLoadState('networkidle');
+        if (page.url().includes('/sign-in')) {
+          throw new Error('First sign-in redirect failed after 30s');
+        }
+      }
       await page.waitForTimeout(3000);
 
       console.log('First sign-in successful');
 
-      // Verify keys exist
-      const keysAfterFirstSignIn = await hasEncryptionKeys(testUserId);
+      // Poll for keys — Firefox CI can be slow creating encryption keys
+      let keysAfterFirstSignIn = false;
+      for (let attempt = 0; attempt < 15; attempt++) {
+        await page.waitForTimeout(3000);
+        keysAfterFirstSignIn = await hasEncryptionKeys(testUserId);
+        if (keysAfterFirstSignIn) break;
+        console.log(`Keys not yet created (attempt ${attempt + 1}/15)...`);
+      }
       expect(keysAfterFirstSignIn).toBe(true);
       console.log('Keys created after first sign-in');
 
@@ -685,7 +708,15 @@ test.describe('Flow 5: Sign Out and Sign Back In', () => {
         await page.locator('#password').fill(TEST_PASSWORD);
         await page.getByRole('button', { name: /sign in/i }).click();
 
-        await page.waitForURL(/\/(profile|companies)/, { timeout: 20000 });
+        // WebKit/Firefox may not detect window.location.href hard navigation
+        try {
+          await page.waitForURL(/\/(profile|companies)/, { timeout: 30000 });
+        } catch {
+          await page.waitForLoadState('networkidle');
+          if (page.url().includes('/sign-in')) {
+            throw new Error('Second sign-in redirect failed after 30s');
+          }
+        }
         await page.waitForTimeout(3000);
 
         console.log('Second sign-in successful');
