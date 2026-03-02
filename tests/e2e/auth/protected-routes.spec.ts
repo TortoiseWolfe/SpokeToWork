@@ -57,7 +57,8 @@ test.describe('Protected Routes E2E', () => {
 
         // Wait for client-side redirect - protected routes redirect via AuthGuard
         // Use longer timeout since redirect happens client-side after hydration
-        await page.waitForURL(/\/sign-in/, { timeout: 15000 });
+        // Firefox/WebKit can be slower for client-side auth state detection
+        await page.waitForURL(/\/sign-in/, { timeout: 30000 });
         await expect(page).toHaveURL(/\/sign-in/);
       }
     });

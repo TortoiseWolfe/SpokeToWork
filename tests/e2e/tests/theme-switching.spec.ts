@@ -69,7 +69,7 @@ test.describe('Theme Switching', () => {
     await expect(page).toHaveURL(/.*themes/);
 
     // Check that theme buttons are visible in main content
-    const themeButton = page.locator('main button:text-is("light")').first();
+    const themeButton = page.locator('main button[data-theme="light"]').first();
     await expect(themeButton).toBeVisible();
   });
 
@@ -78,7 +78,9 @@ test.describe('Theme Switching', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Find and click the dark theme button in main content (not navbar dropdown)
-    const darkThemeButton = page.locator('main button:text-is("dark")').first();
+    const darkThemeButton = page
+      .locator('main button[data-theme="dark"]')
+      .first();
     await darkThemeButton.scrollIntoViewIfNeeded();
     await darkThemeButton.click();
 
@@ -99,14 +101,16 @@ test.describe('Theme Switching', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // First set to dark theme (in main content, not navbar dropdown)
-    const darkThemeButton = page.locator('main button:text-is("dark")').first();
+    const darkThemeButton = page
+      .locator('main button[data-theme="dark"]')
+      .first();
     await darkThemeButton.scrollIntoViewIfNeeded();
     await darkThemeButton.click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
     // Then switch back to light
     const lightThemeButton = page
-      .locator('main button:text-is("light")')
+      .locator('main button[data-theme="light"]')
       .first();
     await lightThemeButton.scrollIntoViewIfNeeded();
     await lightThemeButton.click();
@@ -124,7 +128,7 @@ test.describe('Theme Switching', () => {
 
     // Set synthwave theme (in main content, not navbar dropdown)
     const synthwaveButton = page
-      .locator('main button:text-is("synthwave")')
+      .locator('main button[data-theme="synthwave"]')
       .first();
     await synthwaveButton.scrollIntoViewIfNeeded();
     await synthwaveButton.click();
@@ -151,7 +155,9 @@ test.describe('Theme Switching', () => {
     const searchInput = page.locator('input[placeholder*="Search"]');
     if ((await searchInput.count()) === 0) {
       // No search functionality - just check theme buttons exist in main content
-      const cyberpunkButton = page.locator('main button:text-is("cyberpunk")');
+      const cyberpunkButton = page.locator(
+        'main button[data-theme="cyberpunk"]'
+      );
       await expect(cyberpunkButton).toBeVisible();
       return;
     }
@@ -161,7 +167,7 @@ test.describe('Theme Switching', () => {
     await page.waitForTimeout(200);
 
     // Check that cyberpunk theme is visible in main content
-    const cyberpunkButton = page.locator('main button:text-is("cyberpunk")');
+    const cyberpunkButton = page.locator('main button[data-theme="cyberpunk"]');
     await expect(cyberpunkButton).toBeVisible();
   });
 
@@ -170,7 +176,7 @@ test.describe('Theme Switching', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Check that theme buttons exist in main content
-    const themeButtons = page.locator('main button:text-is("light")');
+    const themeButtons = page.locator('main button[data-theme="light"]');
     await expect(themeButtons.first()).toBeVisible();
 
     // Check for color preview elements
@@ -187,7 +193,7 @@ test.describe('Theme Switching', () => {
 
     // Set dracula theme (in main content, not navbar dropdown)
     const draculaButton = page
-      .locator('main button:text-is("dracula")')
+      .locator('main button[data-theme="dracula"]')
       .first();
     await draculaButton.scrollIntoViewIfNeeded();
     await draculaButton.click();
@@ -224,7 +230,7 @@ test.describe('Theme Switching', () => {
 
       // Click in main content (not navbar dropdown)
       const themeButton = page
-        .locator(`main button:text-is("${theme}")`)
+        .locator(`main button[data-theme="${theme}"]`)
         .first();
       await themeButton.scrollIntoViewIfNeeded();
       await themeButton.click();

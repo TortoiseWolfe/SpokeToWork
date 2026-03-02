@@ -21,7 +21,8 @@ async function dismissBanner(page: Page) {
 }
 
 // Helper to wait for map to fully load (polls for style readiness)
-async function waitForMapLoad(page: Page, timeout = 15000) {
+// Use 30s timeout — Firefox/WebKit in CI can be slow loading external tile styles
+async function waitForMapLoad(page: Page, timeout = 30000) {
   await page.waitForSelector('.maplibregl-canvas', {
     state: 'visible',
     timeout,
@@ -55,7 +56,7 @@ async function setTheme(page: Page, theme: 'light' | 'dark') {
       },
       {
         message: 'Waiting for map style reload after theme change',
-        timeout: 10000,
+        timeout: 20000,
       }
     )
     .toBe(true);
