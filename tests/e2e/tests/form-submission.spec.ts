@@ -222,15 +222,25 @@ test.describe('Form Submission', () => {
     // Should exist but be visually hidden
     await expect(honeypotLabel).toBeAttached();
 
-    // The parent container should have sr-only or similar
+    // Verify the parent container is positioned offscreen.
+    // Uses getBoundingClientRect as cross-browser fallback because
+    // WebKit's getComputedStyle().left may return "auto" for absolutely
+    // positioned elements, causing parseInt() to return NaN.
     const isHidden = await honeypotLabel.evaluate((el) => {
-      const style = window.getComputedStyle(el.parentElement!);
+      const parent = el.parentElement!;
+      const style = window.getComputedStyle(parent);
+      const leftValue = parseFloat(style.left);
+      const isOffscreenLeft = !isNaN(leftValue) && leftValue < -9000;
+      const rect = parent.getBoundingClientRect();
+      const isOffscreenRect = rect.right < 0;
+
       return (
         style.position === 'absolute' ||
         style.clip === 'rect(0px, 0px, 0px, 0px)' ||
-        el.parentElement?.classList.contains('sr-only') ||
+        parent.classList.contains('sr-only') ||
         style.height === '0px' ||
-        parseInt(style.left) < -9000
+        isOffscreenLeft ||
+        isOffscreenRect
       );
     });
 

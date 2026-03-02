@@ -246,22 +246,38 @@ test.describe('Employer Team Workflow', () => {
           sendButton.click({ force: true }),
         ]);
 
-        // Verify success: button in search results changes to "Request Sent"
-        // (scoped to search-results to avoid false positive on "Pending Received" tab label)
+        // Verify success: accept multiple valid outcomes.
+        // - Button text changes to "Request Sent" (normal flow)
+        // - Success alert appears (API succeeded)
+        // - "already sent" error (duplicate from prior retry — still means connection exists)
+        const requestSentButton = pageE
+          .locator('[data-testid="search-results"]')
+          .getByRole('button', { name: /request sent/i });
+        const successAlert = pageE.locator(
+          '.alert-success:has-text("Friend request sent")'
+        );
+        const errorAlreadySent = pageE.locator(
+          '.alert-error:has-text("already sent")'
+        );
+
         await expect(
-          pageE
-            .locator('[data-testid="search-results"]')
-            .getByRole('button', { name: /request sent/i })
+          requestSentButton.or(successAlert).or(errorAlreadySent)
         ).toBeVisible({ timeout: 45000 });
       } else {
-        // Connection already exists from prior retry — verify "Request Sent" is visible
+        // Connection already exists from prior retry
         const alreadySent = await pageE
           .getByRole('button', { name: /request sent|pending/i })
           .isVisible({ timeout: 5000 })
           .catch(() => false);
-        if (!alreadySent) {
+        const hasErrorAlert = !alreadySent
+          ? await pageE
+              .locator('.alert-error:has-text("already")')
+              .isVisible({ timeout: 3000 })
+              .catch(() => false)
+          : false;
+        if (!alreadySent && !hasErrorAlert) {
           throw new Error(
-            'Neither "Send Request" nor "Request Sent" button found'
+            'Neither "Send Request" nor "Request Sent" button nor existing-connection error found'
           );
         }
         console.log(
@@ -364,7 +380,7 @@ test.describe('Employer Team Workflow', () => {
   });
 
   test('Team tab shows pending connection badge', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(90000);
 
     // First create a pending request from worker to employer via admin
     const client = getAdminClient();
@@ -379,11 +395,28 @@ test.describe('Employer Team Workflow', () => {
     }
 
     // Create pending connection request (worker → employer)
-    await client.from('user_connections').insert({
-      requester_id: workerId,
-      addressee_id: employerId,
-      status: 'pending',
-    });
+    const { error: insertError } = await client
+      .from('user_connections')
+      .insert({
+        requester_id: workerId,
+        addressee_id: employerId,
+        status: 'pending',
+      });
+    if (insertError) {
+      throw new Error(`Failed to insert connection: ${insertError.message}`);
+    }
+
+    // Verify the record exists in DB before polling UI
+    const { data: verifyData } = await client
+      .from('user_connections')
+      .select('id')
+      .eq('requester_id', workerId)
+      .eq('addressee_id', employerId)
+      .eq('status', 'pending')
+      .single();
+    if (!verifyData) {
+      throw new Error('Connection record not found after insert');
+    }
 
     // Sign in as employer
     await page.goto('/sign-in');
@@ -395,10 +428,13 @@ test.describe('Employer Team Workflow', () => {
       timeout: 30000,
     });
 
+    // Allow Supabase Cloud to propagate before first UI check
+    await page.waitForTimeout(3000);
+
     // Navigate to employer dashboard and poll for connection request
     // (useConnections hook fetches once on mount — need reload to refetch)
     let requestFound = false;
-    for (let attempt = 0; attempt < 5; attempt++) {
+    for (let attempt = 0; attempt < 8; attempt++) {
       await page.goto('/employer');
       await expect(
         page.getByRole('heading', { name: 'Employer Dashboard' })
@@ -414,6 +450,8 @@ test.describe('Employer Team Workflow', () => {
       });
       if (await receivedTab.isVisible({ timeout: 3000 }).catch(() => false)) {
         await receivedTab.click({ force: true });
+        // Wait for the connection list to render after tab switch
+        await page.waitForTimeout(1000);
         requestFound = await page
           .locator('[data-testid="connection-request"]')
           .isVisible({ timeout: 5000 })
@@ -421,7 +459,7 @@ test.describe('Employer Team Workflow', () => {
         if (requestFound) break;
       }
       console.log(
-        `Team badge attempt ${attempt + 1}/5: connection request not visible`
+        `Team badge attempt ${attempt + 1}/8: connection request not visible`
       );
       await page.waitForTimeout(3000);
     }

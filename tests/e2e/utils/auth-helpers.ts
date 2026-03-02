@@ -67,16 +67,21 @@ export async function loginAndVerify(
   // Submit the form
   await page.click('button[type="submit"]');
 
-  // Wait for URL to change away from sign-in
+  // Wait for URL to change away from sign-in.
+  // WebKit may not detect window.location.href hard navigation via waitForURL(),
+  // so fall back to waitForLoadState and re-check the URL manually.
   try {
     await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
       timeout: urlTimeout,
     });
   } catch {
-    throw new Error(
-      `Login failed: still on sign-in page after ${urlTimeout}ms. ` +
-        `Check credentials for ${credentials.email}.`
-    );
+    await page.waitForLoadState('networkidle');
+    if (page.url().includes('/sign-in')) {
+      throw new Error(
+        `Login failed: still on sign-in page after ${urlTimeout}ms. ` +
+          `Check credentials for ${credentials.email}.`
+      );
+    }
   }
 
   // Verify the Sign In link is no longer visible (proves we're authenticated)
