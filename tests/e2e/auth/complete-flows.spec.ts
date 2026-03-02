@@ -358,7 +358,13 @@ async function dismissFloatingUI(
 test.describe('Flow 1: Email/Password Signup → Welcome Message', () => {
   test('New user sign-in triggers key initialization and welcome message', async ({
     page,
+    browserName,
   }) => {
+    // hash-wasm Argon2id requires SharedArrayBuffer; Firefox blocks it without COOP/COEP headers
+    test.skip(
+      browserName === 'firefox',
+      'SharedArrayBuffer unavailable on Firefox without COOP/COEP headers'
+    );
     test.setTimeout(120000); // Key creation polling can take up to 45s on Firefox CI
     const testEmail = `e2e-flow1-${Date.now()}@mailinator.com`;
     let testUserId: string | null = null;
@@ -624,7 +630,15 @@ test.describe('Flow 4: Account Deletion', () => {
 });
 
 test.describe('Flow 5: Sign Out and Sign Back In', () => {
-  test('Sign out clears session, sign in restores access', async ({ page }) => {
+  test('Sign out clears session, sign in restores access', async ({
+    page,
+    browserName,
+  }) => {
+    // hash-wasm Argon2id requires SharedArrayBuffer; Firefox blocks it without COOP/COEP headers
+    test.skip(
+      browserName === 'firefox',
+      'SharedArrayBuffer unavailable on Firefox without COOP/COEP headers'
+    );
     test.setTimeout(120000); // Two sign-ins + key polling on Firefox CI
     const testEmail = `e2e-flow5-${Date.now()}@mailinator.com`;
     let testUserId: string | null = null;

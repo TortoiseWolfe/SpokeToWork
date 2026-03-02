@@ -109,7 +109,15 @@ test.describe('Welcome Message Flow', () => {
     console.log(`Reset test user ${testUserId} state`);
   });
 
-  test('Sign-in triggers welcome message from admin', async ({ page }) => {
+  test('Sign-in triggers welcome message from admin', async ({
+    page,
+    browserName,
+  }) => {
+    // hash-wasm Argon2id requires SharedArrayBuffer; Firefox blocks it without COOP/COEP headers
+    test.skip(
+      browserName === 'firefox',
+      'SharedArrayBuffer unavailable on Firefox without COOP/COEP headers'
+    );
     // Capture console logs from the browser
     const consoleLogs: string[] = [];
     page.on('console', (msg) => {

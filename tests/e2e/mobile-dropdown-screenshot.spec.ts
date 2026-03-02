@@ -2,6 +2,13 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Mobile Dropdown Menu Screenshots', () => {
   test('should capture dropdown menu on mobile', async ({ page }) => {
+    // Hamburger menu uses md:hidden — only visible below 768px
+    const viewport = page.viewportSize();
+    test.skip(
+      !viewport || viewport.width >= 768,
+      'Mobile-only test — hamburger hidden on desktop'
+    );
+
     // Navigate to the home page
     await page.goto('/');
 

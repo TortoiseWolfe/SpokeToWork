@@ -313,6 +313,12 @@ const MapContainerInner: React.FC<MapContainerInnerProps> = ({
 
   // Handle map load - bike routes now handled by BikeRoutesLayer component
   const handleLoad = useCallback(() => {
+    // Expose map instance globally for E2E testing (must be in onLoad,
+    // not useEffect, because mapRef.current is null until map initializes)
+    if (typeof window !== 'undefined' && mapRef.current) {
+      (window as Window & { maplibreMap?: MapRef }).maplibreMap =
+        mapRef.current;
+    }
     if (mapRef.current && onMapReady) {
       onMapReady(mapRef.current);
     }
@@ -346,14 +352,6 @@ const MapContainerInner: React.FC<MapContainerInnerProps> = ({
     },
     [onLocationError]
   );
-
-  // Expose map instance globally for testing
-  useEffect(() => {
-    if (typeof window !== 'undefined' && mapRef.current) {
-      (window as Window & { maplibreMap?: MapRef }).maplibreMap =
-        mapRef.current;
-    }
-  }, []);
 
   return (
     <Map

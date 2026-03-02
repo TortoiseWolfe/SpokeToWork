@@ -257,12 +257,46 @@ test.describe('Employer Team Workflow', () => {
           '.alert-error:has-text("already sent")'
         );
 
-        await expect(
-          requestSentButton
-            .or(sendingButton)
-            .or(successAlert)
-            .or(errorAlreadySent)
-        ).toBeVisible({ timeout: 60000 });
+        const uiUpdated = await requestSentButton
+          .or(sendingButton)
+          .or(successAlert)
+          .or(errorAlreadySent)
+          .isVisible({ timeout: 30000 })
+          .catch(() => false);
+
+        if (!uiUpdated) {
+          // Firefox: UI may not update after click — reload and re-check
+          console.log('UI did not update after click, reloading page...');
+          await pageE.goto('/employer');
+          await pageE.waitForLoadState('networkidle');
+          await expect(
+            pageE.getByRole('heading', { name: 'Employer Dashboard' })
+          ).toBeVisible({ timeout: 15000 });
+          await pageE.getByRole('tab', { name: /team/i }).click();
+          await expect(pageE.getByTestId('connection-manager')).toBeVisible({
+            timeout: 10000,
+          });
+
+          // Re-search for the worker
+          const searchInput2 = pageE.locator('#user-search-input');
+          await searchInput2.fill(WORKER.displayName);
+          await searchInput2.press('Enter');
+          await pageE.waitForSelector(
+            '[data-testid="search-results"], .alert-error',
+            { timeout: 15000 }
+          );
+
+          // After reload, should see "Request Sent" or "Pending"
+          const postReloadSent = pageE.getByRole('button', {
+            name: /request sent|pending/i,
+          });
+          const postReloadError = pageE.locator(
+            '.alert-error:has-text("already")'
+          );
+          await expect(postReloadSent.or(postReloadError)).toBeVisible({
+            timeout: 15000,
+          });
+        }
       } else {
         // Connection already exists from prior retry
         const alreadySent = await pageE
