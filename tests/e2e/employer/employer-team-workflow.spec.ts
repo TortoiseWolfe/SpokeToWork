@@ -225,31 +225,49 @@ test.describe('Employer Team Workflow', () => {
         { timeout: 15000 }
       );
 
-      // Send request — wait for the Supabase API response to confirm it went through
+      // Send request — handle case where connection already exists from prior retry
       const sendButton = pageE.getByRole('button', {
         name: /send request/i,
       });
-      await expect(sendButton).toBeVisible();
+      const hasSendButton = await sendButton
+        .isVisible({ timeout: 10000 })
+        .catch(() => false);
 
-      // Click and wait for the network request to complete
-      await Promise.all([
-        pageE
-          .waitForResponse(
-            (resp) =>
-              resp.url().includes('user_connections') && resp.status() < 400,
-            { timeout: 15000 }
-          )
-          .catch(() => null), // Don't fail if response pattern doesn't match
-        sendButton.click({ force: true }),
-      ]);
+      if (hasSendButton) {
+        // Normal flow: click Send Request and wait for API response
+        await Promise.all([
+          pageE
+            .waitForResponse(
+              (resp) =>
+                resp.url().includes('user_connections') && resp.status() < 400,
+              { timeout: 15000 }
+            )
+            .catch(() => null),
+          sendButton.click({ force: true }),
+        ]);
 
-      // Verify success: either toast appears, button text changes, or button disappears
-      await expect(
-        pageE
-          .getByText(/friend request sent|request sent|pending/i)
-          .first()
-          .or(pageE.getByRole('button', { name: /pending|request sent/i }))
-      ).toBeVisible({ timeout: 15000 });
+        // Verify success: toast, button text change, or button disappears
+        await expect(
+          pageE
+            .getByText(/friend request sent|request sent|pending/i)
+            .first()
+            .or(pageE.getByRole('button', { name: /pending|request sent/i }))
+        ).toBeVisible({ timeout: 15000 });
+      } else {
+        // Connection already exists from prior retry — verify "Request Sent" is visible
+        const alreadySent = await pageE
+          .getByRole('button', { name: /request sent|pending/i })
+          .isVisible({ timeout: 5000 })
+          .catch(() => false);
+        if (!alreadySent) {
+          throw new Error(
+            'Neither "Send Request" nor "Request Sent" button found'
+          );
+        }
+        console.log(
+          'Connection already exists (prior retry) — skipping send step'
+        );
+      }
 
       // ===== STEP 5: Worker signs in and accepts =====
       await pageW.goto('/sign-in');

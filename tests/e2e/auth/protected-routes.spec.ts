@@ -21,6 +21,9 @@ import {
 import { loginAndVerify, signOut } from '../utils/auth-helpers';
 
 test.describe('Protected Routes E2E', () => {
+  // WebKit + slow Supabase need >30s for sign-in helpers (loginAndVerify waits 45s)
+  test.describe.configure({ timeout: 90000 });
+
   test.skip(
     !isAdminClientAvailable(),
     'Requires SUPABASE_SERVICE_ROLE_KEY for dynamic test user creation'
@@ -68,10 +71,14 @@ test.describe('Protected Routes E2E', () => {
     page,
   }) => {
     // Sign in with pre-confirmed user using robust helper
-    await loginAndVerify(page, {
-      email: testUser.email,
-      password: testUser.password,
-    });
+    await loginAndVerify(
+      page,
+      {
+        email: testUser.email,
+        password: testUser.password,
+      },
+      { urlTimeout: 45000 }
+    );
 
     // Access protected routes
     const protectedRoutes = [
@@ -208,10 +215,14 @@ test.describe('Protected Routes E2E', () => {
 
   test('should preserve session across page navigation', async ({ page }) => {
     // Sign in with pre-confirmed user using robust helper
-    await loginAndVerify(page, {
-      email: testUser.email,
-      password: testUser.password,
-    });
+    await loginAndVerify(
+      page,
+      {
+        email: testUser.email,
+        password: testUser.password,
+      },
+      { urlTimeout: 45000 }
+    );
 
     // Navigate between protected routes (use regex to handle optional trailing slash)
     await page.goto('/profile');
@@ -232,10 +243,14 @@ test.describe('Protected Routes E2E', () => {
 
   test('should handle session expiration gracefully', async ({ page }) => {
     // Sign in using robust helper
-    await loginAndVerify(page, {
-      email: testUser.email,
-      password: testUser.password,
-    });
+    await loginAndVerify(
+      page,
+      {
+        email: testUser.email,
+        password: testUser.password,
+      },
+      { urlTimeout: 45000 }
+    );
 
     // Clear session storage to simulate expired session
     await page.evaluate(() => {
