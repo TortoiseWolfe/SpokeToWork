@@ -52,6 +52,9 @@ async function signInAndWaitForProfile(
 }
 
 test.describe('Session Persistence E2E', () => {
+  // WebKit + slow Supabase need >30s for sign-in (signInAndWaitForProfile waits 45s)
+  test.describe.configure({ timeout: 90000 });
+
   // Clear inherited storage state from 'chromium' project so tests can
   // navigate to /sign-in and sign in as a freshly-created test user.
   test.use({ storageState: { cookies: [], origins: [] } });
