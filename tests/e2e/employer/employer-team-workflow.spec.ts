@@ -191,9 +191,17 @@ test.describe('Employer Team Workflow', () => {
       await pageE.fill('#email', EMPLOYER.email);
       await pageE.fill('#password', EMPLOYER.password);
       await pageE.click('button[type="submit"]');
-      await pageE.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-        timeout: 30000,
-      });
+      // Firefox: NS_BINDING_ABORTED; WebKit: hard navigation not detected
+      try {
+        await pageE.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+          timeout: 30000,
+        });
+      } catch {
+        await pageE.waitForLoadState('networkidle');
+        if (pageE.url().includes('/sign-in')) {
+          throw new Error('Employer sign-in failed after 30s');
+        }
+      }
 
       // ===== STEP 2: Navigate to /employer → Team tab =====
       await pageE.goto('/employer');
@@ -328,9 +336,17 @@ test.describe('Employer Team Workflow', () => {
       await pageW.fill('#email', WORKER.email);
       await pageW.fill('#password', WORKER.password);
       await pageW.click('button[type="submit"]');
-      await pageW.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-        timeout: 30000,
-      });
+      // Firefox: NS_BINDING_ABORTED; WebKit: hard navigation not detected
+      try {
+        await pageW.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+          timeout: 30000,
+        });
+      } catch {
+        await pageW.waitForLoadState('networkidle');
+        if (pageW.url().includes('/sign-in')) {
+          throw new Error('Worker sign-in failed after 30s');
+        }
+      }
 
       // Verify worker auth is fully hydrated before checking connections
       await pageW.goto('/profile');

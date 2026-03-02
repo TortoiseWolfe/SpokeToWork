@@ -67,16 +67,21 @@ async function setupConversation(
   await page1.goto('/messages?tab=connections');
   await handleReAuthModal(page1, TEST_USER_1.password);
 
-  // Check if already connected
+  // Check if already connected — click "Accepted" tab (the actual connected state)
+  const acceptedTab = page1.locator('button:has-text("Accepted")');
+  if (await acceptedTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await acceptedTab.click();
+  }
   const alreadyConnected = await page1
-    .locator('text=Connected Users')
-    .isVisible()
+    .locator(`text=${TEST_USER_2.email}`)
+    .isVisible({ timeout: 3000 })
     .catch(() => false);
 
   if (!alreadyConnected) {
     // Search for User 2
-    await page1.fill('input[placeholder*="Search"]', TEST_USER_2.email);
-    await page1.click('button:has-text("Search")');
+    const searchInput = page1.locator('#user-search-input');
+    await searchInput.fill(TEST_USER_2.email);
+    await searchInput.press('Enter');
 
     // Send friend request
     const sendButton = page1.locator(
@@ -131,7 +136,18 @@ test.describe('Real-time Message Delivery (T098)', () => {
   let page1: Page;
   let page2: Page;
 
-  test.beforeEach(async ({ browser }) => {
+  test.beforeEach(async ({ browser, browserName }) => {
+    // These tests require two authenticated users with encryption keys.
+    // Skip when credentials are missing or on Firefox (SharedArrayBuffer unavailable).
+    test.skip(
+      !TEST_USER_1.password || !TEST_USER_2.password,
+      'Missing PRIMARY or SECONDARY test user credentials'
+    );
+    test.skip(
+      browserName === 'firefox',
+      'SharedArrayBuffer unavailable on Firefox without COOP/COEP headers'
+    );
+
     // Create two separate browser contexts (simulates two users)
     context1 = await browser.newContext();
     context2 = await browser.newContext();
@@ -245,7 +261,16 @@ test.describe('Typing Indicators (T099)', () => {
   let page1: Page;
   let page2: Page;
 
-  test.beforeEach(async ({ browser }) => {
+  test.beforeEach(async ({ browser, browserName }) => {
+    test.skip(
+      !TEST_USER_1.password || !TEST_USER_2.password,
+      'Missing PRIMARY or SECONDARY test user credentials'
+    );
+    test.skip(
+      browserName === 'firefox',
+      'SharedArrayBuffer unavailable on Firefox without COOP/COEP headers'
+    );
+
     // Create two separate browser contexts
     context1 = await browser.newContext();
     context2 = await browser.newContext();

@@ -52,7 +52,13 @@ export async function loginAndVerify(
   const { urlTimeout = 30000, elementTimeout = 30000 } = options;
 
   // Navigate to sign-in page
-  await page.goto('/sign-in');
+  // Firefox: NS_BINDING_ABORTED can abort goto if previous navigation cleanup is running
+  try {
+    await page.goto('/sign-in');
+  } catch {
+    await page.waitForTimeout(1000);
+    await page.goto('/sign-in');
+  }
 
   // Fill credentials
   await page.fill(

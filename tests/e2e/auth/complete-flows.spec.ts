@@ -458,6 +458,9 @@ test.describe('Flow 4: Account Deletion', () => {
       testUserId = await createTestUserDirect(testEmail, TEST_PASSWORD);
       expect(testUserId).toBeTruthy();
 
+      // Allow database triggers to propagate (user_profiles creation)
+      await sleep(2000);
+
       // Sign in first to establish session and create keys
       console.log('Signing in...');
       await page.goto(`${BASE_URL}/sign-in`);
@@ -484,8 +487,12 @@ test.describe('Flow 4: Account Deletion', () => {
       // Dismiss floating UI on account page too
       await dismissFloatingUI(page);
 
-      // Verify user exists before deletion
-      const userExistsBefore = await userExistsInAuth(testUserId);
+      // Verify user exists before deletion (retry — triggers may still be propagating)
+      let userExistsBefore = await userExistsInAuth(testUserId);
+      if (!userExistsBefore) {
+        await sleep(3000);
+        userExistsBefore = await userExistsInAuth(testUserId);
+      }
       expect(userExistsBefore).toBe(true);
       console.log('User exists before deletion');
 

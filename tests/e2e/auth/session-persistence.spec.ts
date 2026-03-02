@@ -49,6 +49,10 @@ async function signInAndWaitForProfile(
       );
     }
   }
+
+  // Verify auth state via UI (WebKit may pass URL check but not be authenticated)
+  const userMenu = page.locator('[aria-label="User account menu"]');
+  await expect(userMenu).toBeVisible({ timeout: 30000 });
 }
 
 test.describe('Session Persistence E2E', () => {
