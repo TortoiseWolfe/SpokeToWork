@@ -88,8 +88,8 @@ test.describe('Homepage Navigation', () => {
     const companiesHeading = page.locator('h3:has-text("Track Companies")');
     await expect(companiesHeading).toBeVisible();
 
-    // Check for "Plan Routes" heading
-    const routesHeading = page.locator('h3:has-text("Plan Routes")');
+    // Check for "Plan Routes" heading (rendered as h2 in FeatureSpotlight)
+    const routesHeading = page.getByRole('heading', { name: 'Plan Routes' });
     await expect(routesHeading).toBeVisible();
   });
 

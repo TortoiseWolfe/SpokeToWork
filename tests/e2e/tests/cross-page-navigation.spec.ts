@@ -274,8 +274,8 @@ test.describe('Cross-Page Navigation', () => {
       await browseThemesLink.click();
       await expect(page).toHaveURL(/\/themes/);
     } else {
-      // Fallback to Blog link
-      await page.click('a:has-text("Blog")');
+      // Fallback to Blog link (use .first() — nav has desktop + mobile instances)
+      await page.locator('a:has-text("Blog")').first().click();
       await expect(page).toHaveURL(/\/blog/);
     }
   });
