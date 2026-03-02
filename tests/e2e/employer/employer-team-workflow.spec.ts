@@ -265,15 +265,20 @@ test.describe('Employer Team Workflow', () => {
       await pageW.goto('/messages?tab=connections');
       await handleReAuthModal(pageW, WORKER.password);
 
+      // useConnections() only fetches on mount — reload to ensure fresh data
+      await pageW.waitForTimeout(2000);
+      await pageW.reload();
+      await pageW.waitForLoadState('networkidle');
+
       // Click "Received" tab
       const receivedTab = pageW.getByRole('tab', {
         name: /pending received|received/i,
       });
       await receivedTab.click({ force: true });
 
-      // Wait for request to appear
+      // Wait for request to appear (longer timeout for DB propagation)
       await pageW.waitForSelector('[data-testid="connection-request"]', {
-        timeout: 10000,
+        timeout: 30000,
       });
 
       // Accept

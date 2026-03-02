@@ -288,11 +288,18 @@ test.describe('Protected Routes E2E', () => {
       DEFAULT_TEST_PASSWORD
     );
 
+    // Allow Supabase to fully process user creation before sign-in (WebKit needs this)
+    await page.waitForTimeout(2000);
+
     // Sign in as the user to be deleted using robust helper
-    await loginAndVerify(page, {
-      email: deleteUser.email,
-      password: deleteUser.password,
-    });
+    await loginAndVerify(
+      page,
+      {
+        email: deleteUser.email,
+        password: deleteUser.password,
+      },
+      { urlTimeout: 45000 }
+    );
 
     // Navigate to account settings
     await page.goto('/account');
