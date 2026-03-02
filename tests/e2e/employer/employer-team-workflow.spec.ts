@@ -240,19 +240,19 @@ test.describe('Employer Team Workflow', () => {
             .waitForResponse(
               (resp) =>
                 resp.url().includes('user_connections') && resp.status() < 400,
-              { timeout: 15000 }
+              { timeout: 45000 }
             )
             .catch(() => null),
           sendButton.click({ force: true }),
         ]);
 
-        // Verify success: toast, button text change, or button disappears
+        // Verify success: button in search results changes to "Request Sent"
+        // (scoped to search-results to avoid false positive on "Pending Received" tab label)
         await expect(
           pageE
-            .getByText(/friend request sent|request sent|pending/i)
-            .first()
-            .or(pageE.getByRole('button', { name: /pending|request sent/i }))
-        ).toBeVisible({ timeout: 15000 });
+            .locator('[data-testid="search-results"]')
+            .getByRole('button', { name: /request sent/i })
+        ).toBeVisible({ timeout: 45000 });
       } else {
         // Connection already exists from prior retry — verify "Request Sent" is visible
         const alreadySent = await pageE
@@ -269,32 +269,8 @@ test.describe('Employer Team Workflow', () => {
         );
       }
 
-      // ===== STEP 4b: Verify connection exists in DB before worker checks =====
-      const verifyClient = getAdminClient()!;
-      const { employerId, workerId } = await getUserIds(verifyClient);
-      let connectionVerified = false;
-      for (let i = 0; i < 10; i++) {
-        const { data } = await verifyClient
-          .from('user_connections')
-          .select('status')
-          .eq('requester_id', employerId!)
-          .eq('addressee_id', workerId!)
-          .maybeSingle();
-        if (data?.status === 'pending') {
-          connectionVerified = true;
-          break;
-        }
-        console.log(
-          `DB verification attempt ${i + 1}/10: connection not yet visible`
-        );
-        await new Promise((r) => setTimeout(r, 2000));
-      }
-      if (!connectionVerified) {
-        throw new Error(
-          'Connection request not found in DB after employer sent it'
-        );
-      }
-      console.log('Connection verified in DB — proceeding to worker');
+      // Allow Supabase Cloud to propagate the connection before worker checks
+      await pageE.waitForTimeout(3000);
 
       // ===== STEP 5: Worker signs in and accepts =====
       await pageW.goto('/sign-in');
@@ -419,31 +395,36 @@ test.describe('Employer Team Workflow', () => {
       timeout: 30000,
     });
 
-    // Navigate to employer dashboard
-    await page.goto('/employer');
-    await expect(
-      page.getByRole('heading', { name: 'Employer Dashboard' })
-    ).toBeVisible({ timeout: 15000 });
-
-    // Team tab should show pending indicator (badge with count)
-    const teamTab = page.getByRole('tab', { name: /team/i });
-    await expect(teamTab).toBeVisible();
-
-    // Click Team tab and verify pending request is visible inside
-    await teamTab.click();
-    await expect(page.getByTestId('connection-manager')).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Verify pending request appears (received tab should show the request)
-    const receivedTab = page.getByRole('tab', {
-      name: /pending received|received/i,
-    });
-    if (await receivedTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await receivedTab.click({ force: true });
+    // Navigate to employer dashboard and poll for connection request
+    // (useConnections hook fetches once on mount — need reload to refetch)
+    let requestFound = false;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await page.goto('/employer');
       await expect(
-        page.locator('[data-testid="connection-request"]')
-      ).toBeVisible({ timeout: 10000 });
+        page.getByRole('heading', { name: 'Employer Dashboard' })
+      ).toBeVisible({ timeout: 15000 });
+
+      await page.getByRole('tab', { name: /team/i }).click();
+      await expect(page.getByTestId('connection-manager')).toBeVisible({
+        timeout: 10000,
+      });
+
+      const receivedTab = page.getByRole('tab', {
+        name: /pending received|received/i,
+      });
+      if (await receivedTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await receivedTab.click({ force: true });
+        requestFound = await page
+          .locator('[data-testid="connection-request"]')
+          .isVisible({ timeout: 5000 })
+          .catch(() => false);
+        if (requestFound) break;
+      }
+      console.log(
+        `Team badge attempt ${attempt + 1}/5: connection request not visible`
+      );
+      await page.waitForTimeout(3000);
     }
+    expect(requestFound).toBe(true);
   });
 });

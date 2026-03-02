@@ -214,25 +214,27 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
 
     await page.goto('/sign-in');
 
-    // Make 5 failed attempts
+    // Make 5 failed attempts (1s between to ensure Supabase counts each as distinct)
     for (let i = 0; i < 5; i++) {
       await page.fill('input[type="email"]', email);
       await page.fill('input[type="password"]', wrongPassword);
       await page.click('button[type="submit"]');
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(1000);
     }
 
     // Clear localStorage (client-side bypass attempt)
     await page.evaluate(() => localStorage.clear());
+    await page.waitForTimeout(2000); // Let server-side rate limit state settle
 
     // Try again - should STILL be locked (server-side enforcement)
     await page.reload();
+    await page.waitForLoadState('networkidle');
     await page.fill('input[type="email"]', email);
     await page.fill('input[type="password"]', wrongPassword);
     await page.click('button[type="submit"]');
 
     await expect(page.locator('text=/rate.*limit|locked/i')).toBeVisible({
-      timeout: 3000,
+      timeout: 10000,
     });
   });
 
