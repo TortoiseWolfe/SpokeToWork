@@ -85,14 +85,14 @@ export function CookieConsent({
           <div className="flex gap-2" role="group" aria-label="Consent actions">
             <button
               onClick={handleAcceptAll}
-              className="btn btn-primary btn-sm"
+              className="btn btn-primary btn-sm min-h-11 min-w-11"
               aria-label="Accept all cookies"
             >
               Accept All
             </button>
             <button
               onClick={handleCustomize}
-              className="btn btn-ghost btn-sm"
+              className="btn btn-ghost btn-sm min-h-11 min-w-11"
               aria-label="Customize cookie preferences"
             >
               Settings
