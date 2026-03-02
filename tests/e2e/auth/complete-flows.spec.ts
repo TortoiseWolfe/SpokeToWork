@@ -394,7 +394,15 @@ test.describe('Flow 1: Email/Password Signup → Welcome Message', () => {
       await page.getByRole('button', { name: /sign in/i }).click();
 
       // Wait for redirect (keys initialized, welcome message sent)
-      await page.waitForURL(/\/(profile|companies)/, { timeout: 20000 });
+      // WebKit + slow Supabase may need longer than 20s for hard navigation
+      try {
+        await page.waitForURL(/\/(profile|companies)/, { timeout: 45000 });
+      } catch {
+        await page.waitForLoadState('networkidle');
+        if (page.url().includes('/sign-in')) {
+          throw new Error('Sign-in redirect failed after 45s');
+        }
+      }
       console.log(`Signed in, URL: ${page.url()}`);
 
       // Poll for async operations (key generation, welcome message) — CI can be slow

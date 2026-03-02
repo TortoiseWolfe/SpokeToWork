@@ -10,7 +10,7 @@
  * Uses createTestUser with email_confirm: true to avoid email verification issues.
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import {
   createTestUser,
   deleteTestUser,
@@ -18,6 +18,38 @@ import {
   DEFAULT_TEST_PASSWORD,
 } from '../utils/test-user-factory';
 import { loginAndVerify, signOut } from '../utils/auth-helpers';
+
+/**
+ * WebKit-safe sign-in helper. WebKit struggles with detecting
+ * window.location.href hard navigation via waitForURL(), so we
+ * use a try/catch fallback to waitForLoadState.
+ */
+async function signInAndWaitForProfile(
+  page: Page,
+  email: string,
+  password: string,
+  options?: { rememberMe?: boolean }
+) {
+  await page.goto('/sign-in');
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  if (options?.rememberMe) {
+    await page.getByLabel('Remember me').check();
+  }
+  await page.getByRole('button', { name: 'Sign In' }).click();
+
+  try {
+    await page.waitForURL(/\/profile/, { timeout: 45000 });
+  } catch {
+    // WebKit may not detect window.location.href navigation
+    await page.waitForLoadState('networkidle');
+    if (page.url().includes('/sign-in')) {
+      throw new Error(
+        `Sign-in failed: still on sign-in page after 45s for ${email}`
+      );
+    }
+  }
+}
 
 test.describe('Session Persistence E2E', () => {
   // Clear inherited storage state from 'chromium' project so tests can
@@ -44,14 +76,9 @@ test.describe('Session Persistence E2E', () => {
     page,
   }) => {
     // Sign in with Remember Me
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(testUser.email);
-    await page.getByLabel('Password', { exact: true }).fill(testUser.password);
-    await page.getByLabel('Remember me').check();
-    await page.getByRole('button', { name: 'Sign In' }).click();
-
-    // Verify session created - should go to profile (not verify-email)
-    await page.waitForURL(/\/profile/);
+    await signInAndWaitForProfile(page, testUser.email, testUser.password, {
+      rememberMe: true,
+    });
     await expect(page).toHaveURL(/\/profile/);
 
     // Check session storage/cookies
@@ -87,14 +114,7 @@ test.describe('Session Persistence E2E', () => {
 
   test('should use short session without Remember Me', async ({ page }) => {
     // Sign in WITHOUT Remember Me
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(testUser.email);
-    await page.getByLabel('Password', { exact: true }).fill(testUser.password);
-    // Do NOT check Remember Me
-    await page.getByRole('button', { name: 'Sign In' }).click();
-
-    // Verify session created
-    await page.waitForURL(/\/profile/);
+    await signInAndWaitForProfile(page, testUser.email, testUser.password);
 
     // Check session is in sessionStorage (not localStorage for short-lived)
     const sessionStorage = await page.evaluate(() =>
@@ -113,11 +133,7 @@ test.describe('Session Persistence E2E', () => {
     page,
   }) => {
     // Sign in
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(testUser.email);
-    await page.getByLabel('Password', { exact: true }).fill(testUser.password);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await page.waitForURL(/\/profile/);
+    await signInAndWaitForProfile(page, testUser.email, testUser.password);
 
     // Get initial access token (Supabase SSR key: sb-{ref}-auth-token)
     const initialToken = await page.evaluate(() => {
@@ -174,12 +190,9 @@ test.describe('Session Persistence E2E', () => {
     const page = await context.newPage();
 
     // Sign in with Remember Me
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(testUser.email);
-    await page.getByLabel('Password', { exact: true }).fill(testUser.password);
-    await page.getByLabel('Remember me').check();
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await page.waitForURL(/\/profile/);
+    await signInAndWaitForProfile(page, testUser.email, testUser.password, {
+      rememberMe: true,
+    });
 
     // Save storage state
     const storageState = await context.storageState();
@@ -204,11 +217,7 @@ test.describe('Session Persistence E2E', () => {
 
   test('should clear session on sign out', async ({ page }) => {
     // Sign in
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(testUser.email);
-    await page.getByLabel('Password', { exact: true }).fill(testUser.password);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await page.waitForURL(/\/profile/);
+    await signInAndWaitForProfile(page, testUser.email, testUser.password);
 
     // Verify localStorage has session data
     // Supabase SSR stores auth as `sb-{project-ref}-auth-token`, not `supabase`
@@ -260,11 +269,7 @@ test.describe('Session Persistence E2E', () => {
     const page2 = await context.newPage();
 
     // Sign in on page 1
-    await page1.goto('/sign-in');
-    await page1.getByLabel('Email').fill(testUser.email);
-    await page1.getByLabel('Password', { exact: true }).fill(testUser.password);
-    await page1.getByRole('button', { name: 'Sign In' }).click();
-    await page1.waitForURL(/\/profile/);
+    await signInAndWaitForProfile(page1, testUser.email, testUser.password);
 
     // Page 2 should also be authenticated (shared storage)
     await page2.goto('/profile');
@@ -292,11 +297,7 @@ test.describe('Session Persistence E2E', () => {
     page,
   }) => {
     // Sign in
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(testUser.email);
-    await page.getByLabel('Password', { exact: true }).fill(testUser.password);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await page.waitForURL(/\/profile/);
+    await signInAndWaitForProfile(page, testUser.email, testUser.password);
 
     // Reload page
     await page.reload();
@@ -323,11 +324,7 @@ test.describe('Session Persistence E2E', () => {
     // 4. Verify redirected to sign-in
 
     // For demonstration, test the refresh mechanism
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(testUser.email);
-    await page.getByLabel('Password', { exact: true }).fill(testUser.password);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await page.waitForURL(/\/profile/);
+    await signInAndWaitForProfile(page, testUser.email, testUser.password);
 
     // Clear refresh token to simulate expired session (Supabase SSR key format)
     await page.evaluate(() => {

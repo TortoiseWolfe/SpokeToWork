@@ -183,6 +183,7 @@ test.describe('New User Complete Flow', () => {
   test('Complete new user journey: signup -> companies -> signout', async ({
     page,
   }) => {
+    test.setTimeout(120000); // Multi-step test: create user, sign in, set location, poll companies, sign out
     const testEmail = `e2e-new-user-${Date.now()}@mailinator.com`;
     let testUserId: string | null = null;
 
