@@ -387,10 +387,26 @@ test.describe('Employer Team Workflow', () => {
         .first();
       await acceptButton.click({ force: true });
 
-      // Verify it disappears from received
-      await expect(
-        pageW.locator('[data-testid="connection-request"]')
-      ).toBeHidden({ timeout: 20000 });
+      // Verify it disappears from received — useConnections has no realtime
+      // subscription so the UI only updates on page reload
+      let cardHidden = false;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        cardHidden = await pageW
+          .locator('[data-testid="connection-request"]')
+          .isHidden({ timeout: 5000 })
+          .catch(() => false);
+        if (cardHidden) break;
+        console.log(
+          `Connection request card still visible (attempt ${attempt + 1}/5), reloading...`
+        );
+        await pageW.reload();
+        await pageW.waitForLoadState('networkidle');
+      }
+      if (!cardHidden) {
+        throw new Error(
+          'Connection request card still visible after 5 reload attempts'
+        );
+      }
 
       // ===== STEP 6: Employer refreshes Team tab =====
       await pageE.goto('/employer');

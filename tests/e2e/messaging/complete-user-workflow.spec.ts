@@ -11,25 +11,25 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
  * but encryption keys need to be unlocked.
  */
 async function handleReAuthModal(page: Page, password: string) {
-  try {
-    // Wait for the ReAuth modal to appear (with short timeout)
-    const reAuthDialog = page.getByRole('dialog', {
-      name: /re-authentication required/i,
-    });
+  const reAuthDialog = page.getByRole('dialog', {
+    name: /re-authentication required/i,
+  });
 
-    // Wait for it to be visible
-    await reAuthDialog.waitFor({ state: 'visible', timeout: 5000 });
+  // Check if modal appears (short timeout — it may not show up at all)
+  const appeared = await reAuthDialog
+    .waitFor({ state: 'visible', timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!appeared) return; // Modal never appeared — that's OK
 
-    // Fill password and unlock
-    const passwordInput = page.getByRole('textbox', { name: /password/i });
-    await passwordInput.fill(password);
-    await page.getByRole('button', { name: /unlock messages/i }).click();
+  // Modal IS visible — must successfully dismiss it (let errors propagate)
+  const passwordInput = page.getByRole('textbox', { name: /password/i });
+  await passwordInput.fill(password);
+  await page.getByRole('button', { name: /unlock messages/i }).click();
 
-    // Wait for modal to close
-    await reAuthDialog.waitFor({ state: 'hidden', timeout: 10000 });
-  } catch {
-    // Modal didn't appear or already handled - continue
-  }
+  // Wait for modal to close — if this fails, the error propagates
+  // (prevents silent hangs when encryption keys are stale on retry)
+  await reAuthDialog.waitFor({ state: 'hidden', timeout: 10000 });
 }
 
 const USER_A = {
@@ -209,6 +209,16 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
     const client = getAdminClient();
     if (client) {
       await ensureUserProfiles(client);
+      await cleanupTestData(client);
+    }
+  });
+
+  test.afterEach(async () => {
+    // Clean up stale data between retries (Playwright CI retries=2).
+    // Without this, retried runs encounter stale connections/messages
+    // that cause ReAuthModal and navigation failures.
+    const client = getAdminClient();
+    if (client) {
       await cleanupTestData(client);
     }
   });
