@@ -311,10 +311,20 @@ const MapContainerInner: React.FC<MapContainerInnerProps> = ({
   // Convert [lat, lng] to MapLibre's [lng, lat] format
   const mapCenter: LngLatLike = [center[1], center[0]];
 
+  // Expose map ref for E2E tests as soon as the Map component mounts.
+  // onLoad waits for ALL tiles to finish loading, which may never happen
+  // in headless Firefox CI where external tile sources are unreliable.
+  // This effect runs after every render and sets the global ref on the
+  // first render where mapRef.current is available.
+  useEffect(() => {
+    if (typeof window !== 'undefined' && mapRef.current) {
+      (window as Window & { maplibreMap?: MapRef }).maplibreMap =
+        mapRef.current;
+    }
+  });
+
   // Handle map load - bike routes now handled by BikeRoutesLayer component
   const handleLoad = useCallback(() => {
-    // Expose map instance globally for E2E testing (must be in onLoad,
-    // not useEffect, because mapRef.current is null until map initializes)
     if (typeof window !== 'undefined' && mapRef.current) {
       (window as Window & { maplibreMap?: MapRef }).maplibreMap =
         mapRef.current;

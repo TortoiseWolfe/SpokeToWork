@@ -6,6 +6,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 
+// Mock useAuth — must return a user so useConnections fetches on mount
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: vi.fn(() => ({
+    user: { id: 'user-1' },
+    session: null,
+    isLoading: false,
+    isAuthenticated: true,
+    error: null,
+    retryCount: 0,
+    signIn: vi.fn(),
+    signUp: vi.fn(),
+    signOut: vi.fn(),
+    refreshSession: vi.fn(),
+    retry: vi.fn(),
+    clearError: vi.fn(),
+  })),
+}));
+
 // Mock connection service
 const mockGetConnections = vi.fn();
 const mockRespondToRequest = vi.fn();
@@ -19,6 +37,7 @@ vi.mock('@/services/messaging/connection-service', () => ({
   },
 }));
 
+import { useAuth } from '@/contexts/AuthContext';
 import { useConnections } from '../useConnections';
 
 describe('useConnections', () => {
@@ -31,6 +50,21 @@ describe('useConnections', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Re-set useAuth mock after clearAllMocks (it clears mock implementations)
+    vi.mocked(useAuth).mockReturnValue({
+      user: { id: 'user-1' } as any,
+      session: null,
+      isLoading: false,
+      isAuthenticated: true,
+      error: null,
+      retryCount: 0,
+      signIn: vi.fn(),
+      signUp: vi.fn(),
+      signOut: vi.fn(),
+      refreshSession: vi.fn(),
+      retry: vi.fn(),
+      clearError: vi.fn(),
+    });
     mockGetConnections.mockResolvedValue(mockConnectionList);
     mockRespondToRequest.mockResolvedValue(undefined);
     mockRemoveConnection.mockResolvedValue(undefined);
@@ -65,6 +99,37 @@ describe('useConnections', () => {
       });
 
       expect(result.current.connections).toEqual(mockConnectionList);
+    });
+
+    it('should not fetch when user is not authenticated', async () => {
+      vi.mocked(useAuth).mockReturnValue({
+        user: null,
+        session: null,
+        isLoading: false,
+        isAuthenticated: false,
+        error: null,
+        retryCount: 0,
+        signIn: vi.fn(),
+        signUp: vi.fn(),
+        signOut: vi.fn(),
+        refreshSession: vi.fn(),
+        retry: vi.fn(),
+        clearError: vi.fn(),
+      });
+
+      const { result } = renderHook(() => useConnections());
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(mockGetConnections).not.toHaveBeenCalled();
+      expect(result.current.connections).toEqual({
+        pending_sent: [],
+        pending_received: [],
+        accepted: [],
+        blocked: [],
+      });
     });
 
     it('should handle fetch error', async () => {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { connectionService } from '@/services/messaging/connection-service';
 import type { ConnectionList } from '@/types/messaging';
 
@@ -12,6 +13,7 @@ import type { ConnectionList } from '@/types/messaging';
  * - Query function (fetchConnections) does NOT re-throw - errors are in state only
  */
 export function useConnections() {
+  const { user } = useAuth();
   const [connections, setConnections] = useState<ConnectionList>({
     pending_sent: [],
     pending_received: [],
@@ -99,8 +101,20 @@ export function useConnections() {
   };
 
   useEffect(() => {
-    fetchConnections();
-  }, []);
+    if (user) {
+      fetchConnections();
+    } else {
+      setConnections({
+        pending_sent: [],
+        pending_received: [],
+        accepted: [],
+        blocked: [],
+      });
+      setLoading(false);
+    }
+    // Re-fetch when auth user changes; fetchConnections reads auth internally
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   return {
     connections,
