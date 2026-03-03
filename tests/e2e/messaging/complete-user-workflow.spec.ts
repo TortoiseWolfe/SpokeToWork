@@ -9,27 +9,35 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 /**
  * Handle the ReAuthModal that appears when session is restored
  * but encryption keys need to be unlocked.
+ *
+ * Retry-aware: the modal can reappear after navigation because
+ * KeyManagementService stores derived keys in-memory only.
+ * If the singleton's keys are cleared (e.g., auth state change),
+ * the /messages page re-runs checkKeys() and shows the modal again.
+ * maxRetries prevents an infinite loop.
  */
-async function handleReAuthModal(page: Page, password: string) {
-  const reAuthDialog = page.getByRole('dialog', {
-    name: /re-authentication required/i,
-  });
+async function handleReAuthModal(page: Page, password: string, maxRetries = 2) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const reAuthDialog = page.getByRole('dialog', {
+      name: /re-authentication required/i,
+    });
 
-  // Check if modal appears (short timeout — it may not show up at all)
-  const appeared = await reAuthDialog
-    .waitFor({ state: 'visible', timeout: 5000 })
-    .then(() => true)
-    .catch(() => false);
-  if (!appeared) return; // Modal never appeared — that's OK
+    // Check if modal appears (short timeout — it may not show up at all)
+    const appeared = await reAuthDialog
+      .waitFor({ state: 'visible', timeout: 3000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!appeared) return; // Modal didn't appear — done
 
-  // Modal IS visible — must successfully dismiss it (let errors propagate)
-  const passwordInput = page.getByRole('textbox', { name: /password/i });
-  await passwordInput.fill(password);
-  await page.getByRole('button', { name: /unlock messages/i }).click();
+    // Modal IS visible — unlock it (let errors propagate)
+    const passwordInput = page.getByRole('textbox', { name: /password/i });
+    await passwordInput.fill(password);
+    await page.getByRole('button', { name: /unlock messages/i }).click();
+    await reAuthDialog.waitFor({ state: 'hidden', timeout: 10000 });
 
-  // Wait for modal to close — if this fails, the error propagates
-  // (prevents silent hangs when encryption keys are stale on retry)
-  await reAuthDialog.waitFor({ state: 'hidden', timeout: 10000 });
+    // Brief pause to let React state settle before checking if it reappears
+    await page.waitForTimeout(500);
+  }
 }
 
 const USER_A = {
@@ -410,6 +418,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
 
       await pageA.goto('/messages?conversation=' + conversationId);
       await pageA.waitForLoadState('networkidle');
+      await pageA.waitForTimeout(1000); // Let messaging page mount fully
       await handleReAuthModal(pageA, USER_A.password);
 
       testMessage = 'Hello from User A - ' + Date.now();
@@ -430,6 +439,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       console.log('Step 9: User B receiving message...');
       await pageB.goto('/messages?conversation=' + conversationId);
       await pageB.waitForLoadState('networkidle');
+      await pageB.waitForTimeout(1000); // Let messaging page mount fully
       await handleReAuthModal(pageB, USER_B.password);
       await expect(pageB.getByText(testMessage)).toBeVisible({
         timeout: 10000,
@@ -452,6 +462,8 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       // STEP 11: User A receives reply
       console.log('Step 11: User A receiving reply...');
       await pageA.reload();
+      await pageA.waitForLoadState('networkidle');
+      await pageA.waitForTimeout(1000); // Let messaging page mount fully
 
       // Handle ReAuthModal after reload (encryption keys need to be unlocked again)
       await handleReAuthModal(pageA, USER_A.password);

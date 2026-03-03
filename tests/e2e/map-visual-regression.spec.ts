@@ -20,8 +20,10 @@ async function dismissBanner(page: Page) {
   }
 }
 
-// Helper to wait for map to fully load (polls for style readiness)
+// Helper to wait for map to fully load (polls for layer count)
 // Use 30s timeout — Firefox/WebKit in CI can be slow loading external tile styles
+// NOTE: Uses layer-count check instead of isStyleLoaded() because Firefox
+// returns false from isStyleLoaded() after theme-triggered style reloads.
 async function waitForMapLoad(page: Page, timeout = 30000) {
   await page.waitForSelector('.maplibregl-canvas', {
     state: 'visible',
@@ -33,35 +35,46 @@ async function waitForMapLoad(page: Page, timeout = 30000) {
         return page.evaluate(() => {
           const mapRef = (window as any).maplibreMap;
           const map = mapRef?.getMap?.() ?? mapRef;
-          return map ? map.isStyleLoaded() : false;
+          if (!map) return 0;
+          try {
+            return map.getStyle()?.layers?.length ?? 0;
+          } catch {
+            return 0;
+          }
         });
       },
-      { message: 'Waiting for map style to load', timeout }
+      { message: 'Waiting for map layers to load', timeout }
     )
-    .toBe(true);
+    .toBeGreaterThan(0);
 }
 
 // Helper to set theme and wait for map style reload
+// Uses layer-count check instead of isStyleLoaded() (Firefox compat)
 async function setTheme(page: Page, theme: 'light' | 'dark') {
   await page.evaluate((t) => {
     document.documentElement.setAttribute('data-theme', t);
   }, theme);
-  // Style swap clears layers; poll until the new style finishes loading
+  // Style swap clears layers; poll until layers re-appear
   await expect
     .poll(
       async () => {
         return page.evaluate(() => {
           const mapRef = (window as any).maplibreMap;
           const map = mapRef?.getMap?.() ?? mapRef;
-          return map ? map.isStyleLoaded() : false;
+          if (!map) return 0;
+          try {
+            return map.getStyle()?.layers?.length ?? 0;
+          } catch {
+            return 0;
+          }
         });
       },
       {
-        message: 'Waiting for map style reload after theme change',
+        message: 'Waiting for map layers after theme change',
         timeout: 20000,
       }
     )
-    .toBe(true);
+    .toBeGreaterThan(0);
 }
 
 test.describe('Map Visual Regression Tests', () => {
@@ -331,13 +344,12 @@ test.describe('Theme Switching Visual Tests', () => {
       const mapRef = (window as any).maplibreMap;
       const map = mapRef?.getMap?.() ?? mapRef;
       return {
-        styleLoaded: map?.isStyleLoaded() ?? false,
-        layerCount: map?.getLayersOrder?.()?.length ?? 0,
+        layerCount: map?.getStyle()?.layers?.length ?? 0,
         hasCycleway: !!map?.getLayer('cycleway'),
         hasSource: !!map?.getSource('all-bike-routes'),
       };
     });
-    expect(mapState.styleLoaded).toBe(true);
+    // Use layer count instead of isStyleLoaded (Firefox compat)
     expect(mapState.layerCount).toBeGreaterThan(5);
     expect(mapState.hasCycleway).toBe(true);
     expect(mapState.hasSource).toBe(true);
