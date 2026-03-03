@@ -45,8 +45,13 @@ const getAdminClient = (): SupabaseClient | null => {
 };
 
 /** Handle ReAuth modal for encrypted messaging (retry-aware).
- *  Handles both success (modal closes) and failure (error shown, close modal). */
-async function handleReAuthModal(page: Page, password: string, maxRetries = 2) {
+ *  Handles both success (modal closes) and failure (error shown, close modal).
+ *  @returns true if keys were unlocked (or modal didn't appear), false if unlock failed. */
+async function handleReAuthModal(
+  page: Page,
+  password: string,
+  maxRetries = 2
+): Promise<boolean> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const reAuthDialog = page.getByRole('dialog', {
       name: /re-authentication required/i,
@@ -55,7 +60,7 @@ async function handleReAuthModal(page: Page, password: string, maxRetries = 2) {
       .waitFor({ state: 'visible', timeout: 3000 })
       .then(() => true)
       .catch(() => false);
-    if (!appeared) return;
+    if (!appeared) return true;
 
     const passwordInput = page.getByRole('textbox', { name: /password/i });
     await passwordInput.fill(password);
@@ -80,8 +85,9 @@ async function handleReAuthModal(page: Page, password: string, maxRetries = 2) {
     await reAuthDialog
       .waitFor({ state: 'hidden', timeout: 3000 })
       .catch(() => {});
-    return; // Can't unlock — bail out gracefully
+    return false; // Unlock failed — but connections still work without encryption
   }
+  return true;
 }
 
 /** Get user IDs from auth.users. */
