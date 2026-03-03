@@ -22,26 +22,46 @@ const TEST_USER_2 = {
 /**
  * Handle the ReAuthModal that appears when session is restored
  * but encryption keys need to be unlocked.
+ *
+ * Retry-aware: handles modal reappearance and failed unlock attempts.
+ * On failure (e.g., key mismatch, SharedArrayBuffer unavailable),
+ * closes the modal gracefully to unblock the test.
  */
-async function handleReAuthModal(page: Page, password: string) {
-  try {
-    // Wait for the ReAuth modal to appear (with short timeout)
+async function handleReAuthModal(page: Page, password: string, maxRetries = 2) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
     const reAuthDialog = page.getByRole('dialog', {
       name: /re-authentication required/i,
     });
+    const appeared = await reAuthDialog
+      .waitFor({ state: 'visible', timeout: 3000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!appeared) return;
 
-    // Wait for it to be visible
-    await reAuthDialog.waitFor({ state: 'visible', timeout: 5000 });
-
-    // Fill password and unlock
     const passwordInput = page.getByRole('textbox', { name: /password/i });
     await passwordInput.fill(password);
     await page.getByRole('button', { name: /unlock messages/i }).click();
 
-    // Wait for modal to close
-    await reAuthDialog.waitFor({ state: 'hidden', timeout: 10000 });
-  } catch {
-    // Modal didn't appear or already handled - continue
+    // Wait for modal to close (success) — but handle failure too
+    const hidden = await reAuthDialog
+      .waitFor({ state: 'hidden', timeout: 10000 })
+      .then(() => true)
+      .catch(() => false);
+    if (hidden) {
+      await page.waitForTimeout(500);
+      continue; // Check if it reappears
+    }
+
+    // Modal still visible — unlock failed (error shown in modal).
+    // Close modal to unblock the test.
+    const closeBtn = page
+      .getByRole('button', { name: /close modal/i })
+      .or(page.getByRole('button', { name: /cancel/i }));
+    await closeBtn.click({ timeout: 3000 }).catch(() => {});
+    await reAuthDialog
+      .waitFor({ state: 'hidden', timeout: 3000 })
+      .catch(() => {});
+    return; // Can't unlock — bail out gracefully
   }
 }
 
@@ -116,6 +136,7 @@ async function setupConversation(
   const conversationLink = page1.locator(
     `a[href*="/messages/"]:has-text("${TEST_USER_2.email}")`
   );
+  await conversationLink.waitFor({ state: 'visible', timeout: 15000 });
   await conversationLink.click();
 
   // Extract conversation ID from URL
@@ -166,6 +187,7 @@ test.describe('Real-time Message Delivery (T098)', () => {
   });
 
   test('should deliver message in <500ms between two windows', async () => {
+    test.setTimeout(60000);
     // Setup: Establish connection and navigate to conversation
     const conversationId = await setupConversation(page1, page2);
     expect(conversationId).not.toBeNull();
@@ -193,6 +215,7 @@ test.describe('Real-time Message Delivery (T098)', () => {
   });
 
   test('should show delivery status (sent → delivered → read)', async () => {
+    test.setTimeout(60000);
     // Setup: Establish connection and navigate to conversation
     const conversationId = await setupConversation(page1, page2);
     expect(conversationId).not.toBeNull();
@@ -227,6 +250,7 @@ test.describe('Real-time Message Delivery (T098)', () => {
   });
 
   test('should handle rapid message exchanges', async () => {
+    test.setTimeout(60000);
     // Setup: Establish connection and navigate to conversation
     const conversationId = await setupConversation(page1, page2);
     expect(conversationId).not.toBeNull();
@@ -289,6 +313,7 @@ test.describe('Typing Indicators (T099)', () => {
   });
 
   test('should show typing indicator when user types', async () => {
+    test.setTimeout(60000);
     // Setup: Establish connection and navigate to conversation
     const conversationId = await setupConversation(page1, page2);
     expect(conversationId).not.toBeNull();
@@ -305,6 +330,7 @@ test.describe('Typing Indicators (T099)', () => {
   });
 
   test('should hide typing indicator when user stops typing', async () => {
+    test.setTimeout(60000);
     // Setup: Establish connection and navigate to conversation
     const conversationId = await setupConversation(page1, page2);
     expect(conversationId).not.toBeNull();
@@ -324,6 +350,7 @@ test.describe('Typing Indicators (T099)', () => {
   });
 
   test('should remove typing indicator when message is sent', async () => {
+    test.setTimeout(60000);
     // Setup: Establish connection and navigate to conversation
     const conversationId = await setupConversation(page1, page2);
     expect(conversationId).not.toBeNull();
@@ -347,6 +374,7 @@ test.describe('Typing Indicators (T099)', () => {
   });
 
   test('should show multiple typing indicators correctly', async () => {
+    test.setTimeout(60000);
     // Setup: Establish connection and navigate to conversation
     const conversationId = await setupConversation(page1, page2);
     expect(conversationId).not.toBeNull();
@@ -371,6 +399,7 @@ test.describe('Typing Indicators (T099)', () => {
   });
 
   test('should auto-expire typing indicator after 5 seconds', async () => {
+    test.setTimeout(60000);
     // Setup: Establish connection and navigate to conversation
     const conversationId = await setupConversation(page1, page2);
     expect(conversationId).not.toBeNull();

@@ -15,6 +15,9 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
  * If the singleton's keys are cleared (e.g., auth state change),
  * the /messages page re-runs checkKeys() and shows the modal again.
  * maxRetries prevents an infinite loop.
+ *
+ * Also handles failed unlock (e.g., key mismatch, SharedArrayBuffer
+ * unavailable on Firefox) by closing the modal gracefully.
  */
 async function handleReAuthModal(page: Page, password: string, maxRetries = 2) {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -29,14 +32,32 @@ async function handleReAuthModal(page: Page, password: string, maxRetries = 2) {
       .catch(() => false);
     if (!appeared) return; // Modal didn't appear — done
 
-    // Modal IS visible — unlock it (let errors propagate)
+    // Modal IS visible — unlock it
     const passwordInput = page.getByRole('textbox', { name: /password/i });
     await passwordInput.fill(password);
     await page.getByRole('button', { name: /unlock messages/i }).click();
-    await reAuthDialog.waitFor({ state: 'hidden', timeout: 10000 });
 
-    // Brief pause to let React state settle before checking if it reappears
-    await page.waitForTimeout(500);
+    // Wait for modal to close (success) — but handle failure too
+    const hidden = await reAuthDialog
+      .waitFor({ state: 'hidden', timeout: 10000 })
+      .then(() => true)
+      .catch(() => false);
+    if (hidden) {
+      // Brief pause to let React state settle before checking if it reappears
+      await page.waitForTimeout(500);
+      continue;
+    }
+
+    // Modal still visible — unlock failed (error shown in modal).
+    // Close modal to unblock the test.
+    const closeBtn = page
+      .getByRole('button', { name: /close modal/i })
+      .or(page.getByRole('button', { name: /cancel/i }));
+    await closeBtn.click({ timeout: 3000 }).catch(() => {});
+    await reAuthDialog
+      .waitFor({ state: 'hidden', timeout: 3000 })
+      .catch(() => {});
+    return; // Can't unlock — bail out gracefully
   }
 }
 

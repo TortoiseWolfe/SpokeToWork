@@ -70,10 +70,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   const handleMapReady = useCallback(
     (map: MapRef) => {
       mapRef.current = map;
-      // Expose map instance to window for testing
-      if (typeof window !== 'undefined') {
-        (window as Window & { maplibreMap?: MapRef }).maplibreMap = map;
-      }
+      // window.maplibreMap is set by MapContainerInner.handleLoad (single source)
       if (onMapReady) {
         onMapReady(map);
       }
