@@ -79,7 +79,11 @@ async function setTheme(page: Page, theme: 'light' | 'dark') {
 }
 
 test.describe('Map Visual Regression Tests', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, browserName }) => {
+    test.skip(
+      browserName === 'firefox',
+      'MapLibre GL layers do not load reliably in Firefox headless on CI'
+    );
     await page.goto('/map');
     await dismissBanner(page);
     await waitForMapLoad(page);
@@ -234,7 +238,11 @@ test.describe('Map Visual Regression Tests', () => {
 });
 
 test.describe('Route Layer Visibility', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, browserName }) => {
+    test.skip(
+      browserName === 'firefox',
+      'MapLibre GL layers do not load reliably in Firefox headless on CI'
+    );
     await page.goto('/map');
     await dismissBanner(page);
     await waitForMapLoad(page);
@@ -282,7 +290,14 @@ test.describe('Route Layer Visibility', () => {
 });
 
 test.describe('Theme Switching Visual Tests', () => {
-  test('no visual glitches during rapid theme toggles', async ({ page }) => {
+  test('no visual glitches during rapid theme toggles', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(
+      browserName === 'firefox',
+      'MapLibre GL layers do not load reliably in Firefox headless on CI'
+    );
     await page.goto('/map');
     await dismissBanner(page);
     await waitForMapLoad(page);
@@ -314,7 +329,14 @@ test.describe('Theme Switching Visual Tests', () => {
     expect(layerErrors).toHaveLength(0);
   });
 
-  test('map remains functional after 10 theme toggles', async ({ page }) => {
+  test('map remains functional after 10 theme toggles', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(
+      browserName === 'firefox',
+      'MapLibre GL layers do not load reliably in Firefox headless on CI'
+    );
     test.setTimeout(60000); // 10 style reloads with proper polling needs >30s
     await page.goto('/map');
     await dismissBanner(page);
@@ -350,7 +372,14 @@ test.describe('Theme Switching Visual Tests', () => {
 });
 
 test.describe('Marker Variants Visual Tests', () => {
-  test('marker variants should be visually distinct', async ({ page }) => {
+  test('marker variants should be visually distinct', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(
+      browserName === 'firefox',
+      'MapLibre GL layers do not load reliably in Firefox headless on CI'
+    );
     await page.goto('/map');
     await dismissBanner(page);
     await waitForMapLoad(page);

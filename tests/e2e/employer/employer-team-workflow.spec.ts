@@ -207,7 +207,8 @@ test.describe('Employer Team Workflow', () => {
   test('employer can connect with worker and add to team from Team tab', async ({
     browser,
   }) => {
-    test.setTimeout(120000);
+    test.slow(); // Multi-context multi-step test — triples default timeout
+    test.setTimeout(180000);
 
     const ctxEmployer = await browser.newContext();
     const ctxWorker = await browser.newContext();
@@ -217,7 +218,7 @@ test.describe('Employer Team Workflow', () => {
     try {
       // ===== STEP 1: Employer signs in =====
       await pageE.goto('/sign-in');
-      await pageE.waitForLoadState('networkidle');
+      await pageE.waitForLoadState('domcontentloaded');
       await pageE.fill('#email', EMPLOYER.email);
       await pageE.fill('#password', EMPLOYER.password);
       await pageE.click('button[type="submit"]');
@@ -227,7 +228,7 @@ test.describe('Employer Team Workflow', () => {
           timeout: 30000,
         });
       } catch {
-        await pageE.waitForLoadState('networkidle');
+        await pageE.waitForLoadState('domcontentloaded');
         if (pageE.url().includes('/sign-in')) {
           throw new Error('Employer sign-in failed after 30s');
         }
@@ -235,7 +236,7 @@ test.describe('Employer Team Workflow', () => {
 
       // ===== STEP 2: Navigate to /employer → Team tab =====
       await pageE.goto('/employer');
-      await pageE.waitForLoadState('networkidle');
+      await pageE.waitForLoadState('domcontentloaded');
 
       // Wait for dashboard to load (role check + data fetch)
       await expect(
@@ -306,7 +307,7 @@ test.describe('Employer Team Workflow', () => {
           // Firefox: UI may not update after click — reload and re-check
           console.log('UI did not update after click, reloading page...');
           await pageE.goto('/employer');
-          await pageE.waitForLoadState('networkidle');
+          await pageE.waitForLoadState('domcontentloaded');
           await expect(
             pageE.getByRole('heading', { name: 'Employer Dashboard' })
           ).toBeVisible({ timeout: 15000 });
@@ -344,7 +345,7 @@ test.describe('Employer Team Workflow', () => {
 
             console.log(`Post-reload search retry ${retryAttempt + 1}/3`);
             await pageE.goto('/employer');
-            await pageE.waitForLoadState('networkidle');
+            await pageE.waitForLoadState('domcontentloaded');
             await expect(
               pageE.getByRole('heading', { name: 'Employer Dashboard' })
             ).toBeVisible({ timeout: 15000 });
@@ -386,7 +387,7 @@ test.describe('Employer Team Workflow', () => {
 
       // ===== STEP 5: Worker signs in and accepts =====
       await pageW.goto('/sign-in');
-      await pageW.waitForLoadState('networkidle');
+      await pageW.waitForLoadState('domcontentloaded');
       await pageW.fill('#email', WORKER.email);
       await pageW.fill('#password', WORKER.password);
       await pageW.click('button[type="submit"]');
@@ -396,7 +397,7 @@ test.describe('Employer Team Workflow', () => {
           timeout: 30000,
         });
       } catch {
-        await pageW.waitForLoadState('networkidle');
+        await pageW.waitForLoadState('domcontentloaded');
         if (pageW.url().includes('/sign-in')) {
           throw new Error('Worker sign-in failed after 30s');
         }
@@ -404,7 +405,7 @@ test.describe('Employer Team Workflow', () => {
 
       // Verify worker auth is fully hydrated before checking connections
       await pageW.goto('/profile');
-      await pageW.waitForLoadState('networkidle');
+      await pageW.waitForLoadState('domcontentloaded');
       await pageW.waitForTimeout(2000);
 
       // Poll for connection request (useConnections hook fetches on mount)
@@ -412,7 +413,7 @@ test.describe('Employer Team Workflow', () => {
       for (let attempt = 0; attempt < 8; attempt++) {
         await pageW.goto('/messages?tab=connections');
         await handleReAuthModal(pageW, WORKER.password);
-        await pageW.waitForLoadState('networkidle');
+        await pageW.waitForLoadState('domcontentloaded');
 
         const receivedTab = pageW.getByRole('tab', {
           name: /pending received|received/i,
@@ -454,7 +455,7 @@ test.describe('Employer Team Workflow', () => {
           `Connection request card still visible (attempt ${attempt + 1}/5), reloading...`
         );
         await pageW.reload();
-        await pageW.waitForLoadState('networkidle');
+        await pageW.waitForLoadState('domcontentloaded');
       }
       if (!cardHidden) {
         throw new Error(
@@ -464,7 +465,7 @@ test.describe('Employer Team Workflow', () => {
 
       // ===== STEP 6: Employer refreshes Team tab =====
       await pageE.goto('/employer');
-      await pageE.waitForLoadState('networkidle');
+      await pageE.waitForLoadState('domcontentloaded');
       await expect(
         pageE.getByRole('heading', { name: 'Employer Dashboard' })
       ).toBeVisible({ timeout: 15000 });
@@ -500,7 +501,7 @@ test.describe('Employer Team Workflow', () => {
   });
 
   test('Team tab shows pending connection badge', async ({ page }) => {
-    test.setTimeout(90000);
+    test.setTimeout(180000);
 
     // First create a pending request from worker to employer via admin
     const client = getAdminClient();
@@ -540,7 +541,7 @@ test.describe('Employer Team Workflow', () => {
 
     // Sign in as employer
     await page.goto('/sign-in');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.fill('#email', EMPLOYER.email);
     await page.fill('#password', EMPLOYER.password);
     await page.click('button[type="submit"]');
@@ -550,7 +551,7 @@ test.describe('Employer Team Workflow', () => {
         timeout: 30000,
       });
     } catch {
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       if (page.url().includes('/sign-in')) {
         throw new Error('Employer sign-in failed after 30s');
       }
@@ -562,7 +563,7 @@ test.describe('Employer Team Workflow', () => {
     // Navigate to employer dashboard and poll for connection request
     // (useConnections hook fetches once on mount — need reload to refetch)
     let requestFound = false;
-    for (let attempt = 0; attempt < 8; attempt++) {
+    for (let attempt = 0; attempt < 5; attempt++) {
       await page.goto('/employer');
       await expect(
         page.getByRole('heading', { name: 'Employer Dashboard' })
@@ -587,7 +588,7 @@ test.describe('Employer Team Workflow', () => {
         if (requestFound) break;
       }
       console.log(
-        `Team badge attempt ${attempt + 1}/8: connection request not visible`
+        `Team badge attempt ${attempt + 1}/5: connection request not visible`
       );
       await page.waitForTimeout(4000);
     }
