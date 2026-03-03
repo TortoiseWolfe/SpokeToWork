@@ -5,6 +5,8 @@
  * 1. Clean up orphaned e2e-* test users from previous crashed runs
  * 2. Ensure admin user (spoketowork) exists with ECDH encryption keys
  *    for welcome message and complete flow tests
+ * 3. Ensure test users have password-derived encryption keys so
+ *    messaging E2E tests can actually send/receive encrypted messages
  */
 
 import { FullConfig } from '@playwright/test';
@@ -207,7 +209,128 @@ async function generateAndStoreAdminKeys(userId: string): Promise<void> {
   console.log('  ✓ ECDH P-256 public key stored');
 }
 
+/**
+ * P-256 curve order for scalar reduction.
+ * Must match the constant in src/lib/messaging/key-derivation.ts.
+ */
+const P256_ORDER = BigInt(
+  '0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551'
+);
+
+/**
+ * Ensure every test user has password-derived encryption keys in the database.
+ *
+ * Without these keys, deriveKeys() in the browser throws
+ * "No salt found. User may need migration or initialization." and
+ * messaging tests fail or get skipped.
+ *
+ * Replicates the exact same pipeline as src/lib/messaging/key-derivation.ts:
+ *   password + salt → Argon2id → 32-byte seed → reduceScalar → P-256 keypair
+ */
+async function ensureTestUserKeys(): Promise<void> {
+  console.log('🔑 Ensuring test users have encryption keys...');
+
+  // Dynamic imports — both are project dependencies
+  const { argon2id } = await import('hash-wasm');
+  const { p256 } = await import('@noble/curves/nist.js');
+
+  const testUsers = [
+    {
+      email: process.env.TEST_USER_PRIMARY_EMAIL,
+      password: process.env.TEST_USER_PRIMARY_PASSWORD,
+    },
+    {
+      email: process.env.TEST_USER_SECONDARY_EMAIL,
+      password: process.env.TEST_USER_SECONDARY_PASSWORD,
+    },
+    {
+      email: process.env.TEST_USER_TERTIARY_EMAIL,
+      password: process.env.TEST_USER_TERTIARY_PASSWORD,
+    },
+  ].filter(
+    (u): u is { email: string; password: string } => !!u.email && !!u.password
+  );
+
+  if (testUsers.length === 0) {
+    console.log(
+      '  ⚠ No test user credentials found in env — skipping key seeding'
+    );
+    return;
+  }
+
+  for (const { email, password } of testUsers) {
+    try {
+      // 1. Look up user_id
+      const rows = (await executeSQL(
+        `SELECT id FROM auth.users WHERE email = '${email}'`
+      )) as { id: string }[];
+      const userId = rows[0]?.id;
+      if (!userId) {
+        console.log(`  ⚠ User ${email} not found in auth.users — skipping`);
+        continue;
+      }
+
+      // 2. Check for existing non-revoked keys with salt
+      const existing = (await executeSQL(
+        `SELECT id FROM user_encryption_keys WHERE user_id = '${userId}' AND revoked = false AND encryption_salt IS NOT NULL`
+      )) as { id: string }[];
+      if (existing[0]?.id) {
+        console.log(`  ✓ ${email} already has encryption keys`);
+        continue;
+      }
+
+      // 3. Generate random salt (16 bytes, matching ARGON2_CONFIG.SALT_LENGTH)
+      const salt = crypto.randomBytes(16);
+
+      // 4. Argon2id hash — same params as ARGON2_CONFIG in src/types/messaging.ts
+      const seed = await argon2id({
+        password,
+        salt,
+        parallelism: 4, // ARGON2_CONFIG.PARALLELISM
+        iterations: 3, // ARGON2_CONFIG.TIME_COST
+        memorySize: 65536, // ARGON2_CONFIG.MEMORY_COST (64 MB)
+        hashLength: 32, // ARGON2_CONFIG.HASH_LENGTH
+        outputType: 'binary',
+      });
+
+      // 5. Reduce scalar mod P-256 order (matches reduceScalar in key-derivation.ts)
+      let seedBigInt = BigInt(0);
+      for (const byte of seed) {
+        seedBigInt = (seedBigInt << BigInt(8)) + BigInt(byte);
+      }
+      const reduced = (seedBigInt % (P256_ORDER - BigInt(1))) + BigInt(1);
+      const privKeyBytes = new Uint8Array(32);
+      let rem = reduced;
+      for (let i = 31; i >= 0; i--) {
+        privKeyBytes[i] = Number(rem & BigInt(0xff));
+        rem = rem >> BigInt(8);
+      }
+
+      // 6. Compute P-256 public key (uncompressed: 0x04 || x || y)
+      const pubKeyBytes = p256.getPublicKey(privKeyBytes, false);
+      const x = Buffer.from(pubKeyBytes.slice(1, 33)).toString('base64url');
+      const y = Buffer.from(pubKeyBytes.slice(33, 65)).toString('base64url');
+      const jwk = { kty: 'EC', crv: 'P-256', x, y };
+
+      // 7. Store public_key + encryption_salt in database
+      const saltBase64 = Buffer.from(salt).toString('base64');
+      const jwkJson = JSON.stringify(jwk).replace(/'/g, "''");
+      await executeSQL(`
+        INSERT INTO user_encryption_keys (user_id, public_key, encryption_salt, revoked)
+        VALUES ('${userId}', '${jwkJson}'::jsonb, '${saltBase64}', false)
+        ON CONFLICT DO NOTHING
+      `);
+
+      console.log(`  ✓ Encryption keys seeded for ${email}`);
+    } catch (error) {
+      console.warn(`  ⚠ Key seeding failed for ${email}:`, error);
+      // Don't fail other users if one fails
+    }
+  }
+}
+
 export default async function globalSetup(config: FullConfig): Promise<void> {
   await cleanupOrphanedE2EUsers();
   await ensureAdminUser();
+  await ensureTestUserKeys();
 }

@@ -171,14 +171,9 @@ test.describe('Real-time Message Delivery (T098)', () => {
 
   test.beforeEach(async ({ browser, browserName }) => {
     // These tests require two authenticated users with encryption keys.
-    // Skip when credentials are missing or on Firefox (SharedArrayBuffer unavailable).
     test.skip(
       !TEST_USER_1.password || !TEST_USER_2.password,
       'Missing PRIMARY or SECONDARY test user credentials'
-    );
-    test.skip(
-      browserName === 'firefox',
-      'SharedArrayBuffer unavailable on Firefox without COOP/COEP headers'
     );
 
     // Create two separate browser contexts (simulates two users)
@@ -322,10 +317,6 @@ test.describe('Typing Indicators (T099)', () => {
     test.skip(
       !TEST_USER_1.password || !TEST_USER_2.password,
       'Missing PRIMARY or SECONDARY test user credentials'
-    );
-    test.skip(
-      browserName === 'firefox',
-      'SharedArrayBuffer unavailable on Firefox without COOP/COEP headers'
     );
 
     // Create two separate browser contexts
