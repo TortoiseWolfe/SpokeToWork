@@ -17,6 +17,8 @@ export interface BikeRoutesLayerProps {
   isDarkMode: boolean;
   /** Whether the layer is visible */
   visible?: boolean;
+  /** Pre-fetched GeoJSON data (avoids re-fetch on remount) */
+  initialData?: GeoJSON.FeatureCollection | null;
 }
 
 /**
@@ -26,14 +28,21 @@ export interface BikeRoutesLayerProps {
 export function BikeRoutesLayer({
   isDarkMode,
   visible = true,
+  initialData,
 }: BikeRoutesLayerProps) {
   const [geojsonData, setGeojsonData] =
     useState<GeoJSON.FeatureCollection | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch GeoJSON on mount
+  // Use parent-provided data if available; otherwise fetch on mount
   useEffect(() => {
+    if (initialData) {
+      setGeojsonData(initialData);
+      setIsLoading(false);
+      return;
+    }
+
     let isMounted = true;
 
     async function loadBikeRoutes() {
@@ -63,7 +72,7 @@ export function BikeRoutesLayer({
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [initialData]);
 
   // Theme-adaptive colors
   const routeColor = isDarkMode ? '#4ade80' : '#22c55e'; // green-400 / green-500

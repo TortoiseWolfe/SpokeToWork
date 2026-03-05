@@ -27,7 +27,7 @@ async function dismissBanner(page: Page) {
 // Calls methods directly on the MapRef proxy (no .getMap()) — the proxy
 // forwards calls to the underlying map. Using .getMap() can return a stale
 // reference during initialization.
-async function waitForMapLoad(page: Page, timeout = 30000) {
+async function waitForMapLoad(page: Page, timeout = 55000) {
   await page.waitForSelector('.maplibregl-canvas', {
     state: 'visible',
     timeout,

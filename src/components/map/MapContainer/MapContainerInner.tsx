@@ -272,7 +272,23 @@ const MapContainerInner: React.FC<MapContainerInnerProps> = ({
   const geolocateRef = useRef<maplibregl.GeolocateControl | null>(null);
   const [selectedMarker, setSelectedMarker] = useState<MapMarker | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [bikeRouteData, setBikeRouteData] =
+    useState<GeoJSON.FeatureCollection | null>(null);
   const mapStyle = useMapTheme(theme);
+
+  // Fetch bike route GeoJSON once — survives BikeRoutesLayer key-remounts
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/data/all-bike-routes.geojson')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`${r.status}`))))
+      .then((data: GeoJSON.FeatureCollection) => {
+        if (isMounted) setBikeRouteData(data);
+      })
+      .catch((err) => console.error('Failed to preload bike routes:', err));
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Detect dark mode for BikeRoutesLayer theme-adaptive colors
   useEffect(() => {
@@ -384,6 +400,7 @@ const MapContainerInner: React.FC<MapContainerInnerProps> = ({
       <BikeRoutesLayer
         key={isDarkMode ? 'dark' : 'light'}
         isDarkMode={isDarkMode}
+        initialData={bikeRouteData}
       />
 
       {/* Navigation controls */}

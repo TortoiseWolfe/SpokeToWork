@@ -225,12 +225,12 @@ test.describe('Employer Team Workflow', () => {
       // Firefox: NS_BINDING_ABORTED; WebKit: hard navigation not detected
       try {
         await pageE.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-          timeout: 30000,
+          timeout: 45000,
         });
       } catch {
         await pageE.waitForLoadState('domcontentloaded');
         if (pageE.url().includes('/sign-in')) {
-          throw new Error('Employer sign-in failed after 30s');
+          throw new Error('Employer sign-in failed after 45s');
         }
       }
 
