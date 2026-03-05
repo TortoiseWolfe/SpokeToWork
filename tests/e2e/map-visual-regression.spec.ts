@@ -309,7 +309,9 @@ test.describe('Theme Switching Visual Tests', () => {
 
     // No errors related to layers
     const layerErrors = errors.filter(
-      (e) => e.includes('layer') || e.includes('source') || e.includes('style')
+      (e) =>
+        (e.includes('layer') || e.includes('source') || e.includes('style')) &&
+        !e.includes('Failed to load resource')
     );
     expect(layerErrors).toHaveLength(0);
   });

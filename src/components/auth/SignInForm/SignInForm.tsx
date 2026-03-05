@@ -162,31 +162,25 @@ export default function SignInForm({
           logger.info('New user - initializing encryption keys');
           const keyPair = await keyManagementService.initializeKeys(password);
 
-          // Send welcome message in background (fire-and-forget).
-          // Navigation uses window.location.href which kills in-flight operations,
-          // but the welcome message will be retried on next sign-in.
+          // Send welcome message (must complete before navigation)
           if (keyPair.privateKey && keyPair.publicKeyJwk) {
-            const pk = keyPair.privateKey;
-            const pubJwk = keyPair.publicKeyJwk;
-            (async () => {
-              try {
-                const { welcomeService } = await import(
-                  '@/services/messaging/welcome-service'
+            try {
+              const { welcomeService } = await import(
+                '@/services/messaging/welcome-service'
+              );
+              const { createClient } = await import('@/lib/supabase/client');
+              const supabase = createClient();
+              const { data } = await supabase.auth.getUser();
+              if (data?.user?.id) {
+                await welcomeService.sendWelcomeMessage(
+                  data.user.id,
+                  keyPair.privateKey,
+                  keyPair.publicKeyJwk
                 );
-                const { createClient } = await import('@/lib/supabase/client');
-                const supabase = createClient();
-                const { data } = await supabase.auth.getUser();
-                if (data?.user?.id) {
-                  await welcomeService.sendWelcomeMessage(
-                    data.user.id,
-                    pk,
-                    pubJwk
-                  );
-                }
-              } catch (err) {
-                logger.error('Welcome message failed', { error: err });
               }
-            })();
+            } catch (err) {
+              logger.error('Welcome message failed', { error: err });
+            }
           }
         } else {
           // Check if user needs migration (legacy random keys)
@@ -203,31 +197,26 @@ export default function SignInForm({
             keyPair = await keyManagementService.deriveKeys(password);
           }
 
-          // Check if user needs welcome message (Feature 004)
-          // Fire-and-forget: navigation uses window.location.href which kills
-          // in-flight operations, but welcome message retries on next sign-in.
+          // Send welcome message if needed (Feature 004)
+          // Must complete before navigation — idempotent (skips if already sent)
           if (keyPair?.privateKey && keyPair?.publicKeyJwk) {
-            const pk = keyPair.privateKey;
-            const pubJwk = keyPair.publicKeyJwk;
-            (async () => {
-              try {
-                const { welcomeService } = await import(
-                  '@/services/messaging/welcome-service'
+            try {
+              const { welcomeService } = await import(
+                '@/services/messaging/welcome-service'
+              );
+              const { createClient } = await import('@/lib/supabase/client');
+              const supabase = createClient();
+              const { data } = await supabase.auth.getUser();
+              if (data?.user?.id) {
+                await welcomeService.sendWelcomeMessage(
+                  data.user.id,
+                  keyPair.privateKey,
+                  keyPair.publicKeyJwk
                 );
-                const { createClient } = await import('@/lib/supabase/client');
-                const supabase = createClient();
-                const { data } = await supabase.auth.getUser();
-                if (data?.user?.id) {
-                  await welcomeService.sendWelcomeMessage(
-                    data.user.id,
-                    pk,
-                    pubJwk
-                  );
-                }
-              } catch (err) {
-                logger.error('Welcome message failed', { error: err });
               }
-            })();
+            } catch (err) {
+              logger.error('Welcome message failed', { error: err });
+            }
           }
         }
       } catch (keyError) {

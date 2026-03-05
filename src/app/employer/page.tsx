@@ -114,6 +114,14 @@ export default function EmployerPage() {
     void fetchAcceptedConnections();
   }, [fetchAcceptedConnections]);
 
+  // Refetch accepted connections when Team tab is selected
+  // Handles cross-page state: worker accepts on their page, employer sees it on tab switch
+  useEffect(() => {
+    if (activeTab === 'team') {
+      void fetchAcceptedConnections();
+    }
+  }, [activeTab, fetchAcceptedConnections]);
+
   // Refresh accepted connections whenever pending count changes
   // (fires when a connection is accepted/declined/removed)
   const handlePendingCountChange = useCallback(
