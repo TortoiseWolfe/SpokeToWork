@@ -16,7 +16,9 @@ const config: StorybookConfig = {
     name: '@storybook/nextjs-vite',
     options: {},
   },
-  staticDirs: ['../public'],
+  // Note: @storybook/nextjs-vite handles public/ automatically via the
+  // Next.js framework adapter. Explicit staticDirs causes EEXIST errors
+  // when both mechanisms try to mkdir the same subdirectories (e.g. leaflet/).
   env: (config) => ({
     ...config,
     // Pass through all NEXT_PUBLIC_ env vars to Storybook
