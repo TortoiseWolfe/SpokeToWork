@@ -379,8 +379,12 @@ const MapContainerInner: React.FC<MapContainerInnerProps> = ({
       onError={handleError}
       reuseMaps
     >
-      {/* OSM Bike Routes - uses declarative components for theme persistence */}
-      <BikeRoutesLayer isDarkMode={isDarkMode} />
+      {/* OSM Bike Routes - key forces remount on theme change so Source/Layer
+          re-attach to the new MapLibre style (WebKit compat) */}
+      <BikeRoutesLayer
+        key={isDarkMode ? 'dark' : 'light'}
+        isDarkMode={isDarkMode}
+      />
 
       {/* Navigation controls */}
       {zoomControl && <NavigationControl position="top-right" />}

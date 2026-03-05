@@ -12,6 +12,10 @@ import { useEffect, useState, useMemo } from 'react';
 import { Source, Layer } from 'react-map-gl/maplibre';
 import type { LineLayerSpecification } from 'maplibre-gl';
 
+// Module-level cache: survives component remounts (e.g. theme-change key swap)
+// so the GeoJSON file is only fetched once per page load.
+let _bikeRouteCache: GeoJSON.FeatureCollection | null = null;
+
 export interface BikeRoutesLayerProps {
   /** Whether the current theme is dark mode */
   isDarkMode: boolean;
@@ -32,8 +36,14 @@ export function BikeRoutesLayer({
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch GeoJSON once on mount
+  // Fetch GeoJSON once; use module-level cache on subsequent mounts
   useEffect(() => {
+    if (_bikeRouteCache) {
+      setGeojsonData(_bikeRouteCache);
+      setIsLoading(false);
+      return;
+    }
+
     let isMounted = true;
 
     async function loadBikeRoutes() {
@@ -43,6 +53,7 @@ export function BikeRoutesLayer({
           throw new Error(`Failed to fetch bike routes: ${response.status}`);
         }
         const data = await response.json();
+        _bikeRouteCache = data;
 
         if (isMounted) {
           setGeojsonData(data);

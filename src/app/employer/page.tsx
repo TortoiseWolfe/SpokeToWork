@@ -114,12 +114,22 @@ export default function EmployerPage() {
     void fetchAcceptedConnections();
   }, [fetchAcceptedConnections]);
 
-  // Refetch accepted connections when Team tab is selected
-  // Handles cross-page state: worker accepts on their page, employer sees it on tab switch
+  // Poll accepted connections while Team tab is active.
+  // Handles cross-page state: worker accepts on their page, employer sees it
+  // on tab switch. Supabase Cloud read replicas may lag a few seconds, so
+  // polling ensures the TeamPanel picker receives fresh data.
   useEffect(() => {
-    if (activeTab === 'team') {
+    if (activeTab !== 'team') return;
+
+    // Immediate fetch on tab activation
+    void fetchAcceptedConnections();
+
+    // Poll every 3s while tab is active
+    const interval = setInterval(() => {
       void fetchAcceptedConnections();
-    }
+    }, 3000);
+
+    return () => clearInterval(interval);
   }, [activeTab, fetchAcceptedConnections]);
 
   // Refresh accepted connections whenever pending count changes

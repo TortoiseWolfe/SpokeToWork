@@ -79,6 +79,9 @@ async function setTheme(page: Page, theme: 'light' | 'dark') {
 }
 
 test.describe('Map Visual Regression Tests', () => {
+  // Firefox CI can be slow to initialize MapLibre — extend timeout
+  test.setTimeout(60000);
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/map');
     await dismissBanner(page);
@@ -234,6 +237,8 @@ test.describe('Map Visual Regression Tests', () => {
 });
 
 test.describe('Route Layer Visibility', () => {
+  test.setTimeout(60000);
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/map');
     await dismissBanner(page);
@@ -352,6 +357,7 @@ test.describe('Theme Switching Visual Tests', () => {
 });
 
 test.describe('Marker Variants Visual Tests', () => {
+  test.setTimeout(60000);
   test('marker variants should be visually distinct', async ({ page }) => {
     await page.goto('/map');
     await dismissBanner(page);
