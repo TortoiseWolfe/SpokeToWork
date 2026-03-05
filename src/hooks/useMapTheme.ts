@@ -82,16 +82,26 @@ export function useMapTheme(
   }, []);
 
   // Determine which style to use
-  if (preferredTheme === 'light') {
-    return lightStyle as StyleSpecification;
+  const baseStyle =
+    preferredTheme === 'light'
+      ? lightStyle
+      : preferredTheme === 'dark'
+        ? darkStyle
+        : isDarkMode
+          ? darkStyle
+          : lightStyle;
+
+  // Inject basePath into the sprite URL for GitHub Pages deployment.
+  // The style JSON uses "/sprites/liberty/sprite" which needs the basePath prefix.
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  if (basePath && (baseStyle as Record<string, unknown>).sprite) {
+    return {
+      ...baseStyle,
+      sprite: `${basePath}${(baseStyle as Record<string, unknown>).sprite}`,
+    } as StyleSpecification;
   }
 
-  if (preferredTheme === 'dark') {
-    return darkStyle as StyleSpecification;
-  }
-
-  // Auto mode: use detected theme
-  return (isDarkMode ? darkStyle : lightStyle) as StyleSpecification;
+  return baseStyle as StyleSpecification;
 }
 
 export default useMapTheme;

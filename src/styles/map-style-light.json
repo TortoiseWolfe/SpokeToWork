@@ -13,7 +13,7 @@
       "attribution": "Cycling overlay © Waymarked Trails"
     }
   },
-  "sprite": "https://tiles.openfreemap.org/sprites/liberty/sprite",
+  "sprite": "/sprites/liberty/sprite",
   "glyphs": "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
   "layers": [
     {
