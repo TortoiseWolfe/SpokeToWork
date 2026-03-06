@@ -48,6 +48,19 @@ async function waitForMapLoad(page: Page, timeout = 55000) {
       { message: 'Waiting for map layers to load', timeout }
     )
     .toBeGreaterThan(0);
+
+  // Wait for React-managed bike routes source (fetched via initialData)
+  await expect
+    .poll(
+      async () => {
+        return page.evaluate(() => {
+          const map = (window as any).maplibreMap;
+          return !!map?.getSource('all-bike-routes');
+        });
+      },
+      { message: 'Waiting for bike routes source to load', timeout: 30000 }
+    )
+    .toBe(true);
 }
 
 // Helper to set theme and wait for map style reload
@@ -76,6 +89,23 @@ async function setTheme(page: Page, theme: 'light' | 'dark') {
       }
     )
     .toBeGreaterThan(0);
+
+  // Wait for React-managed bike routes source to re-register
+  // (BikeRoutesLayer remounts via key prop on theme change)
+  await expect
+    .poll(
+      async () => {
+        return page.evaluate(() => {
+          const map = (window as any).maplibreMap;
+          return !!map?.getSource('all-bike-routes');
+        });
+      },
+      {
+        message: 'Waiting for bike routes source after theme change',
+        timeout: 10000,
+      }
+    )
+    .toBe(true);
 }
 
 test.describe('Map Visual Regression Tests', () => {

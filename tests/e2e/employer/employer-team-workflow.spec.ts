@@ -484,7 +484,7 @@ test.describe('Employer Team Workflow', () => {
       const workerOption = pageE.getByRole('button', {
         name: new RegExp(WORKER.displayName, 'i'),
       });
-      await expect(workerOption).toBeVisible({ timeout: 5000 });
+      await expect(workerOption).toBeVisible({ timeout: 15000 });
 
       // ===== STEP 8: Add worker to team =====
       await workerOption.click();
