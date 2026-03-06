@@ -3,8 +3,10 @@ import { test, expect } from '@playwright/test';
 test.describe('Form Submission', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to contact page which has the ContactForm
+    // Use networkidle to ensure React hydration is complete — WebKit CI
+    // shows navigations firing during evaluate() with only domcontentloaded.
     await page.goto('/contact');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
   });
 
   test('form fields have proper labels and ARIA attributes', async ({
@@ -225,24 +227,37 @@ test.describe('Form Submission', () => {
     await expect(honeypotLabel).toBeAttached();
 
     // Verify the parent container is positioned offscreen.
-    // Uses getBoundingClientRect as cross-browser fallback because
-    // WebKit's getComputedStyle().left may return "auto" for absolutely
-    // positioned elements, causing parseInt() to return NaN.
+    // The honeypot div uses inline style: position:absolute; left:-9999px
+    // Check both computed style AND inline style (WebKit computed style
+    // can differ from inline during page transitions).
     const isHidden = await honeypotLabel.evaluate((el) => {
       const parent = el.parentElement!;
-      const style = window.getComputedStyle(parent);
-      const leftValue = parseFloat(style.left);
-      const isOffscreenLeft = !isNaN(leftValue) && leftValue < -9000;
+      const computed = window.getComputedStyle(parent);
+      const inline = parent.style;
+
+      // Check inline style directly (most reliable cross-browser)
+      const inlineAbsolute = inline.position === 'absolute';
+      const inlineOffscreen =
+        parseFloat(inline.left) < -9000 || parseFloat(inline.left + '') < -9000;
+
+      // Check computed style
+      const computedAbsolute = computed.position === 'absolute';
+      const leftValue = parseFloat(computed.left);
+      const computedOffscreen = !isNaN(leftValue) && leftValue < -9000;
+
+      // Check bounding rect (ultimate fallback)
       const rect = parent.getBoundingClientRect();
-      const isOffscreenRect = rect.right < 0;
+      const rectOffscreen = rect.right < 0;
 
       return (
-        style.position === 'absolute' ||
-        style.clip === 'rect(0px, 0px, 0px, 0px)' ||
+        inlineAbsolute ||
+        inlineOffscreen ||
+        computedAbsolute ||
+        computed.clip === 'rect(0px, 0px, 0px, 0px)' ||
         parent.classList.contains('sr-only') ||
-        style.height === '0px' ||
-        isOffscreenLeft ||
-        isOffscreenRect
+        computed.height === '0px' ||
+        computedOffscreen ||
+        rectOffscreen
       );
     });
 

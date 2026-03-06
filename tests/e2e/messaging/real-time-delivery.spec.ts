@@ -7,6 +7,13 @@
  */
 
 import { test, expect, Page, BrowserContext } from '@playwright/test';
+import {
+  getAdminClient,
+  ensureConnection,
+  ensureConversation,
+} from './test-helpers';
+
+const adminClient = getAdminClient();
 
 // Test user credentials (from .env or defaults)
 const TEST_USER_1 = {
@@ -176,6 +183,16 @@ test.describe('Real-time Message Delivery (T098)', () => {
       'Missing PRIMARY or SECONDARY test user credentials'
     );
 
+    // Seed connection + conversation so messaging UI has data
+    if (adminClient) {
+      await ensureConnection(adminClient, TEST_USER_1.email, TEST_USER_2.email);
+      await ensureConversation(
+        adminClient,
+        TEST_USER_1.email,
+        TEST_USER_2.email
+      );
+    }
+
     // Create two separate browser contexts (simulates two users)
     context1 = await browser.newContext();
     context2 = await browser.newContext();
@@ -318,6 +335,15 @@ test.describe('Typing Indicators (T099)', () => {
       !TEST_USER_1.password || !TEST_USER_2.password,
       'Missing PRIMARY or SECONDARY test user credentials'
     );
+
+    if (adminClient) {
+      await ensureConnection(adminClient, TEST_USER_1.email, TEST_USER_2.email);
+      await ensureConversation(
+        adminClient,
+        TEST_USER_1.email,
+        TEST_USER_2.email
+      );
+    }
 
     // Create two separate browser contexts
     context1 = await browser.newContext();

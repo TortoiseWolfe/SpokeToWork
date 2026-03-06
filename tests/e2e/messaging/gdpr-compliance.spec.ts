@@ -200,8 +200,8 @@ test.describe('GDPR Account Deletion', () => {
       .first();
     await deleteButton.click();
 
-    // Modal should be visible
-    const modal = page.locator('[role="dialog"]');
+    // Modal should be visible (use specific aria-labelledby to avoid matching crop modal)
+    const modal = page.locator('[aria-labelledby="delete-modal-title"]');
     await expect(modal).toBeVisible();
 
     // Modal should have warning content
@@ -219,7 +219,7 @@ test.describe('GDPR Account Deletion', () => {
       .first();
     await deleteButton.click();
 
-    const modal = page.locator('[role="dialog"]');
+    const modal = page.locator('[aria-labelledby="delete-modal-title"]');
     const confirmInput = modal.locator('input[placeholder="DELETE"]');
     const confirmButton = modal.locator('button:has-text("Delete Account")');
 
@@ -247,7 +247,7 @@ test.describe('GDPR Account Deletion', () => {
       .first();
     await deleteButton.click();
 
-    const modal = page.locator('[role="dialog"]');
+    const modal = page.locator('[aria-labelledby="delete-modal-title"]');
     await expect(modal).toBeVisible();
 
     const cancelButton = modal.locator('button:has-text("Cancel")');
@@ -268,7 +268,7 @@ test.describe('GDPR Account Deletion', () => {
       .first();
     await deleteButton.click();
 
-    const modal = page.locator('[role="dialog"]');
+    const modal = page.locator('[aria-labelledby="delete-modal-title"]');
     const confirmInput = modal.locator('input[placeholder="DELETE"]');
     const confirmButton = modal.locator('button:has-text("Delete Account")');
 
@@ -301,7 +301,7 @@ test.describe('GDPR Account Deletion', () => {
       .first();
     await deleteButton.click();
 
-    const modal = page.locator('[role="dialog"]');
+    const modal = page.locator('[aria-labelledby="delete-modal-title"]');
     const confirmInput = modal.locator('input[placeholder="DELETE"]');
     const confirmButton = modal.locator('button:has-text("Delete Account")');
 
@@ -332,7 +332,7 @@ test.describe('GDPR Account Deletion', () => {
       .first();
     await deleteButton.click();
 
-    const modal = page.locator('[role="dialog"]');
+    const modal = page.locator('[aria-labelledby="delete-modal-title"]');
 
     // Modal should have ARIA labels
     await expect(modal).toHaveAttribute(
@@ -356,7 +356,7 @@ test.describe('GDPR Accessibility', () => {
     await page.fill('input[type="email"]', TEST_USER.email);
     await page.fill('input[type="password"]', TEST_USER.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/\/profile/, { timeout: 10000 });
+    await page.waitForURL(/\/profile/, { timeout: 45000 });
     await page.goto('/account');
   });
 

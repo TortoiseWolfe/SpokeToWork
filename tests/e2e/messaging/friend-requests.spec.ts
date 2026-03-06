@@ -17,6 +17,7 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { ensureConnection, ensureConversation } from './test-helpers';
 
 /**
  * Handle the ReAuthModal that appears when session is restored
@@ -456,6 +457,13 @@ test.describe('Friend Request Flow', () => {
 });
 
 test.describe('Accessibility', () => {
+  test.beforeEach(async () => {
+    const client = getAdminClient();
+    if (client) {
+      await ensureConnection(client, USER_A.email, USER_B.email);
+    }
+  });
+
   test('connections page meets WCAG standards', async ({ page }) => {
     await page.goto('/sign-in');
     await page.waitForLoadState('networkidle');

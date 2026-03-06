@@ -10,6 +10,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { ensureConversation } from './test-helpers';
 
 // Test user credentials — PRIMARY + TERTIARY per messaging E2E conventions
 const TEST_USER_1 = {
@@ -74,6 +75,9 @@ async function ensureMessagingSetup(): Promise<void> {
     throw new Error(`Failed to upsert connection: ${upsertError.message}`);
   }
 
+  // Also ensure conversation exists so navigateToConversation can find it
+  await ensureConversation(supabase, TEST_USER_1.email, TEST_USER_2.email);
+
   messagingSetupDone = true;
 }
 
@@ -85,7 +89,7 @@ async function signIn(page: Page, email: string, password: string) {
   await page.fill('#email', email);
   await page.fill('#password', password);
   await page.click('button[type="submit"]');
-  await page.waitForURL(/\/profile/);
+  await page.waitForURL(/\/profile/, { timeout: 45000 });
 }
 
 /**

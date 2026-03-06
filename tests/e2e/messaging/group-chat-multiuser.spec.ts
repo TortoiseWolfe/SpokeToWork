@@ -9,9 +9,14 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
+import { getAdminClient, ensureConnection } from './test-helpers';
 
 // Always use localhost for E2E tests - we're testing local development
 const BASE_URL = 'http://localhost:3000';
+
+const adminClient = getAdminClient();
+const TERTIARY_EMAIL =
+  process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com';
 
 // Test users from environment
 const PRIMARY_USER = {
@@ -125,6 +130,12 @@ async function completeEncryptionSetup(page: Page) {
 }
 
 test.describe('Group Chat E2E', () => {
+  test.beforeEach(async () => {
+    if (adminClient) {
+      await ensureConnection(adminClient, PRIMARY_USER.email, TERTIARY_EMAIL);
+    }
+  });
+
   test('should show New Group link in sidebar', async ({ browser }) => {
     test.setTimeout(60000);
 

@@ -11,6 +11,7 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { ensureConnection, ensureConversation } from './test-helpers';
 
 /**
  * Handle the ReAuthModal that appears when session is restored
@@ -67,7 +68,16 @@ const getAdminClient = () => {
   return createClient(supabaseUrl, supabaseServiceKey);
 };
 
+const adminClient = getAdminClient();
+
 test.describe('Offline Message Queue', () => {
+  test.beforeEach(async () => {
+    if (adminClient) {
+      await ensureConnection(adminClient, USER_A.email, USER_B.email);
+      await ensureConversation(adminClient, USER_A.email, USER_B.email);
+    }
+  });
+
   test('T146: should queue message when offline and send when online', async ({
     browser,
   }) => {

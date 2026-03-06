@@ -13,6 +13,7 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { ensureConnection, ensureConversation } from './test-helpers';
 
 const BASE_URL = process.env.NEXT_PUBLIC_DEPLOY_URL || 'http://localhost:3000';
 
@@ -69,7 +70,16 @@ const getAdminClient = () => {
   return createClient(supabaseUrl, supabaseServiceKey);
 };
 
+const adminClient = getAdminClient();
+
 test.describe('Encrypted Messaging Flow', () => {
+  test.beforeEach(async () => {
+    if (adminClient) {
+      await ensureConnection(adminClient, USER_A.email, USER_B.email);
+      await ensureConversation(adminClient, USER_A.email, USER_B.email);
+    }
+  });
+
   test('should send and receive encrypted message between two users', async ({
     browser,
   }) => {
@@ -412,6 +422,13 @@ test.describe('Encrypted Messaging Flow', () => {
 });
 
 test.describe('Encryption Key Security', () => {
+  test.beforeEach(async () => {
+    if (adminClient) {
+      await ensureConnection(adminClient, USER_A.email, USER_B.email);
+      await ensureConversation(adminClient, USER_A.email, USER_B.email);
+    }
+  });
+
   test('should never send private keys to server', async ({
     page,
     context,
