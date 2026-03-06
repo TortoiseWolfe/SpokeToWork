@@ -217,13 +217,36 @@ test.describe('Form Submission', () => {
 
   test('honeypot field is hidden from users', async ({ page }) => {
     // ContactForm has a honeypot field positioned offscreen (left: -9999px).
-    // Playwright's isVisible() handles cross-browser offscreen detection
-    // (avoids getComputedStyle inconsistencies in WebKit/Chromium).
+    // Playwright's isVisible() considers offscreen elements visible (non-zero
+    // bounding box), so we use evaluate() to check the parent's computed style.
     const honeypotLabel = page.locator('label[for="_gotcha"]');
 
     // Should exist in DOM but be visually hidden
     await expect(honeypotLabel).toBeAttached();
-    await expect(honeypotLabel).not.toBeVisible();
+
+    // Verify the parent container is positioned offscreen.
+    // Uses getBoundingClientRect as cross-browser fallback because
+    // WebKit's getComputedStyle().left may return "auto" for absolutely
+    // positioned elements, causing parseInt() to return NaN.
+    const isHidden = await honeypotLabel.evaluate((el) => {
+      const parent = el.parentElement!;
+      const style = window.getComputedStyle(parent);
+      const leftValue = parseFloat(style.left);
+      const isOffscreenLeft = !isNaN(leftValue) && leftValue < -9000;
+      const rect = parent.getBoundingClientRect();
+      const isOffscreenRect = rect.right < 0;
+
+      return (
+        style.position === 'absolute' ||
+        style.clip === 'rect(0px, 0px, 0px, 0px)' ||
+        parent.classList.contains('sr-only') ||
+        style.height === '0px' ||
+        isOffscreenLeft ||
+        isOffscreenRect
+      );
+    });
+
+    expect(isHidden).toBe(true);
   });
 
   test('form inputs have proper autocomplete attributes', async ({ page }) => {
