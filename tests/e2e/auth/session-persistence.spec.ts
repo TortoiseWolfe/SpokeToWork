@@ -31,6 +31,9 @@ async function signInAndWaitForProfile(
   options?: { rememberMe?: boolean }
 ) {
   await page.goto('/sign-in');
+  // Allow Supabase to fully propagate user + profile before sign-in attempt
+  // (WebKit under CI load is slower to detect hard navigation)
+  await page.waitForTimeout(2000);
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);
   if (options?.rememberMe) {

@@ -463,34 +463,46 @@ test.describe('Employer Team Workflow', () => {
         );
       }
 
-      // ===== STEP 6: Employer refreshes Team tab =====
-      await pageE.goto('/employer');
-      await pageE.waitForLoadState('domcontentloaded');
-      await expect(
-        pageE.getByRole('heading', { name: 'Employer Dashboard' })
-      ).toBeVisible({ timeout: 15000 });
+      // ===== STEPS 6-8: Poll for worker in "Add teammate" picker =====
+      // Supabase Cloud read replica lag under CI load can exceed 15s.
+      // Reload the page between attempts to force fresh queries.
+      let workerFound = false;
+      for (let attempt = 0; attempt < 8; attempt++) {
+        await pageE.goto('/employer');
+        await pageE.waitForLoadState('domcontentloaded');
+        await expect(
+          pageE.getByRole('heading', { name: 'Employer Dashboard' })
+        ).toBeVisible({ timeout: 15000 });
+        await pageE.getByRole('tab', { name: /team/i }).click();
 
-      // Click Team tab
-      await pageE.getByRole('tab', { name: /team/i }).click();
+        const addTeammateButton = pageE.getByRole('button', {
+          name: /add teammate/i,
+        });
+        await expect(addTeammateButton).toBeVisible({ timeout: 10000 });
+        await addTeammateButton.click();
 
-      // ===== STEP 7: Click "Add teammate" and see worker in picker =====
-      const addTeammateButton = pageE.getByRole('button', {
-        name: /add teammate/i,
-      });
-      await expect(addTeammateButton).toBeVisible({ timeout: 10000 });
-      await addTeammateButton.click();
-
-      // Worker should appear in the picker
-      const workerOption = pageE.getByRole('button', {
-        name: new RegExp(WORKER.displayName, 'i'),
-      });
-      await expect(workerOption).toBeVisible({ timeout: 15000 });
-
-      // ===== STEP 8: Add worker to team =====
-      await workerOption.click();
+        const workerOption = pageE.getByRole('button', {
+          name: new RegExp(WORKER.displayName, 'i'),
+        });
+        workerFound = await workerOption
+          .isVisible({ timeout: 10000 })
+          .catch(() => false);
+        if (workerFound) {
+          await workerOption.click();
+          break;
+        }
+        console.log(
+          `Worker not in picker (attempt ${attempt + 1}/8), reloading...`
+        );
+        await pageE.waitForTimeout(3000);
+      }
+      if (!workerFound) {
+        throw new Error(
+          'Worker never appeared in "Add teammate" picker after 8 reload attempts'
+        );
+      }
 
       // ===== STEP 9: Verify worker appears in team roster =====
-      // Worker should now appear as a team member badge
       await expect(
         pageE.getByText(new RegExp(WORKER.displayName, 'i')).first()
       ).toBeVisible({ timeout: 10000 });
@@ -548,12 +560,12 @@ test.describe('Employer Team Workflow', () => {
     // Firefox: NS_BINDING_ABORTED; WebKit: hard navigation not detected
     try {
       await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-        timeout: 30000,
+        timeout: 45000,
       });
     } catch {
       await page.waitForLoadState('domcontentloaded');
       if (page.url().includes('/sign-in')) {
-        throw new Error('Employer sign-in failed after 30s');
+        throw new Error('Employer sign-in failed after 45s');
       }
     }
 
@@ -563,7 +575,7 @@ test.describe('Employer Team Workflow', () => {
     // Navigate to employer dashboard and poll for connection request
     // (useConnections hook fetches once on mount — need reload to refetch)
     let requestFound = false;
-    for (let attempt = 0; attempt < 5; attempt++) {
+    for (let attempt = 0; attempt < 8; attempt++) {
       await page.goto('/employer');
       await expect(
         page.getByRole('heading', { name: 'Employer Dashboard' })
@@ -588,7 +600,7 @@ test.describe('Employer Team Workflow', () => {
         if (requestFound) break;
       }
       console.log(
-        `Team badge attempt ${attempt + 1}/5: connection request not visible`
+        `Team badge attempt ${attempt + 1}/8: connection request not visible`
       );
       await page.waitForTimeout(4000);
     }
