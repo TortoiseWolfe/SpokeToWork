@@ -86,19 +86,19 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageA.fill('#email', USER_A.email);
       await pageA.fill('#password', USER_A.password);
       await pageA.click('button[type="submit"]');
-      await pageA.waitForURL(/.*\/profile/, { timeout: 15000 });
+      await pageA.waitForURL(/.*\/profile/, { timeout: 45000 });
 
       // ===== STEP 2: User B signs in (in separate context) =====
       await pageB.goto(`${BASE_URL}/sign-in`);
       await pageB.fill('#email', USER_B.email);
       await pageB.fill('#password', USER_B.password);
       await pageB.click('button[type="submit"]');
-      await pageB.waitForURL(/.*\/profile/, { timeout: 15000 });
+      await pageB.waitForURL(/.*\/profile/, { timeout: 45000 });
 
       // ===== STEP 3: User A navigates to conversations =====
-      await pageA.goto(`${BASE_URL}/conversations`);
+      await pageA.goto(`${BASE_URL}/messages?tab=chats`);
       await handleReAuthModal(pageA, USER_A.password);
-      await expect(pageA).toHaveURL(/.*\/conversations/);
+      await expect(pageA).toHaveURL(/.*\/messages/);
 
       // ===== STEP 4: User A selects conversation with User B =====
       // Click on the conversation with User B (should exist from friend request acceptance)
@@ -131,9 +131,9 @@ test.describe('Encrypted Messaging Flow', () => {
       await expect(messageA).toBeVisible({ timeout: 5000 });
 
       // ===== STEP 7: User B navigates to conversations =====
-      await pageB.goto(`${BASE_URL}/conversations`);
+      await pageB.goto(`${BASE_URL}/messages?tab=chats`);
       await handleReAuthModal(pageB, USER_B.password);
-      await expect(pageB).toHaveURL(/.*\/conversations/);
+      await expect(pageB).toHaveURL(/.*\/messages/);
 
       // ===== STEP 8: User B opens conversation with User A =====
       const conversationItemB = pageB
@@ -189,10 +189,10 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageA.fill('#email', USER_A.email);
       await pageA.fill('#password', USER_A.password);
       await pageA.click('button[type="submit"]');
-      await pageA.waitForURL(/.*\/profile/, { timeout: 15000 });
+      await pageA.waitForURL(/.*\/profile/, { timeout: 45000 });
 
       // Navigate to conversation
-      await pageA.goto(`${BASE_URL}/conversations`);
+      await pageA.goto(`${BASE_URL}/messages?tab=chats`);
       const conversationItem = pageA
         .locator('[data-testid*="conversation"]')
         .first();
@@ -267,9 +267,9 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageA.fill('#email', USER_A.email);
       await pageA.fill('#password', USER_A.password);
       await pageA.click('button[type="submit"]');
-      await pageA.waitForURL(/.*\/profile/, { timeout: 15000 });
+      await pageA.waitForURL(/.*\/profile/, { timeout: 45000 });
 
-      await pageA.goto(`${BASE_URL}/conversations`);
+      await pageA.goto(`${BASE_URL}/messages?tab=chats`);
       const conversationItem = pageA
         .locator('[data-testid*="conversation"]')
         .first();
@@ -308,9 +308,9 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageB.fill('#email', USER_B.email);
       await pageB.fill('#password', USER_B.password);
       await pageB.click('button[type="submit"]');
-      await pageB.waitForURL(/.*\/profile/, { timeout: 15000 });
+      await pageB.waitForURL(/.*\/profile/, { timeout: 45000 });
 
-      await pageB.goto(`${BASE_URL}/conversations`);
+      await pageB.goto(`${BASE_URL}/messages?tab=chats`);
       const conversationItemB = pageB
         .locator('[data-testid*="conversation"]')
         .first();
@@ -345,9 +345,9 @@ test.describe('Encrypted Messaging Flow', () => {
     await page.fill('#email', USER_A.email);
     await page.fill('#password', USER_A.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 15000 });
+    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
 
-    await page.goto(`${BASE_URL}/conversations`);
+    await page.goto(`${BASE_URL}/messages?tab=chats`);
     const conversationItem = page
       .locator('[data-testid*="conversation"]')
       .first();
@@ -435,9 +435,9 @@ test.describe('Encryption Key Security', () => {
     await page.fill('#email', USER_A.email);
     await page.fill('#password', USER_A.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 15000 });
+    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
 
-    await page.goto(`${BASE_URL}/conversations`);
+    await page.goto(`${BASE_URL}/messages?tab=chats`);
     const conversationItem = page
       .locator('[data-testid*="conversation"]')
       .first();

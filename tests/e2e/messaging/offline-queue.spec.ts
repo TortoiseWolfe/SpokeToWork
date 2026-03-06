@@ -83,7 +83,7 @@ test.describe('Offline Message Queue', () => {
       await page.waitForURL(/\/profile/);
 
       // ===== STEP 2: Navigate to conversation =====
-      await page.goto(`${BASE_URL}/conversations`);
+      await page.goto(`${BASE_URL}/messages?tab=chats`);
       await handleReAuthModal(page, USER_A.password);
       const conversationItem = page
         .locator('[data-testid*="conversation"]')
@@ -156,7 +156,7 @@ test.describe('Offline Message Queue', () => {
       await page.click('button[type="submit"]');
       await page.waitForURL(/\/profile/);
 
-      await page.goto(`${BASE_URL}/conversations`);
+      await page.goto(`${BASE_URL}/messages?tab=chats`);
       await handleReAuthModal(page, USER_A.password);
       const conversationItem = page
         .locator('[data-testid*="conversation"]')
@@ -226,7 +226,7 @@ test.describe('Offline Message Queue', () => {
       await page.click('button[type="submit"]');
       await page.waitForURL(/\/profile/);
 
-      await page.goto(`${BASE_URL}/conversations`);
+      await page.goto(`${BASE_URL}/messages?tab=chats`);
       await handleReAuthModal(page, USER_A.password);
       const conversationItem = page
         .locator('[data-testid*="conversation"]')
@@ -319,7 +319,7 @@ test.describe('Offline Message Queue', () => {
       await pageB.waitForURL(/\/profile/);
 
       // ===== STEP 2: Both navigate to same conversation =====
-      await pageA.goto(`${BASE_URL}/conversations`);
+      await pageA.goto(`${BASE_URL}/messages?tab=chats`);
       await handleReAuthModal(pageA, USER_A.password);
       const conversationA = pageA
         .locator('[data-testid*="conversation"]')
@@ -332,7 +332,7 @@ test.describe('Offline Message Queue', () => {
       const urlA = pageA.url();
       const conversationId = new URL(urlA).searchParams.get('conversation');
 
-      await pageB.goto(`${BASE_URL}/conversations`);
+      await pageB.goto(`${BASE_URL}/messages?tab=chats`);
       await handleReAuthModal(pageB, USER_B.password);
       const conversationB = pageB
         .locator('[data-testid*="conversation"]')
@@ -418,7 +418,7 @@ test.describe('Offline Message Queue', () => {
       await page.click('button[type="submit"]');
       await page.waitForURL(/\/profile/);
 
-      await page.goto(`${BASE_URL}/conversations`);
+      await page.goto(`${BASE_URL}/messages?tab=chats`);
       await handleReAuthModal(page, USER_A.password);
       const conversationItem = page
         .locator('[data-testid*="conversation"]')

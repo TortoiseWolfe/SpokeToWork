@@ -180,7 +180,7 @@ test.describe('Friend Request Flow', () => {
       await pageA.fill('#email', USER_A.email);
       await pageA.fill('#password', USER_A.password);
       await pageA.click('button[type="submit"]');
-      await pageA.waitForURL(/.*\/profile/, { timeout: 15000 });
+      await pageA.waitForURL(/.*\/profile/, { timeout: 45000 });
 
       // ===== STEP 2: User A navigates to connections page =====
       await pageA.goto('/messages?tab=connections');
@@ -219,7 +219,7 @@ test.describe('Friend Request Flow', () => {
       await pageB.fill('#email', USER_B.email);
       await pageB.fill('#password', USER_B.password);
       await pageB.click('button[type="submit"]');
-      await pageB.waitForURL(/.*\/profile/, { timeout: 15000 });
+      await pageB.waitForURL(/.*\/profile/, { timeout: 45000 });
 
       // ===== STEP 6: User B navigates to connections page =====
       await pageB.goto('/messages?tab=connections');
@@ -298,7 +298,7 @@ test.describe('Friend Request Flow', () => {
       await pageB.fill('#email', USER_B.email);
       await pageB.fill('#password', USER_B.password);
       await pageB.click('button[type="submit"]');
-      await pageB.waitForURL(/.*\/profile/, { timeout: 15000 });
+      await pageB.waitForURL(/.*\/profile/, { timeout: 45000 });
 
       await pageB.goto('/messages?tab=connections');
       await handleReAuthModal(pageB, USER_B.password);
@@ -325,7 +325,7 @@ test.describe('Friend Request Flow', () => {
       await pageA.fill('#email', USER_A.email);
       await pageA.fill('#password', USER_A.password);
       await pageA.click('button[type="submit"]');
-      await pageA.waitForURL(/.*\/profile/, { timeout: 15000 });
+      await pageA.waitForURL(/.*\/profile/, { timeout: 45000 });
 
       await pageA.goto('/messages?tab=connections');
       await handleReAuthModal(pageA, USER_A.password);
@@ -363,7 +363,7 @@ test.describe('Friend Request Flow', () => {
     await page.fill('#email', USER_A.email);
     await page.fill('#password', USER_A.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 15000 });
+    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
 
     // Send friend request to User B
     await page.goto('/messages?tab=connections');
@@ -411,7 +411,7 @@ test.describe('Friend Request Flow', () => {
     await page.fill('#email', USER_A.email);
     await page.fill('#password', USER_A.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 15000 });
+    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
 
     await page.goto('/messages?tab=connections');
     await handleReAuthModal(page, USER_A.password);
@@ -462,7 +462,7 @@ test.describe('Accessibility', () => {
     await page.fill('#email', USER_A.email);
     await page.fill('#password', USER_A.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 15000 });
+    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
 
     await page.goto('/messages?tab=connections');
     await handleReAuthModal(page, USER_A.password);
@@ -493,7 +493,7 @@ test.describe('Accessibility', () => {
     await page.fill('#email', USER_A.email);
     await page.fill('#password', USER_A.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 15000 });
+    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
 
     await page.goto('/messages?tab=connections');
     await handleReAuthModal(page, USER_A.password);

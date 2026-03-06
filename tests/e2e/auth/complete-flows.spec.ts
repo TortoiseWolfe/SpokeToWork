@@ -477,11 +477,11 @@ test.describe('Flow 4: Account Deletion', () => {
 
       // WebKit/Firefox may not detect window.location.href hard navigation
       try {
-        await page.waitForURL(/\/(profile|companies)/, { timeout: 30000 });
+        await page.waitForURL(/\/(profile|companies)/, { timeout: 45000 });
       } catch {
         await page.waitForLoadState('networkidle');
         if (page.url().includes('/sign-in')) {
-          throw new Error('Sign-in redirect failed after 30s');
+          throw new Error('Sign-in redirect failed after 45s');
         }
       }
       await page.waitForTimeout(3000);

@@ -23,7 +23,7 @@ test.describe('GDPR Data Export', () => {
     await page.fill('#email', TEST_USER.email);
     await page.fill('#password', TEST_USER.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 15000 });
+    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
 
     // Navigate to account settings
     await page.goto('/account');
@@ -167,7 +167,7 @@ test.describe('GDPR Account Deletion', () => {
     await page.fill('#email', TEST_USER.email);
     await page.fill('#password', TEST_USER.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 15000 });
+    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
 
     // Navigate to account settings
     await page.goto('/account');

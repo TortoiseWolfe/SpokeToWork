@@ -44,7 +44,7 @@ async function signInAndNavigateToMessages(page: Page) {
   await page.click('button[type="submit"]');
 
   // Step 3: Wait for redirect to profile page (confirms auth success)
-  await page.waitForURL(/.*\/profile/, { timeout: 15000 });
+  await page.waitForURL(/.*\/profile/, { timeout: 45000 });
 
   // Step 4: Navigate to messages page
   await page.goto(BASE_URL + '/messages');

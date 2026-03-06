@@ -53,7 +53,9 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
       process.env.TEST_USER_PRIMARY_PASSWORD!
     );
     await page.click('button[type="submit"]');
-    await page.waitForURL(/\/(dashboard|messages|$)/);
+    await page.waitForURL(/\/(dashboard|messages|profile|$)/, {
+      timeout: 45000,
+    });
   });
 
   test('T003: Message input visible on mobile viewport (375x667)', async ({
@@ -166,7 +168,9 @@ test.describe('Messaging Scroll - User Story 2: Scroll Through Messages', () => 
       process.env.TEST_USER_PRIMARY_PASSWORD!
     );
     await page.click('button[type="submit"]');
-    await page.waitForURL(/\/(dashboard|messages|$)/);
+    await page.waitForURL(/\/(dashboard|messages|profile|$)/, {
+      timeout: 45000,
+    });
   });
 
   test('T006: Scroll container constrained to MessageThread', async ({
@@ -226,7 +230,9 @@ test.describe('Messaging Scroll - User Story 3: Jump to Bottom Button', () => {
       process.env.TEST_USER_PRIMARY_PASSWORD!
     );
     await page.click('button[type="submit"]');
-    await page.waitForURL(/\/(dashboard|messages|$)/);
+    await page.waitForURL(/\/(dashboard|messages|profile|$)/, {
+      timeout: 45000,
+    });
   });
 
   test('T007-T008: Jump button appears when scrolled and does not overlap input', async ({

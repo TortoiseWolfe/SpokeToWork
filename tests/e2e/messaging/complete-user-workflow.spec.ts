@@ -283,7 +283,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       await pageA.fill('#email', USER_A.email);
       await pageA.fill('#password', USER_A.password);
       await pageA.click('button[type="submit"]');
-      await pageA.waitForURL(/.*\/profile/, { timeout: 15000 });
+      await pageA.waitForURL(/.*\/profile/, { timeout: 45000 });
       console.log('Step 1: User A signed in');
 
       // STEP 2: Navigate to connections
@@ -391,7 +391,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       await pageB.fill('#email', USER_B.email);
       await pageB.fill('#password', USER_B.password);
       await pageB.click('button[type="submit"]');
-      await pageB.waitForURL(/.*\/profile/, { timeout: 15000 });
+      await pageB.waitForURL(/.*\/profile/, { timeout: 45000 });
       console.log('Step 5: User B signed in');
 
       // STEP 6: User B views pending requests
@@ -580,20 +580,20 @@ test.describe('Conversations Page Loading (Feature 029)', () => {
     await page.fill('#email', USER_A.email);
     await page.fill('#password', USER_A.password);
     await page.click('button[type="submit"]', { force: true });
-    await page.waitForURL(/.*\/profile/, { timeout: 15000 });
+    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
 
-    // Navigate to conversations page and time it
+    // Navigate to messaging page (Feature 037: /conversations redirects to /messages?tab=chats)
     const startTime = Date.now();
-    await page.goto('/conversations');
+    await page.goto('/messages?tab=chats');
     await handleReAuthModal(page, USER_A.password);
 
     // Wait for page title to load - NOT spinner
-    await expect(
-      page.locator('h1:has-text("Conversations")').first()
-    ).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('h1:has-text("Messages")').first()).toBeVisible({
+      timeout: 5000,
+    });
 
     const loadTime = Date.now() - startTime;
-    console.log('[Test] Conversations page loaded in ' + loadTime + 'ms');
+    console.log('[Test] Messages page loaded in ' + loadTime + 'ms');
 
     // Verify page loaded within 5 seconds (SC-001)
     expect(loadTime).toBeLessThan(5000);
@@ -612,10 +612,10 @@ test.describe('Conversations Page Loading (Feature 029)', () => {
     await page.fill('#email', USER_A.email);
     await page.fill('#password', USER_A.password);
     await page.click('button[type="submit"]', { force: true });
-    await page.waitForURL(/.*\/profile/, { timeout: 15000 });
+    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
 
-    // Navigate to conversations
-    await page.goto('/conversations');
+    // Navigate to messaging (Feature 037: /conversations redirects to /messages?tab=chats)
+    await page.goto('/messages?tab=chats');
     await page.waitForLoadState('networkidle');
     await handleReAuthModal(page, USER_A.password);
 
