@@ -31,9 +31,9 @@ export function BikeRoutesLayer({
   initialData,
 }: BikeRoutesLayerProps) {
   const [geojsonData, setGeojsonData] =
-    useState<GeoJSON.FeatureCollection | null>(null);
+    useState<GeoJSON.FeatureCollection | null>(initialData ?? null);
   const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!initialData);
 
   // Use parent-provided data if available; otherwise fetch on mount
   useEffect(() => {

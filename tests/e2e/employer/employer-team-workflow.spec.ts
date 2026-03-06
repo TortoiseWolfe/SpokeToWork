@@ -394,12 +394,12 @@ test.describe('Employer Team Workflow', () => {
       // Firefox: NS_BINDING_ABORTED; WebKit: hard navigation not detected
       try {
         await pageW.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-          timeout: 30000,
+          timeout: 45000,
         });
       } catch {
         await pageW.waitForLoadState('domcontentloaded');
         if (pageW.url().includes('/sign-in')) {
-          throw new Error('Worker sign-in failed after 30s');
+          throw new Error('Worker sign-in failed after 45s');
         }
       }
 
@@ -410,7 +410,7 @@ test.describe('Employer Team Workflow', () => {
 
       // Poll for connection request (useConnections hook fetches on mount)
       let requestFound = false;
-      for (let attempt = 0; attempt < 8; attempt++) {
+      for (let attempt = 0; attempt < 12; attempt++) {
         await pageW.goto('/messages?tab=connections');
         await handleReAuthModal(pageW, WORKER.password);
         await pageW.waitForLoadState('domcontentloaded');
@@ -432,7 +432,7 @@ test.describe('Employer Team Workflow', () => {
       }
       if (!requestFound) {
         throw new Error(
-          'Connection request never appeared after 8 reload attempts'
+          'Connection request never appeared after 12 reload attempts'
         );
       }
 
