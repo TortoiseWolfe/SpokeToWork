@@ -449,6 +449,8 @@ test.describe('Flow 1: Email/Password Signup → Welcome Message', () => {
 
 test.describe('Flow 4: Account Deletion', () => {
   test('Account deletion removes all user data', async ({ page }) => {
+    // Test body includes 2s sleep + sign-in (~30s) + 3s wait + 10s edge function wait
+    test.setTimeout(90000);
     const testEmail = `e2e-flow4-${Date.now()}@mailinator.com`;
     let testUserId: string | null = null;
 
