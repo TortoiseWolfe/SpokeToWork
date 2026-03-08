@@ -1827,6 +1827,12 @@ DROP POLICY IF EXISTS "Users can view own tracking" ON user_company_tracking;
 CREATE POLICY "Users can view own tracking" ON user_company_tracking
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admin can view all tracking" ON user_company_tracking;
+CREATE POLICY "Admin can view all tracking" ON user_company_tracking
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
 DROP POLICY IF EXISTS "Users can create own tracking" ON user_company_tracking;
 CREATE POLICY "Users can create own tracking" ON user_company_tracking
   FOR INSERT WITH CHECK (auth.uid() = user_id);
@@ -1876,6 +1882,12 @@ ALTER TABLE private_companies ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view own private companies" ON private_companies;
 CREATE POLICY "Users can view own private companies" ON private_companies
   FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admin can view all private companies" ON private_companies;
+CREATE POLICY "Admin can view all private companies" ON private_companies
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
 
 DROP POLICY IF EXISTS "Users can create own private companies" ON private_companies;
 CREATE POLICY "Users can create own private companies" ON private_companies
@@ -2458,6 +2470,12 @@ BEGIN
     CREATE POLICY bicycle_routes_delete ON bicycle_routes FOR DELETE
       USING (auth.uid() = user_id AND is_system_route = FALSE);
   END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'bicycle_routes' AND policyname = 'bicycle_routes_admin_select'
+  ) THEN
+    CREATE POLICY bicycle_routes_admin_select ON bicycle_routes FOR SELECT
+      USING (EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true));
+  END IF;
 END $$;
 
 -- T001: Create route_companies junction table
@@ -2522,6 +2540,12 @@ BEGIN
   ) THEN
     CREATE POLICY route_companies_all ON route_companies FOR ALL
       USING (auth.uid() = user_id);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'route_companies' AND policyname = 'route_companies_admin_select'
+  ) THEN
+    CREATE POLICY route_companies_admin_select ON route_companies FOR SELECT
+      USING (EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true));
   END IF;
 END $$;
 

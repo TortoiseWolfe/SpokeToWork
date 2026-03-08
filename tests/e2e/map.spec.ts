@@ -55,6 +55,12 @@ async function mockGeolocation(
 }
 
 test.describe('Geolocation Map Page', () => {
+  // Run as guest: authenticated users are redirected from /map to
+  // /companies?view=map. These tests exercise MapView's fullscreen
+  // guest behaviour (geolocation, tiles, controls, theme), so override
+  // the project-level authenticated storageState.
+  test.use({ storageState: './tests/e2e/fixtures/storage-state.json' });
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/map');
     await dismissBanner(page);
@@ -64,8 +70,9 @@ test.describe('Geolocation Map Page', () => {
     await page.goto('/map');
     await dismissBanner(page);
 
-    // Map container should be visible
-    await expect(page.locator('[data-testid="map-container"]')).toBeVisible();
+    // Map container should be visible (role="application" is MapContainer's
+    // stable a11y contract — testid now differs since /map goes through MapView)
+    await expect(page.getByRole('application')).toBeVisible();
 
     // MapLibre canvas should be rendered
     await expect(page.locator('.maplibregl-canvas')).toBeVisible();
@@ -325,7 +332,7 @@ test.describe('Geolocation Map Page', () => {
     await page.goto('/map');
 
     // Map should be visible
-    await expect(page.locator('[data-testid="map-container"]')).toBeVisible();
+    await expect(page.getByRole('application')).toBeVisible();
 
     // Navigation controls should be accessible
     await expect(page.locator('.maplibregl-ctrl-group')).toBeVisible();
@@ -396,7 +403,7 @@ test.describe('Geolocation Map Page', () => {
     await page.reload();
 
     // Map should still load (canvas may show cached content)
-    await expect(page.locator('[data-testid="map-container"]')).toBeVisible();
+    await expect(page.getByRole('application')).toBeVisible();
 
     // MapLibre canvas should be visible
     await expect(page.locator('.maplibregl-canvas')).toBeVisible();
@@ -640,13 +647,14 @@ test.describe('Geolocation Map Page', () => {
   test('should handle accessibility requirements', async ({ page }) => {
     await page.goto('/map');
 
-    // Check ARIA labels
-    const mapContainer = page.locator('[data-testid="map-container"]');
-    await expect(mapContainer).toHaveAttribute('role', 'application');
-    await expect(mapContainer).toHaveAttribute(
-      'aria-label',
-      /interactive map/i
-    );
+    // Check ARIA labels — getByRole+name validates both role and aria-label
+    // exist on the MapContainer element. The testid changed when /map started
+    // rendering via MapView (which prefixes MapContainer's testid), but
+    // role="application" is the stable semantic contract.
+    const mapContainer = page.getByRole('application', {
+      name: /interactive map/i,
+    });
+    await expect(mapContainer).toBeVisible();
 
     // Check keyboard accessibility - MapLibre navigation controls
     const zoomIn = page.getByRole('button', { name: 'Zoom in' });

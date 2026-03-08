@@ -35,6 +35,22 @@ export interface MapContainerProps {
     zoomControl?: boolean;
   };
   children?: React.ReactNode;
+
+  // Phase 2: controlled selection + imperative pan. All optional for
+  // backward compat with RouteBuilder and map/page.tsx.
+  /** Highlight this marker with a ring. Selection only — does not pan. */
+  selectedMarkerId?: string;
+  /** Fires when a marker is clicked. If provided, parent owns selection. */
+  onMarkerClick?: (marker: MapMarker) => void;
+  /**
+   * Imperative pan/zoom command. Component calls mapRef.flyTo() when this
+   * changes. Use seq to force re-fly to the same coords. Parent owns clearing.
+   */
+  flyToTarget?: {
+    center: [number, number]; // [lat, lng] — same convention as MapMarker.position
+    zoom?: number;
+    seq?: number;
+  } | null;
 }
 
 const MapContainerInner = dynamic(() => import('./MapContainerInner'), {
@@ -63,6 +79,9 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   theme = 'auto',
   config,
   children,
+  selectedMarkerId,
+  onMarkerClick,
+  flyToTarget,
 }) => {
   const mapRef = useRef<MapRef | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
@@ -146,6 +165,9 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         zoomControl={config?.zoomControl}
         keyboardNavigation={config?.keyboardNavigation}
         theme={theme}
+        selectedMarkerId={selectedMarkerId}
+        onMarkerClick={onMarkerClick}
+        flyToTarget={flyToTarget}
       >
         {children}
       </MapContainerInner>

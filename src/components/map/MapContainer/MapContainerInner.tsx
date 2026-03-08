@@ -11,6 +11,7 @@ import Map, {
 import type { LngLatLike } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useMapTheme, type MapTheme } from '@/hooks/useMapTheme';
+import { useThemeColors, type ThemeColors } from '@/hooks/useThemeColors';
 import { DEFAULT_MAP_CONFIG } from '@/utils/map-utils';
 import { BikeRoutesLayer } from '@/components/map/BikeRoutesLayer';
 
@@ -27,7 +28,8 @@ export type MarkerVariant =
   | 'next-ride'
   | 'active-route'
   | 'start-point'
-  | 'end-point';
+  | 'end-point'
+  | 'pending-contribution';
 
 export interface MapMarker {
   position: [number, number]; // [lat, lng]
@@ -50,25 +52,39 @@ interface MapContainerInnerProps {
   keyboardNavigation?: boolean;
   theme?: MapTheme;
   children?: React.ReactNode;
+
+  // Phase 2: controlled selection + imperative pan. All optional for
+  // backward compat with RouteBuilder and map/page.tsx.
+  /** Highlight this marker with a ring. Selection only — does not pan. */
+  selectedMarkerId?: string;
+  /** Fires when a marker is clicked. If provided, parent owns selection. */
+  onMarkerClick?: (marker: MapMarker) => void;
+  /**
+   * Imperative pan/zoom command. Component calls mapRef.flyTo() when this
+   * changes. Use seq to force re-fly to the same coords. Parent owns clearing.
+   */
+  flyToTarget?: {
+    center: [number, number]; // [lat, lng] — same convention as MapMarker.position
+    zoom?: number;
+    seq?: number;
+  } | null;
 }
 
 /**
- * Get marker color based on variant
- * Uses fixed high-contrast colors that work on both light (#f8f9fa) and dark (#1a1a2e) map backgrounds
+ * Variant → DaisyUI semantic token mapping. Lives at module scope so it's a
+ * static lookup, not reallocated every render.
+ *
+ * Marker fills follow the active DaisyUI theme via useThemeColors. The
+ * border-white + rgba(0,0,0,...) halo on each pin stays fixed — white-on-black
+ * outline reads against both light and dark map tiles regardless of fill.
  */
-const getMarkerColor = (variant: MarkerVariant = 'default'): string => {
-  switch (variant) {
-    case 'next-ride':
-      return '#FF6B35'; // Bright orange - high visibility on both backgrounds
-    case 'active-route':
-      return '#E63946'; // Bright red - stands out on light and dark maps
-    case 'start-point':
-      return '#22C55E'; // Green - indicates starting point/home
-    case 'end-point':
-      return '#8B5CF6'; // Purple - indicates destination/finish
-    default:
-      return '#3b82f6'; // Default blue
-  }
+const VARIANT_TOKEN: Record<MarkerVariant, keyof ThemeColors> = {
+  default: 'primary',
+  'next-ride': 'warning',
+  'active-route': 'secondary',
+  'start-point': 'success',
+  'end-point': 'accent',
+  'pending-contribution': 'info',
 };
 
 /**
@@ -79,11 +95,13 @@ const getMarkerColor = (variant: MarkerVariant = 'default'): string => {
  * - end-point: Checkered flag icon (32px) - purple
  * - default: Plain dot (20px)
  */
-const CustomMarker: React.FC<{
+export const CustomMarker: React.FC<{
   marker: MapMarker;
   onClick?: () => void;
-}> = ({ marker, onClick }) => {
-  const color = getMarkerColor(marker.variant);
+  isSelected?: boolean;
+}> = ({ marker, onClick, isSelected = false }) => {
+  const colors = useThemeColors();
+  const color = colors[VARIANT_TOKEN[marker.variant ?? 'default']];
   const isNextRide = marker.variant === 'next-ride';
   const isActiveRoute = marker.variant === 'active-route';
   const isStartPoint = marker.variant === 'start-point';
@@ -116,7 +134,7 @@ const CustomMarker: React.FC<{
             }}
           />
           <div
-            className="relative flex h-8 w-8 items-center justify-center rounded-full border-[3px] border-white"
+            className={`relative flex h-8 w-8 items-center justify-center rounded-full border-[3px] border-white ${isSelected ? 'ring-info ring-4 ring-offset-2' : ''}`}
             style={{
               backgroundColor: color,
               boxShadow: '0 2px 8px rgba(0,0,0,0.4), 0 0 0 2px rgba(0,0,0,0.2)',
@@ -144,7 +162,7 @@ const CustomMarker: React.FC<{
             }}
           />
           <div
-            className="relative flex h-8 w-8 items-center justify-center rounded-full border-[3px] border-white"
+            className={`relative flex h-8 w-8 items-center justify-center rounded-full border-[3px] border-white ${isSelected ? 'ring-info ring-4 ring-offset-2' : ''}`}
             style={{
               backgroundColor: color,
               boxShadow: '0 2px 8px rgba(0,0,0,0.4), 0 0 0 2px rgba(0,0,0,0.2)',
@@ -172,7 +190,7 @@ const CustomMarker: React.FC<{
             style={{ backgroundColor: color }}
           />
           <div
-            className="relative flex h-6 w-6 items-center justify-center rounded-full border-2 border-white shadow-lg"
+            className={`relative flex h-6 w-6 items-center justify-center rounded-full border-2 border-white shadow-lg ${isSelected ? 'ring-info ring-4 ring-offset-2' : ''}`}
             style={{ backgroundColor: color }}
           >
             {/* Eye icon for next-ride */}
@@ -202,7 +220,7 @@ const CustomMarker: React.FC<{
             }}
           />
           <div
-            className="relative flex h-8 w-8 items-center justify-center rounded-full border-[3px] border-white"
+            className={`relative flex h-8 w-8 items-center justify-center rounded-full border-[3px] border-white ${isSelected ? 'ring-info ring-4 ring-offset-2' : ''}`}
             style={{
               backgroundColor: color,
               boxShadow: '0 2px 8px rgba(0,0,0,0.4), 0 0 0 2px rgba(0,0,0,0.2)',
@@ -225,7 +243,7 @@ const CustomMarker: React.FC<{
         </div>
       ) : (
         <div
-          className="h-6 w-6 rounded-full border-2 border-white"
+          className={`h-6 w-6 rounded-full border-2 border-white ${isSelected ? 'ring-info ring-4 ring-offset-2' : ''}`}
           style={{
             backgroundColor: color,
             boxShadow: '0 2px 6px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.15)',
@@ -267,9 +285,34 @@ const MapContainerInner: React.FC<MapContainerInnerProps> = ({
   keyboardNavigation = DEFAULT_MAP_CONFIG.keyboardNavigation,
   theme = 'auto',
   children,
+  selectedMarkerId,
+  onMarkerClick,
+  flyToTarget,
 }) => {
   const mapRef = useRef<MapRef>(null);
   const geolocateRef = useRef<maplibregl.GeolocateControl | null>(null);
+
+  // Track last seq so re-render with same command doesn't re-fly.
+  // Undefined initial state means the first command always fires, seq or not.
+  const lastFlySeq = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (!flyToTarget || !mapRef.current) return;
+    if (
+      flyToTarget.seq !== undefined &&
+      flyToTarget.seq === lastFlySeq.current
+    ) {
+      return;
+    }
+    lastFlySeq.current = flyToTarget.seq;
+    mapRef.current.flyTo({
+      // MapMarker convention is [lat, lng]; MapLibre wants [lng, lat].
+      center: [flyToTarget.center[1], flyToTarget.center[0]],
+      zoom: flyToTarget.zoom ?? mapRef.current.getZoom(),
+      duration: 800,
+    });
+  }, [flyToTarget]);
+
   const [selectedMarker, setSelectedMarker] = useState<MapMarker | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [bikeRouteData, setBikeRouteData] =
@@ -399,7 +442,6 @@ const MapContainerInner: React.FC<MapContainerInnerProps> = ({
           re-attach to the new MapLibre style (WebKit compat) */}
       <BikeRoutesLayer
         key={isDarkMode ? 'dark' : 'light'}
-        isDarkMode={isDarkMode}
         initialData={bikeRouteData}
       />
 
@@ -421,23 +463,35 @@ const MapContainerInner: React.FC<MapContainerInnerProps> = ({
       )}
 
       {/* Markers */}
-      {markers.map((marker) => (
-        <Marker
-          key={marker.id}
-          longitude={marker.position[1]}
-          latitude={marker.position[0]}
-          anchor="center"
-          onClick={(e) => {
-            e.originalEvent.stopPropagation();
+      {markers.map((marker) => {
+        const handleClick = () => {
+          if (onMarkerClick) {
+            onMarkerClick(marker);
+          } else {
+            // Existing internal-popup behavior — unchanged when parent
+            // doesn't take over selection.
             setSelectedMarker(marker);
-          }}
-        >
-          <CustomMarker
-            marker={marker}
-            onClick={() => setSelectedMarker(marker)}
-          />
-        </Marker>
-      ))}
+          }
+        };
+        return (
+          <Marker
+            key={marker.id}
+            longitude={marker.position[1]}
+            latitude={marker.position[0]}
+            anchor="center"
+            onClick={(e) => {
+              e.originalEvent.stopPropagation();
+              handleClick();
+            }}
+          >
+            <CustomMarker
+              marker={marker}
+              onClick={handleClick}
+              isSelected={selectedMarkerId === marker.id}
+            />
+          </Marker>
+        );
+      })}
 
       {/* Selected marker popup */}
       {selectedMarker && selectedMarker.popup && (
