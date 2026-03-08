@@ -2,8 +2,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 
-// Mock fs module
-vi.mock('fs');
+// Mock fs module with explicit mock functions (required for vitest 4.0)
+vi.mock('fs', () => ({
+  default: {
+    existsSync: vi.fn(),
+    readFileSync: vi.fn(),
+  },
+  existsSync: vi.fn(),
+  readFileSync: vi.fn(),
+}));
 
 describe('Configuration Integration', () => {
   const originalEnv = process.env;

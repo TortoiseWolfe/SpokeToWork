@@ -5,6 +5,7 @@ import Link from 'next/link';
 import ConversationList from '@/components/organisms/ConversationList';
 import ConnectionManager from '@/components/organisms/ConnectionManager';
 import type { SidebarTab } from '@/types/messaging';
+import { useRovingTabIndex } from '@/hooks/useRovingTabIndex';
 import { createLogger } from '@/lib/logger/logger';
 
 const logger = createLogger('components:organisms:UnifiedSidebar');
@@ -49,6 +50,16 @@ export default function UnifiedSidebar({
   onPendingConnectionCountChange,
   className = '',
 }: UnifiedSidebarProps) {
+  const TABS: SidebarTab[] = ['chats', 'connections'];
+
+  const { getItemProps } = useRovingTabIndex({
+    itemCount: 2,
+    initialIndex: TABS.indexOf(activeTab),
+    onActiveIndexChange: (index) => {
+      onTabChange(TABS[index]);
+    },
+  });
+
   const handleMessage = async (userId: string) => {
     try {
       const conversationId = await onStartConversation(userId);
@@ -73,8 +84,11 @@ export default function UnifiedSidebar({
         <button
           role="tab"
           aria-selected={activeTab === 'chats'}
+          aria-controls="unified-sidebar-tabpanel"
+          id="unified-sidebar-tab-chats"
           className={`tab min-h-11 flex-shrink-0 gap-2 ${activeTab === 'chats' ? 'tab-active' : ''}`}
           onClick={() => onTabChange('chats')}
+          {...getItemProps(0)}
         >
           Chats
           {unreadCount > 0 && (
@@ -84,8 +98,11 @@ export default function UnifiedSidebar({
         <button
           role="tab"
           aria-selected={activeTab === 'connections'}
+          aria-controls="unified-sidebar-tabpanel"
+          id="unified-sidebar-tab-connections"
           className={`tab min-h-11 flex-shrink-0 gap-2 ${activeTab === 'connections' ? 'tab-active' : ''}`}
           onClick={() => onTabChange('connections')}
+          {...getItemProps(1)}
         >
           Connections
           {pendingConnectionCount > 0 && (
@@ -124,7 +141,12 @@ export default function UnifiedSidebar({
       )}
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto" role="tabpanel">
+      <div
+        className="flex-1 overflow-y-auto"
+        role="tabpanel"
+        id="unified-sidebar-tabpanel"
+        aria-labelledby={`unified-sidebar-tab-${activeTab}`}
+      >
         {activeTab === 'chats' && (
           <ConversationList
             selectedConversationId={selectedConversationId}

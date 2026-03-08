@@ -10,7 +10,7 @@ describe('AuthorProfile', () => {
     name: 'Test Author',
     email: 'test@example.com',
     bio: 'Test bio',
-    avatar: '/avatar.jpg',
+    avatar: 'https://example.com/avatar.jpg',
     website: 'https://example.com',
     socialLinks: [
       { platform: 'twitter', url: 'https://twitter.com/test', displayOrder: 0 },

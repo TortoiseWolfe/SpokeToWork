@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import ReadReceipt from './ReadReceipt';
 
 /**
@@ -9,7 +9,7 @@ import ReadReceipt from './ReadReceipt';
  */
 
 const meta: Meta<typeof ReadReceipt> = {
-  title: 'Messaging/ReadReceipt',
+  title: 'Atomic Design/Atomic/ReadReceipt',
   component: ReadReceipt,
   parameters: {
     layout: 'centered',

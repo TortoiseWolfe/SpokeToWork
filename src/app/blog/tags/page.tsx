@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import TagCloud from '@/components/atomic/TagCloud';
+import TagCloud from '@/components/molecular/TagCloud';
 import blogData from '@/lib/blog/blog-data.json';
 import { getProjectConfig } from '@/config/project.config';
 
@@ -52,13 +52,13 @@ export default function TagsPage() {
   const sortedTags = [...tags].sort((a, b) => b.count - a.count);
 
   return (
-    <main className="container mx-auto px-4 py-6 sm:py-8 md:py-12">
+    <div className="container mx-auto px-4 py-6 sm:py-8 md:py-12">
       {/* Header */}
       <div className="mb-12 text-center">
         <h1 className="mb-4 !text-2xl font-bold sm:!text-4xl md:!text-5xl">
           Blog Tags
         </h1>
-        <p className="text-base-content/70 text-lg">
+        <p className="text-base-content/85 text-lg">
           Explore {tags.length} topics across {totalPosts} blog posts
         </p>
       </div>
@@ -86,7 +86,7 @@ export default function TagsPage() {
               >
                 <div className="card-body p-4">
                   <h3 className="card-title text-base">{tag.name}</h3>
-                  <p className="text-base-content/70 text-sm">
+                  <p className="text-base-content/85 text-sm">
                     {tag.count} {tag.count === 1 ? 'post' : 'posts'}
                   </p>
                 </div>
@@ -107,7 +107,7 @@ export default function TagsPage() {
               className="badge badge-lg badge-outline hover:badge-primary transition-colors"
             >
               {tag.name}
-              <span className="ml-1 opacity-70">({tag.count})</span>
+              <span className="text-base-content/85 ml-1">({tag.count})</span>
             </Link>
           ))}
         </div>
@@ -119,6 +119,6 @@ export default function TagsPage() {
           ← Back to Blog
         </Link>
       </div>
-    </main>
+    </div>
   );
 }

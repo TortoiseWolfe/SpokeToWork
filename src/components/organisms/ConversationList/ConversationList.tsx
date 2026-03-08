@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import ConversationListItem from '@/components/molecular/ConversationListItem';
 import {
@@ -9,6 +9,7 @@ import {
   type SortType,
 } from './useConversationList';
 import { useKeyboardShortcuts, shortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useRovingTabIndex } from '@/hooks/useRovingTabIndex';
 
 export interface ConversationListProps {
   /** Currently selected conversation ID */
@@ -55,6 +56,16 @@ export default function ConversationList({
     unarchiveConversation,
   } = useConversationList();
 
+  const FILTER_TABS: FilterType[] = ['all', 'unread', 'archived'];
+
+  const { getItemProps: getFilterTabProps } = useRovingTabIndex({
+    itemCount: 3,
+    initialIndex: FILTER_TABS.indexOf(filterType),
+    onActiveIndexChange: (index) => {
+      setFilterType(FILTER_TABS[index]);
+    },
+  });
+
   const [searchInput, setSearchInput] = useState('');
   const [searchDebounce, setSearchDebounce] = useState<NodeJS.Timeout | null>(
     null
@@ -92,31 +103,52 @@ export default function ConversationList({
   ]);
 
   // Debounced search (300ms)
-  const handleSearchChange = (value: string) => {
-    setSearchInput(value);
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchInput(value);
 
-    if (searchDebounce) {
-      clearTimeout(searchDebounce);
-    }
+      if (searchDebounce) {
+        clearTimeout(searchDebounce);
+      }
 
-    const timeout = setTimeout(() => {
-      setSearchQuery(value);
-    }, 300);
+      const timeout = setTimeout(() => {
+        setSearchQuery(value);
+      }, 300);
 
-    setSearchDebounce(timeout);
-  };
+      setSearchDebounce(timeout);
+    },
+    [searchDebounce, setSearchQuery]
+  );
 
-  const handleClearSearch = () => {
+  const handleClearSearch = useCallback(() => {
     setSearchInput('');
     setSearchQuery('');
     if (searchDebounce) {
       clearTimeout(searchDebounce);
     }
-  };
+  }, [searchDebounce, setSearchQuery]);
 
-  const handleConversationClick = (conversationId: string) => {
-    router.push(`/messages?conversation=${conversationId}`);
-  };
+  const handleConversationClick = useCallback(
+    (conversationId: string) => {
+      router.push(`/messages?conversation=${conversationId}`);
+    },
+    [router]
+  );
+
+  // Memoized archive/unarchive handlers to prevent re-renders
+  const handleArchive = useCallback(
+    (conversationId: string) => {
+      archiveConversation(conversationId);
+    },
+    [archiveConversation]
+  );
+
+  const handleUnarchive = useCallback(
+    (conversationId: string) => {
+      unarchiveConversation(conversationId);
+    },
+    [unarchiveConversation]
+  );
 
   return (
     <div className={`bg-base-100 flex h-full flex-col ${className}`}>
@@ -155,6 +187,7 @@ export default function ConversationList({
             onClick={() => setFilterType('all')}
             role="tab"
             aria-selected={filterType === 'all'}
+            {...getFilterTabProps(0)}
           >
             All
             {counts.all > 0 && (
@@ -166,6 +199,7 @@ export default function ConversationList({
             onClick={() => setFilterType('unread')}
             role="tab"
             aria-selected={filterType === 'unread'}
+            {...getFilterTabProps(1)}
           >
             Unread
             {counts.unread > 0 && (
@@ -179,6 +213,7 @@ export default function ConversationList({
             onClick={() => setFilterType('archived')}
             role="tab"
             aria-selected={filterType === 'archived'}
+            {...getFilterTabProps(2)}
           >
             Archived
             {counts.archived > 0 && (
@@ -239,7 +274,7 @@ export default function ConversationList({
               />
             </svg>
             <h3 className="mb-2 text-lg font-semibold">No conversations yet</h3>
-            <p className="text-base-content/70 mb-4">
+            <p className="text-base-content/85 mb-4">
               {searchQuery
                 ? 'No conversations match your search'
                 : 'Start a conversation by connecting with someone'}
@@ -271,9 +306,9 @@ export default function ConversationList({
                 unreadCount={conv.unreadCount}
                 isArchived={conv.isArchived}
                 isSelected={conv.id === selectedConversationId}
-                onClick={() => handleConversationClick(conv.id)}
-                onArchive={() => archiveConversation(conv.id)}
-                onUnarchive={() => unarchiveConversation(conv.id)}
+                onClick={handleConversationClick}
+                onArchive={handleArchive}
+                onUnarchive={handleUnarchive}
               />
             ))}
           </div>

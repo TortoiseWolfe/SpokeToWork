@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { ConsentModal } from './ConsentModal';
 import { ConsentProvider } from '../../../contexts/ConsentContext';
 import React, { useEffect } from 'react';
@@ -71,7 +71,7 @@ export const WithCallbacks: Story = {
 
 export const CustomStyling: Story = {
   args: {
-    className: 'bg-primary text-primary-content',
+    className: 'bg-base-200',
     privacyPolicyUrl: '/privacy',
     cookiePolicyUrl: '/cookies',
   },

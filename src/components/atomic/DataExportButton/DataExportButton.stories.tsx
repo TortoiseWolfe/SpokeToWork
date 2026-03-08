@@ -3,12 +3,12 @@
  * Task: T193
  */
 
-import type { Meta, StoryObj } from '@storybook/nextjs';
-import { fn } from '@storybook/test';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
+import { fn } from 'storybook/test';
 import DataExportButton from './DataExportButton';
 
 const meta: Meta<typeof DataExportButton> = {
-  title: 'Components/Atomic/DataExportButton',
+  title: 'Atomic Design/Atomic/DataExportButton',
   component: DataExportButton,
   parameters: {
     layout: 'centered',

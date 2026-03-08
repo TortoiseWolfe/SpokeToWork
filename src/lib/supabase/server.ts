@@ -15,6 +15,15 @@ import { createLogger } from '@/lib/logger';
 const logger = createLogger('lib:supabase:server');
 
 /**
+ * Mock Supabase client type for build-time fallback
+ * Used during static export when env vars are unavailable
+ */
+interface MockSupabaseClient {
+  auth: Record<string, unknown>;
+  from: () => Record<string, unknown>;
+}
+
+/**
  * Creates a Supabase client for server-side use
  *
  * @returns Supabase client instance with cookie-based session management
@@ -49,11 +58,11 @@ export async function createClient() {
       'Supabase environment variables not available during build. ' +
         'This is expected for static export. Client will be initialized at runtime.'
     );
-    // Return a basic mock that satisfies the type
+    // Return a basic mock that satisfies the type for build-time
     return {
       auth: {},
       from: () => ({}),
-    } as any;
+    } as unknown as MockSupabaseClient;
   }
 
   const cookieStore = await cookies();

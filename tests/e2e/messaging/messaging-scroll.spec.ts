@@ -1,4 +1,9 @@
 import { test, expect, Page } from '@playwright/test';
+import {
+  getAdminClient,
+  ensureConnection,
+  ensureConversation,
+} from './test-helpers';
 
 /**
  * Messaging Scroll E2E Tests
@@ -9,6 +14,11 @@ import { test, expect, Page } from '@playwright/test';
  * - Scroll is constrained to message thread
  * - Jump-to-bottom button works correctly
  */
+
+const adminClient = getAdminClient();
+const USER_A_EMAIL = process.env.TEST_USER_PRIMARY_EMAIL!;
+const USER_B_EMAIL =
+  process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com';
 
 // Test configuration for viewports
 const VIEWPORTS = {
@@ -42,18 +52,26 @@ async function isElementInViewport(
 
 test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
   test.beforeEach(async ({ page }) => {
+    // Seed connection + conversation so messaging UI has data
+    if (adminClient) {
+      await ensureConnection(adminClient, USER_A_EMAIL, USER_B_EMAIL);
+      await ensureConversation(adminClient, USER_A_EMAIL, USER_B_EMAIL);
+    }
+
     // Login as test user
-    await page.goto('/auth/signin');
+    await page.goto('/sign-in');
     await page.fill(
       'input[type="email"]',
-      process.env.TEST_USER_EMAIL || 'test@example.com'
+      process.env.TEST_USER_PRIMARY_EMAIL!
     );
     await page.fill(
       'input[type="password"]',
-      process.env.TEST_USER_PASSWORD || 'TestPassword123!'
+      process.env.TEST_USER_PRIMARY_PASSWORD!
     );
     await page.click('button[type="submit"]');
-    await page.waitForURL(/\/(dashboard|messages|$)/);
+    await page.waitForURL(/\/(dashboard|messages|profile|$)/, {
+      timeout: 45000,
+    });
   });
 
   test('T003: Message input visible on mobile viewport (375x667)', async ({
@@ -156,17 +174,24 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
 
 test.describe('Messaging Scroll - User Story 2: Scroll Through Messages', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/auth/signin');
+    if (adminClient) {
+      await ensureConnection(adminClient, USER_A_EMAIL, USER_B_EMAIL);
+      await ensureConversation(adminClient, USER_A_EMAIL, USER_B_EMAIL);
+    }
+
+    await page.goto('/sign-in');
     await page.fill(
       'input[type="email"]',
-      process.env.TEST_USER_EMAIL || 'test@example.com'
+      process.env.TEST_USER_PRIMARY_EMAIL!
     );
     await page.fill(
       'input[type="password"]',
-      process.env.TEST_USER_PASSWORD || 'TestPassword123!'
+      process.env.TEST_USER_PRIMARY_PASSWORD!
     );
     await page.click('button[type="submit"]');
-    await page.waitForURL(/\/(dashboard|messages|$)/);
+    await page.waitForURL(/\/(dashboard|messages|profile|$)/, {
+      timeout: 45000,
+    });
   });
 
   test('T006: Scroll container constrained to MessageThread', async ({
@@ -216,17 +241,24 @@ test.describe('Messaging Scroll - User Story 2: Scroll Through Messages', () => 
 
 test.describe('Messaging Scroll - User Story 3: Jump to Bottom Button', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/auth/signin');
+    if (adminClient) {
+      await ensureConnection(adminClient, USER_A_EMAIL, USER_B_EMAIL);
+      await ensureConversation(adminClient, USER_A_EMAIL, USER_B_EMAIL);
+    }
+
+    await page.goto('/sign-in');
     await page.fill(
       'input[type="email"]',
-      process.env.TEST_USER_EMAIL || 'test@example.com'
+      process.env.TEST_USER_PRIMARY_EMAIL!
     );
     await page.fill(
       'input[type="password"]',
-      process.env.TEST_USER_PASSWORD || 'TestPassword123!'
+      process.env.TEST_USER_PRIMARY_PASSWORD!
     );
     await page.click('button[type="submit"]');
-    await page.waitForURL(/\/(dashboard|messages|$)/);
+    await page.waitForURL(/\/(dashboard|messages|profile|$)/, {
+      timeout: 45000,
+    });
   });
 
   test('T007-T008: Jump button appears when scrolled and does not overlap input', async ({

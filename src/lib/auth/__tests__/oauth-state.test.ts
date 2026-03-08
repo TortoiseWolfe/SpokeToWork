@@ -21,7 +21,7 @@ const mockOAuthStates = new Map<
 
 // Mock Supabase client
 vi.mock('@/lib/supabase/client', () => ({
-  supabase: {
+  createClient: () => ({
     from: (table: string) => {
       if (table !== 'oauth_states') {
         throw new Error(`Unexpected table: ${table}`);
@@ -105,7 +105,7 @@ vi.mock('@/lib/supabase/client', () => ({
         }),
       };
     },
-  },
+  }),
 }));
 
 // Import after mocking

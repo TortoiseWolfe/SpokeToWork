@@ -1,44 +1,95 @@
 /**
  * E2E Test: Session Persistence (T068)
+ * Updated: 062-fix-e2e-auth
  *
  * Tests session management and persistence:
  * - Verify Remember Me extends session to 30 days
  * - Verify automatic token refresh before expiration
  * - Verify session persists across browser restarts
+ *
+ * Uses createTestUser with email_confirm: true to avoid email verification issues.
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
+import {
+  createTestUser,
+  deleteTestUser,
+  generateTestEmail,
+  DEFAULT_TEST_PASSWORD,
+} from '../utils/test-user-factory';
+import { loginAndVerify, signOut } from '../utils/auth-helpers';
+
+/**
+ * WebKit-safe sign-in helper. WebKit struggles with detecting
+ * window.location.href hard navigation via waitForURL(), so we
+ * use a try/catch fallback to waitForLoadState.
+ */
+async function signInAndWaitForProfile(
+  page: Page,
+  email: string,
+  password: string,
+  options?: { rememberMe?: boolean }
+) {
+  await page.goto('/sign-in');
+  // Allow Supabase to fully propagate user + profile before sign-in attempt
+  // (WebKit under CI load is slower to detect hard navigation)
+  await page.waitForTimeout(2000);
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  if (options?.rememberMe) {
+    await page.getByLabel('Remember me').check();
+  }
+  await page.getByRole('button', { name: 'Sign In' }).click();
+
+  try {
+    await page.waitForURL(/\/profile/, { timeout: 45000 });
+  } catch {
+    // WebKit may not detect window.location.href navigation
+    await page.waitForLoadState('networkidle');
+    if (page.url().includes('/sign-in')) {
+      throw new Error(
+        `Sign-in failed: still on sign-in page after 45s for ${email}`
+      );
+    }
+  }
+
+  // Verify auth state via UI (WebKit may pass URL check but not be authenticated)
+  const userMenu = page.locator('[aria-label="User account menu"]');
+  await expect(userMenu).toBeVisible({ timeout: 30000 });
+}
 
 test.describe('Session Persistence E2E', () => {
-  const testEmail = `e2e-session-${Date.now()}@example.com`;
-  const testPassword = 'ValidPass123!';
+  // WebKit + slow Supabase need >30s for sign-in (signInAndWaitForProfile waits 45s)
+  test.describe.configure({ timeout: 90000 });
 
-  test.beforeEach(async ({ page }) => {
-    // Create test user
-    await page.goto('/sign-up');
-    await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
-    await page.getByLabel('Confirm Password').fill(testPassword);
-    await page.getByRole('button', { name: 'Sign Up' }).click();
-    await page.waitForURL(/\/(verify-email|profile)/);
+  // Clear inherited storage state from 'chromium' project so tests can
+  // navigate to /sign-in and sign in as a freshly-created test user.
+  test.use({ storageState: { cookies: [], origins: [] } });
 
-    // Sign out to test sign-in with Remember Me
-    await page.getByRole('button', { name: 'Sign Out' }).click();
-    await page.waitForURL('/sign-in');
+  let testUser: { id: string; email: string; password: string };
+
+  test.beforeAll(async () => {
+    // Create test user with email pre-confirmed via admin API
+    // Note: createTestUser now throws on failure (fail-fast pattern)
+    const email = generateTestEmail('e2e-session');
+    testUser = await createTestUser(email, DEFAULT_TEST_PASSWORD);
+  });
+
+  test.afterAll(async () => {
+    // Clean up test user
+    if (testUser) {
+      await deleteTestUser(testUser.id);
+    }
   });
 
   test('should extend session duration with Remember Me checked', async ({
     page,
   }) => {
     // Sign in with Remember Me
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
-    await page.getByLabel('Remember Me').check();
-    await page.getByRole('button', { name: 'Sign In' }).click();
-
-    // Verify session created
-    await page.waitForURL(/\/(profile|verify-email)/);
+    await signInAndWaitForProfile(page, testUser.email, testUser.password, {
+      rememberMe: true,
+    });
+    await expect(page).toHaveURL(/\/profile/);
 
     // Check session storage/cookies
     const cookies = await page.context().cookies();
@@ -66,18 +117,14 @@ test.describe('Session Persistence E2E', () => {
       JSON.stringify(window.localStorage)
     );
     expect(localStorage).toContain('refresh_token');
+
+    // Sign out for next test
+    await signOut(page);
   });
 
   test('should use short session without Remember Me', async ({ page }) => {
     // Sign in WITHOUT Remember Me
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
-    // Do NOT check Remember Me
-    await page.getByRole('button', { name: 'Sign In' }).click();
-
-    // Verify session created
-    await page.waitForURL(/\/(profile|verify-email)/);
+    await signInAndWaitForProfile(page, testUser.email, testUser.password);
 
     // Check session is in sessionStorage (not localStorage for short-lived)
     const sessionStorage = await page.evaluate(() =>
@@ -87,22 +134,28 @@ test.describe('Session Persistence E2E', () => {
     // Note: Supabase SSR may still use localStorage even without Remember Me
     // The difference is in cookie max-age, not storage location
     expect(sessionStorage).toBeDefined();
+
+    // Sign out
+    await signOut(page);
   });
 
   test('should automatically refresh token before expiration', async ({
     page,
   }) => {
     // Sign in
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await page.waitForURL(/\/(profile|verify-email)/);
+    await signInAndWaitForProfile(page, testUser.email, testUser.password);
 
-    // Get initial access token
+    // Get initial access token (Supabase SSR key: sb-{ref}-auth-token)
     const initialToken = await page.evaluate(() => {
-      const data = localStorage.getItem('supabase.auth.token');
-      return data ? JSON.parse(data).access_token : null;
+      const keys = Object.keys(localStorage);
+      const authKey = keys.find((k) => k.match(/^sb-.*-auth-token$/));
+      if (!authKey) return null;
+      try {
+        const data = JSON.parse(localStorage.getItem(authKey)!);
+        return data.access_token ?? null;
+      } catch {
+        return null;
+      }
     });
 
     // Wait a short time (in real scenario, wait closer to expiry)
@@ -114,14 +167,27 @@ test.describe('Session Persistence E2E', () => {
 
     // Get current token
     const currentToken = await page.evaluate(() => {
-      const data = localStorage.getItem('supabase.auth.token');
-      return data ? JSON.parse(data).access_token : null;
+      const keys = Object.keys(localStorage);
+      const authKey = keys.find((k) => k.match(/^sb-.*-auth-token$/));
+      if (!authKey) return null;
+      try {
+        const data = JSON.parse(localStorage.getItem(authKey)!);
+        return data.access_token ?? null;
+      } catch {
+        return null;
+      }
     });
 
     // Tokens might be same if not near expiry, but refresh mechanism should exist
     // The important part is that navigation doesn't break authentication
-    await expect(page).toHaveURL('/profile');
-    await expect(page.getByText(testEmail)).toBeVisible();
+    await expect(page).toHaveURL(/\/profile/);
+    // Email appears in multiple places (nav, card title, card body) — target heading
+    await expect(
+      page.getByRole('heading', { name: testUser.email })
+    ).toBeVisible();
+
+    // Sign out
+    await signOut(page);
   });
 
   test('should persist session across browser restarts', async ({
@@ -134,12 +200,9 @@ test.describe('Session Persistence E2E', () => {
     const page = await context.newPage();
 
     // Sign in with Remember Me
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
-    await page.getByLabel('Remember Me').check();
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await page.waitForURL(/\/(profile|verify-email)/);
+    await signInAndWaitForProfile(page, testUser.email, testUser.password, {
+      rememberMe: true,
+    });
 
     // Save storage state
     const storageState = await context.storageState();
@@ -154,29 +217,29 @@ test.describe('Session Persistence E2E', () => {
     await newPage.goto('/profile');
 
     // Verify still authenticated
-    await expect(newPage).toHaveURL('/profile');
-    await expect(newPage.getByText(testEmail)).toBeVisible();
+    await expect(newPage).toHaveURL(/\/profile/);
+    await expect(
+      newPage.getByRole('heading', { name: testUser.email })
+    ).toBeVisible();
 
     await newContext.close();
   });
 
   test('should clear session on sign out', async ({ page }) => {
     // Sign in
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await page.waitForURL(/\/(profile|verify-email)/);
+    await signInAndWaitForProfile(page, testUser.email, testUser.password);
 
     // Verify localStorage has session data
+    // Supabase SSR stores auth as `sb-{project-ref}-auth-token`, not `supabase`
     const beforeSignOut = await page.evaluate(() =>
       JSON.stringify(window.localStorage)
     );
-    expect(beforeSignOut).toContain('supabase');
+    expect(beforeSignOut).toMatch(/sb-.*-auth-token/);
 
-    // Sign out
-    await page.getByRole('button', { name: 'Sign Out' }).click();
-    await page.waitForURL('/sign-in');
+    // Sign out (with verify: false since we verify manually below)
+    await signOut(page, { verify: false });
+    // Wait for page to fully settle after sign-out navigation (window.location.href = '/')
+    await page.waitForLoadState('networkidle');
 
     // Verify session cleared from storage
     const afterSignOut = await page.evaluate(() =>
@@ -184,17 +247,27 @@ test.describe('Session Persistence E2E', () => {
     );
 
     // Session data should be removed or cleared
+    // Supabase SSR uses `sb-{ref}-auth-token` key, not `supabase.auth.token`
     const hasActiveSession = await page.evaluate(() => {
-      const authData = localStorage.getItem('supabase.auth.token');
-      return authData && JSON.parse(authData).access_token;
+      const keys = Object.keys(localStorage);
+      const authKey = keys.find((k) => k.match(/^sb-.*-auth-token$/));
+      if (!authKey) return false;
+      const authData = localStorage.getItem(authKey);
+      if (!authData) return false;
+      try {
+        const parsed = JSON.parse(authData);
+        return !!parsed.access_token;
+      } catch {
+        return false;
+      }
     });
 
     expect(hasActiveSession).toBeFalsy();
 
     // Verify cannot access protected routes
     await page.goto('/profile');
-    await page.waitForURL('/sign-in');
-    await expect(page).toHaveURL('/sign-in');
+    await page.waitForURL(/\/sign-in/);
+    await expect(page).toHaveURL(/\/sign-in/);
   });
 
   test('should handle concurrent tab sessions correctly', async ({
@@ -206,26 +279,26 @@ test.describe('Session Persistence E2E', () => {
     const page2 = await context.newPage();
 
     // Sign in on page 1
-    await page1.goto('/sign-in');
-    await page1.getByLabel('Email').fill(testEmail);
-    await page1.getByLabel('Password').fill(testPassword);
-    await page1.getByRole('button', { name: 'Sign In' }).click();
-    await page1.waitForURL(/\/(profile|verify-email)/);
+    await signInAndWaitForProfile(page1, testUser.email, testUser.password);
 
     // Page 2 should also be authenticated (shared storage)
     await page2.goto('/profile');
-    await expect(page2).toHaveURL('/profile');
-    await expect(page2.getByText(testEmail)).toBeVisible();
+    await expect(page2).toHaveURL(/\/profile/);
+    await expect(
+      page2.getByRole('heading', { name: testUser.email })
+    ).toBeVisible();
 
-    // Sign out on page 1
-    await page1.getByRole('button', { name: 'Sign Out' }).click();
-    await page1.waitForURL('/sign-in');
+    // Sign out on page 1 (using signOut helper with page1)
+    await signOut(page1, { verify: false });
 
-    // Page 2 should detect sign out (if using realtime sync)
-    // Note: This depends on implementation - may require page reload
-    await page2.reload();
-    await page2.waitForURL('/sign-in');
-    await expect(page2).toHaveURL('/sign-in');
+    // Page 2 detects sign out via cross-tab SIGNED_OUT event (FR-009)
+    // AuthContext.onAuthStateChange redirects to home '/', not '/sign-in'
+    await page2.waitForURL(
+      (url) => url.pathname === '/' || url.pathname.includes('/sign-in'),
+      { timeout: 10000 }
+    );
+    // Verify we're no longer on the profile page
+    await expect(page2).not.toHaveURL(/\/profile/);
 
     await context.close();
   });
@@ -234,21 +307,22 @@ test.describe('Session Persistence E2E', () => {
     page,
   }) => {
     // Sign in
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await page.waitForURL(/\/(profile|verify-email)/);
+    await signInAndWaitForProfile(page, testUser.email, testUser.password);
 
     // Reload page
     await page.reload();
 
-    // Verify still authenticated
-    await expect(page.getByText(testEmail)).toBeVisible();
+    // Verify still authenticated (email appears in nav, card title, card body — target heading)
+    await expect(
+      page.getByRole('heading', { name: testUser.email })
+    ).toBeVisible();
 
     // Navigate to another protected route
     await page.goto('/account');
-    await expect(page).toHaveURL('/account');
+    await expect(page).toHaveURL(/\/account/);
+
+    // Sign out
+    await signOut(page);
   });
 
   test('should expire session after maximum duration', async ({ page }) => {
@@ -260,19 +334,23 @@ test.describe('Session Persistence E2E', () => {
     // 4. Verify redirected to sign-in
 
     // For demonstration, test the refresh mechanism
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await page.waitForURL(/\/(profile|verify-email)/);
+    await signInAndWaitForProfile(page, testUser.email, testUser.password);
 
-    // Clear refresh token to simulate expired session
+    // Clear refresh token to simulate expired session (Supabase SSR key format)
     await page.evaluate(() => {
-      const data = localStorage.getItem('supabase.auth.token');
-      if (data) {
-        const parsed = JSON.parse(data);
-        delete parsed.refresh_token;
-        localStorage.setItem('supabase.auth.token', JSON.stringify(parsed));
+      const keys = Object.keys(localStorage);
+      const authKey = keys.find((k) => k.match(/^sb-.*-auth-token$/));
+      if (authKey) {
+        const data = localStorage.getItem(authKey);
+        if (data) {
+          try {
+            const parsed = JSON.parse(data);
+            delete parsed.refresh_token;
+            localStorage.setItem(authKey, JSON.stringify(parsed));
+          } catch {
+            // ignore parse errors
+          }
+        }
       }
     });
 

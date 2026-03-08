@@ -74,8 +74,11 @@ test.describe('ColorblindToggle - Accessibility', () => {
     const dropdown = page.getByText('Color Vision Assistance');
     await expect(dropdown).toBeVisible();
 
-    // Tab to select element
+    // Tab to dropdown content container first (DaisyUI uses tabIndex on dropdown-content)
     await page.keyboard.press('Tab');
+    // Tab again to reach the select element
+    await page.keyboard.press('Tab');
+
     const select = page.getByRole('combobox');
     await expect(select).toBeFocused();
 
@@ -113,15 +116,27 @@ test.describe('ColorblindToggle - Accessibility', () => {
     await toggleButton.click();
     await page.waitForTimeout(200);
 
+    // Verify dropdown is open
+    const dropdownContent = page.getByText('Color Vision Assistance');
+    await expect(dropdownContent).toBeVisible();
+
     // Select a colorblind mode (not "No Correction Needed")
     const select = page.getByRole('combobox');
     await select.selectOption({ label: 'Protanopia (Red-Blind) Correction' });
 
-    // Wait for UI update
-    await page.waitForTimeout(200);
+    // Wait for React to re-render
+    await page.waitForTimeout(300);
 
-    // Pattern toggle should now be visible
-    const patternToggle = page.getByRole('checkbox', { name: /pattern/i });
+    // Keep dropdown open by clicking the button again if it closed
+    if (!(await dropdownContent.isVisible())) {
+      await toggleButton.click();
+      await page.waitForTimeout(200);
+    }
+
+    // Pattern toggle should now be visible - use the aria-label from the component
+    const patternToggle = page.locator(
+      'input[type="checkbox"][aria-label="Toggle pattern overlays"]'
+    );
     await expect(patternToggle).toBeVisible();
 
     // Verify it's interactive

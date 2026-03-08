@@ -31,6 +31,11 @@ describe('EmailService', () => {
   };
 
   beforeEach(() => {
+    // Mock setTimeout to resolve immediately - prevents pending timers during worker cleanup
+    vi.spyOn(global, 'setTimeout').mockImplementation((fn: TimerHandler) => {
+      if (typeof fn === 'function') fn();
+      return 0 as unknown as NodeJS.Timeout;
+    });
     vi.clearAllMocks();
 
     // Setup mock providers
@@ -55,12 +60,12 @@ describe('EmailService', () => {
     });
     vi.mocked(mockEmailJS.validateConfig).mockResolvedValue(true);
 
-    // Create service with mocked providers and short delays for testing
+    // Create service with mocked providers and minimal delays for testing
     emailService = new EmailService({
       providers: [mockWeb3Forms, mockEmailJS],
       config: {
         maxRetries: 2,
-        baseDelay: 10, // Short delay for tests
+        baseDelay: 1, // 1ms delay (0 would default to 1000 due to || operator)
         maxFailures: 3,
       },
     });

@@ -5,13 +5,13 @@ import Text from '@/components/subatomic/Text/Text';
 
 export default function ThemesPage() {
   return (
-    <main className="bg-base-100 min-h-screen">
+    <div className="bg-base-100 min-h-screen">
       <div className="container mx-auto px-4 py-6 sm:py-8 md:py-12">
         <div className="mb-8 text-center">
           <h1 className="mb-4 !text-2xl font-bold sm:!text-4xl md:!text-5xl">
             SpokeToWork Theme Playground
           </h1>
-          <p className="text-base-content/70 text-base sm:text-lg md:text-xl">
+          <p className="text-base-content/85 text-base sm:text-lg md:text-xl">
             Explore 32+ beautiful DaisyUI themes
           </p>
         </div>
@@ -90,6 +90,6 @@ export default function ThemesPage() {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

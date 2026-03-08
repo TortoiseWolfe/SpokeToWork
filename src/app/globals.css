@@ -3,6 +3,13 @@
 @import '../styles/prism-vscode-dark.css';
 @import '../styles/mobile-first-utilities.css';
 
+/* Prevent horizontal scroll at page level (PRP-017 mobile-first) */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 @theme {
   /* Mobile-first breakpoints (PRP-017) */
   --breakpoint-xs: 20rem; /* 320px - Small phones (minimum supported) */
@@ -20,6 +27,250 @@
     lemonade, night, coffee, winter, dim, nord, sunset;
 }
 
+/* SpokeToWork brand theme — dark variant (default) */
+@plugin "daisyui/theme" {
+  name: 'spoketowork-dark';
+  default: true;
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: oklch(28.8% 0.072 259.1); /* Navy #132a4e */
+  --color-base-200: oklch(24.2% 0.061 259.5); /* Darker navy #0d1f3c */
+  --color-base-300: oklch(33.3% 0.077 257.1); /* Lighter navy #1a365d */
+  --color-base-content: oklch(95.1% 0.025 236.8); /* Light blue-white #e0f2fe */
+
+  --color-primary: oklch(
+    79.5% 0.145 55.5
+  ); /* Lighter orange for AAA contrast on navy */
+  --color-primary-content: oklch(
+    20% 0.04 55
+  ); /* Dark warm — AAA on light orange */
+
+  --color-secondary: oklch(81.6% 0.145 216.5); /* Cyan #00d9ff — accents */
+  --color-secondary-content: oklch(24.2% 0.061 259.5); /* Navy */
+
+  --color-accent: oklch(72.3% 0.192 149.6); /* Green #22c55e — success */
+  --color-accent-content: oklch(20% 0.04 149); /* Dark green — AAA on green */
+
+  --color-neutral: oklch(27.8% 0.03 256.8); /* Dark gray #1f2937 */
+  --color-neutral-content: oklch(87.2% 0.009 258.3); /* Light gray #d1d5db */
+
+  --color-info: oklch(62.3% 0.188 259.8); /* Blue #3b82f6 */
+  --color-info-content: oklch(100% 0 0);
+  --color-success: oklch(72.3% 0.192 149.6); /* Green #22c55e */
+  --color-success-content: oklch(20% 0.04 149); /* Dark green — AAA on green */
+  --color-warning: oklch(90.5% 0.166 98.1); /* Yellow #fde047 */
+  --color-warning-content: oklch(24.2% 0.061 259.5);
+  --color-error: oklch(63.7% 0.208 25.3); /* Red #ef4444 */
+  --color-error-content: oklch(100% 0 0);
+
+  --radius-selector: 1.5rem;
+  --radius-field: 0.75rem;
+  --radius-box: 0.75rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+/* SpokeToWork brand theme — light variant */
+@plugin "daisyui/theme" {
+  name: 'spoketowork-light';
+  default: false;
+  prefersdark: false;
+  color-scheme: light;
+
+  --color-base-100: oklch(
+    94% 0.03 79
+  ); /* Warm tan cream — complementary to navy */
+  --color-base-200: oklch(90% 0.035 79); /* Deeper cream */
+  --color-base-300: oklch(85% 0.04 79); /* Tan borders */
+  --color-base-content: oklch(27.8% 0.03 256.8); /* Dark text #1f2937 */
+
+  --color-primary: oklch(42% 0.14 43.9); /* Dark burnt orange — AAA on cream */
+  --color-primary-content: oklch(100% 0 0); /* White */
+
+  --color-secondary: oklch(32% 0.111 221.7); /* Dark cyan — AAA on cream */
+  --color-secondary-content: oklch(100% 0 0); /* White */
+
+  --color-accent: oklch(62.7% 0.17 149.2); /* Darker green #16a34a */
+  --color-accent-content: oklch(100% 0 0); /* White */
+
+  --color-neutral: oklch(35% 0.03 256.8); /* Medium dark gray */
+  --color-neutral-content: oklch(98% 0.005 78.3); /* Warm white */
+
+  --color-info: oklch(42% 0.15 262.9); /* Dark blue — AAA on cream */
+  --color-info-content: oklch(100% 0 0);
+  --color-success: oklch(39% 0.11 149.2); /* Dark green — AAA on cream */
+  --color-success-content: oklch(100% 0 0);
+  --color-warning: oklch(42% 0.1 75.8); /* Dark amber — AAA on cream */
+  --color-warning-content: oklch(100% 0 0); /* White on dark amber */
+  --color-error: oklch(45% 0.18 27.3); /* Dark red — AAA on cream */
+  --color-error-content: oklch(100% 0 0);
+
+  --radius-selector: 1.5rem;
+  --radius-field: 0.75rem;
+  --radius-box: 0.75rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+/* Theme-aware brand shadows — softer on light backgrounds */
+[data-theme='spoketowork-dark'] {
+  --shadow-brand: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.8));
+  --shadow-brand-sm: drop-shadow(1px 1px 0px rgba(0, 0, 0, 0.7));
+  --shadow-brand-subtle: drop-shadow(2px 2px 0px rgba(0, 0, 0, 0.3));
+}
+
+/* WCAG AAA overrides for DaisyUI component styles on dark theme */
+[data-theme='spoketowork-dark'] .label-text {
+  color: oklch(82% 0.02 236.8); /* 7.5:1 on base-100 — AAA compliant */
+}
+
+[data-theme='spoketowork-dark']
+  .tab:not(.tab-active):not([aria-selected='true']) {
+  color: oklch(82% 0.02 236.8); /* 7.5:1 on base-100 — AAA compliant */
+}
+
+[data-theme='spoketowork-light'] {
+  --shadow-brand: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.25));
+  --shadow-brand-sm: drop-shadow(1px 1px 0px rgba(0, 0, 0, 0.15));
+  --shadow-brand-subtle: drop-shadow(2px 2px 0px rgba(0, 0, 0, 0.1));
+}
+
+/* WCAG AAA overrides for DaisyUI component styles on light theme */
+[data-theme='spoketowork-light'] .label-text {
+  color: oklch(35% 0.02 256.8); /* 9:1+ on cream — AAA compliant */
+}
+
+[data-theme='spoketowork-light']
+  .tab:not(.tab-active):not([aria-selected='true']) {
+  color: oklch(35% 0.02 256.8); /* 9:1+ on cream — AAA compliant */
+}
+
+/* Semantic text colors — darkened for AAA on cream backgrounds */
+[data-theme='spoketowork-light'] .text-error {
+  color: oklch(45% 0.18 27.3); /* Dark red — 7:1+ on cream */
+}
+
+[data-theme='spoketowork-light'] .text-info {
+  color: oklch(42% 0.15 262.9); /* Dark blue — 7:1+ on cream */
+}
+
+[data-theme='spoketowork-light'] .text-success {
+  color: oklch(39% 0.11 149.2); /* Dark green — 7:1+ on cream */
+}
+
+[data-theme='spoketowork-light'] .text-warning {
+  color: oklch(42% 0.1 75.8); /* Dark amber — 7:1+ on cream */
+}
+
+/* Table header and form label alt contrast on light theme */
+[data-theme='spoketowork-light'] th,
+[data-theme='spoketowork-light'] .label-text-alt {
+  color: oklch(35% 0.02 256.8); /* 9:1+ on cream */
+}
+
+/* Boost dimmed text for AAA on cream — /75 and /80 are too faint */
+[data-theme='spoketowork-light'] .text-base-content\/75 {
+  color: oklch(38% 0.025 256.8); /* 7.5:1+ on cream — AAA */
+}
+
+[data-theme='spoketowork-light'] .text-base-content\/80 {
+  color: oklch(36% 0.02 256.8); /* 8:1+ on cream — AAA */
+}
+
+[data-theme='spoketowork-light'] .text-base-content\/85 {
+  color: oklch(34% 0.02 256.8); /* 8.5:1+ on cream — AAA */
+}
+
+/* Button micro-interactions — professional with playful touches */
+[data-theme='spoketowork-dark']
+  .btn:not(.btn-ghost):not(.btn-link):not(:disabled),
+[data-theme='spoketowork-light']
+  .btn:not(.btn-ghost):not(.btn-link):not(:disabled) {
+  transition:
+    color 0.2s cubic-bezier(0, 0, 0.2, 1),
+    background-color 0.2s cubic-bezier(0, 0, 0.2, 1),
+    border-color 0.2s cubic-bezier(0, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0, 0, 0.2, 1),
+    transform 0.15s cubic-bezier(0, 0, 0.2, 1);
+}
+
+[data-theme='spoketowork-dark']
+  .btn:not(.btn-ghost):not(.btn-link):not(:disabled):hover,
+[data-theme='spoketowork-light']
+  .btn:not(.btn-ghost):not(.btn-link):not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+[data-theme='spoketowork-dark']
+  .btn:not(.btn-ghost):not(.btn-link):not(:disabled):active,
+[data-theme='spoketowork-light']
+  .btn:not(.btn-ghost):not(.btn-link):not(:disabled):active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* Branded focus ring for keyboard navigation */
+[data-theme='spoketowork-dark'] .btn:focus-visible {
+  outline: 2px solid oklch(79.5% 0.145 55.5);
+  outline-offset: 2px;
+}
+
+[data-theme='spoketowork-light'] .btn:focus-visible {
+  outline: 2px solid oklch(42% 0.14 43.9);
+  outline-offset: 2px;
+}
+
+/* Semantic text colors — lightened for AAA on dark backgrounds */
+[data-theme='spoketowork-dark'] .text-error {
+  color: oklch(78% 0.155 25.3); /* Lighter red — 8:1+ on navy */
+}
+
+[data-theme='spoketowork-dark'] .text-info {
+  color: oklch(78% 0.13 259.8); /* Lighter blue — 8:1+ on navy */
+}
+
+[data-theme='spoketowork-dark'] .text-success {
+  color: oklch(78% 0.15 149.6); /* Lighter green — 8:1+ on navy */
+}
+
+/* Table header and form label alt contrast — DaisyUI defaults too dim for AAA */
+[data-theme='spoketowork-dark'] th,
+[data-theme='spoketowork-dark'] .label-text-alt {
+  color: oklch(82% 0.02 236.8); /* 7.5:1 on base-100 */
+}
+
+/* Loading spinner visibility on dark backgrounds */
+[data-theme='spoketowork-dark'] .btn .loading {
+  color: currentColor;
+}
+
+/* Card personality — subtle separation on dark, polished feel */
+[data-theme='spoketowork-dark'] .card {
+  border: 1px solid oklch(38% 0.06 257 / 0.6);
+  transition:
+    transform 0.2s cubic-bezier(0, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0, 0, 0.2, 1);
+}
+
+[data-theme='spoketowork-light'] .card {
+  transition:
+    transform 0.2s cubic-bezier(0, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0, 0, 0.2, 1);
+}
+
+/* Cards with links or buttons get hover lift */
+a.card:hover,
+button.card:hover,
+.card[role='button']:hover {
+  transform: translateY(-2px);
+}
+
 /* Override DaisyUI drawer-side to respect container bounds
  * DaisyUI's default uses position:fixed + height:100dvh which is viewport-relative.
  * This makes it absolute (relative to nearest positioned ancestor) so it stays
@@ -29,6 +280,90 @@
   position: absolute !important;
   height: 100% !important;
   top: 0 !important;
+}
+
+/* MapLibre popup styling — theme-aware for consistent contrast */
+.maplibregl-popup-content {
+  background: var(--color-base-100, white) !important;
+  color: var(--color-base-content, #1f2937) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+  padding: 0 !important;
+}
+
+.maplibregl-popup-close-button {
+  color: var(--color-base-content, #6b7280) !important;
+  font-size: 18px !important;
+  padding: 4px 8px !important;
+}
+
+.maplibregl-popup-close-button:hover {
+  color: var(--color-base-content, #1f2937) !important;
+  background: var(--color-base-200, #f3f4f6) !important;
+}
+
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+  border-top-color: var(--color-base-100, white) !important;
+}
+
+.maplibregl-popup-anchor-top .maplibregl-popup-tip {
+  border-bottom-color: var(--color-base-100, white) !important;
+}
+
+/* MapLibre navigation controls - ensure visibility across all browsers */
+.maplibregl-ctrl {
+  z-index: 2 !important;
+}
+
+.maplibregl-ctrl-group {
+  background: white !important;
+  border-radius: 4px !important;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+.maplibregl-ctrl-group button {
+  background-color: white !important;
+  border: none !important;
+}
+
+.maplibregl-ctrl-group button:hover {
+  background-color: #f0f0f0 !important;
+}
+
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid #ddd !important;
+}
+
+/* Dark theme support for MapLibre controls */
+[data-theme='spoketowork-dark'] .maplibregl-ctrl-group,
+[data-theme='dark'] .maplibregl-ctrl-group,
+[data-theme='dracula'] .maplibregl-ctrl-group,
+[data-theme='synthwave'] .maplibregl-ctrl-group,
+[data-theme='night'] .maplibregl-ctrl-group,
+[data-theme='coffee'] .maplibregl-ctrl-group,
+[data-theme='dim'] .maplibregl-ctrl-group {
+  background: rgba(30, 30, 30, 0.9) !important;
+}
+
+[data-theme='spoketowork-dark'] .maplibregl-ctrl-group button,
+[data-theme='dark'] .maplibregl-ctrl-group button,
+[data-theme='dracula'] .maplibregl-ctrl-group button,
+[data-theme='synthwave'] .maplibregl-ctrl-group button,
+[data-theme='night'] .maplibregl-ctrl-group button,
+[data-theme='coffee'] .maplibregl-ctrl-group button,
+[data-theme='dim'] .maplibregl-ctrl-group button {
+  background-color: rgba(30, 30, 30, 0.9) !important;
+  color: white !important;
+}
+
+[data-theme='spoketowork-dark'] .maplibregl-ctrl-group button:hover,
+[data-theme='dark'] .maplibregl-ctrl-group button:hover,
+[data-theme='dracula'] .maplibregl-ctrl-group button:hover,
+[data-theme='synthwave'] .maplibregl-ctrl-group button:hover,
+[data-theme='night'] .maplibregl-ctrl-group button:hover,
+[data-theme='coffee'] .maplibregl-ctrl-group button:hover,
+[data-theme='dim'] .maplibregl-ctrl-group button:hover {
+  background-color: rgba(60, 60, 60, 0.9) !important;
 }
 
 /* Font Loading Optimization */
@@ -172,6 +507,114 @@ p:not([class*='text-']) {
   font-size: var(--text-base);
 }
 
+/* ===== Print Stylesheet — Schedule Grid ===== */
+/* Scoped to pages with [data-print-schedule] to avoid interfering with other pages.
+ * The employer/page.tsx sets this attribute on its container. */
+
+/* Landscape orientation for schedule printing */
+@page schedule {
+  size: landscape;
+  margin: 0.5in;
+}
+
+@media print {
+  /* Page-level chrome — always hide in print */
+  header,
+  footer,
+  .drawer-side,
+  .cookie-consent,
+  .navbar,
+  nav,
+  #pwa-install {
+    display: none !important;
+  }
+
+  /* Schedule-scoped rules — only apply inside the schedule grid */
+  [data-testid='week-schedule-grid'] {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Hide interactive controls inside the schedule */
+  [data-testid='week-schedule-grid'] .loading {
+    display: none !important;
+  }
+
+  /* Force desktop table visible (mobile view hidden via print:hidden in component) */
+  [data-testid='schedule-desktop-grid'] {
+    display: block !important;
+  }
+
+  /* Show all content inside table cells — shift blocks, role=button wrappers */
+  [data-testid='week-schedule-grid'] td button,
+  [data-testid='week-schedule-grid'] td [role='button'],
+  [data-testid='week-schedule-grid'] td div[role='button'] {
+    display: block !important;
+    cursor: default !important;
+    color: black !important;
+  }
+
+  /* Table styling for print */
+  [data-testid='week-schedule-grid'] table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 11pt !important;
+  }
+
+  [data-testid='week-schedule-grid'] th,
+  [data-testid='week-schedule-grid'] td {
+    border: 1px solid #ccc !important;
+    padding: 4px 6px !important;
+    color: black !important;
+    background: white !important;
+  }
+
+  [data-testid='week-schedule-grid'] th {
+    background: #f0f0f0 !important;
+    font-weight: bold !important;
+  }
+
+  /* Today highlight — subtle gray instead of theme color */
+  [data-testid='week-schedule-grid'] .bg-primary\/5,
+  [data-testid='week-schedule-grid'] .bg-primary\/10 {
+    background: #f5f5f5 !important;
+  }
+
+  /* Repeat table headers on every printed page */
+  [data-testid='week-schedule-grid'] thead {
+    display: table-header-group !important;
+  }
+
+  /* Prevent rows from splitting across pages */
+  [data-testid='week-schedule-grid'] tr {
+    page-break-inside: avoid !important;
+  }
+
+  /* Remove overflow constraints */
+  [data-testid='week-schedule-grid'] .overflow-x-auto,
+  .overflow-hidden {
+    overflow: visible !important;
+  }
+
+  /* Employer page: hide tabs, heading, and non-schedule content */
+  [data-print-schedule] [role='tablist'],
+  [data-print-schedule] > .container > h1 {
+    display: none !important;
+  }
+
+  [data-print-schedule] {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Shift block colors — print as bordered with text instead of themed backgrounds */
+  [data-testid='week-schedule-grid'] td button {
+    border: 1px solid #999 !important;
+    background: white !important;
+    padding: 1px 3px !important;
+  }
+}
+
 /* Spinning Logo Animations */
 @keyframes spin-clockwise {
   from {
@@ -208,6 +651,7 @@ p:not([class*='text-']) {
 }
 
 /* Fix Leaflet controls for dark mode */
+[data-theme='spoketowork-dark'] .leaflet-control,
 [data-theme='dark'] .leaflet-control,
 [data-theme='dracula'] .leaflet-control,
 [data-theme='synthwave'] .leaflet-control,
@@ -223,6 +667,7 @@ p:not([class*='text-']) {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
+[data-theme='spoketowork-dark'] .leaflet-control a,
 [data-theme='dark'] .leaflet-control a,
 [data-theme='dracula'] .leaflet-control a,
 [data-theme='synthwave'] .leaflet-control a,
@@ -284,7 +729,7 @@ p:not([class*='text-']) {
 /* ===== Syntax Highlighting Styles ===== */
 /* Line numbers styles */
 [data-theme] .line-number {
-  @apply text-base-content/30 select-none;
+  @apply text-base-content/75 select-none;
   display: inline-block;
   width: 3rem;
   text-align: right;
@@ -298,12 +743,12 @@ p:not([class*='text-']) {
   display: block;
 }
 
-/* Token colors that work with all themes */
+/* Token colors — lightened for AAA on dark code backgrounds */
 [data-theme] .token.comment,
 [data-theme] .token.prolog,
 [data-theme] .token.doctype,
 [data-theme] .token.cdata {
-  color: #6a9955; /* Green comments */
+  color: #8ec07c; /* Lightened green comments — 7:1+ on #0d1f3c */
 }
 
 [data-theme] .token.punctuation {
@@ -349,12 +794,12 @@ p:not([class*='text-']) {
 }
 
 [data-theme] .token.keyword {
-  color: #569cd6; /* Blue */
+  color: #7cb8e8; /* Lightened blue — 7:1+ on #0d1f3c */
 }
 
 [data-theme] .token.regex,
 [data-theme] .token.important {
-  color: #d16969; /* Red */
+  color: #e88888; /* Lightened red — 7:1+ on #0d1f3c */
 }
 
 [data-theme] .token.important,

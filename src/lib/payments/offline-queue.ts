@@ -1,4 +1,16 @@
 /**
+ * @deprecated This file is deprecated. Use @/lib/offline-queue instead.
+ * Migration: import { paymentQueue, queueOperation, processPendingOperations } from '@/lib/offline-queue';
+ *
+ * This file will be removed in a future version.
+ * Feature 050 - Code Consolidation
+ */
+
+console.warn(
+  '[@deprecated] src/lib/payments/offline-queue.ts is deprecated. Use @/lib/offline-queue instead.'
+);
+
+/**
  * Offline Queue System using Dexie.js (IndexedDB)
  * Queues payment operations when offline, processes when connection returns
  */
@@ -153,6 +165,16 @@ async function executeOperation(op: QueuedOperation): Promise<void> {
 async function executePaymentIntent(
   data: CreatePaymentIntentInput
 ): Promise<void> {
+  // Get authenticated user
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw new Error('Must be authenticated to execute payment intent');
+  }
+
   const { data: intent, error } = await supabase
     .from('payment_intents')
     .insert({
@@ -163,7 +185,7 @@ async function executePaymentIntent(
       customer_email: data.customer_email,
       description: data.description || null,
       metadata: (data.metadata || {}) as Json,
-      template_user_id: '00000000-0000-0000-0000-000000000000', // TODO: Get from auth context
+      template_user_id: user.id,
     })
     .select()
     .single();

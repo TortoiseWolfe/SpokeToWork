@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import MessageBubble from './MessageBubble';
 import type { DecryptedMessage } from '@/types/messaging';
 
@@ -19,7 +19,7 @@ const mockMessage: DecryptedMessage = {
 };
 
 const meta = {
-  title: 'Atomic/MessageBubble',
+  title: 'Atomic Design/Atomic/MessageBubble',
   component: MessageBubble,
   parameters: {
     layout: 'centered',

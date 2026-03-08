@@ -1,10 +1,10 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import CalendarEmbed from './CalendarEmbed';
 import { withConsentProvider } from '../../../../.storybook/decorators';
 
 const meta: Meta<typeof CalendarEmbed> = {
   id: 'atomic-calendarembed',
-  title: 'Features/Calendar/CalendarEmbed',
+  title: 'Atomic Design/Atomic/CalendarEmbed',
   component: CalendarEmbed,
   decorators: [withConsentProvider],
   parameters: {

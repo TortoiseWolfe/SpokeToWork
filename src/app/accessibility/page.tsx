@@ -1,21 +1,21 @@
 'use client';
 
 import { useAccessibility } from '@/contexts/AccessibilityContext';
-import { ColorblindToggle } from '@/components/atomic/ColorblindToggle';
-import { FontSwitcher } from '@/components/atomic/FontSwitcher';
+import { ColorblindToggle } from '@/components/molecular/ColorblindToggle';
+import { FontSwitcher } from '@/components/molecular/FontSwitcher';
 
 export default function AccessibilityPage() {
   const { settings, updateSettings, resetSettings } = useAccessibility();
   const { fontSize, lineHeight, fontFamily } = settings;
 
   return (
-    <main className="bg-base-100 min-h-screen">
+    <div className="bg-base-100 min-h-screen">
       <div className="container mx-auto px-4 py-6 sm:py-8 md:py-12">
         <div className="mx-auto max-w-4xl">
           <h1 className="mb-6 !text-2xl font-bold sm:mb-8 sm:!text-4xl md:!text-5xl">
             Accessibility Controls
           </h1>
-          <p className="text-base-content/70 mb-8 text-lg">
+          <p className="text-base-content/85 mb-8 text-lg">
             Customize the reading experience to suit your preferences
           </p>
 
@@ -147,16 +147,20 @@ const settings = {
           {/* Current Settings Display */}
           <div className="stats mt-8 shadow">
             <div className="stat">
-              <div className="stat-title">Current Font Size</div>
+              <div className="stat-title text-base-content">
+                Current Font Size
+              </div>
               <div className="stat-value text-primary">{fontSize}</div>
             </div>
             <div className="stat">
-              <div className="stat-title">Current Line Height</div>
+              <div className="stat-title text-base-content">
+                Current Line Height
+              </div>
               <div className="stat-value text-secondary">{lineHeight}</div>
             </div>
             <div className="stat">
-              <div className="stat-title">Current Font</div>
-              <div className="stat-value text-accent">
+              <div className="stat-title text-base-content">Current Font</div>
+              <div className="stat-value text-base-content">
                 {fontFamily === 'sans-serif'
                   ? 'Sans'
                   : fontFamily === 'serif'
@@ -167,6 +171,6 @@ const settings = {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

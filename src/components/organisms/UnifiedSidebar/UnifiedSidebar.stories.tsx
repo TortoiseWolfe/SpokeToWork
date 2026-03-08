@@ -1,9 +1,9 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
-import { fn } from '@storybook/test';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
+import { fn } from 'storybook/test';
 import UnifiedSidebar from './UnifiedSidebar';
 
 const meta: Meta<typeof UnifiedSidebar> = {
-  title: 'Components/Organisms/UnifiedSidebar',
+  title: 'Atomic Design/Organism/UnifiedSidebar',
   component: UnifiedSidebar,
   parameters: {
     layout: 'fullscreen',

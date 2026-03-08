@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 export interface NetworkStatusHookReturn {
   isOnline: boolean;
@@ -8,37 +9,40 @@ export interface NetworkStatusHookReturn {
 /**
  * useNetworkStatus Hook
  * Task: T119
+ * FR-006: Refactored to use useOnlineStatus for core online/offline state
  *
- * Monitors browser online/offline status using navigator.onLine API.
+ * Monitors browser online/offline status using consolidated hook.
  * Tracks whether user was recently offline to show reconnection feedback.
  */
 export function useNetworkStatus(): NetworkStatusHookReturn {
-  const [isOnline, setIsOnline] = useState(
-    typeof navigator !== 'undefined' ? navigator.onLine : true
-  );
+  // FR-006: Use consolidated hook for online/offline status
+  const isOnline = useOnlineStatus();
   const [wasOffline, setWasOffline] = useState(false);
+  const prevIsOnlineRef = useRef(isOnline);
 
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
+    let timeoutId: NodeJS.Timeout | undefined;
+
+    // Detect transition from offline to online
+    if (!prevIsOnlineRef.current && isOnline) {
       setWasOffline(true);
       // Clear "was offline" flag after 3 seconds
-      setTimeout(() => setWasOffline(false), 3000);
-    };
+      timeoutId = setTimeout(() => setWasOffline(false), 3000);
+    }
 
-    const handleOffline = () => {
-      setIsOnline(false);
+    // Reset wasOffline when going offline
+    if (!isOnline) {
       setWasOffline(false);
-    };
+    }
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    prevIsOnlineRef.current = isOnline;
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
-  }, []);
+  }, [isOnline]);
 
   return { isOnline, wasOffline };
 }

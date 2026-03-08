@@ -2,7 +2,8 @@
 // Feature 017 - Task T021
 // Purpose: Generate and validate OAuth state tokens for CSRF protection
 
-import { supabase } from '@/lib/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/client';
 import { createLogger } from '@/lib/logger';
 
 const logger = createLogger('auth:oauth');
@@ -44,7 +45,7 @@ export async function generateOAuthState(
   const returnUrl = window.location.pathname;
 
   try {
-    const { error } = await supabase.from('oauth_states').insert({
+    const { error } = await (createClient() as SupabaseClient).from('oauth_states').insert({
       state_token: stateToken,
       provider,
       session_id: sessionId,
@@ -98,7 +99,7 @@ export async function validateOAuthState(
 
   try {
     // Fetch the state from database
-    const { data: stateData, error: fetchError } = await supabase
+    const { data: stateData, error: fetchError } = await (createClient() as SupabaseClient)
       .from('oauth_states')
       .select('*')
       .eq('state_token', stateToken)
@@ -138,7 +139,7 @@ export async function validateOAuthState(
     }
 
     // Mark state as used
-    const { error: updateError } = await supabase
+    const { error: updateError } = await (createClient() as SupabaseClient)
       .from('oauth_states')
       .update({ used: true })
       .eq('state_token', stateToken);
@@ -190,7 +191,7 @@ function getSessionId(): string {
  */
 export async function cleanupExpiredStates(): Promise<number> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await (createClient() as SupabaseClient)
       .from('oauth_states')
       .delete()
       .lt('expires_at', new Date().toISOString())

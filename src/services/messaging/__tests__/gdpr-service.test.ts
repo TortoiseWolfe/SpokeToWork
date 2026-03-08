@@ -32,6 +32,7 @@ describe('GDPRService', () => {
     mockSupabase = {
       auth: {
         getUser: vi.fn(),
+        getSession: vi.fn(),
         signOut: vi.fn(),
       },
       from: vi.fn(),
@@ -146,15 +147,19 @@ describe('GDPRService', () => {
         };
       });
 
-      // Mock encryption service
+      // Mock key management service (keys now from memory, not IndexedDB)
       vi.mocked(
-        encryptionService.encryptionService.getPrivateKey
-      ).mockResolvedValue({
-        kty: 'EC',
-        crv: 'P-256',
-        x: 'test-x',
-        y: 'test-y',
-        d: 'test-d',
+        keyManagementService.keyManagementService.getCurrentKeys
+      ).mockReturnValue({
+        privateKey: {} as CryptoKey, // Mock CryptoKey
+        publicKey: {} as CryptoKey,
+        publicKeyJwk: {
+          kty: 'EC',
+          crv: 'P-256',
+          x: 'test-x',
+          y: 'test-y',
+        },
+        salt: 'test-salt',
       });
 
       vi.mocked(
@@ -322,15 +327,19 @@ describe('GDPRService', () => {
         };
       });
 
-      // Mock encryption service to throw error
+      // Mock key management service (keys now from memory, not IndexedDB)
       vi.mocked(
-        encryptionService.encryptionService.getPrivateKey
-      ).mockResolvedValue({
-        kty: 'EC',
-        crv: 'P-256',
-        x: 'test-x',
-        y: 'test-y',
-        d: 'test-d',
+        keyManagementService.keyManagementService.getCurrentKeys
+      ).mockReturnValue({
+        privateKey: {} as CryptoKey,
+        publicKey: {} as CryptoKey,
+        publicKeyJwk: {
+          kty: 'EC',
+          crv: 'P-256',
+          x: 'test-x',
+          y: 'test-y',
+        },
+        salt: 'test-salt',
       });
 
       vi.mocked(
@@ -380,18 +389,19 @@ describe('GDPRService', () => {
         error: null,
       });
 
-      // Mock IndexedDB deletions
-      const mockPrivateKeysDelete = vi.fn().mockResolvedValue(undefined);
+      // Mock session for access_token
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: 'mock-access-token',
+          },
+        },
+        error: null,
+      });
+
+      // Mock IndexedDB deletions (private keys no longer stored in IndexedDB)
       const mockQueuedMessagesDelete = vi.fn().mockResolvedValue(undefined);
       const mockCachedMessagesDelete = vi.fn().mockResolvedValue(undefined);
-
-      vi.mocked(messagingDb.messagingDb).messaging_private_keys = {
-        where: vi.fn().mockReturnValue({
-          equals: vi.fn().mockReturnValue({
-            delete: mockPrivateKeysDelete,
-          }),
-        }),
-      } as any;
 
       vi.mocked(messagingDb.messagingDb).messaging_queued_messages = {
         where: vi.fn().mockReturnValue({
@@ -409,13 +419,10 @@ describe('GDPRService', () => {
         }),
       } as any;
 
-      // Mock user_profiles delete
-      mockSupabase.from.mockReturnValue({
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({
-            error: null,
-          }),
-        }),
+      // Mock fetch call to Edge Function
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ success: true }),
       });
 
       // Mock sign out
@@ -424,13 +431,20 @@ describe('GDPRService', () => {
       // Execute deletion
       await gdprService.deleteUserAccount();
 
-      // Verify IndexedDB deletions
-      expect(mockPrivateKeysDelete).toHaveBeenCalled();
+      // Verify IndexedDB deletions (private keys no longer in IndexedDB)
       expect(mockQueuedMessagesDelete).toHaveBeenCalled();
       expect(mockCachedMessagesDelete).toHaveBeenCalled();
 
-      // Verify Supabase deletion
-      expect(mockSupabase.from).toHaveBeenCalledWith('user_profiles');
+      // Verify Edge Function was called
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/functions/v1/delete-user-account'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            Authorization: 'Bearer mock-access-token',
+          }),
+        })
+      );
 
       // Verify sign out
       expect(mockSupabase.auth.signOut).toHaveBeenCalled();
@@ -459,15 +473,17 @@ describe('GDPRService', () => {
         error: null,
       });
 
-      // Mock IndexedDB deletions (succeed)
-      vi.mocked(messagingDb.messagingDb).messaging_private_keys = {
-        where: vi.fn().mockReturnValue({
-          equals: vi.fn().mockReturnValue({
-            delete: vi.fn().mockResolvedValue(undefined),
-          }),
-        }),
-      } as any;
+      // Mock session for access_token
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: 'mock-access-token',
+          },
+        },
+        error: null,
+      });
 
+      // Mock IndexedDB deletions (private keys no longer stored in IndexedDB)
       vi.mocked(messagingDb.messagingDb).messaging_queued_messages = {
         where: vi.fn().mockReturnValue({
           equals: vi.fn().mockReturnValue({
@@ -484,13 +500,11 @@ describe('GDPRService', () => {
         }),
       } as any;
 
-      // Mock user_profiles delete to fail
-      mockSupabase.from.mockReturnValue({
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({
-            error: new Error('Database error'),
-          }),
-        }),
+      // Mock fetch call to Edge Function to fail
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        statusText: 'Internal Server Error',
+        json: vi.fn().mockResolvedValue({ error: 'Database error' }),
       });
 
       await expect(gdprService.deleteUserAccount()).rejects.toThrow(

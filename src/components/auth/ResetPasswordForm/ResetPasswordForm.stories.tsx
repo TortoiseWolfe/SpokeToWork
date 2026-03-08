@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import ResetPasswordForm from './ResetPasswordForm';
 
 const meta: Meta<typeof ResetPasswordForm> = {
@@ -30,7 +30,7 @@ export const Default: Story = {
 
 export const WithCustomClass: Story = {
   args: {
-    className: 'p-4 bg-primary text-white rounded',
+    className: 'p-4 bg-base-200 rounded',
   },
 };
 

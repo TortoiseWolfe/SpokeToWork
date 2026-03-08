@@ -11,21 +11,51 @@
  * 6. Test pagination and message history
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { ensureConnection, ensureConversation } from './test-helpers';
 
 const BASE_URL = process.env.NEXT_PUBLIC_DEPLOY_URL || 'http://localhost:3000';
+
+/**
+ * Handle the ReAuthModal that appears when session is restored
+ * but encryption keys need to be unlocked.
+ */
+async function handleReAuthModal(page: Page, password: string) {
+  try {
+    // Wait for the ReAuth modal to appear (with short timeout)
+    const reAuthDialog = page.getByRole('dialog', {
+      name: /re-authentication required/i,
+    });
+
+    // Wait for it to be visible
+    await reAuthDialog.waitFor({ state: 'visible', timeout: 5000 });
+
+    // Fill password and unlock
+    const passwordInput = page.getByRole('textbox', { name: /password/i });
+    await passwordInput.fill(password);
+    await page.getByRole('button', { name: /unlock messages/i }).click();
+
+    // Wait for modal to close
+    await reAuthDialog.waitFor({ state: 'hidden', timeout: 10000 });
+  } catch {
+    // Modal didn't appear or already handled - continue
+  }
+}
 
 // Test users - use PRIMARY and TERTIARY from standardized test fixtures (Feature 026)
 const USER_A = {
   email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
-  password: process.env.TEST_USER_PRIMARY_PASSWORD || 'TestPassword123!',
+  password: process.env.TEST_USER_PRIMARY_PASSWORD!,
 };
 
+const USER_B_EMAIL =
+  process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com';
 const USER_B = {
-  username: 'testuser-b',
-  email: process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com',
-  password: process.env.TEST_USER_TERTIARY_PASSWORD || 'TestPassword456!',
+  // display_name is derived from email prefix (see test-user-factory.ts)
+  displayName: USER_B_EMAIL.split('@')[0],
+  email: USER_B_EMAIL,
+  password: process.env.TEST_USER_TERTIARY_PASSWORD!,
 };
 
 // Supabase admin client for database verification
@@ -40,7 +70,16 @@ const getAdminClient = () => {
   return createClient(supabaseUrl, supabaseServiceKey);
 };
 
+const adminClient = getAdminClient();
+
 test.describe('Encrypted Messaging Flow', () => {
+  test.beforeEach(async () => {
+    if (adminClient) {
+      await ensureConnection(adminClient, USER_A.email, USER_B.email);
+      await ensureConversation(adminClient, USER_A.email, USER_B.email);
+    }
+  });
+
   test('should send and receive encrypted message between two users', async ({
     browser,
   }) => {
@@ -57,18 +96,19 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageA.fill('#email', USER_A.email);
       await pageA.fill('#password', USER_A.password);
       await pageA.click('button[type="submit"]');
-      await pageA.waitForURL(/.*\/profile/, { timeout: 15000 });
+      await pageA.waitForURL(/.*\/profile/, { timeout: 45000 });
 
       // ===== STEP 2: User B signs in (in separate context) =====
       await pageB.goto(`${BASE_URL}/sign-in`);
       await pageB.fill('#email', USER_B.email);
       await pageB.fill('#password', USER_B.password);
       await pageB.click('button[type="submit"]');
-      await pageB.waitForURL(/.*\/profile/, { timeout: 15000 });
+      await pageB.waitForURL(/.*\/profile/, { timeout: 45000 });
 
       // ===== STEP 3: User A navigates to conversations =====
-      await pageA.goto(`${BASE_URL}/conversations`);
-      await expect(pageA).toHaveURL(/.*\/conversations/);
+      await pageA.goto(`${BASE_URL}/messages?tab=chats`);
+      await handleReAuthModal(pageA, USER_A.password);
+      await expect(pageA).toHaveURL(/.*\/messages/);
 
       // ===== STEP 4: User A selects conversation with User B =====
       // Click on the conversation with User B (should exist from friend request acceptance)
@@ -101,8 +141,9 @@ test.describe('Encrypted Messaging Flow', () => {
       await expect(messageA).toBeVisible({ timeout: 5000 });
 
       // ===== STEP 7: User B navigates to conversations =====
-      await pageB.goto(`${BASE_URL}/conversations`);
-      await expect(pageB).toHaveURL(/.*\/conversations/);
+      await pageB.goto(`${BASE_URL}/messages?tab=chats`);
+      await handleReAuthModal(pageB, USER_B.password);
+      await expect(pageB).toHaveURL(/.*\/messages/);
 
       // ===== STEP 8: User B opens conversation with User A =====
       const conversationItemB = pageB
@@ -158,10 +199,10 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageA.fill('#email', USER_A.email);
       await pageA.fill('#password', USER_A.password);
       await pageA.click('button[type="submit"]');
-      await pageA.waitForURL(/.*\/profile/, { timeout: 15000 });
+      await pageA.waitForURL(/.*\/profile/, { timeout: 45000 });
 
       // Navigate to conversation
-      await pageA.goto(`${BASE_URL}/conversations`);
+      await pageA.goto(`${BASE_URL}/messages?tab=chats`);
       const conversationItem = pageA
         .locator('[data-testid*="conversation"]')
         .first();
@@ -236,9 +277,9 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageA.fill('#email', USER_A.email);
       await pageA.fill('#password', USER_A.password);
       await pageA.click('button[type="submit"]');
-      await pageA.waitForURL(/.*\/profile/, { timeout: 15000 });
+      await pageA.waitForURL(/.*\/profile/, { timeout: 45000 });
 
-      await pageA.goto(`${BASE_URL}/conversations`);
+      await pageA.goto(`${BASE_URL}/messages?tab=chats`);
       const conversationItem = pageA
         .locator('[data-testid*="conversation"]')
         .first();
@@ -277,9 +318,9 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageB.fill('#email', USER_B.email);
       await pageB.fill('#password', USER_B.password);
       await pageB.click('button[type="submit"]');
-      await pageB.waitForURL(/.*\/profile/, { timeout: 15000 });
+      await pageB.waitForURL(/.*\/profile/, { timeout: 45000 });
 
-      await pageB.goto(`${BASE_URL}/conversations`);
+      await pageB.goto(`${BASE_URL}/messages?tab=chats`);
       const conversationItemB = pageB
         .locator('[data-testid*="conversation"]')
         .first();
@@ -314,9 +355,9 @@ test.describe('Encrypted Messaging Flow', () => {
     await page.fill('#email', USER_A.email);
     await page.fill('#password', USER_A.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 15000 });
+    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
 
-    await page.goto(`${BASE_URL}/conversations`);
+    await page.goto(`${BASE_URL}/messages?tab=chats`);
     const conversationItem = page
       .locator('[data-testid*="conversation"]')
       .first();
@@ -381,6 +422,13 @@ test.describe('Encrypted Messaging Flow', () => {
 });
 
 test.describe('Encryption Key Security', () => {
+  test.beforeEach(async () => {
+    if (adminClient) {
+      await ensureConnection(adminClient, USER_A.email, USER_B.email);
+      await ensureConversation(adminClient, USER_A.email, USER_B.email);
+    }
+  });
+
   test('should never send private keys to server', async ({
     page,
     context,
@@ -404,9 +452,9 @@ test.describe('Encryption Key Security', () => {
     await page.fill('#email', USER_A.email);
     await page.fill('#password', USER_A.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 15000 });
+    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
 
-    await page.goto(`${BASE_URL}/conversations`);
+    await page.goto(`${BASE_URL}/messages?tab=chats`);
     const conversationItem = page
       .locator('[data-testid*="conversation"]')
       .first();

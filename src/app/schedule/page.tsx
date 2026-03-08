@@ -16,7 +16,7 @@ const CalendarEmbed = dynamic(
 
 export default function SchedulePage() {
   return (
-    <main className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8">
       <div className="mx-auto max-w-7xl">
         {/* Two-column layout on desktop, stacked on mobile */}
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-12">
@@ -84,7 +84,7 @@ export default function SchedulePage() {
                       </span>
                     </li>
                   </ul>
-                  <p className="text-base-content/70 mt-3 text-xs">
+                  <p className="text-base-content/85 mt-3 text-xs">
                     This information helps us make the most of our time
                     together.
                   </p>
@@ -92,7 +92,7 @@ export default function SchedulePage() {
 
                 <div>
                   <h2 className="mb-2 text-lg font-semibold">Time zones:</h2>
-                  <p className="text-base-content/70 text-sm">
+                  <p className="text-base-content/85 text-sm">
                     All times are shown in your local timezone. The calendar
                     will automatically adjust for daylight saving time.
                   </p>
@@ -102,25 +102,15 @@ export default function SchedulePage() {
                   <h2 className="mb-2 text-lg font-semibold">
                     Need to reschedule?
                   </h2>
-                  <p className="text-base-content/70 text-sm">
+                  <p className="text-base-content/85 text-sm">
                     You can reschedule or cancel your appointment using the link
                     in your confirmation email.
                   </p>
                 </div>
               </div>
 
-              <footer className="mt-8 space-y-2 text-xs opacity-60">
-                <p>Powered by scheduling integration</p>
-                <p>
-                  <a
-                    href="/storybook/?path=/story/atomic-calendarembed--default"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:opacity-80"
-                  >
-                    View component in Storybook →
-                  </a>
-                </p>
+              <footer className="text-base-content/80 mt-8 space-y-2 text-xs">
+                <p>Powered by Calendly scheduling</p>
               </footer>
             </div>
           </aside>
@@ -133,6 +123,6 @@ export default function SchedulePage() {
           </section>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

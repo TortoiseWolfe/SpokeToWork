@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import AuthorProfile from './AuthorProfile';
 import type { Author } from '@/types/author';
 
@@ -44,7 +44,7 @@ const mockAuthor: Author = {
 };
 
 const meta: Meta<typeof AuthorProfile> = {
-  title: 'Features/Blog/AuthorProfile',
+  title: 'Atomic Design/Molecular/AuthorProfile',
   component: AuthorProfile,
   parameters: {
     layout: 'centered',

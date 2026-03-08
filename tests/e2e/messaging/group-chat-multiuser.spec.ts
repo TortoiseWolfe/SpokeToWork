@@ -9,14 +9,19 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
+import { getAdminClient, ensureConnection } from './test-helpers';
 
 // Always use localhost for E2E tests - we're testing local development
 const BASE_URL = 'http://localhost:3000';
 
+const adminClient = getAdminClient();
+const TERTIARY_EMAIL =
+  process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com';
+
 // Test users from environment
 const PRIMARY_USER = {
   email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
-  password: process.env.TEST_USER_PRIMARY_PASSWORD || 'TestPassword123!',
+  password: process.env.TEST_USER_PRIMARY_PASSWORD!,
 };
 
 // Messaging password is the same as login password for encryption key derivation
@@ -44,7 +49,7 @@ async function signInAndNavigateToMessages(page: Page) {
   await page.click('button[type="submit"]');
 
   // Step 3: Wait for redirect to profile page (confirms auth success)
-  await page.waitForURL(/.*\/profile/, { timeout: 15000 });
+  await page.waitForURL(/.*\/profile/, { timeout: 45000 });
 
   // Step 4: Navigate to messages page
   await page.goto(BASE_URL + '/messages');
@@ -125,6 +130,12 @@ async function completeEncryptionSetup(page: Page) {
 }
 
 test.describe('Group Chat E2E', () => {
+  test.beforeEach(async () => {
+    if (adminClient) {
+      await ensureConnection(adminClient, PRIMARY_USER.email, TERTIARY_EMAIL);
+    }
+  });
+
   test('should show New Group link in sidebar', async ({ browser }) => {
     test.setTimeout(60000);
 

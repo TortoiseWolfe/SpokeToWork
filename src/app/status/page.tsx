@@ -394,7 +394,8 @@ export default function StatusPage() {
             seo: staticData.seo || 0,
             pwa: staticData.pwa || 0,
             timestamp: staticData.timestamp,
-            url: staticData.url || 'https://TortoiseWolfe.github.io/SpokeToWork/',
+            url:
+              staticData.url || 'https://TortoiseWolfe.github.io/SpokeToWork/',
             isDefault: false,
           };
 
@@ -729,7 +730,7 @@ export default function StatusPage() {
     value: number | null
   ): { label: string; className: string } => {
     if (value === null)
-      return { label: 'N/A', className: 'text-base-content/50' };
+      return { label: 'N/A', className: 'text-base-content/75' };
 
     const thresholds: Record<
       string,
@@ -757,7 +758,7 @@ export default function StatusPage() {
   const pwaTestSummary = pwaTester.getTestSummary();
 
   return (
-    <main className="bg-base-200 min-h-screen overflow-x-hidden p-2 sm:p-4 md:p-6 lg:p-8">
+    <div className="bg-base-200 min-h-screen overflow-x-hidden p-2 sm:p-4 md:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-4 sm:mb-6 md:mb-8">
           <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
@@ -765,7 +766,7 @@ export default function StatusPage() {
               <h1 className="page-title">
                 {projectConfig.project.name} Status Dashboard
               </h1>
-              <p className="text-base-content/70 text-sm sm:text-base">
+              <p className="text-base-content/85 text-sm sm:text-base">
                 Real-time deployment and performance metrics • Connection:{' '}
                 {isOnline ? '🟢 Online' : '🔴 Offline'}
               </p>
@@ -1228,7 +1229,7 @@ export default function StatusPage() {
                     <summary className="collapse-title flex items-center justify-between text-sm font-medium">
                       <span>View Test Details</span>
                       {lastTestTime && (
-                        <span className="text-base-content/60 text-xs">
+                        <span className="text-base-content/80 text-xs">
                           Last tested: {lastTestTime.toLocaleTimeString()}
                           {autoRefresh && ' • Auto-refreshing every 30s'}
                         </span>
@@ -1244,7 +1245,7 @@ export default function StatusPage() {
                             </Text>
                             <Text
                               variant="small"
-                              className="text-base-content/70"
+                              className="text-base-content/85"
                             >
                               {result.message}
                             </Text>
@@ -1255,7 +1256,7 @@ export default function StatusPage() {
                   </details>
                 </>
               ) : (
-                <p className="text-base-content/50 py-8 text-center">
+                <p className="text-base-content/75 py-8 text-center">
                   Click &quot;Run Tests&quot; to check PWA features
                 </p>
               )}
@@ -1290,7 +1291,7 @@ export default function StatusPage() {
                     <div className="mb-2 flex items-center justify-between">
                       <div>
                         <span className="font-medium">Overall Progress</span>
-                        <div className="text-base-content/70 mt-1 text-xs">
+                        <div className="text-base-content/85 mt-1 text-xs">
                           Sprint 1: 100% • Sprint 2: 100% • Sprint 3 (PRPs): 86%
                           • Sprint 3.5: 100%
                         </div>
@@ -1299,7 +1300,7 @@ export default function StatusPage() {
                         <div className="text-2xl font-bold">
                           {metrics.completionPercentage}%
                         </div>
-                        <div className="text-base-content/70 text-xs">
+                        <div className="text-base-content/85 text-xs">
                           {metrics.featuresComplete}/{metrics.featuresTotal}{' '}
                           features • 12/14 PRPs
                         </div>
@@ -1310,7 +1311,7 @@ export default function StatusPage() {
                       value={metrics.featuresComplete}
                       max={metrics.featuresTotal}
                     ></progress>
-                    <div className="text-base-content/60 mt-1 text-right text-xs">
+                    <div className="text-base-content/80 mt-1 text-right text-xs">
                       Sprint 3.5 completed: 2025-09-19
                     </div>
                   </div>
@@ -1345,7 +1346,7 @@ export default function StatusPage() {
                         <div className="collapse-content">
                           <div className="space-y-2 pt-2">
                             <div className="flex items-center justify-between">
-                              <span className="text-base-content/70 text-xs">
+                              <span className="text-base-content/85 text-xs">
                                 Progress
                               </span>
                               <span className="text-xs font-medium">
@@ -1357,7 +1358,7 @@ export default function StatusPage() {
                               value={sprint.percentage}
                               max="100"
                             />
-                            <div className="text-base-content/70 text-xs">
+                            <div className="text-base-content/85 text-xs">
                               {sprint.completedTasks} of {sprint.totalTasks}{' '}
                               tasks completed
                             </div>
@@ -1365,7 +1366,7 @@ export default function StatusPage() {
                             {/* Sprint-specific phase details */}
                             {sprintNumber === 1 && taskProgress?.phases && (
                               <div className="mt-4 space-y-2">
-                                <div className="text-base-content/70 text-xs font-medium">
+                                <div className="text-base-content/85 text-xs font-medium">
                                   Sprint 1 Phases:
                                 </div>
                                 {Object.entries(taskProgress?.phases || {}).map(
@@ -1436,7 +1437,7 @@ export default function StatusPage() {
                                           className={
                                             info.complete
                                               ? 'text-success'
-                                              : 'text-base-content/50'
+                                              : 'text-base-content/75'
                                           }
                                         >
                                           {info.complete ? '✅' : '⭕'}
@@ -1463,7 +1464,7 @@ export default function StatusPage() {
                             {sprintNumber === 2 &&
                               taskProgress?.sprint2Phases && (
                                 <div className="mt-4 space-y-2">
-                                  <div className="text-base-content/70 text-xs font-medium">
+                                  <div className="text-base-content/85 text-xs font-medium">
                                     Sprint 2 Phases:
                                   </div>
                                   {Object.entries(
@@ -1536,7 +1537,7 @@ export default function StatusPage() {
                                           className={
                                             info.complete
                                               ? 'text-success'
-                                              : 'text-base-content/50'
+                                              : 'text-base-content/75'
                                           }
                                         >
                                           {info.complete ? '✅' : '⭕'}
@@ -1561,7 +1562,7 @@ export default function StatusPage() {
 
                             {sprintNumber === 3 && (
                               <div className="mt-4 space-y-3">
-                                <div className="text-base-content/70 text-xs">
+                                <div className="text-base-content/85 text-xs">
                                   <strong>
                                     Sprint 3 pivoted to PRP methodology:
                                   </strong>
@@ -1641,7 +1642,7 @@ export default function StatusPage() {
                                     </div>
                                   </div>
                                 </div>
-                                <div className="text-base-content/50 pl-2 text-xs italic">
+                                <div className="text-base-content/75 pl-2 text-xs italic">
                                   See /docs/prp-docs/PRP-STATUS.md for full
                                   details
                                 </div>
@@ -1728,7 +1729,7 @@ export default function StatusPage() {
                                 className="flex items-start gap-2 text-sm"
                               >
                                 <span
-                                  className={`flex-shrink-0 ${info.complete ? 'text-success' : 'text-base-content/50'}`}
+                                  className={`flex-shrink-0 ${info.complete ? 'text-success' : 'text-base-content/75'}`}
                                 >
                                   {info.complete ? '✅' : '⭕'}
                                 </span>
@@ -1745,7 +1746,7 @@ export default function StatusPage() {
                                       position="top"
                                       size="compact"
                                     />
-                                    <span className="text-base-content/70 ml-1 text-xs">
+                                    <span className="text-base-content/85 ml-1 text-xs">
                                       {info.description}
                                     </span>
                                   </div>
@@ -1839,7 +1840,7 @@ export default function StatusPage() {
                                 className="flex items-start gap-2 text-sm"
                               >
                                 <span
-                                  className={`flex-shrink-0 ${info.complete ? 'text-success' : info.description.includes('-') && !info.description.includes('- 0/') ? 'text-warning' : 'text-base-content/50'}`}
+                                  className={`flex-shrink-0 ${info.complete ? 'text-success' : info.description.includes('-') && !info.description.includes('- 0/') ? 'text-warning' : 'text-base-content/75'}`}
                                 >
                                   {info.complete
                                     ? phase === 'Phase 3'
@@ -1865,7 +1866,7 @@ export default function StatusPage() {
                                       position="top"
                                       size="compact"
                                     />
-                                    <span className="text-base-content/70 ml-1 text-xs">
+                                    <span className="text-base-content/85 ml-1 text-xs">
                                       {info.description}
                                     </span>
                                   </div>
@@ -1929,6 +1930,49 @@ export default function StatusPage() {
               </div>
             </Card>
 
+            {/* Rate Limit Status */}
+            <Card
+              title={
+                <div className="flex items-center gap-2">
+                  <span className="status-card-title">Rate Limit Status</span>
+                  <InfoTooltip
+                    title="Rate Limiting"
+                    description="Protects against brute force attacks by limiting repeated failed attempts."
+                    whyItMatters="Prevents malicious actors from guessing passwords or overwhelming the system."
+                    howToImprove={[
+                      'Wait for cooldown period to expire',
+                      'Contact support if legitimately locked out',
+                    ]}
+                    position="end"
+                    size="compact"
+                  />
+                </div>
+              }
+              bordered
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-success h-2 w-2 rounded-full"></div>
+                    <span>Authentication</span>
+                  </div>
+                  <span className="badge badge-success badge-sm">Normal</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-success h-2 w-2 rounded-full"></div>
+                    <span>Contact Form</span>
+                  </div>
+                  <span className="badge badge-success badge-sm">Normal</span>
+                </div>
+                <div className="text-base-content/80 text-xs">
+                  <p>• Auth: 5 attempts per 15 min window</p>
+                  <p>• Contact: 5 submissions per 5 min window</p>
+                  <p>• Audit logs auto-purge after 90 days</p>
+                </div>
+              </div>
+            </Card>
+
             {/* Features Completed */}
             <Card
               title={
@@ -1949,7 +1993,7 @@ export default function StatusPage() {
               <details className="collapse-arrow bg-base-200 collapse">
                 <summary className="collapse-title flex items-center justify-between text-sm font-medium">
                   <span>View Completed Features</span>
-                  <span className="text-base-content/60 text-xs">
+                  <span className="text-base-content/80 text-xs">
                     {projectConfig.features.filter((f) => f.completed).length}{' '}
                     features implemented
                   </span>
@@ -1964,7 +2008,7 @@ export default function StatusPage() {
                           <div className="text-sm font-medium">
                             {feature.name}
                           </div>
-                          <div className="text-base-content/70 text-xs">
+                          <div className="text-base-content/85 text-xs">
                             {feature.description}
                           </div>
                         </div>
@@ -2069,7 +2113,7 @@ export default function StatusPage() {
             >
               <div className="space-y-3">
                 {lighthouseScores.timestamp && (
-                  <div className="text-base-content/50 mb-3 flex flex-wrap items-center gap-2 text-xs">
+                  <div className="text-base-content/75 mb-3 flex flex-wrap items-center gap-2 text-xs">
                     <span suppressHydrationWarning>
                       {lighthouseScores.isDefault
                         ? '(Default scores)'
@@ -2145,10 +2189,10 @@ export default function StatusPage() {
                 )}
                 {!hasLighthouseData ? (
                   <div className="py-4 text-center">
-                    <p className="text-base-content/70 mb-2">
+                    <p className="text-base-content/85 mb-2">
                       No Lighthouse scores yet
                     </p>
-                    <p className="text-base-content/50 text-sm">
+                    <p className="text-base-content/75 text-sm">
                       Click &quot;Run Test&quot; to analyze this page with
                       Google PageSpeed Insights
                     </p>
@@ -2195,7 +2239,7 @@ export default function StatusPage() {
                                   role="img"
                                   aria-label={`${key.replace(/([A-Z])/g, ' $1').trim()} - scoring deprecated`}
                                 >
-                                  <span className="text-base-content/50 text-xs font-bold">
+                                  <span className="text-base-content/75 text-xs font-bold">
                                     N/A
                                   </span>
                                 </div>
@@ -2226,7 +2270,7 @@ export default function StatusPage() {
                             <h3 className="text-sm font-semibold capitalize">
                               {key.replace(/([A-Z])/g, ' $1').trim()}
                             </h3>
-                            <p className="text-base-content/60 mt-1 text-sm">
+                            <p className="text-base-content/80 mt-1 text-sm">
                               {data.description}
                             </p>
                           </div>
@@ -2366,7 +2410,7 @@ export default function StatusPage() {
 
                                   {data.details?.notes && (
                                     <div className="mt-3">
-                                      <p className="text-base-content/70 mb-1 text-xs font-semibold">
+                                      <p className="text-base-content/85 mb-1 text-xs font-semibold">
                                         Notes:
                                       </p>
                                       <ul className="space-y-0.5 text-xs">
@@ -2557,6 +2601,6 @@ export default function StatusPage() {
           )}
         </Card>
       </div>
-    </main>
+    </div>
   );
 }

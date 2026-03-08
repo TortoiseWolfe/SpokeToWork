@@ -1,8 +1,8 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import NetworkStatus from './NetworkStatus';
 
 const meta: Meta<typeof NetworkStatus> = {
-  title: 'Components/Atomic/NetworkStatus',
+  title: 'Atomic Design/Atomic/NetworkStatus',
   component: NetworkStatus,
   parameters: {
     layout: 'centered',

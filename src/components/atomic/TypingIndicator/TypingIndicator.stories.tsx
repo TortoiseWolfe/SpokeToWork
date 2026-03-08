@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import TypingIndicator from './TypingIndicator';
 
 /**
@@ -9,7 +9,7 @@ import TypingIndicator from './TypingIndicator';
  */
 
 const meta: Meta<typeof TypingIndicator> = {
-  title: 'Messaging/TypingIndicator',
+  title: 'Atomic Design/Atomic/TypingIndicator',
   component: TypingIndicator,
   parameters: {
     layout: 'centered',

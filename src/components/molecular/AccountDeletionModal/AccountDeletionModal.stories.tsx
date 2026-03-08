@@ -3,13 +3,13 @@
  * Task: T193
  */
 
-import type { Meta, StoryObj } from '@storybook/nextjs';
-import { fn } from '@storybook/test';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
+import { fn } from 'storybook/test';
 import { useState } from 'react';
 import AccountDeletionModal from './AccountDeletionModal';
 
 const meta: Meta<typeof AccountDeletionModal> = {
-  title: 'Components/Molecular/AccountDeletionModal',
+  title: 'Atomic Design/Molecular/AccountDeletionModal',
   component: AccountDeletionModal,
   parameters: {
     layout: 'centered',

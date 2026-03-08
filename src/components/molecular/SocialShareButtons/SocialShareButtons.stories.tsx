@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import SocialShareButtons from './SocialShareButtons';
 import type { ShareOptions } from '@/types/social';
 
@@ -11,7 +11,7 @@ const mockShareOptions: ShareOptions = {
 };
 
 const meta: Meta<typeof SocialShareButtons> = {
-  title: 'Features/Blog/SocialShareButtons',
+  title: 'Atomic Design/Molecular/SocialShareButtons',
   component: SocialShareButtons,
   parameters: {
     layout: 'centered',

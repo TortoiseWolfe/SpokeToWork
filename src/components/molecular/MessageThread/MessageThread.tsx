@@ -167,12 +167,15 @@ export default function MessageThread({
     if (messages.length > 0) {
       const latestMessageId = messages[messages.length - 1].id;
 
-      // Only auto-scroll if this is a truly new message AND user is near bottom
-      if (
+      if (lastMessageRef.current === null) {
+        // Initial load: scroll to bottom instantly so the user lands
+        // on the most recent messages.
+        scrollToBottom(false);
+      } else if (
         latestMessageId !== lastMessageRef.current &&
-        lastMessageRef.current !== null &&
         shouldAutoScroll.current
       ) {
+        // New message arrived while user is near bottom: scroll smoothly.
         scrollToBottom(true);
       }
 
@@ -235,7 +238,7 @@ export default function MessageThread({
     if (messages.length === 0) {
       return (
         <div className="flex h-full items-center justify-center">
-          <p className="text-base-content opacity-60">
+          <p className="text-base-content text-base-content/80">
             No messages yet. Send the first one!
           </p>
         </div>
@@ -327,7 +330,7 @@ export default function MessageThread({
               data-testid="pagination-loader"
             >
               <span className="loading loading-spinner loading-sm"></span>
-              <span className="text-base-content ml-2 text-sm opacity-60">
+              <span className="text-base-content text-base-content/80 ml-2 text-sm">
                 Loading older messages...
               </span>
             </div>

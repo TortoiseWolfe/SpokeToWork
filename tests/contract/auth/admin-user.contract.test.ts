@@ -58,9 +58,9 @@ describe('Admin User Configuration Contract', () => {
     });
 
     it('should use default email if not configured', () => {
-      // Default is admin@spoketowork.com if env not set
+      // Default is admin@spoketowork.example if env not set (RFC 2606 reserved domain)
       if (!process.env.TEST_USER_ADMIN_EMAIL) {
-        expect(TEST_EMAIL_ADMIN).toBe('admin@spoketowork.com');
+        expect(TEST_EMAIL_ADMIN).toBe('admin@spoketowork.example');
       }
     });
   });
@@ -81,15 +81,14 @@ describe('Admin WelcomeService Integration', () => {
         '@/services/messaging/welcome-service'
       );
 
-      // Privacy explanation
-      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('private');
+      // Tutorial content for SpokeToWork job search features
+      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('companies');
+      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('home location');
+      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('status');
+      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('export');
 
-      // Key derivation explanation
-      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('password');
-      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('key');
-
-      // Cross-device access
-      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('device');
+      // Mentions encrypted messaging
+      expect(WELCOME_MESSAGE_CONTENT.toLowerCase()).toContain('encrypted');
     });
 
     it('should be in layman terms (no crypto jargon)', async () => {

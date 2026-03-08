@@ -11,7 +11,7 @@
 import { createClient } from '@/lib/supabase/client';
 import { encryptionService } from '@/lib/messaging/encryption';
 import { keyManagementService } from './key-service';
-import { offlineQueueService } from './offline-queue-service';
+import { offlineQueueService } from '@/lib/offline-queue';
 import { cacheService } from '@/lib/messaging/cache';
 import { createLogger } from '@/lib/logger';
 import {
@@ -382,12 +382,11 @@ export class MessageService {
 
       // Online - fetch from database
       if (navigator.onLine) {
-        // Build query
+        // Build query - include deleted messages so they show "[Message deleted]" placeholder
         let query = msgClient
           .from('messages')
           .select('*')
           .eq('conversation_id', conversationId)
-          .eq('deleted', false)
           .order('sequence_number', { ascending: false })
           .limit(limit + 1); // Fetch one extra to check has_more
 

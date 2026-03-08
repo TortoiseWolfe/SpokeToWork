@@ -18,7 +18,10 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Message, TypingIndicator } from '@/types/messaging';
 import { AuthenticationError } from '@/types/messaging';
 import { createLogger } from '@/lib/logger';
-import { createMessagingClient } from '@/lib/supabase/messaging-client';
+import {
+  createMessagingClient,
+  type TypingIndicatorInsert,
+} from '@/lib/supabase/messaging-client';
 
 const logger = createLogger('messaging:realtime');
 
@@ -230,17 +233,15 @@ export class RealtimeService {
         try {
           const msgClient = createMessagingClient(supabase);
           // UPSERT typing indicator
-          const typingIndicator = {
+          const typingIndicator: TypingIndicatorInsert = {
             conversation_id,
             user_id: user.id,
             is_typing: true,
             updated_at: new Date().toISOString(),
           };
-          await msgClient
-            .from('typing_indicators')
-            .upsert(typingIndicator as any, {
-              onConflict: 'conversation_id,user_id',
-            });
+          await msgClient.from('typing_indicators').upsert(typingIndicator, {
+            onConflict: 'conversation_id,user_id',
+          });
         } catch (error) {
           // Silent failure - log but don't throw
           logger.error('Failed to set typing status', { error });

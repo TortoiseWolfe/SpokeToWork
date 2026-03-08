@@ -32,7 +32,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ============================================================================
 
 -- Payment intents (24hr expiry)
-CREATE TABLE payment_intents (
+CREATE TABLE IF NOT EXISTS payment_intents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   template_user_id UUID NOT NULL REFERENCES auth.users(id),
   amount INTEGER NOT NULL CHECK (amount >= 100 AND amount <= 99999),
@@ -46,15 +46,15 @@ CREATE TABLE payment_intents (
   expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '24 hours')
 );
 
-CREATE INDEX idx_payment_intents_customer_email ON payment_intents(customer_email);
-CREATE INDEX idx_payment_intents_created_at ON payment_intents(created_at DESC);
-CREATE INDEX idx_payment_intents_user_id ON payment_intents(template_user_id);
-CREATE INDEX idx_payment_intents_expires_at ON payment_intents(expires_at);
+CREATE INDEX IF NOT EXISTS idx_payment_intents_customer_email ON payment_intents(customer_email);
+CREATE INDEX IF NOT EXISTS idx_payment_intents_created_at ON payment_intents(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_payment_intents_user_id ON payment_intents(template_user_id);
+CREATE INDEX IF NOT EXISTS idx_payment_intents_expires_at ON payment_intents(expires_at);
 
 COMMENT ON TABLE payment_intents IS 'Customer payment intentions before provider redirect (24hr expiry)';
 
 -- Payment results
-CREATE TABLE payment_results (
+CREATE TABLE IF NOT EXISTS payment_results (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   intent_id UUID NOT NULL REFERENCES payment_intents(id) ON DELETE CASCADE,
   provider TEXT NOT NULL CHECK (provider IN ('stripe', 'paypal', 'cashapp', 'chime')),
@@ -71,15 +71,15 @@ CREATE TABLE payment_results (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_payment_results_intent_id ON payment_results(intent_id);
-CREATE INDEX idx_payment_results_transaction_id ON payment_results(transaction_id);
-CREATE INDEX idx_payment_results_status ON payment_results(status);
-CREATE INDEX idx_payment_results_created_at ON payment_results(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_payment_results_intent_id ON payment_results(intent_id);
+CREATE INDEX IF NOT EXISTS idx_payment_results_transaction_id ON payment_results(transaction_id);
+CREATE INDEX IF NOT EXISTS idx_payment_results_status ON payment_results(status);
+CREATE INDEX IF NOT EXISTS idx_payment_results_created_at ON payment_results(created_at DESC);
 
 COMMENT ON TABLE payment_results IS 'Outcome of payment attempts with webhook verification';
 
 -- Subscriptions
-CREATE TABLE subscriptions (
+CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   template_user_id UUID NOT NULL REFERENCES auth.users(id),
   provider TEXT NOT NULL CHECK (provider IN ('stripe', 'paypal')),
@@ -100,15 +100,15 @@ CREATE TABLE subscriptions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_subscriptions_customer_email ON subscriptions(customer_email);
-CREATE INDEX idx_subscriptions_status ON subscriptions(status);
-CREATE INDEX idx_subscriptions_next_billing_date ON subscriptions(next_billing_date) WHERE status = 'active';
-CREATE UNIQUE INDEX idx_subscriptions_provider_id ON subscriptions(provider, provider_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_customer_email ON subscriptions(customer_email);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_next_billing_date ON subscriptions(next_billing_date) WHERE status = 'active';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_provider_id ON subscriptions(provider, provider_subscription_id);
 
 COMMENT ON TABLE subscriptions IS 'Recurring payment subscriptions';
 
 -- Payment provider config
-CREATE TABLE payment_provider_config (
+CREATE TABLE IF NOT EXISTS payment_provider_config (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   provider TEXT NOT NULL CHECK (provider IN ('stripe', 'paypal', 'cashapp', 'chime')),
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
@@ -120,12 +120,12 @@ CREATE TABLE payment_provider_config (
   UNIQUE(provider)
 );
 
-CREATE INDEX idx_provider_config_enabled ON payment_provider_config(enabled, priority DESC);
+CREATE INDEX IF NOT EXISTS idx_provider_config_enabled ON payment_provider_config(enabled, priority DESC);
 
 COMMENT ON TABLE payment_provider_config IS 'Payment provider settings and failover';
 
 -- Webhook events (with retry fields from Feature 017)
-CREATE TABLE webhook_events (
+CREATE TABLE IF NOT EXISTS webhook_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   provider TEXT NOT NULL CHECK (provider IN ('stripe', 'paypal')),
   provider_event_id TEXT NOT NULL,
@@ -147,11 +147,11 @@ CREATE TABLE webhook_events (
   last_retry_at TIMESTAMPTZ
 );
 
-CREATE UNIQUE INDEX idx_webhook_events_provider_event_id ON webhook_events(provider, provider_event_id);
-CREATE INDEX idx_webhook_events_processed ON webhook_events(processed, created_at DESC);
-CREATE INDEX idx_webhook_events_event_type ON webhook_events(event_type);
-CREATE INDEX idx_webhook_events_retry ON webhook_events(next_retry_at, permanently_failed) WHERE processed = FALSE AND permanently_failed = FALSE;
-CREATE INDEX idx_webhook_events_failed ON webhook_events(permanently_failed, created_at DESC) WHERE permanently_failed = TRUE;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_webhook_events_provider_event_id ON webhook_events(provider, provider_event_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_events_processed ON webhook_events(processed, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_webhook_events_event_type ON webhook_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_webhook_events_retry ON webhook_events(next_retry_at, permanently_failed) WHERE processed = FALSE AND permanently_failed = FALSE;
+CREATE INDEX IF NOT EXISTS idx_webhook_events_failed ON webhook_events(permanently_failed, created_at DESC) WHERE permanently_failed = TRUE;
 
 COMMENT ON TABLE webhook_events IS 'Webhook notifications with idempotency and retry';
 
@@ -160,7 +160,7 @@ COMMENT ON TABLE webhook_events IS 'Webhook notifications with idempotency and r
 -- ============================================================================
 
 -- User profiles
-CREATE TABLE user_profiles (
+CREATE TABLE IF NOT EXISTS user_profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   username TEXT UNIQUE CHECK (length(username) >= 3 AND length(username) <= 30),
   display_name TEXT CHECK (length(display_name) <= 100),
@@ -171,14 +171,14 @@ CREATE TABLE user_profiles (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_user_profiles_username ON user_profiles(username);
-CREATE INDEX idx_user_profiles_updated_at ON user_profiles(updated_at DESC);
-CREATE INDEX idx_user_profiles_welcome_pending ON user_profiles(id) WHERE welcome_message_sent = FALSE;
+CREATE INDEX IF NOT EXISTS idx_user_profiles_username ON user_profiles(username);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_updated_at ON user_profiles(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_welcome_pending ON user_profiles(id) WHERE welcome_message_sent = FALSE;
 
 COMMENT ON TABLE user_profiles IS 'User profile information 1:1 with auth.users';
 
 -- Auth audit logs (90-day retention)
-CREATE TABLE auth_audit_logs (
+CREATE TABLE IF NOT EXISTS auth_audit_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   event_type TEXT NOT NULL CHECK (event_type IN (
@@ -199,11 +199,11 @@ CREATE TABLE auth_audit_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_auth_audit_logs_user_id ON auth_audit_logs(user_id);
-CREATE INDEX idx_auth_audit_logs_event_type ON auth_audit_logs(event_type);
-CREATE INDEX idx_auth_audit_logs_created_at ON auth_audit_logs(created_at DESC);
-CREATE INDEX idx_auth_audit_logs_ip_address ON auth_audit_logs(ip_address);
-CREATE INDEX idx_audit_logs_user_event ON auth_audit_logs(user_id, event_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_auth_audit_logs_user_id ON auth_audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_audit_logs_event_type ON auth_audit_logs(event_type);
+CREATE INDEX IF NOT EXISTS idx_auth_audit_logs_created_at ON auth_audit_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_auth_audit_logs_ip_address ON auth_audit_logs(ip_address);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_event ON auth_audit_logs(user_id, event_type, created_at DESC);
 
 COMMENT ON TABLE auth_audit_logs IS 'Security audit trail for all auth events (90-day retention)';
 
@@ -212,7 +212,7 @@ COMMENT ON TABLE auth_audit_logs IS 'Security audit trail for all auth events (9
 -- ============================================================================
 
 -- Rate limiting (brute force protection)
-CREATE TABLE rate_limit_attempts (
+CREATE TABLE IF NOT EXISTS rate_limit_attempts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   identifier TEXT NOT NULL,  -- Email or IP
   attempt_type TEXT NOT NULL CHECK (attempt_type IN ('sign_in', 'sign_up', 'password_reset')),
@@ -225,68 +225,23 @@ CREATE TABLE rate_limit_attempts (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_rate_limit_identifier ON rate_limit_attempts(identifier, attempt_type);
-CREATE INDEX idx_rate_limit_window ON rate_limit_attempts(window_start);
-CREATE INDEX idx_rate_limit_locked ON rate_limit_attempts(locked_until) WHERE locked_until IS NOT NULL;
-CREATE UNIQUE INDEX idx_rate_limit_unique ON rate_limit_attempts(identifier, attempt_type);
+CREATE INDEX IF NOT EXISTS idx_rate_limit_identifier ON rate_limit_attempts(identifier, attempt_type);
+CREATE INDEX IF NOT EXISTS idx_rate_limit_window ON rate_limit_attempts(window_start);
+CREATE INDEX IF NOT EXISTS idx_rate_limit_locked ON rate_limit_attempts(locked_until) WHERE locked_until IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_rate_limit_unique ON rate_limit_attempts(identifier, attempt_type);
 
 COMMENT ON TABLE rate_limit_attempts IS 'Server-side rate limiting - prevents brute force';
 
 -- Enable RLS on rate_limit_attempts (system-managed, service role only)
 ALTER TABLE rate_limit_attempts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Service role only access" ON rate_limit_attempts;
 CREATE POLICY "Service role only access" ON rate_limit_attempts
   FOR ALL
   USING (false);
 
 COMMENT ON POLICY "Service role only access" ON rate_limit_attempts IS
   'Rate limiting data is system-managed. Only service role can access.';
-
--- OAuth state tracking (CSRF protection)
-CREATE TABLE oauth_states (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  state_token TEXT NOT NULL UNIQUE,
-  provider TEXT NOT NULL CHECK (provider IN ('github', 'google')),
-  session_id TEXT,
-  return_url TEXT,
-  ip_address INET,
-  user_agent TEXT,
-  used BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  expires_at TIMESTAMPTZ NOT NULL DEFAULT (now() + INTERVAL '5 minutes')
-);
-
-CREATE INDEX idx_oauth_states_token ON oauth_states(state_token) WHERE used = FALSE;
-CREATE INDEX idx_oauth_states_expires ON oauth_states(expires_at) WHERE used = FALSE;
-CREATE INDEX idx_oauth_states_session ON oauth_states(session_id);
-
-COMMENT ON TABLE oauth_states IS 'OAuth state tokens - prevents session hijacking';
-
--- Enable RLS on oauth_states (CSRF protection tokens)
-ALTER TABLE oauth_states ENABLE ROW LEVEL SECURITY;
-
--- Allow anyone to insert state tokens (for OAuth flow initiation)
-CREATE POLICY "Anyone can create state tokens" ON oauth_states
-  FOR INSERT
-  WITH CHECK (true);
-
--- Allow anyone to read state tokens (for validation during OAuth callback)
-CREATE POLICY "Anyone can read state tokens" ON oauth_states
-  FOR SELECT
-  USING (true);
-
--- Allow anyone to update state tokens (for marking as used)
-CREATE POLICY "Anyone can update state tokens" ON oauth_states
-  FOR UPDATE
-  USING (true);
-
--- Allow anyone to delete expired state tokens (for cleanup)
-CREATE POLICY "Anyone can delete expired states" ON oauth_states
-  FOR DELETE
-  USING (expires_at < NOW());
-
-COMMENT ON TABLE oauth_states IS
-  'OAuth state tokens are random UUIDs with 5-minute expiration. Safe to allow public access.';
 
 -- ============================================================================
 -- PART 4: FUNCTIONS
@@ -306,15 +261,25 @@ END;
 $$;
 
 -- Auto-create user profile on signup
+-- Reads requested_role from signup metadata (email path). Admin is never
+-- self-assignable; falls back to 'worker' for NULL/invalid/'admin'.
 CREATE OR REPLACE FUNCTION create_user_profile()
 RETURNS TRIGGER
 SECURITY DEFINER
 SET search_path = public
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  v_role TEXT;
 BEGIN
-  INSERT INTO public.user_profiles (id, created_at, updated_at)
-  VALUES (NEW.id, NOW(), NOW())
+  -- Read requested_role from signup metadata. Admin is never self-assignable.
+  v_role := NEW.raw_user_meta_data->>'requested_role';
+  IF v_role IS NULL OR v_role NOT IN ('worker', 'employer') THEN
+    v_role := 'worker';
+  END IF;
+
+  INSERT INTO public.user_profiles (id, role, created_at, updated_at)
+  VALUES (NEW.id, v_role, NOW(), NOW())
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 EXCEPTION
@@ -410,11 +375,13 @@ $$;
 -- PART 5: TRIGGERS
 -- ============================================================================
 
+DROP TRIGGER IF EXISTS update_user_profiles_updated_at ON user_profiles;
 CREATE TRIGGER update_user_profiles_updated_at
     BEFORE UPDATE ON user_profiles
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW
@@ -425,20 +392,9 @@ CREATE TRIGGER on_auth_user_created
 -- ============================================================================
 
 -- Create avatars bucket for user profile pictures
-INSERT INTO storage.buckets (
-  id,
-  name,
-  public,
-  file_size_limit,
-  allowed_mime_types
-)
-VALUES (
-  'avatars',
-  'avatars',
-  true,                                              -- Public read access
-  5242880,                                           -- 5MB max file size
-  ARRAY['image/jpeg', 'image/png', 'image/webp']    -- Allowed formats
-)
+-- Note: public, file_size_limit, allowed_mime_types columns not available in this Supabase version
+INSERT INTO storage.buckets (id, name)
+VALUES ('avatars', 'avatars')
 ON CONFLICT (id) DO NOTHING;                         -- Idempotent
 
 -- Drop existing avatar policies (for clean re-run)
@@ -494,19 +450,24 @@ ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE auth_audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- Payment intents (Feature 017: Stricter policies)
+DROP POLICY IF EXISTS "Users can view own payment intents" ON payment_intents;
 CREATE POLICY "Users can view own payment intents" ON payment_intents
   FOR SELECT USING (auth.uid() = template_user_id);
 
+DROP POLICY IF EXISTS "Users can create own payment intents" ON payment_intents;
 CREATE POLICY "Users can create own payment intents" ON payment_intents
   FOR INSERT WITH CHECK (auth.uid() = template_user_id);
 
+DROP POLICY IF EXISTS "Payment intents are immutable" ON payment_intents;
 CREATE POLICY "Payment intents are immutable" ON payment_intents
   FOR UPDATE USING (false);
 
+DROP POLICY IF EXISTS "Payment intents cannot be deleted by users" ON payment_intents;
 CREATE POLICY "Payment intents cannot be deleted by users" ON payment_intents
   FOR DELETE USING (false);
 
 -- Payment results (Feature 017: Stricter policies)
+DROP POLICY IF EXISTS "Users can view own payment results" ON payment_results;
 CREATE POLICY "Users can view own payment results" ON payment_results
   FOR SELECT USING (
     EXISTS (
@@ -516,56 +477,76 @@ CREATE POLICY "Users can view own payment results" ON payment_results
     )
   );
 
+DROP POLICY IF EXISTS "Service role can insert payment results" ON payment_results;
 CREATE POLICY "Service role can insert payment results" ON payment_results
   FOR INSERT TO service_role WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Payment results are immutable" ON payment_results;
 CREATE POLICY "Payment results are immutable" ON payment_results
   FOR UPDATE USING (false);
 
+DROP POLICY IF EXISTS "Payment results cannot be deleted by users" ON payment_results;
 CREATE POLICY "Payment results cannot be deleted by users" ON payment_results
   FOR DELETE USING (false);
 
 -- Subscriptions
+DROP POLICY IF EXISTS "Users view own subscriptions" ON subscriptions;
 CREATE POLICY "Users view own subscriptions" ON subscriptions
   FOR SELECT USING (auth.uid() = template_user_id);
 
+DROP POLICY IF EXISTS "Users create own subscriptions" ON subscriptions;
 CREATE POLICY "Users create own subscriptions" ON subscriptions
   FOR INSERT WITH CHECK (auth.uid() = template_user_id);
 
+DROP POLICY IF EXISTS "Users update own subscriptions" ON subscriptions;
 CREATE POLICY "Users update own subscriptions" ON subscriptions
   FOR UPDATE USING (auth.uid() = template_user_id);
 
 -- Webhook events
+DROP POLICY IF EXISTS "Service creates webhook events" ON webhook_events;
 CREATE POLICY "Service creates webhook events" ON webhook_events
   FOR INSERT WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Service updates webhook events" ON webhook_events;
 CREATE POLICY "Service updates webhook events" ON webhook_events
   FOR UPDATE WITH CHECK (true);
 
 -- Payment provider config
+DROP POLICY IF EXISTS "Users view provider config" ON payment_provider_config;
 CREATE POLICY "Users view provider config" ON payment_provider_config
   FOR SELECT USING (true);
 
 -- User profiles
 -- Note: "Users view own profile" provides full access to own profile
+DROP POLICY IF EXISTS "Users view own profile" ON user_profiles;
 CREATE POLICY "Users view own profile" ON user_profiles
   FOR SELECT USING (auth.uid() = id);
 
 -- Note: "Authenticated users can search profiles" enables Feature 023 friend search
 -- Users can view public profile fields (username, display_name, avatar_url) to find friends
+DROP POLICY IF EXISTS "Authenticated users can search profiles" ON user_profiles;
 CREATE POLICY "Authenticated users can search profiles" ON user_profiles
   FOR SELECT TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Users update own profile" ON user_profiles;
 CREATE POLICY "Users update own profile" ON user_profiles
-  FOR UPDATE USING (auth.uid() = id);
+  FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Service creates profiles" ON user_profiles;
 CREATE POLICY "Service creates profiles" ON user_profiles
   FOR INSERT WITH CHECK (true);
 
+-- Allow users to insert their own profile (needed for upsert operations)
+DROP POLICY IF EXISTS "Users insert own profile" ON user_profiles;
+CREATE POLICY "Users insert own profile" ON user_profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
 -- Auth audit logs (Feature 017)
+DROP POLICY IF EXISTS "Users can view own audit logs" ON auth_audit_logs;
 CREATE POLICY "Users can view own audit logs" ON auth_audit_logs
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Service role can insert audit logs" ON auth_audit_logs;
 CREATE POLICY "Service role can insert audit logs" ON auth_audit_logs
   FOR INSERT WITH CHECK (true);
 
@@ -666,7 +647,7 @@ WHERE email = 'test@example.com';
 -- Tables: 6 (user_connections, conversations, messages, user_encryption_keys, conversation_keys, typing_indicators)
 
 -- Table 1: user_connections (Friend requests)
-CREATE TABLE user_connections (
+CREATE TABLE IF NOT EXISTS user_connections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   requester_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
   addressee_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
@@ -677,50 +658,65 @@ CREATE TABLE user_connections (
   CONSTRAINT unique_connection UNIQUE (requester_id, addressee_id)
 );
 
-CREATE INDEX idx_user_connections_requester ON user_connections(requester_id, status);
-CREATE INDEX idx_user_connections_addressee ON user_connections(addressee_id, status);
-CREATE INDEX idx_user_connections_status ON user_connections(status);
+CREATE INDEX IF NOT EXISTS idx_user_connections_requester ON user_connections(requester_id, status);
+CREATE INDEX IF NOT EXISTS idx_user_connections_addressee ON user_connections(addressee_id, status);
+CREATE INDEX IF NOT EXISTS idx_user_connections_status ON user_connections(status);
 
 ALTER TABLE user_connections ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own connections" ON user_connections;
 CREATE POLICY "Users can view own connections" ON user_connections
   FOR SELECT USING (auth.uid() = requester_id OR auth.uid() = addressee_id);
 
+DROP POLICY IF EXISTS "Users can create friend requests" ON user_connections;
 CREATE POLICY "Users can create friend requests" ON user_connections
   FOR INSERT WITH CHECK (auth.uid() = requester_id);
 
+DROP POLICY IF EXISTS "Addressee can update connection status" ON user_connections;
 CREATE POLICY "Addressee can update connection status" ON user_connections
   FOR UPDATE USING (auth.uid() = addressee_id) WITH CHECK (auth.uid() = addressee_id);
 
+DROP POLICY IF EXISTS "Users can delete own sent requests" ON user_connections;
 CREATE POLICY "Users can delete own sent requests" ON user_connections
   FOR DELETE USING (auth.uid() = requester_id AND status = 'pending');
 
 COMMENT ON TABLE user_connections IS 'Friend request management with status tracking';
 
--- Table 2: conversations (1-to-1 chats)
-CREATE TABLE conversations (
+-- Table 2: conversations (1-to-1 and group chats)
+CREATE TABLE IF NOT EXISTS conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  participant_1_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-  participant_2_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  participant_1_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+  participant_2_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+  is_group BOOLEAN NOT NULL DEFAULT FALSE,
+  group_name TEXT CHECK (length(group_name) <= 100),
+  created_by UUID REFERENCES user_profiles(id) ON DELETE SET NULL,
+  current_key_version INTEGER NOT NULL DEFAULT 1,
   last_message_at TIMESTAMPTZ,
   archived_by_participant_1 BOOLEAN NOT NULL DEFAULT FALSE,
   archived_by_participant_2 BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT no_self_conversation CHECK (participant_1_id != participant_2_id),
-  CONSTRAINT canonical_ordering CHECK (participant_1_id < participant_2_id),
-  CONSTRAINT unique_conversation UNIQUE (participant_1_id, participant_2_id)
+  CONSTRAINT no_self_conversation CHECK (is_group = true OR participant_1_id != participant_2_id),
+  CONSTRAINT canonical_ordering CHECK (is_group = true OR participant_1_id < participant_2_id),
+  CONSTRAINT unique_conversation UNIQUE (participant_1_id, participant_2_id),
+  CONSTRAINT check_group_participants CHECK (
+    (is_group = false AND participant_1_id IS NOT NULL AND participant_2_id IS NOT NULL)
+    OR
+    (is_group = true AND participant_1_id IS NULL AND participant_2_id IS NULL AND created_by IS NOT NULL)
+  )
 );
 
-CREATE INDEX idx_conversations_participant_1 ON conversations(participant_1_id);
-CREATE INDEX idx_conversations_participant_2 ON conversations(participant_2_id);
-CREATE INDEX idx_conversations_last_message ON conversations(last_message_at DESC);
-CREATE INDEX idx_conversations_archived ON conversations(participant_1_id, archived_by_participant_1, participant_2_id, archived_by_participant_2);
+CREATE INDEX IF NOT EXISTS idx_conversations_participant_1 ON conversations(participant_1_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_participant_2 ON conversations(participant_2_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_last_message ON conversations(last_message_at DESC);
+CREATE INDEX IF NOT EXISTS idx_conversations_archived ON conversations(participant_1_id, archived_by_participant_1, participant_2_id, archived_by_participant_2);
 
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own conversations" ON conversations;
 CREATE POLICY "Users can view own conversations" ON conversations
   FOR SELECT USING (auth.uid() = participant_1_id OR auth.uid() = participant_2_id);
 
+DROP POLICY IF EXISTS "Users can create conversations with connections" ON conversations;
 CREATE POLICY "Users can create conversations with connections" ON conversations
   FOR INSERT WITH CHECK (
     (auth.uid() = participant_1_id OR auth.uid() = participant_2_id) AND
@@ -734,32 +730,59 @@ CREATE POLICY "Users can create conversations with connections" ON conversations
   );
 
 -- Admin can create conversations with any user (Feature 002 - welcome messages)
+-- Uses dynamic lookup by username to avoid hardcoded UUID dependency
+DROP POLICY IF EXISTS "Admin can create any conversation" ON conversations;
 CREATE POLICY "Admin can create any conversation" ON conversations
   FOR INSERT WITH CHECK (
-    auth.uid() = '00000000-0000-0000-0000-000000000001'::uuid
+    auth.uid() = (SELECT id FROM public.user_profiles WHERE username = 'spoketowork' LIMIT 1)
   );
 
 -- Users can create conversations with admin for welcome messages (Feature 004)
 -- This allows the client-side welcome service to create the conversation
+-- Uses dynamic lookup by username to avoid hardcoded UUID dependency
+DROP POLICY IF EXISTS "Users can create conversation with admin" ON conversations;
 CREATE POLICY "Users can create conversation with admin" ON conversations
   FOR INSERT WITH CHECK (
     (auth.uid() = participant_1_id OR auth.uid() = participant_2_id) AND
-    (participant_1_id = '00000000-0000-0000-0000-000000000001'::uuid OR
-     participant_2_id = '00000000-0000-0000-0000-000000000001'::uuid)
+    (participant_1_id = (SELECT id FROM public.user_profiles WHERE username = 'spoketowork' LIMIT 1) OR
+     participant_2_id = (SELECT id FROM public.user_profiles WHERE username = 'spoketowork' LIMIT 1))
   );
 
+DROP POLICY IF EXISTS "System can update last_message_at" ON conversations;
 CREATE POLICY "System can update last_message_at" ON conversations
   FOR UPDATE TO service_role USING (true);
 
 -- Allow users to archive/unarchive their own conversations
+DROP POLICY IF EXISTS "Users can update own conversation archive status" ON conversations;
 CREATE POLICY "Users can update own conversation archive status" ON conversations
   FOR UPDATE USING (auth.uid() = participant_1_id OR auth.uid() = participant_2_id)
   WITH CHECK (auth.uid() = participant_1_id OR auth.uid() = participant_2_id);
 
-COMMENT ON TABLE conversations IS '1-to-1 conversations with canonical ordering';
+COMMENT ON TABLE conversations IS '1-to-1 and group conversations with canonical ordering';
+
+-- Table 2b: conversation_members (for group chats)
+-- Must be created before messages table so RLS policies can reference it
+CREATE TABLE IF NOT EXISTS conversation_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'member')),
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  left_at TIMESTAMPTZ,
+  key_version_joined INTEGER NOT NULL DEFAULT 1,
+  key_status TEXT NOT NULL DEFAULT 'active' CHECK (key_status IN ('active', 'pending')),
+  archived BOOLEAN NOT NULL DEFAULT FALSE,
+  muted BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+-- CHK025: Unique active membership per user per conversation
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_active_membership
+  ON conversation_members(conversation_id, user_id) WHERE left_at IS NULL;
+
+COMMENT ON TABLE conversation_members IS 'Group chat membership with roles and key versioning';
 
 -- Table 3: messages (Encrypted content)
-CREATE TABLE messages (
+CREATE TABLE IF NOT EXISTS messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   sender_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
@@ -777,32 +800,49 @@ CREATE TABLE messages (
   CONSTRAINT unique_sequence UNIQUE (conversation_id, sequence_number)
 );
 
-CREATE INDEX idx_messages_conversation ON messages(conversation_id, sequence_number DESC);
-CREATE INDEX idx_messages_sender ON messages(sender_id);
-CREATE INDEX idx_messages_created_at ON messages(created_at DESC);
-CREATE INDEX idx_messages_unread ON messages(read_at) WHERE read_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, sequence_number DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_unread ON messages(read_at) WHERE read_at IS NULL;
 
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view messages in own conversations" ON messages;
 CREATE POLICY "Users can view messages in own conversations" ON messages
   FOR SELECT USING (
+    -- Direct messages: check conversations table
     EXISTS (
-      SELECT 1 FROM conversations
-      WHERE conversations.id = messages.conversation_id AND (
-        conversations.participant_1_id = auth.uid() OR
-        conversations.participant_2_id = auth.uid()
-      )
+      SELECT 1 FROM conversations c
+      WHERE c.id = messages.conversation_id
+        AND c.is_group = false
+        AND (c.participant_1_id = auth.uid() OR c.participant_2_id = auth.uid())
+    )
+    -- Group messages: check conversation_members table
+    OR EXISTS (
+      SELECT 1 FROM conversation_members cm
+      WHERE cm.conversation_id = messages.conversation_id
+        AND cm.user_id = auth.uid()
+        AND cm.left_at IS NULL
     )
   );
 
+DROP POLICY IF EXISTS "Users can send messages to own conversations" ON messages;
 CREATE POLICY "Users can send messages to own conversations" ON messages
   FOR INSERT WITH CHECK (
-    sender_id = auth.uid() AND
-    EXISTS (
-      SELECT 1 FROM conversations
-      WHERE conversations.id = conversation_id AND (
-        conversations.participant_1_id = auth.uid() OR
-        conversations.participant_2_id = auth.uid()
+    sender_id = auth.uid() AND (
+      -- Direct messages: check conversations table
+      EXISTS (
+        SELECT 1 FROM conversations c
+        WHERE c.id = messages.conversation_id
+          AND c.is_group = false
+          AND (c.participant_1_id = auth.uid() OR c.participant_2_id = auth.uid())
+      )
+      -- Group messages: check conversation_members table
+      OR EXISTS (
+        SELECT 1 FROM conversation_members cm
+        WHERE cm.conversation_id = messages.conversation_id
+          AND cm.user_id = auth.uid()
+          AND cm.left_at IS NULL
       )
     )
   );
@@ -810,26 +850,30 @@ CREATE POLICY "Users can send messages to own conversations" ON messages
 -- Users can insert welcome messages from admin (Feature 004)
 -- Allows client-side welcome service to insert message with sender_id = admin
 -- Only allowed in conversations where user is a participant with admin
+-- Uses dynamic lookup by username to avoid hardcoded UUID dependency
+DROP POLICY IF EXISTS "Users can insert welcome message from admin" ON messages;
 CREATE POLICY "Users can insert welcome message from admin" ON messages
   FOR INSERT WITH CHECK (
-    sender_id = '00000000-0000-0000-0000-000000000001'::uuid AND
+    sender_id = (SELECT id FROM public.user_profiles WHERE username = 'spoketowork' LIMIT 1) AND
     EXISTS (
       SELECT 1 FROM conversations
       WHERE conversations.id = conversation_id AND (
         (conversations.participant_1_id = auth.uid() AND
-         conversations.participant_2_id = '00000000-0000-0000-0000-000000000001'::uuid) OR
+         conversations.participant_2_id = (SELECT id FROM public.user_profiles WHERE username = 'spoketowork' LIMIT 1)) OR
         (conversations.participant_2_id = auth.uid() AND
-         conversations.participant_1_id = '00000000-0000-0000-0000-000000000001'::uuid)
+         conversations.participant_1_id = (SELECT id FROM public.user_profiles WHERE username = 'spoketowork' LIMIT 1))
       )
     )
   );
 
+DROP POLICY IF EXISTS "Users can edit own messages" ON messages;
 CREATE POLICY "Users can edit own messages" ON messages
   FOR UPDATE USING (sender_id = auth.uid())
   WITH CHECK (sender_id = auth.uid() AND created_at > now() - INTERVAL '15 minutes');
 
 -- Allow recipients to mark messages as read (update read_at field)
 -- This is separate from edit policy because recipients need to update messages they didn't send
+DROP POLICY IF EXISTS "Recipients can mark messages as read" ON messages;
 CREATE POLICY "Recipients can mark messages as read" ON messages
   FOR UPDATE USING (
     EXISTS (
@@ -852,6 +896,7 @@ CREATE POLICY "Recipients can mark messages as read" ON messages
     AND sender_id != auth.uid()
   );
 
+DROP POLICY IF EXISTS "Users cannot delete messages" ON messages;
 CREATE POLICY "Users cannot delete messages" ON messages
   FOR DELETE USING (false);
 
@@ -860,7 +905,7 @@ COMMENT ON TABLE messages IS 'E2E encrypted messages with 15-minute edit window'
 -- Table 4: user_encryption_keys (Public ECDH keys + password-derived salt)
 -- encryption_salt: Base64-encoded 16-byte Argon2 salt for password-derived keys
 -- NULL salt indicates legacy random-generated keys requiring migration (Feature 032)
-CREATE TABLE user_encryption_keys (
+CREATE TABLE IF NOT EXISTS user_encryption_keys (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
   public_key JSONB NOT NULL,
@@ -872,30 +917,34 @@ CREATE TABLE user_encryption_keys (
   CONSTRAINT unique_user_device UNIQUE (user_id, device_id)
 );
 
-CREATE INDEX idx_user_encryption_keys_user ON user_encryption_keys(user_id);
-CREATE INDEX idx_user_encryption_keys_active ON user_encryption_keys(user_id, revoked, expires_at)
+CREATE INDEX IF NOT EXISTS idx_user_encryption_keys_user ON user_encryption_keys(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_encryption_keys_active ON user_encryption_keys(user_id, revoked, expires_at)
   WHERE revoked = false;
-CREATE INDEX idx_user_encryption_keys_salt ON user_encryption_keys(user_id)
+CREATE INDEX IF NOT EXISTS idx_user_encryption_keys_salt ON user_encryption_keys(user_id)
   WHERE encryption_salt IS NOT NULL;
 
 ALTER TABLE user_encryption_keys ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view public keys" ON user_encryption_keys;
 CREATE POLICY "Anyone can view public keys" ON user_encryption_keys
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Users can create own keys" ON user_encryption_keys;
 CREATE POLICY "Users can create own keys" ON user_encryption_keys
   FOR INSERT WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can revoke own keys" ON user_encryption_keys;
 CREATE POLICY "Users can revoke own keys" ON user_encryption_keys
   FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users cannot delete keys" ON user_encryption_keys;
 CREATE POLICY "Users cannot delete keys" ON user_encryption_keys
   FOR DELETE USING (false);
 
 COMMENT ON TABLE user_encryption_keys IS 'Public ECDH keys - private keys NEVER in database';
 
 -- Table 5: conversation_keys (Encrypted shared secrets)
-CREATE TABLE conversation_keys (
+CREATE TABLE IF NOT EXISTS conversation_keys (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -905,14 +954,16 @@ CREATE TABLE conversation_keys (
   CONSTRAINT unique_conversation_user_version UNIQUE (conversation_id, user_id, key_version)
 );
 
-CREATE INDEX idx_conversation_keys_conversation ON conversation_keys(conversation_id);
-CREATE INDEX idx_conversation_keys_user ON conversation_keys(user_id);
+CREATE INDEX IF NOT EXISTS idx_conversation_keys_conversation ON conversation_keys(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_conversation_keys_user ON conversation_keys(user_id);
 
 ALTER TABLE conversation_keys ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own conversation keys" ON conversation_keys;
 CREATE POLICY "Users can view own conversation keys" ON conversation_keys
   FOR SELECT USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can create conversation keys" ON conversation_keys;
 CREATE POLICY "Users can create conversation keys" ON conversation_keys
   FOR INSERT WITH CHECK (
     user_id = auth.uid() AND
@@ -925,16 +976,18 @@ CREATE POLICY "Users can create conversation keys" ON conversation_keys
     )
   );
 
+DROP POLICY IF EXISTS "Users cannot update keys" ON conversation_keys;
 CREATE POLICY "Users cannot update keys" ON conversation_keys
   FOR UPDATE USING (false);
 
+DROP POLICY IF EXISTS "Users cannot delete keys" ON conversation_keys;
 CREATE POLICY "Users cannot delete keys" ON conversation_keys
   FOR DELETE USING (false);
 
 COMMENT ON TABLE conversation_keys IS 'Immutable encrypted shared secrets';
 
 -- Table 6: typing_indicators (Real-time typing status)
-CREATE TABLE typing_indicators (
+CREATE TABLE IF NOT EXISTS typing_indicators (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
@@ -943,10 +996,11 @@ CREATE TABLE typing_indicators (
   CONSTRAINT unique_conversation_user UNIQUE (conversation_id, user_id)
 );
 
-CREATE INDEX idx_typing_indicators_conversation ON typing_indicators(conversation_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_typing_indicators_conversation ON typing_indicators(conversation_id, updated_at DESC);
 
 ALTER TABLE typing_indicators ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view typing in own conversations" ON typing_indicators;
 CREATE POLICY "Users can view typing in own conversations" ON typing_indicators
   FOR SELECT USING (
     EXISTS (
@@ -958,12 +1012,15 @@ CREATE POLICY "Users can view typing in own conversations" ON typing_indicators
     )
   );
 
+DROP POLICY IF EXISTS "Users can insert own typing status" ON typing_indicators;
 CREATE POLICY "Users can insert own typing status" ON typing_indicators
   FOR INSERT WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can update own typing status" ON typing_indicators;
 CREATE POLICY "Users can update own typing status" ON typing_indicators
   FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "System can clean up old indicators" ON typing_indicators;
 CREATE POLICY "System can clean up old indicators" ON typing_indicators
   FOR DELETE TO service_role USING (updated_at < now() - INTERVAL '5 seconds');
 
@@ -978,6 +1035,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS on_message_inserted ON messages;
 CREATE TRIGGER on_message_inserted
   AFTER INSERT ON messages
   FOR EACH ROW EXECUTE FUNCTION update_conversation_timestamp();
@@ -993,6 +1051,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS before_message_insert ON messages;
 CREATE TRIGGER before_message_insert
   BEFORE INSERT ON messages
   FOR EACH ROW EXECUTE FUNCTION assign_sequence_number();
@@ -1016,26 +1075,10 @@ GRANT ALL ON typing_indicators TO authenticated, service_role;
 -- Tables modified: conversations, messages
 -- Tables new: conversation_members, group_keys
 
--- T006: Add group columns to conversations table
-ALTER TABLE conversations
-  ADD COLUMN IF NOT EXISTS is_group BOOLEAN NOT NULL DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS group_name TEXT CHECK (length(group_name) <= 100),
-  ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES user_profiles(id),
-  ADD COLUMN IF NOT EXISTS current_key_version INTEGER NOT NULL DEFAULT 1;
-
--- Make participant columns nullable for groups (they must be NULL for is_group=true)
-ALTER TABLE conversations
-  ALTER COLUMN participant_1_id DROP NOT NULL,
-  ALTER COLUMN participant_2_id DROP NOT NULL;
-
--- CHK023: Enforce is_group validation via CHECK constraint
--- Drop existing constraint if it exists (for idempotency)
-ALTER TABLE conversations DROP CONSTRAINT IF EXISTS check_group_participants;
-ALTER TABLE conversations ADD CONSTRAINT check_group_participants CHECK (
-  (is_group = false AND participant_1_id IS NOT NULL AND participant_2_id IS NOT NULL)
-  OR
-  (is_group = true AND participant_1_id IS NULL AND participant_2_id IS NULL AND created_by IS NOT NULL)
-);
+-- T006: Group columns already added in initial CREATE TABLE
+-- (is_group, group_name, created_by, current_key_version)
+-- Participant columns are already nullable from initial table definition
+-- check_group_participants constraint already exists from initial table definition
 
 -- T007: Add key_version column to messages table
 ALTER TABLE messages
@@ -1060,24 +1103,7 @@ ALTER TABLE messages ADD CONSTRAINT check_system_message_type CHECK (
   )
 );
 
--- T009: Create conversation_members junction table
-CREATE TABLE IF NOT EXISTS conversation_members (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-  role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'member')),
-  joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  left_at TIMESTAMPTZ,
-  key_version_joined INTEGER NOT NULL DEFAULT 1,
-  key_status TEXT NOT NULL DEFAULT 'active' CHECK (key_status IN ('active', 'pending')),
-  archived BOOLEAN NOT NULL DEFAULT FALSE,
-  muted BOOLEAN NOT NULL DEFAULT FALSE
-);
-
--- CHK025: Unique active membership per user per conversation
--- This constraint allows same user_id + conversation_id only if one has left_at set
-CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_active_membership
-  ON conversation_members(conversation_id, user_id) WHERE left_at IS NULL;
+-- T009: conversation_members table already created earlier (after conversations table)
 
 -- T010: Create group_keys table
 CREATE TABLE IF NOT EXISTS group_keys (
@@ -1109,16 +1135,17 @@ ALTER TABLE conversation_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_keys ENABLE ROW LEVEL SECURITY;
 
 -- T013: RLS policies for conversation_members
+-- NOTE: These policies query 'conversations' table instead of self-referencing
+-- to avoid infinite recursion during policy evaluation
 
 -- SELECT: Members can see other members of their conversations
 DROP POLICY IF EXISTS "Members can view conversation members" ON conversation_members;
 CREATE POLICY "Members can view conversation members" ON conversation_members
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM conversation_members cm
-      WHERE cm.conversation_id = conversation_members.conversation_id
-        AND cm.user_id = auth.uid()
-        AND cm.left_at IS NULL
+      SELECT 1 FROM conversations c
+      WHERE c.id = conversation_members.conversation_id
+        AND (c.participant_1_id = auth.uid() OR c.participant_2_id = auth.uid())
     )
   );
 
@@ -1127,10 +1154,9 @@ DROP POLICY IF EXISTS "Members can add to their conversations" ON conversation_m
 CREATE POLICY "Members can add to their conversations" ON conversation_members
   FOR INSERT WITH CHECK (
     EXISTS (
-      SELECT 1 FROM conversation_members cm
-      WHERE cm.conversation_id = conversation_id
-        AND cm.user_id = auth.uid()
-        AND cm.left_at IS NULL
+      SELECT 1 FROM conversations c
+      WHERE c.id = conversation_members.conversation_id
+        AND (c.participant_1_id = auth.uid() OR c.participant_2_id = auth.uid())
     )
     OR user_id = auth.uid()  -- Self-join on creation
   );
@@ -1141,11 +1167,9 @@ CREATE POLICY "Members can update membership" ON conversation_members
   FOR UPDATE USING (
     user_id = auth.uid()
     OR EXISTS (
-      SELECT 1 FROM conversation_members cm
-      WHERE cm.conversation_id = conversation_members.conversation_id
-        AND cm.user_id = auth.uid()
-        AND cm.role = 'owner'
-        AND cm.left_at IS NULL
+      SELECT 1 FROM conversations c
+      WHERE c.id = conversation_members.conversation_id
+        AND (c.participant_1_id = auth.uid() OR c.participant_2_id = auth.uid())
     )
   );
 
@@ -1255,7 +1279,7 @@ COMMENT ON TABLE group_keys IS 'Encrypted symmetric group keys per member per ve
 -- Created:
 --   ✅ Payment tables: payment_intents, payment_results, subscriptions, webhook_events, payment_provider_config
 --   ✅ Auth tables: user_profiles, auth_audit_logs
---   ✅ Security tables: rate_limit_attempts, oauth_states
+--   ✅ Security tables: rate_limit_attempts
 --   ✅ Messaging tables: user_connections, conversations, messages, user_encryption_keys, conversation_keys, typing_indicators
 --   ✅ Group chat tables: conversation_members, group_keys (Feature 010)
 --   ✅ Storage buckets: avatars (5MB limit, public read)
@@ -1267,13 +1291,15 @@ COMMENT ON TABLE group_keys IS 'Encrypted symmetric group keys per member per ve
 --   ✅ Group chat policies: 8 policies (membership access, key distribution)
 --   ✅ Permissions: Authenticated users + service role (all tables)
 --   ✅ Test user: test@example.com (primary, email confirmed)
---   ✅ Admin user: scripthammer (Feature 002 - welcome messages)
+--   ✅ Admin user: spoketowork (Feature 002 - welcome messages)
 -- ============================================================================
 
 -- Admin profile for system welcome messages (Feature 002)
--- Fixed UUID: 00000000-0000-0000-0000-000000000001
+-- Fixed UUID: 00000000-0000-0000-0000-000000000001 (matches seed-test-users.ts)
+-- Only insert if admin user exists in auth.users (created via Supabase Auth)
 INSERT INTO user_profiles (id, username, display_name, welcome_message_sent)
-VALUES ('00000000-0000-0000-0000-000000000001', 'scripthammer', 'ScriptHammer', TRUE)
+SELECT '00000000-0000-0000-0000-000000000001', 'spoketowork', 'SpokeToWork', TRUE
+WHERE EXISTS (SELECT 1 FROM auth.users WHERE id = '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================================
@@ -1313,6 +1339,2124 @@ ALTER TABLE messages REPLICA IDENTITY FULL;
 -- ALTER PUBLICATION supabase_realtime ADD TABLE messages;
 --
 -- Or enable via Supabase Dashboard: Database > Replication
+
+-- ============================================================================
+-- PART 11: COMPANY MANAGEMENT (Feature 011)
+-- ============================================================================
+-- Job seeker company tracking with offline support
+-- Features: CRUD, geocoding, status tracking, import/export
+-- ============================================================================
+
+-- Companies table for job seeker tracking
+CREATE TABLE IF NOT EXISTS companies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+
+  -- Company identity
+  name TEXT NOT NULL CHECK (length(name) >= 1 AND length(name) <= 200),
+
+  -- Contact information
+  contact_name TEXT CHECK (length(contact_name) <= 100),
+  contact_title TEXT CHECK (length(contact_title) <= 100),
+  phone TEXT CHECK (length(phone) <= 30),
+  email TEXT CHECK (length(email) <= 254),
+  website TEXT CHECK (length(website) <= 500),
+  careers_url TEXT CHECK (length(careers_url) <= 500),
+
+  -- Location
+  address TEXT NOT NULL CHECK (length(address) >= 1 AND length(address) <= 500),
+  latitude DECIMAL(10, 8) NOT NULL CHECK (latitude >= -90 AND latitude <= 90),
+  longitude DECIMAL(11, 8) NOT NULL CHECK (longitude >= -180 AND longitude <= 180),
+  extended_range BOOLEAN NOT NULL DEFAULT FALSE,
+
+  -- Tracking
+  status TEXT NOT NULL DEFAULT 'not_contacted' CHECK (status IN (
+    'not_contacted', 'contacted', 'follow_up', 'meeting', 'outcome_positive', 'outcome_negative'
+  )),
+  priority INTEGER NOT NULL DEFAULT 3 CHECK (priority >= 1 AND priority <= 5),
+  notes TEXT CHECK (length(notes) <= 5000),
+  follow_up_date DATE,
+
+  -- Route assignment (nullable, references future route feature)
+  route_id UUID,
+
+  -- State
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
+  -- Timestamps
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- Uniqueness constraint: name + address per user
+  CONSTRAINT unique_company_per_user UNIQUE (user_id, name, address)
+);
+
+-- Indexes for common queries
+CREATE INDEX IF NOT EXISTS idx_companies_user_id ON companies(user_id);
+CREATE INDEX IF NOT EXISTS idx_companies_status ON companies(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_companies_priority ON companies(user_id, priority DESC);
+CREATE INDEX IF NOT EXISTS idx_companies_follow_up ON companies(user_id, follow_up_date) WHERE follow_up_date IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_companies_active ON companies(user_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_companies_route ON companies(route_id) WHERE route_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_companies_name_search ON companies USING gin(to_tsvector('english', name));
+
+-- Enable RLS
+ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies: User isolation
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'companies' AND policyname = 'Users can view own companies') THEN
+DROP POLICY IF EXISTS "Users can view own companies" ON companies;
+    CREATE POLICY "Users can view own companies" ON companies
+      FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'companies' AND policyname = 'Users can create own companies') THEN
+DROP POLICY IF EXISTS "Users can create own companies" ON companies;
+    CREATE POLICY "Users can create own companies" ON companies
+      FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'companies' AND policyname = 'Users can update own companies') THEN
+DROP POLICY IF EXISTS "Users can update own companies" ON companies;
+    CREATE POLICY "Users can update own companies" ON companies
+      FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'companies' AND policyname = 'Users can delete own companies') THEN
+DROP POLICY IF EXISTS "Users can delete own companies" ON companies;
+    CREATE POLICY "Users can delete own companies" ON companies
+      FOR DELETE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+-- Auto-update timestamp trigger (reuse existing function)
+DROP TRIGGER IF EXISTS update_companies_updated_at ON companies;
+CREATE TRIGGER update_companies_updated_at
+  BEFORE UPDATE ON companies
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Grant permissions
+GRANT ALL ON companies TO authenticated;
+GRANT ALL ON companies TO service_role;
+
+COMMENT ON TABLE companies IS 'Job seeker company tracking for route planning (Feature 011)';
+
+-- Add home location columns to user_profiles for distance validation
+ALTER TABLE user_profiles
+  ADD COLUMN IF NOT EXISTS home_address TEXT CHECK (length(home_address) <= 500),
+  ADD COLUMN IF NOT EXISTS home_latitude DECIMAL(10, 8) CHECK (home_latitude >= -90 AND home_latitude <= 90),
+  ADD COLUMN IF NOT EXISTS home_longitude DECIMAL(11, 8) CHECK (home_longitude >= -180 AND home_longitude <= 180),
+  ADD COLUMN IF NOT EXISTS distance_radius_miles INTEGER DEFAULT 20 CHECK (distance_radius_miles >= 1 AND distance_radius_miles <= 100);
+-- Note: metro_area_id column added later after metro_areas table is created
+
+COMMENT ON COLUMN user_profiles.home_address IS 'User home address for distance calculations';
+COMMENT ON COLUMN user_profiles.home_latitude IS 'User home latitude for distance calculations';
+COMMENT ON COLUMN user_profiles.home_longitude IS 'User home longitude for distance calculations';
+COMMENT ON COLUMN user_profiles.distance_radius_miles IS 'Configurable radius for extended_range warning (default 20)';
+
+-- ============================================================================
+-- PART 11b: JOB APPLICATIONS (Feature 011 Evolution)
+-- ============================================================================
+-- Multiple job applications per company for job hunt tracking
+-- ============================================================================
+
+-- Job applications table - child of companies
+CREATE TABLE IF NOT EXISTS job_applications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+
+  -- Position details
+  position_title TEXT CHECK (length(position_title) <= 200),
+  job_link TEXT CHECK (length(job_link) <= 1000),
+  work_location_type TEXT NOT NULL DEFAULT 'on_site' CHECK (work_location_type IN (
+    'remote', 'hybrid', 'on_site'
+  )),
+
+  -- Application tracking
+  status TEXT NOT NULL DEFAULT 'not_applied' CHECK (status IN (
+    'not_applied', 'applied', 'screening', 'interviewing', 'offer', 'closed'
+  )),
+  outcome TEXT NOT NULL DEFAULT 'pending' CHECK (outcome IN (
+    'pending', 'hired', 'rejected', 'withdrawn', 'ghosted', 'offer_declined'
+  )),
+  date_applied DATE,
+  interview_date TIMESTAMPTZ,
+
+  -- Tracking (moved from company level)
+  priority INTEGER NOT NULL DEFAULT 3 CHECK (priority >= 1 AND priority <= 5),
+  notes TEXT CHECK (length(notes) <= 5000),
+  follow_up_date DATE,
+
+  -- State
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
+  -- Timestamps
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for common queries
+CREATE INDEX IF NOT EXISTS idx_job_applications_company ON job_applications(company_id);
+CREATE INDEX IF NOT EXISTS idx_job_applications_user ON job_applications(user_id);
+CREATE INDEX IF NOT EXISTS idx_job_applications_status ON job_applications(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_job_applications_outcome ON job_applications(user_id, outcome);
+CREATE INDEX IF NOT EXISTS idx_job_applications_date_applied ON job_applications(user_id, date_applied DESC);
+CREATE INDEX IF NOT EXISTS idx_job_applications_follow_up ON job_applications(user_id, follow_up_date)
+  WHERE follow_up_date IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_job_applications_active ON job_applications(user_id, is_active);
+
+-- Enable RLS
+ALTER TABLE job_applications ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies: User isolation
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'job_applications'
+                 AND policyname = 'Users can view own applications') THEN
+DROP POLICY IF EXISTS "Users can view own applications" ON job_applications;
+    CREATE POLICY "Users can view own applications" ON job_applications
+      FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'job_applications'
+                 AND policyname = 'Users can create own applications') THEN
+DROP POLICY IF EXISTS "Users can create own applications" ON job_applications;
+    CREATE POLICY "Users can create own applications" ON job_applications
+      FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'job_applications'
+                 AND policyname = 'Users can update own applications') THEN
+DROP POLICY IF EXISTS "Users can update own applications" ON job_applications;
+    CREATE POLICY "Users can update own applications" ON job_applications
+      FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'job_applications'
+                 AND policyname = 'Users can delete own applications') THEN
+DROP POLICY IF EXISTS "Users can delete own applications" ON job_applications;
+    CREATE POLICY "Users can delete own applications" ON job_applications
+      FOR DELETE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+-- Auto-update timestamp trigger
+DROP TRIGGER IF EXISTS update_job_applications_updated_at ON job_applications;
+CREATE TRIGGER update_job_applications_updated_at
+  BEFORE UPDATE ON job_applications
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Grant permissions
+GRANT ALL ON job_applications TO authenticated;
+GRANT ALL ON job_applications TO service_role;
+
+COMMENT ON TABLE job_applications IS 'Job applications tracking - multiple per company (Feature 011b)';
+
+-- ============================================================================
+-- DATA MIGRATION: Create one application per existing company
+-- ============================================================================
+-- Maps existing company status to new application status/outcome
+
+INSERT INTO job_applications (
+  company_id,
+  user_id,
+  position_title,
+  status,
+  outcome,
+  priority,
+  notes,
+  follow_up_date,
+  is_active,
+  created_at,
+  updated_at
+)
+SELECT
+  c.id,
+  c.user_id,
+  'Imported Application',
+  CASE c.status
+    WHEN 'not_contacted' THEN 'not_applied'
+    WHEN 'contacted' THEN 'applied'
+    WHEN 'follow_up' THEN 'applied'
+    WHEN 'meeting' THEN 'interviewing'
+    WHEN 'outcome_positive' THEN 'closed'
+    WHEN 'outcome_negative' THEN 'closed'
+    ELSE 'not_applied'
+  END,
+  CASE c.status
+    WHEN 'outcome_positive' THEN 'hired'
+    WHEN 'outcome_negative' THEN 'rejected'
+    ELSE 'pending'
+  END,
+  c.priority,
+  c.notes,
+  c.follow_up_date,
+  c.is_active,
+  c.created_at,
+  c.updated_at
+FROM companies c
+WHERE NOT EXISTS (
+  SELECT 1 FROM job_applications ja WHERE ja.company_id = c.id
+);
+
+-- ============================================================================
+-- PART 12: MULTI-TENANT COMPANY DATA MODEL (Feature 012)
+-- ============================================================================
+-- Transform from single-user to multi-tenant with:
+--   - Shared company registry (deduplicated, admin-managed)
+--   - User-specific tracking records
+--   - Metro area organization with PostGIS
+--   - Moderated community contributions
+-- ============================================================================
+
+-- T001: Enable PostGIS extension for spatial queries
+CREATE EXTENSION IF NOT EXISTS postgis;
+
+-- T002: Enable pg_trgm extension for fuzzy name matching
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- T003: Add is_admin column to user_profiles for admin identification
+ALTER TABLE user_profiles
+  ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE;
+
+COMMENT ON COLUMN user_profiles.is_admin IS 'Admin flag for moderation queue access (Feature 012)';
+
+-- T004: Create company_status enum (if not exists via DO block)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'company_status') THEN
+    CREATE TYPE company_status AS ENUM (
+      'not_contacted',
+      'contacted',
+      'follow_up',
+      'meeting',
+      'applied',
+      'interviewing',
+      'offer',
+      'closed'
+    );
+  END IF;
+END $$;
+
+-- T005: Create contribution_status enum
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'contribution_status') THEN
+    CREATE TYPE contribution_status AS ENUM (
+      'pending',
+      'approved',
+      'rejected',
+      'merged'
+    );
+  END IF;
+END $$;
+
+-- ============================================================================
+-- PHASE 2: FOUNDATIONAL DATABASE SCHEMA (7 Tables)
+-- ============================================================================
+
+-- T014: Create metro_areas table
+CREATE TABLE IF NOT EXISTS metro_areas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(100) NOT NULL,
+  state VARCHAR(2) NOT NULL,
+  center_lat DECIMAL(10, 7) NOT NULL,
+  center_lng DECIMAL(10, 7) NOT NULL,
+  radius_miles INTEGER NOT NULL DEFAULT 30,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT unique_metro_area UNIQUE (name, state)
+);
+
+CREATE INDEX IF NOT EXISTS idx_metro_areas_state ON metro_areas(state);
+
+ALTER TABLE metro_areas ENABLE ROW LEVEL SECURITY;
+
+-- Metro areas are public read
+DROP POLICY IF EXISTS "Anyone can view metro areas" ON metro_areas;
+CREATE POLICY "Anyone can view metro areas" ON metro_areas
+  FOR SELECT USING (true);
+
+COMMENT ON TABLE metro_areas IS 'Geographic regions organizing company data (Feature 012)';
+
+-- Add metro_area_id to user_profiles now that metro_areas table exists
+ALTER TABLE user_profiles
+  ADD COLUMN IF NOT EXISTS metro_area_id UUID REFERENCES metro_areas(id);
+COMMENT ON COLUMN user_profiles.metro_area_id IS 'Auto-assigned metro area based on home coordinates (Feature 012)';
+
+-- T015: Create shared_companies table
+CREATE TABLE IF NOT EXISTS shared_companies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  metro_area_id UUID REFERENCES metro_areas(id),
+  name VARCHAR(255) NOT NULL,
+  website VARCHAR(500),
+  careers_url VARCHAR(500),
+  is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  is_seed BOOLEAN NOT NULL DEFAULT FALSE, -- T087: Whether this company is seed data for new users
+  default_priority INTEGER NOT NULL DEFAULT 3 CHECK (default_priority IN (1, 2, 3, 5)), -- T014: Default priority for new user seeding
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT unique_shared_company_per_metro UNIQUE (metro_area_id, name)
+);
+
+-- Add is_seed column if table existed without it (from partial migration)
+DO $$
+BEGIN
+    ALTER TABLE shared_companies ADD COLUMN is_seed BOOLEAN NOT NULL DEFAULT FALSE;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+-- Add default_priority column if table existed without it (Feature 014)
+DO $$
+BEGIN
+    ALTER TABLE shared_companies ADD COLUMN default_priority INTEGER NOT NULL DEFAULT 3;
+    ALTER TABLE shared_companies ADD CONSTRAINT check_default_priority CHECK (default_priority IN (1, 2, 3, 5));
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+-- GIN index for fuzzy name matching with pg_trgm
+CREATE INDEX IF NOT EXISTS idx_shared_companies_name_trgm ON shared_companies USING gin(name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_shared_companies_metro ON shared_companies(metro_area_id);
+-- T091: Index for seed company queries
+CREATE INDEX IF NOT EXISTS idx_shared_companies_seed ON shared_companies(metro_area_id, is_seed) WHERE is_seed = TRUE;
+
+ALTER TABLE shared_companies ENABLE ROW LEVEL SECURITY;
+
+-- Public read, admin write
+DROP POLICY IF EXISTS "Anyone can view shared companies" ON shared_companies;
+CREATE POLICY "Anyone can view shared companies" ON shared_companies
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admin can insert shared companies" ON shared_companies;
+CREATE POLICY "Admin can insert shared companies" ON shared_companies
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Admin can update shared companies" ON shared_companies;
+CREATE POLICY "Admin can update shared companies" ON shared_companies
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Admin can delete shared companies" ON shared_companies;
+CREATE POLICY "Admin can delete shared companies" ON shared_companies
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+COMMENT ON TABLE shared_companies IS 'Deduplicated company registry, admin-managed (Feature 012)';
+
+-- T016: Create company_locations table
+CREATE TABLE IF NOT EXISTS company_locations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shared_company_id UUID NOT NULL REFERENCES shared_companies(id) ON DELETE CASCADE,
+  address VARCHAR(500) NOT NULL,
+  latitude DECIMAL(10, 7) NOT NULL,
+  longitude DECIMAL(10, 7) NOT NULL,
+  phone VARCHAR(20),
+  email VARCHAR(255),
+  contact_name TEXT,
+  contact_title TEXT,
+  is_headquarters BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- GIST index for PostGIS spatial queries
+CREATE INDEX IF NOT EXISTS idx_company_locations_geo ON company_locations
+  USING GIST (CAST(ST_SetSRID(ST_Point(longitude, latitude), 4326) AS geography));
+CREATE INDEX IF NOT EXISTS idx_company_locations_company ON company_locations(shared_company_id);
+
+ALTER TABLE company_locations ENABLE ROW LEVEL SECURITY;
+
+-- Public read, admin write
+DROP POLICY IF EXISTS "Anyone can view company locations" ON company_locations;
+CREATE POLICY "Anyone can view company locations" ON company_locations
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admin can insert company locations" ON company_locations;
+CREATE POLICY "Admin can insert company locations" ON company_locations
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Admin can update company locations" ON company_locations;
+CREATE POLICY "Admin can update company locations" ON company_locations
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Admin can delete company locations" ON company_locations;
+CREATE POLICY "Admin can delete company locations" ON company_locations
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+COMMENT ON TABLE company_locations IS 'Physical addresses for shared companies (Feature 012)';
+
+-- T017: Create user_company_tracking table
+CREATE TABLE IF NOT EXISTS user_company_tracking (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  shared_company_id UUID NOT NULL REFERENCES shared_companies(id) ON DELETE CASCADE,
+  location_id UUID REFERENCES company_locations(id),
+  status company_status NOT NULL DEFAULT 'not_contacted',
+  priority INTEGER NOT NULL DEFAULT 3 CHECK (priority >= 1 AND priority <= 5),
+  notes TEXT,
+  contact_name VARCHAR(100),
+  contact_title VARCHAR(100),
+  follow_up_date DATE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT unique_user_company_location UNIQUE (user_id, shared_company_id, location_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_tracking_user ON user_company_tracking(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_tracking_company ON user_company_tracking(shared_company_id);
+CREATE INDEX IF NOT EXISTS idx_user_tracking_status ON user_company_tracking(user_id, status);
+
+ALTER TABLE user_company_tracking ENABLE ROW LEVEL SECURITY;
+
+-- Users can only access their own tracking records
+DROP POLICY IF EXISTS "Users can view own tracking" ON user_company_tracking;
+CREATE POLICY "Users can view own tracking" ON user_company_tracking
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admin can view all tracking" ON user_company_tracking;
+CREATE POLICY "Admin can view all tracking" ON user_company_tracking
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Users can create own tracking" ON user_company_tracking;
+CREATE POLICY "Users can create own tracking" ON user_company_tracking
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own tracking" ON user_company_tracking;
+CREATE POLICY "Users can update own tracking" ON user_company_tracking
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own tracking" ON user_company_tracking;
+CREATE POLICY "Users can delete own tracking" ON user_company_tracking
+  FOR DELETE USING (auth.uid() = user_id);
+
+COMMENT ON TABLE user_company_tracking IS 'User relationship to shared companies (Feature 012)';
+
+-- T018: Create private_companies table
+CREATE TABLE IF NOT EXISTS private_companies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  metro_area_id UUID REFERENCES metro_areas(id),
+  name VARCHAR(255) NOT NULL,
+  website VARCHAR(500),
+  careers_url VARCHAR(500),
+  address VARCHAR(500),
+  latitude DECIMAL(10, 7),
+  longitude DECIMAL(10, 7),
+  phone VARCHAR(20),
+  email VARCHAR(255),
+  contact_name VARCHAR(100),
+  contact_title VARCHAR(100),
+  notes TEXT,
+  status company_status NOT NULL DEFAULT 'not_contacted',
+  priority INTEGER NOT NULL DEFAULT 3 CHECK (priority >= 1 AND priority <= 5),
+  follow_up_date DATE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  submit_to_shared BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_private_companies_user ON private_companies(user_id);
+CREATE INDEX IF NOT EXISTS idx_private_companies_name_trgm ON private_companies USING gin(name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_private_companies_metro ON private_companies(metro_area_id);
+
+ALTER TABLE private_companies ENABLE ROW LEVEL SECURITY;
+
+-- Users can only access their own private companies
+DROP POLICY IF EXISTS "Users can view own private companies" ON private_companies;
+CREATE POLICY "Users can view own private companies" ON private_companies
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admin can view all private companies" ON private_companies;
+CREATE POLICY "Admin can view all private companies" ON private_companies
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Users can create own private companies" ON private_companies;
+CREATE POLICY "Users can create own private companies" ON private_companies
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own private companies" ON private_companies;
+CREATE POLICY "Users can update own private companies" ON private_companies
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own private companies" ON private_companies;
+CREATE POLICY "Users can delete own private companies" ON private_companies
+  FOR DELETE USING (auth.uid() = user_id);
+
+COMMENT ON TABLE private_companies IS 'User-owned companies not yet in shared registry (Feature 012)';
+
+-- T019: Create company_contributions table
+CREATE TABLE IF NOT EXISTS company_contributions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id),
+  private_company_id UUID NOT NULL REFERENCES private_companies(id),
+  status contribution_status NOT NULL DEFAULT 'pending',
+  admin_notes TEXT,
+  reviewed_by UUID REFERENCES auth.users(id),
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_contributions_user ON company_contributions(user_id);
+CREATE INDEX IF NOT EXISTS idx_contributions_status ON company_contributions(status);
+CREATE INDEX IF NOT EXISTS idx_contributions_pending ON company_contributions(status) WHERE status = 'pending';
+
+ALTER TABLE company_contributions ENABLE ROW LEVEL SECURITY;
+
+-- Users can view own + admin can view all
+DROP POLICY IF EXISTS "Users can view own contributions" ON company_contributions;
+CREATE POLICY "Users can view own contributions" ON company_contributions
+  FOR SELECT USING (
+    auth.uid() = user_id OR
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Users can create contributions" ON company_contributions;
+CREATE POLICY "Users can create contributions" ON company_contributions
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admin can update contributions" ON company_contributions;
+CREATE POLICY "Admin can update contributions" ON company_contributions
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+COMMENT ON TABLE company_contributions IS 'Pending submissions to shared registry (Feature 012)';
+
+-- T020: Create company_edit_suggestions table
+CREATE TABLE IF NOT EXISTS company_edit_suggestions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id),
+  shared_company_id UUID NOT NULL REFERENCES shared_companies(id),
+  location_id UUID REFERENCES company_locations(id),
+  field_name VARCHAR(50) NOT NULL,
+  old_value TEXT,
+  new_value TEXT NOT NULL,
+  status contribution_status NOT NULL DEFAULT 'pending',
+  admin_notes TEXT,
+  reviewed_by UUID REFERENCES auth.users(id),
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_edit_suggestions_user ON company_edit_suggestions(user_id);
+CREATE INDEX IF NOT EXISTS idx_edit_suggestions_company ON company_edit_suggestions(shared_company_id);
+CREATE INDEX IF NOT EXISTS idx_edit_suggestions_pending ON company_edit_suggestions(status) WHERE status = 'pending';
+
+ALTER TABLE company_edit_suggestions ENABLE ROW LEVEL SECURITY;
+
+-- Users can view own + admin can view all
+DROP POLICY IF EXISTS "Users can view own suggestions" ON company_edit_suggestions;
+CREATE POLICY "Users can view own suggestions" ON company_edit_suggestions
+  FOR SELECT USING (
+    auth.uid() = user_id OR
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Users can create suggestions" ON company_edit_suggestions;
+CREATE POLICY "Users can create suggestions" ON company_edit_suggestions
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admin can update suggestions" ON company_edit_suggestions;
+CREATE POLICY "Admin can update suggestions" ON company_edit_suggestions
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+COMMENT ON TABLE company_edit_suggestions IS 'Pending data corrections for shared companies (Feature 012)';
+
+-- T022: Create user_companies_unified view
+DROP VIEW IF EXISTS user_companies_unified;
+-- View uses security_invoker to respect RLS on underlying tables
+-- Updated Feature 014: Pull contact info from company_locations (HQ), with user overrides
+CREATE OR REPLACE VIEW user_companies_unified
+WITH (security_invoker = true) AS
+SELECT
+  CAST('shared' AS text) as source,
+  sc.id as company_id,
+  CAST(NULL AS uuid) as private_company_id,
+  uct.id as tracking_id,
+  sc.name,
+  sc.website,
+  sc.careers_url,
+  COALESCE(cl.address, hq.address, '') as address,
+  COALESCE(cl.latitude, hq.latitude, 0) as latitude,
+  COALESCE(cl.longitude, hq.longitude, 0) as longitude,
+  COALESCE(cl.phone, hq.phone, '') as phone,
+  COALESCE(cl.email, hq.email, '') as email,
+  -- Feature 014: Prefer company_locations contact, then user override, then HQ contact
+  COALESCE(uct.contact_name, cl.contact_name, hq.contact_name, '') as contact_name,
+  COALESCE(uct.contact_title, cl.contact_title, hq.contact_title, '') as contact_title,
+  uct.notes,
+  uct.status,
+  uct.priority,
+  uct.follow_up_date,
+  uct.is_active,
+  sc.is_verified,
+  uct.user_id,
+  uct.created_at,
+  uct.updated_at
+FROM user_company_tracking uct
+JOIN shared_companies sc ON uct.shared_company_id = sc.id
+LEFT JOIN company_locations cl ON uct.location_id = cl.id
+-- Feature 014: Also join headquarters location for fallback contact info
+LEFT JOIN company_locations hq ON hq.shared_company_id = sc.id AND hq.is_headquarters = true
+
+UNION ALL
+
+SELECT
+  CAST('private' AS text) as source,
+  CAST(NULL AS uuid) as company_id,
+  pc.id as private_company_id,
+  CAST(NULL AS uuid) as tracking_id,
+  pc.name,
+  pc.website,
+  pc.careers_url,
+  COALESCE(pc.address, '') as address,
+  COALESCE(pc.latitude, 0) as latitude,
+  COALESCE(pc.longitude, 0) as longitude,
+  COALESCE(pc.phone, '') as phone,
+  COALESCE(pc.email, '') as email,
+  COALESCE(pc.contact_name, '') as contact_name,
+  COALESCE(pc.contact_title, '') as contact_title,
+  pc.notes,
+  pc.status,
+  pc.priority,
+  pc.follow_up_date,
+  pc.is_active,
+  false as is_verified,
+  pc.user_id,
+  pc.created_at,
+  pc.updated_at
+FROM private_companies pc;
+
+COMMENT ON VIEW user_companies_unified IS 'Unified view combining shared tracking + private companies (Feature 012)';
+
+-- T023: Create assign_metro_area trigger function
+CREATE OR REPLACE FUNCTION assign_metro_area()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.latitude IS NOT NULL AND NEW.longitude IS NOT NULL THEN
+    SELECT id INTO NEW.metro_area_id
+    FROM metro_areas
+    WHERE ST_DWithin(
+      CAST(ST_SetSRID(ST_Point(NEW.longitude, NEW.latitude), 4326) AS geography),
+      CAST(ST_SetSRID(ST_Point(center_lng, center_lat), 4326) AS geography),
+      radius_miles * 1609.34  -- Convert miles to meters
+    )
+    ORDER BY ST_Distance(
+      CAST(ST_SetSRID(ST_Point(NEW.longitude, NEW.latitude), 4326) AS geography),
+      CAST(ST_SetSRID(ST_Point(center_lng, center_lat), 4326) AS geography)
+    )
+    LIMIT 1;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_private_company_metro_area ON private_companies;
+CREATE TRIGGER trg_private_company_metro_area
+  BEFORE INSERT OR UPDATE ON private_companies
+  FOR EACH ROW
+  EXECUTE FUNCTION assign_metro_area();
+
+COMMENT ON FUNCTION assign_metro_area() IS 'Auto-infer metro_area_id from coordinates (Feature 012)';
+
+-- T024: Create update_updated_at triggers for new tables
+DROP TRIGGER IF EXISTS trg_shared_companies_updated_at ON shared_companies;
+CREATE TRIGGER trg_shared_companies_updated_at
+  BEFORE UPDATE ON shared_companies
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_user_company_tracking_updated_at ON user_company_tracking;
+CREATE TRIGGER trg_user_company_tracking_updated_at
+  BEFORE UPDATE ON user_company_tracking
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_private_companies_updated_at ON private_companies;
+CREATE TRIGGER trg_private_companies_updated_at
+  BEFORE UPDATE ON private_companies
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- T025: Insert Cleveland, TN metro area
+INSERT INTO metro_areas (name, state, center_lat, center_lng, radius_miles)
+VALUES ('Cleveland, TN', 'TN', 35.1595, -84.8707, 30)
+ON CONFLICT (name, state) DO NOTHING;
+
+-- T071: Create find_similar_companies RPC function for match detection
+DROP FUNCTION IF EXISTS find_similar_companies(text,numeric,numeric,text);
+DROP FUNCTION IF EXISTS find_similar_companies(text,decimal,decimal,text);
+CREATE OR REPLACE FUNCTION find_similar_companies(
+  p_company_name TEXT,
+  p_latitude DECIMAL DEFAULT NULL,
+  p_longitude DECIMAL DEFAULT NULL,
+  p_website_domain TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+  company_id UUID,
+  company_name TEXT,
+  website TEXT,
+  careers_url TEXT,
+  is_verified BOOLEAN,
+  location_id UUID,
+  address TEXT,
+  distance_miles DECIMAL,
+  name_similarity DECIMAL,
+  domain_match BOOLEAN,
+  confidence TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  similarity_threshold DECIMAL := 0.3;
+  proximity_miles DECIMAL := 5.0;
+BEGIN
+  RETURN QUERY
+  SELECT
+    sc.id as company_id,
+    CAST(sc.name AS TEXT) as company_name,
+    CAST(sc.website AS TEXT) as website,
+    CAST(sc.careers_url AS TEXT) as careers_url,
+    sc.is_verified,
+    cl.id as location_id,
+    CAST(cl.address AS TEXT) as address,
+    CASE
+      WHEN p_latitude IS NOT NULL AND p_longitude IS NOT NULL AND cl.latitude IS NOT NULL THEN
+        ROUND(CAST(ST_Distance(
+          CAST(ST_SetSRID(ST_Point(p_longitude, p_latitude), 4326) AS geography),
+          CAST(ST_SetSRID(ST_Point(cl.longitude, cl.latitude), 4326) AS geography)
+        ) / 1609.34 AS decimal), 2)
+      ELSE NULL
+    END as distance_miles,
+    ROUND(CAST(similarity(sc.name, p_company_name) AS decimal), 3) as name_similarity,
+    CASE
+      WHEN p_website_domain IS NOT NULL AND sc.website IS NOT NULL
+           AND sc.website ILIKE '%' || p_website_domain || '%'
+      THEN TRUE
+      ELSE FALSE
+    END as domain_match,
+    CASE
+      WHEN similarity(sc.name, p_company_name) >= 0.7 THEN 'high'
+      WHEN p_website_domain IS NOT NULL AND sc.website ILIKE '%' || p_website_domain || '%' THEN 'high'
+      WHEN similarity(sc.name, p_company_name) >= 0.4 THEN 'medium'
+      ELSE 'low'
+    END as confidence
+  FROM shared_companies sc
+  LEFT JOIN company_locations cl ON cl.shared_company_id = sc.id
+  WHERE similarity(sc.name, p_company_name) >= similarity_threshold
+     OR (p_latitude IS NOT NULL AND p_longitude IS NOT NULL AND cl.latitude IS NOT NULL AND
+         ST_DWithin(
+           CAST(ST_SetSRID(ST_Point(p_longitude, p_latitude), 4326) AS geography),
+           CAST(ST_SetSRID(ST_Point(cl.longitude, cl.latitude), 4326) AS geography),
+           proximity_miles * 1609.34
+         ))
+     OR (p_website_domain IS NOT NULL AND sc.website ILIKE '%' || p_website_domain || '%')
+  ORDER BY name_similarity DESC, distance_miles ASC NULLS LAST
+  LIMIT 10;
+END;
+$$;
+
+COMMENT ON FUNCTION find_similar_companies IS 'Match detection using fuzzy name + proximity + domain (Feature 012)';
+
+-- Grant permissions for new tables
+GRANT SELECT ON metro_areas TO authenticated;
+GRANT SELECT ON shared_companies TO authenticated;
+GRANT SELECT ON company_locations TO authenticated;
+GRANT ALL ON user_company_tracking TO authenticated;
+GRANT ALL ON private_companies TO authenticated;
+GRANT ALL ON company_contributions TO authenticated;
+GRANT ALL ON company_edit_suggestions TO authenticated;
+GRANT SELECT ON user_companies_unified TO authenticated;
+
+GRANT ALL ON metro_areas TO service_role;
+GRANT ALL ON shared_companies TO service_role;
+GRANT ALL ON company_locations TO service_role;
+GRANT ALL ON user_company_tracking TO service_role;
+GRANT ALL ON private_companies TO service_role;
+GRANT ALL ON company_contributions TO service_role;
+GRANT ALL ON company_edit_suggestions TO service_role;
+
+-- Auto-assign metro_area_id to user_profiles based on home coordinates
+CREATE OR REPLACE FUNCTION assign_user_metro_area()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Auto-assign metro area based on home coordinates
+  IF NEW.home_latitude IS NOT NULL AND NEW.home_longitude IS NOT NULL THEN
+    SELECT id INTO NEW.metro_area_id
+    FROM metro_areas
+    WHERE ST_DWithin(
+      CAST(ST_SetSRID(ST_Point(NEW.home_longitude, NEW.home_latitude), 4326) AS geography),
+      CAST(ST_SetSRID(ST_Point(center_lng, center_lat), 4326) AS geography),
+      radius_miles * 1609.34  -- Convert miles to meters
+    )
+    ORDER BY ST_Distance(
+      CAST(ST_SetSRID(ST_Point(NEW.home_longitude, NEW.home_latitude), 4326) AS geography),
+      CAST(ST_SetSRID(ST_Point(center_lng, center_lat), 4326) AS geography)
+    )
+    LIMIT 1;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+COMMENT ON FUNCTION assign_user_metro_area() IS 'Auto-assign metro_area_id based on user home coordinates (Feature 012)';
+
+-- Trigger to auto-assign metro area when user sets home location
+DROP TRIGGER IF EXISTS trg_assign_user_metro_area ON user_profiles;
+CREATE TRIGGER trg_assign_user_metro_area
+  BEFORE INSERT OR UPDATE OF home_latitude, home_longitude ON user_profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION assign_user_metro_area();
+
+-- T091: Create seed_user_companies function to auto-create tracking for new users
+-- Updated: Also fires on UPDATE when metro_area_id is set for the first time
+CREATE OR REPLACE FUNCTION seed_user_companies()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Auto-create tracking records for seed companies in user's metro area
+  -- Only seed when metro_area_id transitions from NULL to a value
+  -- This prevents re-seeding when user changes metro areas
+  IF NEW.metro_area_id IS NOT NULL AND (OLD IS NULL OR OLD.metro_area_id IS NULL) THEN
+    INSERT INTO user_company_tracking (user_id, shared_company_id, status, priority, is_active)
+    SELECT
+      NEW.id,
+      sc.id,
+      'not_contacted',
+      COALESCE(sc.default_priority, 3),  -- Use company's default priority (Feature 014)
+      true
+    FROM shared_companies sc
+    WHERE sc.metro_area_id = NEW.metro_area_id
+      AND sc.is_seed = true
+      AND sc.is_verified = true
+    ON CONFLICT DO NOTHING;  -- Ignore if already tracking
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- T091: Trigger to auto-seed companies on user profile creation or home location update
+-- Note: Uses AFTER INSERT OR UPDATE (not UPDATE OF metro_area_id) because metro_area_id
+-- is set by the assign_user_metro_area BEFORE trigger, not by the UPDATE statement itself
+DROP TRIGGER IF EXISTS trg_seed_user_companies ON user_profiles;
+CREATE TRIGGER trg_seed_user_companies
+  AFTER INSERT OR UPDATE ON user_profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION seed_user_companies();
+
+COMMENT ON FUNCTION seed_user_companies() IS 'Auto-create tracking for seed companies when user signs up or sets home location (Feature 012 US4)';
+
+-- T091: Helper function to get metro areas with seed company counts
+CREATE OR REPLACE FUNCTION get_metro_areas_with_seed_count()
+RETURNS TABLE (
+  id UUID,
+  name TEXT,
+  seed_company_count BIGINT
+)
+LANGUAGE SQL
+STABLE
+SET search_path = public
+AS $$
+  SELECT
+    ma.id,
+    ma.name,
+    COUNT(sc.id) as seed_company_count
+  FROM metro_areas ma
+  LEFT JOIN shared_companies sc ON sc.metro_area_id = ma.id
+    AND sc.is_seed = true
+    AND sc.is_verified = true
+  GROUP BY ma.id, ma.name
+  HAVING COUNT(sc.id) > 0
+  ORDER BY ma.name;
+$$;
+
+COMMENT ON FUNCTION get_metro_areas_with_seed_count() IS 'Get metro areas that have seed data available (Feature 012 US4)';
+
+-- ============================================================================
+-- END FEATURE 012: Multi-Tenant Company Data Model
+-- ============================================================================
+
+-- ============================================================================
+-- FEATURE 014: Job Applications and Data Quality Fix
+-- Fixes broken FK from Feature 012 migration
+-- ============================================================================
+
+-- T003: contact_name and contact_title columns already in initial company_locations table definition
+COMMENT ON COLUMN company_locations.contact_name IS 'Primary contact name at this location (Feature 014)';
+COMMENT ON COLUMN company_locations.contact_title IS 'Primary contact job title (Feature 014)';
+
+-- T004: Fix job_applications foreign keys
+-- Step 1: Drop broken FK constraint to deleted companies table
+ALTER TABLE job_applications
+  DROP CONSTRAINT IF EXISTS job_applications_company_id_fkey;
+
+-- Step 2: Drop broken column (was referencing deleted 'companies' table)
+ALTER TABLE job_applications
+  DROP COLUMN IF EXISTS company_id;
+
+-- Step 3: Add new columns for multi-tenant architecture
+ALTER TABLE job_applications
+  ADD COLUMN IF NOT EXISTS shared_company_id UUID REFERENCES shared_companies(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS private_company_id UUID REFERENCES private_companies(id) ON DELETE CASCADE;
+
+-- Step 4: Add CHECK constraint - exactly one company reference must be set
+-- Use DO block to make idempotent
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'job_applications_company_ref_check'
+  ) THEN
+    ALTER TABLE job_applications
+      ADD CONSTRAINT job_applications_company_ref_check
+      CHECK (
+        (shared_company_id IS NOT NULL AND private_company_id IS NULL) OR
+        (shared_company_id IS NULL AND private_company_id IS NOT NULL)
+      );
+  END IF;
+END $$;
+
+-- Step 5: Add partial indexes for efficient querying
+CREATE INDEX IF NOT EXISTS idx_job_applications_shared_company
+  ON job_applications(shared_company_id) WHERE shared_company_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_job_applications_private_company
+  ON job_applications(private_company_id) WHERE private_company_id IS NOT NULL;
+
+-- Step 6: Drop old index that referenced company_id
+DROP INDEX IF EXISTS idx_job_applications_company;
+
+COMMENT ON COLUMN job_applications.shared_company_id IS 'FK to shared_companies for community companies (Feature 014)';
+COMMENT ON COLUMN job_applications.private_company_id IS 'FK to private_companies for user-created companies (Feature 014)';
+
+-- PostgREST needs a FK to user_profiles (not just auth.users) for join queries
+ALTER TABLE job_applications
+  ADD CONSTRAINT job_applications_user_id_profile_fkey
+  FOREIGN KEY (user_id) REFERENCES public.user_profiles(id)
+  NOT VALID;  -- NOT VALID: don't block if orphan rows exist; enforce on new inserts only
+
+-- T005: Update RLS policies for job_applications (ensure they work with new schema)
+-- Policies already exist from original table creation, just verify they use user_id correctly
+-- The existing policies use auth.uid() = user_id which is correct for multi-tenant isolation
+
+-- ============================================================================
+-- END FEATURE 014: Job Applications and Data Quality Fix
+-- ============================================================================
+
+-- ============================================================================
+-- FEATURE 041: Bicycle Route Planning
+-- Created: 2025-12-08
+-- Purpose: Enable users to create, save, and manage cycling routes with
+--          company associations, next-ride planning, and map tile providers
+-- ============================================================================
+
+-- T001: Create map_tile_providers table
+CREATE TABLE IF NOT EXISTS map_tile_providers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(50) NOT NULL UNIQUE,
+  display_name VARCHAR(100) NOT NULL,
+  url_template TEXT NOT NULL,
+  attribution TEXT NOT NULL,
+  max_zoom INTEGER NOT NULL DEFAULT 18,
+  is_cycling_optimized BOOLEAN NOT NULL DEFAULT FALSE,
+  requires_api_key BOOLEAN NOT NULL DEFAULT FALSE,
+  is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  priority INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE map_tile_providers IS 'Configuration for available map tile sources (Feature 041)';
+
+-- RLS for map_tile_providers (public read, admin write)
+ALTER TABLE map_tile_providers ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'map_tile_providers' AND policyname = 'map_tile_providers_select'
+  ) THEN
+    CREATE POLICY map_tile_providers_select ON map_tile_providers FOR SELECT USING (true);
+  END IF;
+END $$;
+
+-- T001: Create bicycle_routes table
+CREATE TABLE IF NOT EXISTS bicycle_routes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  metro_area_id UUID REFERENCES metro_areas(id) ON DELETE SET NULL,
+  name VARCHAR(100) NOT NULL CHECK (char_length(name) >= 1),
+  description TEXT CHECK (description IS NULL OR char_length(description) <= 1000),
+  color VARCHAR(7) NOT NULL DEFAULT '#3B82F6' CHECK (color ~ '^#[0-9A-Fa-f]{6}$'),
+  start_address TEXT,
+  start_latitude DECIMAL(10,8) CHECK (start_latitude IS NULL OR (start_latitude >= -90 AND start_latitude <= 90)),
+  start_longitude DECIMAL(11,8) CHECK (start_longitude IS NULL OR (start_longitude >= -180 AND start_longitude <= 180)),
+  end_address TEXT,
+  end_latitude DECIMAL(10,8) CHECK (end_latitude IS NULL OR (end_latitude >= -90 AND end_latitude <= 90)),
+  end_longitude DECIMAL(11,8) CHECK (end_longitude IS NULL OR (end_longitude >= -180 AND end_longitude <= 180)),
+  route_geometry JSONB,
+  distance_miles DECIMAL(8,2),
+  estimated_time_minutes INTEGER,
+  is_system_route BOOLEAN NOT NULL DEFAULT FALSE,
+  source_name VARCHAR(100),
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE bicycle_routes IS 'User-defined and system bicycle routes with GeoJSON geometry (Feature 041)';
+
+-- Indexes for bicycle_routes
+CREATE INDEX IF NOT EXISTS idx_bicycle_routes_user ON bicycle_routes(user_id);
+CREATE INDEX IF NOT EXISTS idx_bicycle_routes_metro ON bicycle_routes(metro_area_id);
+CREATE INDEX IF NOT EXISTS idx_bicycle_routes_system ON bicycle_routes(is_system_route) WHERE is_system_route = TRUE;
+CREATE INDEX IF NOT EXISTS idx_bicycle_routes_active ON bicycle_routes(user_id, is_active);
+
+-- RLS for bicycle_routes
+ALTER TABLE bicycle_routes ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'bicycle_routes' AND policyname = 'bicycle_routes_select'
+  ) THEN
+    CREATE POLICY bicycle_routes_select ON bicycle_routes FOR SELECT
+      USING (auth.uid() = user_id OR is_system_route = TRUE);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'bicycle_routes' AND policyname = 'bicycle_routes_insert'
+  ) THEN
+    CREATE POLICY bicycle_routes_insert ON bicycle_routes FOR INSERT
+      WITH CHECK (auth.uid() = user_id AND is_system_route = FALSE);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'bicycle_routes' AND policyname = 'bicycle_routes_update'
+  ) THEN
+    CREATE POLICY bicycle_routes_update ON bicycle_routes FOR UPDATE
+      USING (auth.uid() = user_id AND is_system_route = FALSE);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'bicycle_routes' AND policyname = 'bicycle_routes_delete'
+  ) THEN
+    CREATE POLICY bicycle_routes_delete ON bicycle_routes FOR DELETE
+      USING (auth.uid() = user_id AND is_system_route = FALSE);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'bicycle_routes' AND policyname = 'bicycle_routes_admin_select'
+  ) THEN
+    CREATE POLICY bicycle_routes_admin_select ON bicycle_routes FOR SELECT
+      USING (EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true));
+  END IF;
+END $$;
+
+-- T001: Create route_companies junction table
+CREATE TABLE IF NOT EXISTS route_companies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  route_id UUID NOT NULL REFERENCES bicycle_routes(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  shared_company_id UUID REFERENCES shared_companies(id) ON DELETE CASCADE,
+  private_company_id UUID REFERENCES private_companies(id) ON DELETE CASCADE,
+  tracking_id UUID REFERENCES user_company_tracking(id) ON DELETE CASCADE,
+  sequence_order INTEGER NOT NULL DEFAULT 0,
+  visit_on_next_ride BOOLEAN NOT NULL DEFAULT FALSE,
+  distance_from_start_miles DECIMAL(8,2),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE route_companies IS 'Junction table linking routes to companies with ordering (Feature 041)';
+
+-- Constraint: exactly one company reference must be set
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'route_companies_company_ref_check'
+  ) THEN
+    ALTER TABLE route_companies
+      ADD CONSTRAINT route_companies_company_ref_check
+      CHECK (
+        (shared_company_id IS NOT NULL AND private_company_id IS NULL) OR
+        (shared_company_id IS NULL AND private_company_id IS NOT NULL)
+      );
+  END IF;
+END $$;
+
+-- Unique constraint for route-company combination
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'route_companies_unique_association'
+  ) THEN
+    ALTER TABLE route_companies
+      ADD CONSTRAINT route_companies_unique_association
+      UNIQUE (route_id, shared_company_id, private_company_id);
+  END IF;
+END $$;
+
+-- Indexes for route_companies
+CREATE INDEX IF NOT EXISTS idx_route_companies_route ON route_companies(route_id, sequence_order);
+CREATE INDEX IF NOT EXISTS idx_route_companies_user ON route_companies(user_id);
+CREATE INDEX IF NOT EXISTS idx_route_companies_shared ON route_companies(shared_company_id) WHERE shared_company_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_route_companies_private ON route_companies(private_company_id) WHERE private_company_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_route_companies_next_ride ON route_companies(user_id, visit_on_next_ride) WHERE visit_on_next_ride = TRUE;
+
+-- RLS for route_companies
+ALTER TABLE route_companies ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'route_companies' AND policyname = 'route_companies_all'
+  ) THEN
+    CREATE POLICY route_companies_all ON route_companies FOR ALL
+      USING (auth.uid() = user_id);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'route_companies' AND policyname = 'route_companies_admin_select'
+  ) THEN
+    CREATE POLICY route_companies_admin_select ON route_companies FOR SELECT
+      USING (EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true));
+  END IF;
+END $$;
+
+-- T001: Create active_route_planning table (one active route per user)
+CREATE TABLE IF NOT EXISTS active_route_planning (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  route_id UUID NOT NULL REFERENCES bicycle_routes(id) ON DELETE CASCADE,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_modified_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE active_route_planning IS 'Tracks users current route being planned - one per user (Feature 041)';
+
+-- RLS for active_route_planning
+ALTER TABLE active_route_planning ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'active_route_planning' AND policyname = 'active_route_planning_all'
+  ) THEN
+    CREATE POLICY active_route_planning_all ON active_route_planning FOR ALL
+      USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+-- Feature 046: Route Optimization - Add start/end type and round-trip columns
+ALTER TABLE bicycle_routes
+ADD COLUMN IF NOT EXISTS start_type TEXT DEFAULT 'home' CHECK (start_type IN ('home', 'custom')),
+ADD COLUMN IF NOT EXISTS end_type TEXT DEFAULT 'home' CHECK (end_type IN ('home', 'custom')),
+ADD COLUMN IF NOT EXISTS is_round_trip BOOLEAN DEFAULT true,
+ADD COLUMN IF NOT EXISTS last_optimized_at TIMESTAMPTZ;
+
+COMMENT ON COLUMN bicycle_routes.start_type IS 'Whether start uses home location or custom coordinates (Feature 046)';
+COMMENT ON COLUMN bicycle_routes.end_type IS 'Whether end uses home location or custom coordinates (Feature 046)';
+COMMENT ON COLUMN bicycle_routes.is_round_trip IS 'True if route returns to start point (Feature 046)';
+COMMENT ON COLUMN bicycle_routes.last_optimized_at IS 'Timestamp of last TSP optimization (Feature 046)';
+
+-- T004: Seed map_tile_providers with default providers
+INSERT INTO map_tile_providers (name, display_name, url_template, attribution, max_zoom, is_cycling_optimized, requires_api_key, priority)
+VALUES
+  ('osm', 'OpenStreetMap', 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', '© OpenStreetMap contributors', 19, FALSE, FALSE, 0),
+  ('cyclosm', 'CyclOSM', 'https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', '© CyclOSM | Map data © OpenStreetMap contributors', 20, TRUE, FALSE, 15),
+  ('opencyclemap', 'OpenCycleMap', 'https://{s}.tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey={apikey}', '© Thunderforest, OpenStreetMap contributors', 22, TRUE, TRUE, 10),
+  ('thunderforest_outdoors', 'Outdoors', 'https://{s}.tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey={apikey}', '© Thunderforest, OpenStreetMap contributors', 22, TRUE, TRUE, 5)
+ON CONFLICT (name) DO NOTHING;
+
+-- T005: Seed Cleveland GreenWay system route
+-- Note: This is a system route visible to all users in the Cleveland/Bradley County area
+-- Coordinates trace the 4.2-mile paved trail from Mohawk Drive to Willow Street
+INSERT INTO bicycle_routes (
+  user_id,
+  metro_area_id,
+  name,
+  description,
+  color,
+  start_address,
+  start_latitude,
+  start_longitude,
+  end_address,
+  end_latitude,
+  end_longitude,
+  route_geometry,
+  distance_miles,
+  estimated_time_minutes,
+  is_system_route,
+  source_name
+)
+SELECT
+  (SELECT id FROM auth.users LIMIT 1), -- Will be updated to admin user or system user
+  (SELECT id FROM metro_areas WHERE name ILIKE '%cleveland%' OR name ILIKE '%bradley%' LIMIT 1),
+  'Cleveland GreenWay',
+  'A 4.2-mile paved multi-use trail connecting Mohawk Drive to Willow Street in Cleveland, TN. Features 9 access points, creek crossings, and connections to downtown Cleveland.',
+  '#10B981', -- Emerald green for trail
+  'Mohawk Drive Trailhead, Cleveland, TN',
+  35.1667,
+  -84.8667,
+  'Willow Street Trailhead, Cleveland, TN',
+  35.1333,
+  -84.8833,
+  '{"type": "LineString", "coordinates": [[-84.8667, 35.1667], [-84.8700, 35.1600], [-84.8750, 35.1500], [-84.8800, 35.1400], [-84.8833, 35.1333]]}'::jsonb,
+  4.2,
+  25,
+  TRUE,
+  'Cleveland GreenWay Coalition'
+WHERE NOT EXISTS (
+  SELECT 1 FROM bicycle_routes WHERE name = 'Cleveland GreenWay' AND is_system_route = TRUE
+);
+
+-- Function to update bicycle_routes.updated_at on changes
+CREATE OR REPLACE FUNCTION update_bicycle_routes_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$;
+
+-- Trigger for bicycle_routes.updated_at
+DROP TRIGGER IF EXISTS bicycle_routes_updated_at ON bicycle_routes;
+CREATE TRIGGER bicycle_routes_updated_at
+  BEFORE UPDATE ON bicycle_routes
+  FOR EACH ROW
+  EXECUTE FUNCTION update_bicycle_routes_updated_at();
+
+-- Function to update active_route_planning.last_modified_at on changes
+CREATE OR REPLACE FUNCTION update_active_route_planning_modified()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  NEW.last_modified_at = NOW();
+  RETURN NEW;
+END;
+$$;
+
+-- Trigger for active_route_planning.last_modified_at
+DROP TRIGGER IF EXISTS active_route_planning_modified ON active_route_planning;
+CREATE TRIGGER active_route_planning_modified
+  BEFORE UPDATE ON active_route_planning
+  FOR EACH ROW
+  EXECUTE FUNCTION update_active_route_planning_modified();
+
+-- ============================================================================
+-- END FEATURE 041: Bicycle Route Planning
+-- ============================================================================
+
+-- ============================================================================
+-- SECURITY: Audit Log Cleanup (90-day retention)
+-- ============================================================================
+-- Automatically delete audit logs older than 90 days to:
+-- 1. Comply with data retention policies
+-- 2. Prevent unbounded table growth
+-- 3. Reduce storage costs
+--
+-- Usage: Call manually or schedule via pg_cron:
+--   SELECT cleanup_old_audit_logs();
+-- ============================================================================
+
+-- Drop old version first (signature change: void -> TABLE)
+DROP FUNCTION IF EXISTS cleanup_old_audit_logs();
+
+CREATE OR REPLACE FUNCTION cleanup_old_audit_logs()
+RETURNS TABLE(deleted_count bigint)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  rows_deleted bigint;
+BEGIN
+  DELETE FROM auth_audit_logs
+  WHERE created_at < NOW() - INTERVAL '90 days';
+
+  GET DIAGNOSTICS rows_deleted = ROW_COUNT;
+
+  RETURN QUERY SELECT rows_deleted;
+END;
+$$;
+
+COMMENT ON FUNCTION cleanup_old_audit_logs() IS 'Deletes auth_audit_logs older than 90 days. Returns count of deleted rows. Call daily via pg_cron or GitHub Action.';
+
+-- Note: To schedule automatic cleanup with pg_cron (requires extension enabled in Supabase dashboard):
+-- SELECT cron.schedule('cleanup-audit-logs', '0 3 * * *', 'SELECT cleanup_old_audit_logs()');
+-- This runs daily at 3 AM UTC
+
+-- ============================================================================
+-- END SECURITY: Audit Log Cleanup
+-- ============================================================================
+
+-- ============================================================================
+-- FEATURE 063: Employer Dashboard
+-- Created: 2026-02-18
+-- Purpose: Support employer role with dashboard access and company links
+-- ============================================================================
+
+-- T001: Add role column to user_profiles (default 'worker')
+ALTER TABLE user_profiles
+  ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'worker'
+  CHECK (role IN ('worker', 'employer', 'admin'));
+
+CREATE INDEX IF NOT EXISTS idx_user_profiles_role ON user_profiles(role);
+
+COMMENT ON COLUMN user_profiles.role IS 'User role: worker (default), employer, or admin (Feature 063)';
+
+-- T002: Create employer_company_links table
+CREATE TABLE IF NOT EXISTS employer_company_links (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  shared_company_id UUID NOT NULL REFERENCES shared_companies(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT unique_employer_company UNIQUE (user_id, shared_company_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_employer_company_links_user ON employer_company_links(user_id);
+CREATE INDEX IF NOT EXISTS idx_employer_company_links_company ON employer_company_links(shared_company_id);
+
+-- Enable RLS
+ALTER TABLE employer_company_links ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies: Employers can only see their own links
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'employer_company_links'
+                 AND policyname = 'Employers can view own links') THEN
+    CREATE POLICY "Employers can view own links" ON employer_company_links
+      FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+-- Grant access
+GRANT SELECT ON employer_company_links TO authenticated;
+GRANT ALL ON employer_company_links TO service_role;
+
+-- T003: RLS policy for employers to view applications for their linked companies
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'job_applications'
+                 AND policyname = 'Employers can view applications for linked companies') THEN
+    CREATE POLICY "Employers can view applications for linked companies" ON job_applications
+      FOR SELECT USING (
+        shared_company_id IN (
+          SELECT ecl.shared_company_id FROM employer_company_links ecl
+          WHERE ecl.user_id = auth.uid()
+        )
+      );
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'job_applications'
+                 AND policyname = 'Employers can update applications for linked companies') THEN
+    CREATE POLICY "Employers can update applications for linked companies" ON job_applications
+      FOR UPDATE USING (
+        shared_company_id IN (
+          SELECT ecl.shared_company_id FROM employer_company_links ecl
+          WHERE ecl.user_id = auth.uid()
+        )
+      );
+  END IF;
+END $$;
+
+COMMENT ON TABLE employer_company_links IS 'Links employer users to shared companies they manage (Feature 063)';
+
+-- ============================================================================
+-- END FEATURE 063: Employer Dashboard
+-- ============================================================================
+
+-- ============================================================================
+-- FEATURE 063b: Role Persistence Through Signup
+-- Created: 2026-02-27
+-- Purpose: OAuth callback can set role post-redirect; admin never self-assignable
+-- ============================================================================
+
+-- Self-service role change (worker <-> employer only). The OAuth signup path
+-- can't pass metadata to the create_user_profile trigger, so the callback page
+-- calls this RPC after the session is established. Server-side enforcement:
+-- admin is never self-assignable via this function.
+CREATE OR REPLACE FUNCTION set_own_role(p_role TEXT)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF p_role NOT IN ('worker', 'employer') THEN
+    RAISE EXCEPTION 'Invalid role: %. Only worker or employer allowed.', p_role;
+  END IF;
+
+  UPDATE public.user_profiles
+  SET role = p_role, updated_at = NOW()
+  WHERE id = auth.uid();
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'No profile for user %', auth.uid();
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION set_own_role(TEXT) TO authenticated;
+
+COMMENT ON FUNCTION set_own_role(TEXT) IS
+  'Self-service role switch for OAuth callback. Rejects admin; worker/employer only (Feature 063b).';
+
+-- ============================================================================
+-- END FEATURE 063b: Role Persistence Through Signup
+-- ============================================================================
+
+-- ============================================================================
+-- FEATURE 064: Employer Team Management
+-- Three SECURITY DEFINER RPCs so employers can share company access with
+-- accepted connections. Bypasses the SELECT-only RLS on employer_company_links.
+-- Auto-upgrades the teammate to role='employer' on add (no demotion on remove).
+-- ============================================================================
+
+-- T001: get_team_members — returns the roster for a company the caller is linked to.
+-- Needed because RLS on employer_company_links only exposes rows where
+-- auth.uid() = user_id, so you can't see your teammates' rows directly.
+CREATE OR REPLACE FUNCTION get_team_members(p_company_id UUID)
+RETURNS TABLE(
+  user_id UUID,
+  display_name TEXT,
+  avatar_url TEXT,
+  joined_at TIMESTAMPTZ
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Caller must themselves be linked to this company
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND shared_company_id = p_company_id
+  ) THEN
+    RAISE EXCEPTION 'Not linked to company';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    ecl.user_id,
+    up.display_name,
+    up.avatar_url,
+    ecl.created_at AS joined_at
+  FROM employer_company_links ecl
+  JOIN user_profiles up ON up.id = ecl.user_id
+  WHERE ecl.shared_company_id = p_company_id
+  ORDER BY ecl.created_at ASC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_team_members(UUID) TO authenticated;
+
+COMMENT ON FUNCTION get_team_members(UUID) IS
+  'Returns all users linked to the given company. Caller must be on the team. (Feature 064)';
+
+-- T002: add_team_member — link a connection to a company and auto-upgrade their role.
+CREATE OR REPLACE FUNCTION add_team_member(p_company_id UUID, p_user_id UUID)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Validation 1: caller must be linked to the company
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE user_id = auth.uid() AND shared_company_id = p_company_id
+  ) THEN
+    RAISE EXCEPTION 'Not linked to company';
+  END IF;
+
+  -- Validation 2: cannot add yourself
+  IF p_user_id = auth.uid() THEN
+    RAISE EXCEPTION 'Cannot add yourself';
+  END IF;
+
+  -- Validation 3: target must be in caller's accepted connections (bidirectional)
+  IF NOT EXISTS (
+    SELECT 1 FROM user_connections
+    WHERE status = 'accepted'
+      AND (
+        (requester_id = auth.uid() AND addressee_id = p_user_id)
+        OR
+        (addressee_id = auth.uid() AND requester_id = p_user_id)
+      )
+  ) THEN
+    RAISE EXCEPTION 'User is not in your connections';
+  END IF;
+
+  -- Insert link (idempotent — UNIQUE constraint makes ON CONFLICT fire on re-add)
+  INSERT INTO employer_company_links (user_id, shared_company_id)
+  VALUES (p_user_id, p_company_id)
+  ON CONFLICT (user_id, shared_company_id) DO NOTHING;
+
+  -- Auto-upgrade teammate to employer role so they see the right dashboard.
+  -- Conditional on role='worker' — don't touch admins or existing employers.
+  UPDATE user_profiles
+  SET role = 'employer', updated_at = NOW()
+  WHERE id = p_user_id AND role = 'worker';
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION add_team_member(UUID, UUID) TO authenticated;
+
+COMMENT ON FUNCTION add_team_member(UUID, UUID) IS
+  'Grant a connected user access to a company you are linked to. Auto-upgrades their role to employer if currently worker. (Feature 064)';
+
+-- T003: remove_team_member — revoke a user's link. No role demotion.
+CREATE OR REPLACE FUNCTION remove_team_member(p_company_id UUID, p_user_id UUID)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Validation 1: caller must be linked to the company
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE user_id = auth.uid() AND shared_company_id = p_company_id
+  ) THEN
+    RAISE EXCEPTION 'Not linked to company';
+  END IF;
+
+  -- Validation 2: cannot remove yourself (prevents orphaning the company)
+  IF p_user_id = auth.uid() THEN
+    RAISE EXCEPTION 'Cannot remove yourself';
+  END IF;
+
+  DELETE FROM employer_company_links
+  WHERE user_id = p_user_id AND shared_company_id = p_company_id;
+
+  -- No role demotion — the removed user may still be on other companies' teams.
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION remove_team_member(UUID, UUID) TO authenticated;
+
+COMMENT ON FUNCTION remove_team_member(UUID, UUID) IS
+  'Revoke a user''s access to a company you are linked to. Does not demote their role. (Feature 064)';
+
+-- T004: hire_applicant — one-click hire from the application pipeline.
+-- Atomically: mark application as hired, create accepted connection, add to team.
+CREATE OR REPLACE FUNCTION hire_applicant(p_application_id UUID)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_company_id UUID;
+  v_applicant_id UUID;
+  v_caller_id UUID := auth.uid();
+BEGIN
+  -- 1. Look up the application and verify it belongs to one of the caller's companies
+  SELECT ja.shared_company_id, ja.user_id
+  INTO v_company_id, v_applicant_id
+  FROM job_applications ja
+  WHERE ja.id = p_application_id;
+
+  IF v_company_id IS NULL OR v_applicant_id IS NULL THEN
+    RAISE EXCEPTION 'Application not found';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE user_id = v_caller_id AND shared_company_id = v_company_id
+  ) THEN
+    RAISE EXCEPTION 'Not linked to this company';
+  END IF;
+
+  -- 2. Cannot hire yourself
+  IF v_applicant_id = v_caller_id THEN
+    RAISE EXCEPTION 'Cannot hire yourself';
+  END IF;
+
+  -- 3. Update application outcome to 'hired' and status to 'closed'
+  UPDATE job_applications
+  SET outcome = 'hired', status = 'closed', updated_at = NOW()
+  WHERE id = p_application_id;
+
+  -- 4. Create accepted connection (skip if already exists)
+  INSERT INTO user_connections (requester_id, addressee_id, status)
+  VALUES (v_caller_id, v_applicant_id, 'accepted')
+  ON CONFLICT (requester_id, addressee_id) DO UPDATE SET status = 'accepted';
+
+  -- 5. Add applicant to the company team
+  INSERT INTO employer_company_links (user_id, shared_company_id)
+  VALUES (v_applicant_id, v_company_id)
+  ON CONFLICT (user_id, shared_company_id) DO NOTHING;
+
+  -- 6. Auto-upgrade worker role to employer
+  UPDATE user_profiles
+  SET role = 'employer', updated_at = NOW()
+  WHERE id = v_applicant_id AND role = 'worker';
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION hire_applicant(UUID) TO authenticated;
+
+COMMENT ON FUNCTION hire_applicant(UUID) IS
+  'One-click hire: mark application as hired, create accepted connection, add applicant to company team. (Feature 064)';
+
+-- ============================================================================
+-- END FEATURE 064: Employer Team Management
+-- ============================================================================
+
+-- ============================================================================
+-- FEATURE 065: Employee Roster (team_members)
+-- Lightweight employee roster for a company. Unlike the Feature 064 RPCs
+-- (which manage registered-user access via employer_company_links), this table
+-- tracks all employees including non-registered people (name/email entries).
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS team_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES shared_companies(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  role_title TEXT,
+  start_date DATE,
+  added_by UUID NOT NULL REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_team_members_company ON team_members(company_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_email ON team_members(company_id, email);
+
+ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "team_members_employer_read" ON team_members
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM employer_company_links
+      WHERE employer_company_links.user_id = auth.uid()
+        AND employer_company_links.shared_company_id = team_members.company_id
+    )
+  );
+
+CREATE POLICY "team_members_employer_insert" ON team_members
+  FOR INSERT WITH CHECK (added_by = auth.uid() AND EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND employer_company_links.shared_company_id = team_members.company_id
+  ));
+
+CREATE POLICY "team_members_employer_update" ON team_members
+  FOR UPDATE USING (EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND employer_company_links.shared_company_id = team_members.company_id
+  ));
+
+CREATE POLICY "team_members_employer_delete" ON team_members
+  FOR DELETE USING (EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND employer_company_links.shared_company_id = team_members.company_id
+  ));
+
+CREATE TRIGGER set_team_members_updated_at
+  BEFORE UPDATE ON team_members
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Note: supabase_realtime publication is managed by Supabase.
+-- ALTER PUBLICATION supabase_realtime ADD TABLE team_members;
+
+-- ============================================================================
+-- END FEATURE 065: Employee Roster (team_members)
+-- ============================================================================
+
+-- ============================================================================
+-- FEATURE 066: Workforce Scheduling (team_shifts)
+-- Weekly shift scheduling for team members. Employer assigns shift blocks
+-- to team members for a given company. Supports shift types (regular, on-call,
+-- interview, training, meeting) and optional notes.
+-- ============================================================================
+
+-- Business hours columns on shared_companies
+ALTER TABLE shared_companies ADD COLUMN IF NOT EXISTS business_open_time TIME DEFAULT '08:00';
+ALTER TABLE shared_companies ADD COLUMN IF NOT EXISTS business_close_time TIME DEFAULT '18:00';
+
+CREATE TABLE IF NOT EXISTS team_shifts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES shared_companies(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  shift_date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  shift_type TEXT NOT NULL DEFAULT 'regular'
+    CHECK (shift_type IN ('regular', 'on_call', 'interview', 'training', 'meeting')),
+  notes TEXT,
+  created_by UUID NOT NULL REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT no_negative_duration CHECK (end_time > start_time)
+);
+
+CREATE INDEX IF NOT EXISTS idx_team_shifts_company_date
+  ON team_shifts(company_id, shift_date);
+CREATE INDEX IF NOT EXISTS idx_team_shifts_user_date
+  ON team_shifts(user_id, shift_date);
+
+ALTER TABLE team_shifts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "team_shifts_employer_read" ON team_shifts
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM employer_company_links
+      WHERE employer_company_links.user_id = auth.uid()
+        AND employer_company_links.shared_company_id = team_shifts.company_id
+    )
+  );
+
+CREATE POLICY "team_shifts_employer_insert" ON team_shifts
+  FOR INSERT WITH CHECK (created_by = auth.uid() AND EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND employer_company_links.shared_company_id = team_shifts.company_id
+  ));
+
+CREATE POLICY "team_shifts_employer_update" ON team_shifts
+  FOR UPDATE USING (EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND employer_company_links.shared_company_id = team_shifts.company_id
+  ));
+
+CREATE POLICY "team_shifts_employer_delete" ON team_shifts
+  FOR DELETE USING (EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND employer_company_links.shared_company_id = team_shifts.company_id
+  ));
+
+CREATE TRIGGER set_team_shifts_updated_at
+  BEFORE UPDATE ON team_shifts
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- S001: get_team_shifts — returns shifts for a date range with joined profile
+CREATE OR REPLACE FUNCTION get_team_shifts(
+  p_company_id UUID,
+  p_start_date DATE,
+  p_end_date DATE
+)
+RETURNS TABLE(
+  id UUID,
+  company_id UUID,
+  user_id UUID,
+  display_name TEXT,
+  avatar_url TEXT,
+  shift_date DATE,
+  start_time TIME,
+  end_time TIME,
+  shift_type TEXT,
+  notes TEXT,
+  created_by UUID,
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND shared_company_id = p_company_id
+  ) THEN
+    RAISE EXCEPTION 'Not linked to company';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    ts.id,
+    ts.company_id,
+    ts.user_id,
+    up.display_name,
+    up.avatar_url,
+    ts.shift_date,
+    ts.start_time,
+    ts.end_time,
+    ts.shift_type,
+    ts.notes,
+    ts.created_by,
+    ts.created_at,
+    ts.updated_at
+  FROM team_shifts ts
+  LEFT JOIN user_profiles up ON up.id = ts.user_id
+  WHERE ts.company_id = p_company_id
+    AND ts.shift_date >= p_start_date
+    AND ts.shift_date <= p_end_date
+  ORDER BY ts.shift_date ASC, ts.start_time ASC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_team_shifts(UUID, DATE, DATE) TO authenticated;
+
+-- S002: upsert_shift — create or update a shift
+CREATE OR REPLACE FUNCTION upsert_shift(
+  p_company_id UUID,
+  p_shift_id UUID,
+  p_user_id UUID,
+  p_shift_date DATE,
+  p_start_time TIME,
+  p_end_time TIME,
+  p_shift_type TEXT DEFAULT 'regular',
+  p_notes TEXT DEFAULT NULL
+)
+RETURNS UUID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_id UUID;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND shared_company_id = p_company_id
+  ) THEN
+    RAISE EXCEPTION 'Not linked to company';
+  END IF;
+
+  IF p_end_time <= p_start_time THEN
+    RAISE EXCEPTION 'End time must be after start time';
+  END IF;
+
+  IF p_shift_id IS NULL THEN
+    INSERT INTO team_shifts (company_id, user_id, shift_date, start_time, end_time, shift_type, notes, created_by)
+    VALUES (p_company_id, p_user_id, p_shift_date, p_start_time, p_end_time, p_shift_type, p_notes, auth.uid())
+    RETURNING team_shifts.id INTO v_id;
+  ELSE
+    UPDATE team_shifts
+    SET user_id = p_user_id,
+        shift_date = p_shift_date,
+        start_time = p_start_time,
+        end_time = p_end_time,
+        shift_type = p_shift_type,
+        notes = p_notes,
+        updated_at = NOW()
+    WHERE team_shifts.id = p_shift_id AND team_shifts.company_id = p_company_id
+    RETURNING team_shifts.id INTO v_id;
+
+    IF v_id IS NULL THEN
+      RAISE EXCEPTION 'Shift not found or not in this company';
+    END IF;
+  END IF;
+
+  RETURN v_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION upsert_shift(UUID, UUID, UUID, DATE, TIME, TIME, TEXT, TEXT) TO authenticated;
+
+-- S003: delete_shift — remove a shift
+CREATE OR REPLACE FUNCTION delete_shift(p_company_id UUID, p_shift_id UUID)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE employer_company_links.user_id = auth.uid()
+      AND shared_company_id = p_company_id
+  ) THEN
+    RAISE EXCEPTION 'Not linked to company';
+  END IF;
+
+  DELETE FROM team_shifts WHERE team_shifts.id = p_shift_id AND team_shifts.company_id = p_company_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION delete_shift(UUID, UUID) TO authenticated;
+
+-- S004: update_business_hours — update company open/close times
+CREATE OR REPLACE FUNCTION update_business_hours(
+  p_company_id UUID,
+  p_open_time TIME,
+  p_close_time TIME
+)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Auth: caller must be linked to the company
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE shared_company_id = p_company_id AND user_id = auth.uid()
+  ) THEN
+    RAISE EXCEPTION 'Not authorized for this company';
+  END IF;
+
+  -- Validate close > open
+  IF p_close_time <= p_open_time THEN
+    RAISE EXCEPTION 'Close time must be after open time';
+  END IF;
+
+  UPDATE shared_companies
+  SET business_open_time = p_open_time,
+      business_close_time = p_close_time
+  WHERE id = p_company_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION update_business_hours(UUID, TIME, TIME) TO authenticated;
+
+-- S005: copy_week_shifts — duplicate shifts from one week to another
+CREATE OR REPLACE FUNCTION copy_week_shifts(
+  p_company_id UUID,
+  p_source_start DATE,
+  p_target_start DATE
+)
+RETURNS INT
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_offset INT;
+  v_count INT;
+BEGIN
+  -- Auth: caller must be linked to the company
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE shared_company_id = p_company_id AND user_id = auth.uid()
+  ) THEN
+    RAISE EXCEPTION 'Not authorized for this company';
+  END IF;
+
+  -- Calculate day offset between source and target weeks
+  v_offset := p_target_start - p_source_start;
+
+  IF v_offset = 0 THEN
+    RAISE EXCEPTION 'Source and target weeks must be different';
+  END IF;
+
+  -- Copy shifts with date offset (additive — does not remove existing target shifts)
+  INSERT INTO team_shifts (company_id, user_id, shift_date, start_time, end_time, shift_type, notes, created_by)
+  SELECT
+    company_id,
+    user_id,
+    shift_date + v_offset,
+    start_time,
+    end_time,
+    shift_type,
+    notes,
+    auth.uid()
+  FROM team_shifts
+  WHERE company_id = p_company_id
+    AND shift_date >= p_source_start
+    AND shift_date <= p_source_start + 6;
+
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION copy_week_shifts(UUID, DATE, DATE) TO authenticated;
+
+-- S006: batch_create_shifts — create multiple shifts in one call (for weekly patterns)
+CREATE OR REPLACE FUNCTION batch_create_shifts(
+  p_company_id UUID,
+  p_user_id UUID,
+  p_entries JSONB
+)
+RETURNS INT
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_min_date DATE;
+  v_max_date DATE;
+  v_count INT;
+BEGIN
+  -- Auth: caller must be linked to the company
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links
+    WHERE shared_company_id = p_company_id AND user_id = auth.uid()
+  ) THEN
+    RAISE EXCEPTION 'Not authorized for this company';
+  END IF;
+
+  -- Find date range covered by entries
+  SELECT MIN((e->>'shift_date')::DATE), MAX((e->>'shift_date')::DATE)
+  INTO v_min_date, v_max_date
+  FROM jsonb_array_elements(p_entries) AS e;
+
+  -- Delete existing shifts for this user in the date range (clean replace)
+  DELETE FROM team_shifts
+  WHERE company_id = p_company_id
+    AND user_id IS NOT DISTINCT FROM p_user_id
+    AND shift_date >= v_min_date
+    AND shift_date <= v_max_date;
+
+  -- Insert all entries
+  INSERT INTO team_shifts (company_id, user_id, shift_date, start_time, end_time, shift_type, notes, created_by)
+  SELECT
+    p_company_id,
+    p_user_id,
+    (e->>'shift_date')::DATE,
+    (e->>'start_time')::TIME,
+    (e->>'end_time')::TIME,
+    COALESCE(e->>'shift_type', 'regular'),
+    e->>'notes',
+    auth.uid()
+  FROM jsonb_array_elements(p_entries) AS e;
+
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION batch_create_shifts(UUID, UUID, JSONB) TO authenticated;
+
+-- ============================================================================
+-- END FEATURE 066: Workforce Scheduling (team_shifts)
+-- ============================================================================
 
 -- Commit the transaction - everything succeeded
 COMMIT;

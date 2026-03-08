@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import MessageThread from './MessageThread';
 import type { DecryptedMessage } from '@/types/messaging';
 
@@ -36,7 +36,7 @@ const generateMockMessages = (count: number): DecryptedMessage[] => {
 };
 
 const meta = {
-  title: 'Molecular/MessageThread',
+  title: 'Atomic Design/Molecular/MessageThread',
   component: MessageThread,
   parameters: {
     layout: 'fullscreen',

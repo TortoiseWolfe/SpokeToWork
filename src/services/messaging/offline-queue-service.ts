@@ -1,4 +1,16 @@
 /**
+ * @deprecated This file is deprecated. Use @/lib/offline-queue instead.
+ * Migration: import { offlineQueueService, messageQueue } from '@/lib/offline-queue';
+ *
+ * This file will be removed in a future version.
+ * Feature 050 - Code Consolidation
+ */
+
+console.warn(
+  '[@deprecated] src/services/messaging/offline-queue-service.ts is deprecated. Use @/lib/offline-queue instead.'
+);
+
+/**
  * Offline Queue Service for Message Synchronization
  * Tasks: T150-T156
  *

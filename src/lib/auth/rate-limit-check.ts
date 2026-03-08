@@ -1,6 +1,15 @@
-// Security Hardening: Rate Limiting Client Wrapper
-// Feature 017 - Task T017
-// Purpose: Client-side wrapper for server-side rate limiting functions
+/**
+ * Rate Limit Check - Canonical Implementation
+ *
+ * This is the ONLY rate limiting implementation in the codebase.
+ * Server-side enforcement via Supabase RPC functions.
+ *
+ * Feature 017 - Security Hardening
+ * Feature 050 - Code Consolidation (marked as canonical)
+ *
+ * Note: Client-side rate limiting (rate-limiter.ts) was removed as dead code
+ * because it can be trivially bypassed and provides false security.
+ */
 
 import { supabase } from '@/lib/supabase/client';
 import { createLogger } from '@/lib/logger';

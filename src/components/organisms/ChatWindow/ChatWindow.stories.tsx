@@ -1,9 +1,9 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
-import { fn } from '@storybook/test';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
+import { fn } from 'storybook/test';
 import ChatWindow from './ChatWindow';
 
 const meta = {
-  title: 'Organisms/ChatWindow',
+  title: 'Atomic Design/Organism/ChatWindow',
   component: ChatWindow,
   parameters: {
     layout: 'fullscreen',

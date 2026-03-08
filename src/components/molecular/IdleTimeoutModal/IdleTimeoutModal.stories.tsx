@@ -1,8 +1,8 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import IdleTimeoutModal from './IdleTimeoutModal';
 
 const meta: Meta<typeof IdleTimeoutModal> = {
-  title: 'Molecular/IdleTimeoutModal',
+  title: 'Atomic Design/Molecular/IdleTimeoutModal',
   component: IdleTimeoutModal,
   tags: ['autodocs'],
   argTypes: {

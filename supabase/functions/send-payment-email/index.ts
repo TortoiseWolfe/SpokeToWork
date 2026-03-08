@@ -12,7 +12,8 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!authHeader || !authHeader.includes(serviceRoleKey)) {
+    // Fix: Use strict equality instead of includes() to prevent substring attacks
+    if (!authHeader || authHeader !== `Bearer ${serviceRoleKey}`) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' },

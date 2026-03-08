@@ -4,6 +4,58 @@ import { afterEach, vi, expect } from 'vitest';
 import { toHaveNoViolations } from 'jest-axe';
 import 'fake-indexeddb/auto';
 
+// Mock Supabase client for all tests (prevents "Missing Supabase environment variables" errors)
+vi.mock('@/lib/supabase/client', () => ({
+  createClient: vi.fn(() => ({
+    auth: {
+      getSession: vi.fn(() =>
+        Promise.resolve({ data: { session: null }, error: null })
+      ),
+      getUser: vi.fn(() =>
+        Promise.resolve({ data: { user: null }, error: null })
+      ),
+      signInWithPassword: vi.fn(() =>
+        Promise.resolve({ data: {}, error: null })
+      ),
+      signUp: vi.fn(() => Promise.resolve({ data: {}, error: null })),
+      signOut: vi.fn(() => Promise.resolve({ error: null })),
+      resetPasswordForEmail: vi.fn(() => Promise.resolve({ error: null })),
+      updateUser: vi.fn(() => Promise.resolve({ data: {}, error: null })),
+      onAuthStateChange: vi.fn(() => ({
+        data: { subscription: { unsubscribe: vi.fn() } },
+      })),
+    },
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          single: vi.fn(() => Promise.resolve({ data: null, error: null })),
+          order: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        })),
+        order: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        limit: vi.fn(() => Promise.resolve({ data: [], error: null })),
+      })),
+      insert: vi.fn(() => Promise.resolve({ data: null, error: null })),
+      update: vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ data: null, error: null })),
+      })),
+      delete: vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ data: null, error: null })),
+      })),
+    })),
+    channel: vi.fn(() => {
+      const channel = {
+        on: vi.fn(() => channel),
+        subscribe: vi.fn(() => channel),
+        unsubscribe: vi.fn(),
+      };
+      return channel;
+    }),
+    removeChannel: vi.fn(),
+  })),
+  getSupabase: vi.fn(() => ({})),
+  supabase: {},
+}));
+
 // Mock AuthContext with reasonable defaults for component tests
 // Unit tests can override with vi.doUnmock() if needed
 vi.mock('@/contexts/AuthContext', () => ({
@@ -43,17 +95,177 @@ vi.mock('next/navigation', () => ({
 // Tests that need it should mock it themselves (see PaymentConsentModal.test.tsx)
 // This allows unit tests to test the real implementation
 
+// Mock next/image to avoid happy-dom URL parsing issues
+// happy-dom's URL parser fails when window.location context is corrupted by other tests
+vi.mock('next/image', () => {
+  const React = require('react');
+  return {
+    default: React.forwardRef(function MockImage(
+      {
+        src,
+        alt,
+        width,
+        height,
+        fill,
+        className,
+        ...props
+      }: {
+        src: string;
+        alt: string;
+        width?: number;
+        height?: number;
+        fill?: boolean;
+        className?: string;
+        [key: string]: unknown;
+      },
+      ref: React.Ref<HTMLImageElement>
+    ) {
+      return React.createElement('img', {
+        ref,
+        src: typeof src === 'object' ? (src as { src: string }).src : src,
+        alt,
+        width: fill ? undefined : width,
+        height: fill ? undefined : height,
+        className,
+        'data-testid': 'next-image',
+        ...props,
+      });
+    }),
+  };
+});
+
 // Mock CSS imports
 vi.mock('leaflet/dist/leaflet.css', () => ({}));
 vi.mock('prismjs/themes/prism-tomorrow.css', () => ({}));
 vi.mock('@/styles/prism-override.css', () => ({}));
 
+// Mock Leaflet and react-leaflet for SSR-safe testing
+// Leaflet requires `window` which doesn't exist in Node.js/jsdom after test teardown
+vi.mock('leaflet', () => {
+  const IconDefault = {
+    prototype: { _getIconUrl: undefined },
+    mergeOptions: vi.fn(),
+  };
+  const Icon = vi.fn().mockImplementation(() => ({}));
+  (Icon as unknown as { Default: typeof IconDefault }).Default = IconDefault;
+
+  return {
+    default: {
+      Icon,
+      icon: vi.fn().mockReturnValue({}),
+      divIcon: vi.fn().mockReturnValue({}),
+      marker: vi.fn().mockReturnValue({
+        addTo: vi.fn(),
+        setLatLng: vi.fn(),
+        bindPopup: vi.fn(),
+      }),
+      map: vi.fn().mockReturnValue({
+        setView: vi.fn(),
+        invalidateSize: vi.fn(),
+        getContainer: vi.fn(),
+        remove: vi.fn(),
+      }),
+      polyline: vi.fn().mockReturnValue({
+        addTo: vi.fn(),
+        setLatLngs: vi.fn(),
+        getBounds: vi.fn().mockReturnValue({ isValid: () => false }),
+      }),
+      latLng: vi.fn().mockImplementation((lat, lng) => ({ lat, lng })),
+      latLngBounds: vi.fn().mockReturnValue({
+        extend: vi.fn(),
+        isValid: vi.fn().mockReturnValue(false),
+      }),
+    },
+    Icon,
+    divIcon: vi.fn().mockReturnValue({}),
+    polyline: vi.fn().mockReturnValue({}),
+    latLng: vi.fn().mockImplementation((lat, lng) => ({ lat, lng })),
+  };
+});
+
+vi.mock('react-leaflet', () => {
+  const React = require('react');
+  return {
+    MapContainer: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': 'mock-leaflet-map', className: 'leaflet-container' },
+        children
+      ),
+    TileLayer: () => null,
+    Marker: ({ children }: { children?: React.ReactNode }) =>
+      React.createElement('div', { 'data-testid': 'mock-marker' }, children),
+    Popup: ({ children }: { children?: React.ReactNode }) =>
+      React.createElement('div', null, children),
+    Polyline: ({ children }: { children?: React.ReactNode }) =>
+      React.createElement('div', { 'data-testid': 'mock-polyline' }, children),
+    Circle: () => React.createElement('div', { 'data-testid': 'mock-circle' }),
+    CircleMarker: ({ children }: { children?: React.ReactNode }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': 'mock-circle-marker' },
+        children
+      ),
+    useMap: () => ({
+      setView: vi.fn(),
+      invalidateSize: vi.fn(),
+      getContainer: vi.fn(() => document.createElement('div')),
+      on: vi.fn(),
+      off: vi.fn(),
+    }),
+    useMapEvents: (handlers: Record<string, unknown>) => {
+      // Return mock map instance
+      return {
+        setView: vi.fn(),
+        invalidateSize: vi.fn(),
+        getContainer: vi.fn(() => document.createElement('div')),
+      };
+    },
+  };
+});
+
 // Extend Vitest matchers with jest-axe accessibility matchers
 expect.extend(toHaveNoViolations);
 
-// Clean up after each test
+// Clean up after each test - comprehensive cleanup for singleFork mode
 afterEach(() => {
   cleanup();
+
+  // Clear all mocks to prevent state leaking between tests
+  vi.clearAllMocks();
+
+  // Clear localStorage and sessionStorage
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (e) {
+      // Ignore errors in environments without storage
+    }
+  }
+
+  // Clear document cookies
+  if (typeof document !== 'undefined' && document.cookie) {
+    try {
+      document.cookie.split(';').forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, '')
+          .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
+      });
+    } catch (e) {
+      // Ignore errors
+    }
+  }
+
+  // Clear IndexedDB databases (fake-indexeddb persists in singleFork mode)
+  if (typeof indexedDB !== 'undefined') {
+    try {
+      // Delete known database names used by the app
+      indexedDB.deleteDatabase('OfflineFormSubmissions');
+    } catch (e) {
+      // Ignore errors in environments without IndexedDB
+    }
+  }
 });
 
 // Mock window.matchMedia (only in jsdom environment)
@@ -73,19 +285,21 @@ if (typeof window !== 'undefined') {
   });
 }
 
-// Mock IntersectionObserver
-global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+// Mock IntersectionObserver (class required for vitest 4.0)
+global.IntersectionObserver = class MockIntersectionObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  constructor() {}
+} as unknown as typeof IntersectionObserver;
 
-// Mock ResizeObserver
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+// Mock ResizeObserver (class required for vitest 4.0)
+global.ResizeObserver = class MockResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  constructor() {}
+} as unknown as typeof ResizeObserver;
 
 // Track blob dimensions for createImageBitmap
 const blobDimensions = new WeakMap<Blob, { width: number; height: number }>();

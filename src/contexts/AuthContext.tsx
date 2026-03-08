@@ -21,6 +21,9 @@ import IdleTimeoutModal from '@/components/molecular/IdleTimeoutModal';
 
 const logger = createLogger('contexts:auth');
 
+// Get basePath for redirects (empty string in dev, '/SpokeToWork' in production)
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 /**
  * Auth error types for user feedback
  */
@@ -49,9 +52,26 @@ export interface AuthState {
   retryCount: number;
 }
 
+/** Roles a user can self-assign at signup. Admin is never self-assignable. */
+export type RequestableRole = 'worker' | 'employer';
+
+export interface AuthOptions {
+  rememberMe?: boolean;
+  /** Persists to raw_user_meta_data.requested_role — read by create_user_profile trigger. */
+  requestedRole?: RequestableRole;
+}
+
 export interface AuthContextType extends AuthState {
-  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    options?: AuthOptions
+  ) => Promise<{ error: Error | null }>;
+  signIn: (
+    email: string,
+    password: string,
+    options?: AuthOptions
+  ) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
   retry: () => Promise<void>;
@@ -145,7 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (_event === 'SIGNED_OUT' && !isLocalSignOut.current) {
         // Sign-out detected from another tab - redirect to home
         logger.info('Cross-tab sign-out detected, redirecting to home');
-        window.location.href = '/';
+        window.location.href = `${basePath}/`;
         return;
       }
 
@@ -173,13 +193,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    options?: AuthOptions
+  ) => {
     try {
+      // Store remember me preference for session persistence
+      if (options?.rememberMe !== undefined) {
+        localStorage.setItem('auth_remember_me', String(options.rememberMe));
+      }
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}${basePath}/auth/callback`,
+          data: options?.requestedRole
+            ? { requested_role: options.requestedRole }
+            : undefined,
         },
       });
       return { error };
@@ -188,8 +220,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (
+    email: string,
+    password: string,
+    options?: AuthOptions
+  ) => {
     try {
+      // Store remember me preference for session persistence
+      if (options?.rememberMe !== undefined) {
+        localStorage.setItem('auth_remember_me', String(options.rememberMe));
+      }
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -220,7 +261,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // FR-005: Force page reload to clear any stale React state
-    window.location.href = '/';
+    window.location.href = `${basePath}/`;
   };
 
   const refreshSession = async () => {

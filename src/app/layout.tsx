@@ -9,9 +9,10 @@ import { ColorblindFilters } from '@/components/atomic/ColorblindFilters';
 import { ConsentProvider } from '@/contexts/ConsentContext';
 import { CookieConsent } from '@/components/privacy/CookieConsent';
 import { ConsentModal } from '@/components/privacy/ConsentModal';
-import GoogleAnalytics from '@/components/atomic/GoogleAnalytics';
+import GoogleAnalytics from '@/lib/analytics/GoogleAnalytics';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { ActiveRouteProvider } from '@/contexts/ActiveRouteContext';
 import { projectConfig } from '@/config/project.config';
 import {
   generateMetadata,
@@ -94,7 +95,7 @@ export const metadata: Metadata = {
       "style-src 'self' 'unsafe-inline' https://unpkg.com",
       "img-src 'self' data: https: blob:",
       "font-src 'self' data:",
-      "connect-src 'self' https://www.googleapis.com https://*.google-analytics.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org",
+      "connect-src 'self' https://www.googleapis.com https://*.google-analytics.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.supabase.co wss://*.supabase.co",
       "frame-src 'self' https://www.google.com",
       "object-src 'none'",
       "base-uri 'self'",
@@ -110,9 +111,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className="overflow-x-hidden">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col overflow-x-hidden antialiased`}
         suppressHydrationWarning
       >
         <ThemeScript />
@@ -121,18 +122,28 @@ export default function RootLayout({
         <ConsentProvider>
           <GoogleAnalytics />
           <AuthProvider>
-            <AccessibilityProvider>
-              <GlobalNav />
-              <CountdownBanner />
-              <ErrorBoundary level="page">
-                <main className="min-h-0 flex-1 overflow-hidden">
-                  {children}
-                </main>
-              </ErrorBoundary>
-              <Footer />
-              <CookieConsent />
-              <ConsentModal />
-            </AccessibilityProvider>
+            <ActiveRouteProvider>
+              <AccessibilityProvider>
+                <a
+                  href="#main"
+                  className="focus:bg-base-100 focus:text-base-content sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4"
+                >
+                  Skip to main content
+                </a>
+                <header>
+                  <GlobalNav />
+                </header>
+                {/* <CountdownBanner /> */}
+                <ErrorBoundary level="page">
+                  <main id="main" className="min-h-0 flex-1 overflow-hidden">
+                    {children}
+                  </main>
+                </ErrorBoundary>
+                <Footer />
+                <CookieConsent />
+                <ConsentModal />
+              </AccessibilityProvider>
+            </ActiveRouteProvider>
           </AuthProvider>
         </ConsentProvider>
       </body>

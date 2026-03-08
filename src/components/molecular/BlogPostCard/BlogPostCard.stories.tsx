@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import BlogPostCard from './BlogPostCard';
 import type { BlogPost } from '@/types/blog';
 
@@ -58,7 +58,7 @@ const draftPost: BlogPost = {
 };
 
 const meta: Meta<typeof BlogPostCard> = {
-  title: 'Features/Blog/BlogPostCard',
+  title: 'Atomic Design/Molecular/BlogPostCard',
   component: BlogPostCard,
   parameters: {
     layout: 'centered',

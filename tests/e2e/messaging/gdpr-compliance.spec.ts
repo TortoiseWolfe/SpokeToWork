@@ -9,9 +9,10 @@
 import { test, expect } from '@playwright/test';
 
 // Test user - use PRIMARY from standardized test fixtures (Feature 026)
+// No fallbacks allowed per security requirements (047-test-security)
 const TEST_USER = {
-  email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
-  password: process.env.TEST_USER_PRIMARY_PASSWORD || 'TestPassword123!',
+  email: process.env.TEST_USER_PRIMARY_EMAIL!,
+  password: process.env.TEST_USER_PRIMARY_PASSWORD!,
 };
 
 test.describe('GDPR Data Export', () => {
@@ -22,7 +23,7 @@ test.describe('GDPR Data Export', () => {
     await page.fill('#email', TEST_USER.email);
     await page.fill('#password', TEST_USER.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 15000 });
+    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
 
     // Navigate to account settings
     await page.goto('/account');
@@ -88,7 +89,7 @@ test.describe('GDPR Data Export', () => {
 
       // Verify profile data
       expect(data.profile).toHaveProperty('email');
-      expect(data.profile.email).toBe('test@example.com');
+      expect(data.profile.email).toBe(TEST_USER.email);
 
       // Verify statistics
       expect(data.statistics).toHaveProperty('total_conversations');
@@ -166,7 +167,7 @@ test.describe('GDPR Account Deletion', () => {
     await page.fill('#email', TEST_USER.email);
     await page.fill('#password', TEST_USER.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 15000 });
+    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
 
     // Navigate to account settings
     await page.goto('/account');
@@ -199,8 +200,8 @@ test.describe('GDPR Account Deletion', () => {
       .first();
     await deleteButton.click();
 
-    // Modal should be visible
-    const modal = page.locator('[role="dialog"]');
+    // Modal should be visible (use specific aria-labelledby to avoid matching crop modal)
+    const modal = page.locator('[aria-labelledby="delete-modal-title"]');
     await expect(modal).toBeVisible();
 
     // Modal should have warning content
@@ -218,7 +219,7 @@ test.describe('GDPR Account Deletion', () => {
       .first();
     await deleteButton.click();
 
-    const modal = page.locator('[role="dialog"]');
+    const modal = page.locator('[aria-labelledby="delete-modal-title"]');
     const confirmInput = modal.locator('input[placeholder="DELETE"]');
     const confirmButton = modal.locator('button:has-text("Delete Account")');
 
@@ -246,7 +247,7 @@ test.describe('GDPR Account Deletion', () => {
       .first();
     await deleteButton.click();
 
-    const modal = page.locator('[role="dialog"]');
+    const modal = page.locator('[aria-labelledby="delete-modal-title"]');
     await expect(modal).toBeVisible();
 
     const cancelButton = modal.locator('button:has-text("Cancel")');
@@ -267,7 +268,7 @@ test.describe('GDPR Account Deletion', () => {
       .first();
     await deleteButton.click();
 
-    const modal = page.locator('[role="dialog"]');
+    const modal = page.locator('[aria-labelledby="delete-modal-title"]');
     const confirmInput = modal.locator('input[placeholder="DELETE"]');
     const confirmButton = modal.locator('button:has-text("Delete Account")');
 
@@ -300,7 +301,7 @@ test.describe('GDPR Account Deletion', () => {
       .first();
     await deleteButton.click();
 
-    const modal = page.locator('[role="dialog"]');
+    const modal = page.locator('[aria-labelledby="delete-modal-title"]');
     const confirmInput = modal.locator('input[placeholder="DELETE"]');
     const confirmButton = modal.locator('button:has-text("Delete Account")');
 
@@ -331,7 +332,7 @@ test.describe('GDPR Account Deletion', () => {
       .first();
     await deleteButton.click();
 
-    const modal = page.locator('[role="dialog"]');
+    const modal = page.locator('[aria-labelledby="delete-modal-title"]');
 
     // Modal should have ARIA labels
     await expect(modal).toHaveAttribute(
@@ -352,10 +353,10 @@ test.describe('GDPR Account Deletion', () => {
 test.describe('GDPR Accessibility', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/sign-in');
-    await page.fill('input[type="email"]', 'test@example.com');
-    await page.fill('input[type="password"]', 'TestPassword123!');
+    await page.fill('input[type="email"]', TEST_USER.email);
+    await page.fill('input[type="password"]', TEST_USER.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL('/', { timeout: 10000 });
+    await page.waitForURL(/\/profile/, { timeout: 45000 });
     await page.goto('/account');
   });
 

@@ -113,23 +113,21 @@ export default function MessagingSetupPage() {
           }
         }
 
-        // Send welcome message
+        // Send welcome message - MUST await before navigation
         if (user?.id && keyPair.privateKey && keyPair.publicKeyJwk) {
-          import('@/services/messaging/welcome-service')
-            .then(({ welcomeService }) => {
-              welcomeService
-                .sendWelcomeMessage(
-                  user.id,
-                  keyPair.privateKey,
-                  keyPair.publicKeyJwk
-                )
-                .catch((err: Error) => {
-                  logger.error('Welcome message failed', { error: err });
-                });
-            })
-            .catch((err: Error) => {
-              logger.error('Failed to load welcome service', { error: err });
-            });
+          try {
+            const { welcomeService } = await import(
+              '@/services/messaging/welcome-service'
+            );
+            await welcomeService.sendWelcomeMessage(
+              user.id,
+              keyPair.privateKey,
+              keyPair.publicKeyJwk
+            );
+          } catch (err) {
+            // Don't block setup if welcome message fails
+            logger.error('Welcome message failed', { error: err });
+          }
         }
 
         // Success - show toast reminder and redirect to messages
@@ -317,7 +315,7 @@ export default function MessagingSetupPage() {
             </div>
           </form>
 
-          <p className="mt-4 text-center text-sm opacity-70">
+          <p className="text-base-content/85 mt-4 text-center text-sm">
             Your messages are end-to-end encrypted. Only you and your recipients
             can read them.
           </p>

@@ -1,6 +1,6 @@
 /**
  * Test User Factory - Dynamic user creation for E2E tests
- * Feature: 027-signup-e2e-tests
+ * Feature: 027-signup-e2e-tests, 062-fix-e2e-auth
  *
  * Uses Supabase admin API to:
  * - Create users dynamically in tests
@@ -8,9 +8,36 @@
  * - Clean up users after tests
  *
  * This enables self-contained E2E tests that don't rely on pre-seeded users.
+ *
+ * FAIL-FAST BEHAVIOR (062-fix-e2e-auth):
+ * This module throws immediately if required environment variables are missing.
+ * This prevents silent failures and makes configuration issues obvious.
  */
 
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
+
+// ============================================================================
+// LAZY VALIDATION (updated from fail-fast)
+// Validates environment variables when admin functions are actually called,
+// not at module load time. This allows tests that use TEST_USER_PRIMARY_EMAIL
+// to skip admin operations without requiring SUPABASE_SERVICE_ROLE_KEY.
+// ============================================================================
+const REQUIRED_ENV_VARS = [
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'NEXT_PUBLIC_SUPABASE_URL',
+] as const;
+
+function validateAdminEnvVars(): void {
+  for (const varName of REQUIRED_ENV_VARS) {
+    if (!process.env[varName]) {
+      throw new Error(
+        `TEST_USER_FACTORY: Missing required ${varName}.\n` +
+          `This is required for dynamic test user creation via Supabase Admin API.\n` +
+          `Check .env locally or GitHub Secrets in CI.`
+      );
+    }
+  }
+}
 
 export interface TestUser {
   id: string;
@@ -23,20 +50,21 @@ let adminClient: SupabaseClient | null = null;
 /**
  * Get or create the Supabase admin client
  * Uses SUPABASE_SERVICE_ROLE_KEY for admin operations
+ *
+ * NOTE: Env vars are validated lazily when this function is called.
+ * This allows importing the module without requiring admin credentials.
  */
-export function getAdminClient(): SupabaseClient | null {
+export function getAdminClient(): SupabaseClient {
   if (adminClient) return adminClient;
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Validate env vars when admin client is actually needed
+  validateAdminEnvVars();
 
-  if (!supabaseUrl || !supabaseServiceKey) {
-    console.warn(
-      'Test User Factory: SUPABASE_SERVICE_ROLE_KEY not configured. ' +
-        'Dynamic user creation will not work.'
-    );
-    return null;
-  }
+  // Prefer SUPABASE_INTERNAL_URL when running inside Docker (container→container)
+  // Fall back to NEXT_PUBLIC_SUPABASE_URL for host-based runs
+  const supabaseUrl = (process.env.SUPABASE_INTERNAL_URL ??
+    process.env.NEXT_PUBLIC_SUPABASE_URL)!;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
   adminClient = createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
@@ -57,7 +85,7 @@ export function getAdminClient(): SupabaseClient | null {
  * @returns TestUser object with id, email, password
  *
  * @example
- * const user = await createTestUser('test@example.com', 'Password123!');
+ * const user = await createTestUser('test@mailinator.com', 'Password123!');
  * // user is now created and email-confirmed
  * await deleteTestUser(user.id);
  */
@@ -69,12 +97,8 @@ export async function createTestUser(
     createProfile?: boolean;
     metadata?: Record<string, unknown>;
   }
-): Promise<TestUser | null> {
+): Promise<TestUser> {
   const client = getAdminClient();
-  if (!client) {
-    console.error('createTestUser: Admin client not available');
-    return null;
-  }
 
   // Check if user already exists
   const { data: existingUsers } = await client.auth.admin.listUsers();
@@ -94,16 +118,13 @@ export async function createTestUser(
   });
 
   if (error) {
-    console.error(
-      `createTestUser: Failed to create user ${email}:`,
-      error.message
+    throw new Error(
+      `createTestUser: Failed to create user ${email}: ${error.message}`
     );
-    return null;
   }
 
   if (!data.user) {
-    console.error(`createTestUser: No user returned for ${email}`);
-    return null;
+    throw new Error(`createTestUser: No user returned for ${email}`);
   }
 
   console.log(`createTestUser: Created user ${email} with id ${data.user.id}`);
@@ -131,7 +152,6 @@ export async function createUserProfile(
   username: string
 ): Promise<boolean> {
   const client = getAdminClient();
-  if (!client) return false;
 
   // Check if profile already exists
   const { data: existing } = await client
@@ -176,7 +196,6 @@ export async function createUserProfile(
  */
 export async function deleteTestUser(userId: string): Promise<boolean> {
   const client = getAdminClient();
-  if (!client) return false;
 
   try {
     // Clean up messaging data
@@ -219,7 +238,6 @@ export async function deleteTestUser(userId: string): Promise<boolean> {
  */
 export async function deleteTestUserByEmail(email: string): Promise<boolean> {
   const client = getAdminClient();
-  if (!client) return false;
 
   const { data: users } = await client.auth.admin.listUsers();
   const user = users?.users?.find((u) => u.email === email);
@@ -237,27 +255,30 @@ export async function deleteTestUserByEmail(email: string): Promise<boolean> {
  */
 export async function getUserByEmail(email: string): Promise<User | null> {
   const client = getAdminClient();
-  if (!client) return null;
 
   const { data: users } = await client.auth.admin.listUsers();
   return users?.users?.find((u) => u.email === email) || null;
 }
 
 /**
- * Check if admin client is available
+ * Check if admin client is available (env vars are configured)
  */
 export function isAdminClientAvailable(): boolean {
-  return getAdminClient() !== null;
+  return !!(
+    process.env.SUPABASE_SERVICE_ROLE_KEY &&
+    process.env.NEXT_PUBLIC_SUPABASE_URL
+  );
 }
 
 /**
  * Generate a unique test email
  */
 export function generateTestEmail(prefix = 'e2e-test'): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@mailinator.com`;
 }
 
 /**
  * Default test password that meets Supabase requirements
+ * MUST be set via environment variable - no fallback allowed
  */
-export const DEFAULT_TEST_PASSWORD = 'TestPassword123!';
+export const DEFAULT_TEST_PASSWORD = process.env.TEST_USER_PRIMARY_PASSWORD!;

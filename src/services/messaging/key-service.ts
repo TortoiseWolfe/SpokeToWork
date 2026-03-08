@@ -19,7 +19,6 @@ import {
   createMessagingClient,
   type UserEncryptionKeyRow,
 } from '@/lib/supabase/messaging-client';
-import { encryptionService } from '@/lib/messaging/encryption';
 import { KeyDerivationService } from '@/lib/messaging/key-derivation';
 import { createLogger } from '@/lib/logger';
 import type { DerivedKeyPair } from '@/types/messaging';
@@ -73,6 +72,22 @@ export class KeyManagementService {
     }
 
     try {
+      // Guard: if non-revoked keys already exist, derive from them rather
+      // than inserting a new key with a fresh salt.  A duplicate would become
+      // the active key (highest created_at) but its salt would not match the
+      // password the user originally enrolled with, breaking decryption.
+      const { data: existingKey } = await msgClient
+        .from('user_encryption_keys')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('revoked', false)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingKey) {
+        return this.deriveKeys(password);
+      }
+
       // Step 1: Generate random salt
       const salt = this.keyDerivationService.generateSalt();
 
@@ -347,52 +362,6 @@ export class KeyManagementService {
   }
 
   /**
-   * Legacy method - check if user has valid encryption keys
-   * Task: T057 (kept for backwards compatibility during migration)
-   *
-   * @deprecated Use getCurrentKeys() !== null for in-memory check
-   * @returns Promise<boolean> - true if user has valid keys
-   * @throws AuthenticationError if not authenticated
-   */
-  async hasValidKeys(): Promise<boolean> {
-    logger.debug('hasValidKeys: Checking for valid encryption keys');
-
-    // First check in-memory keys
-    if (this.derivedKeys !== null) {
-      logger.debug('hasValidKeys: FOUND in-memory keys');
-      return true;
-    }
-
-    // Fall back to IndexedDB check for legacy support
-    const supabase = createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      logger.error('hasValidKeys: Not authenticated');
-      throw new AuthenticationError(
-        'You must be signed in to check encryption keys'
-      );
-    }
-
-    try {
-      const privateKey = await encryptionService.getPrivateKey(user.id);
-      const hasKeys = privateKey !== null;
-      logger.debug('hasValidKeys result', {
-        status: hasKeys ? 'FOUND (IndexedDB)' : 'MISSING',
-        userId: user.id,
-      });
-      return hasKeys;
-    } catch (error) {
-      logger.error('hasValidKeys: Error checking keys', { error });
-      return false;
-    }
-  }
-
-  /**
    * Rotate user's encryption keys (generate new pair, revoke old)
    * Task: T058
    *
@@ -517,9 +486,11 @@ export class KeyManagementService {
         );
       }
 
-      // Remove private key from IndexedDB
-      // Note: We don't have a delete method in EncryptionService, so we just overwrite with null
-      // Future: Add deletePrivateKey method to EncryptionService
+      // Clear keys from memory (private keys are no longer stored in IndexedDB)
+      this.clearKeys();
+      logger.info('Revoked keys and cleared from memory', {
+        userId: user.id,
+      });
     } catch (error) {
       if (
         error instanceof AuthenticationError ||

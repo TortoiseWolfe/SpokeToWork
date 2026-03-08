@@ -5,8 +5,10 @@ import { canUseCookies } from '../../utils/consent';
 import { CookieCategory } from '../../utils/consent-types';
 import { useAnalytics } from '@/hooks/useAnalytics';
 
-// DaisyUI themes
+// DaisyUI themes — SpokeToWork custom themes first
 const THEMES = [
+  'spoketowork-dark',
+  'spoketowork-light',
   'light',
   'dark',
   'cupcake',
@@ -42,26 +44,38 @@ const THEMES = [
 ];
 
 export function ThemeSwitcher() {
-  const [currentTheme, setCurrentTheme] = useState('light');
+  const [currentTheme, setCurrentTheme] = useState('spoketowork-dark');
   const { trackThemeChange } = useAnalytics();
 
   useEffect(() => {
-    // Check if we can use persistent storage
-    const canPersist = canUseCookies(CookieCategory.FUNCTIONAL);
-
-    // Try to load saved theme
-    let savedTheme = 'light';
-
-    if (canPersist) {
-      // Use localStorage if functional cookies allowed
-      savedTheme = localStorage.getItem('theme') || 'light';
-    } else {
-      // Use sessionStorage as fallback
-      savedTheme = sessionStorage.getItem('theme') || 'light';
+    // Read current theme from DOM first (ThemeScript already applied it)
+    const domTheme = document.documentElement.getAttribute('data-theme');
+    if (domTheme) {
+      setCurrentTheme(domTheme);
+      return;
     }
+
+    // Fallback: check storage
+    const canPersist = canUseCookies(CookieCategory.FUNCTIONAL);
+    const savedTheme = canPersist
+      ? localStorage.getItem('theme') || 'spoketowork-dark'
+      : sessionStorage.getItem('theme') || 'spoketowork-dark';
 
     setCurrentTheme(savedTheme);
     document.documentElement.setAttribute('data-theme', savedTheme);
+  }, []);
+
+  // Stay in sync with theme changes from GlobalNav dropdown
+  useEffect(() => {
+    const handleExternalThemeChange = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.theme) {
+        setCurrentTheme(detail.theme);
+      }
+    };
+    window.addEventListener('themechange', handleExternalThemeChange);
+    return () =>
+      window.removeEventListener('themechange', handleExternalThemeChange);
   }, []);
 
   const handleThemeChange = useCallback(
@@ -75,6 +89,11 @@ export function ThemeSwitcher() {
       // Apply to DOM
       document.documentElement.setAttribute('data-theme', theme);
       document.body?.setAttribute('data-theme', theme);
+
+      // Dispatch custom event for cross-component sync
+      window.dispatchEvent(
+        new CustomEvent('themechange', { detail: { theme } })
+      );
 
       // Check if we can persist the preference
       const canPersist = canUseCookies(CookieCategory.FUNCTIONAL);
@@ -114,7 +133,9 @@ export function ThemeSwitcher() {
     <div className="card bg-base-200 shadow-xl">
       <div className="card-body">
         <h2 className="card-title">Theme Selector</h2>
-        <p className="text-sm opacity-70">Choose from 32 DaisyUI themes</p>
+        <p className="text-base-content/85 text-sm">
+          Choose from 34 themes (2 custom + 32 DaisyUI)
+        </p>
 
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
           {THEMES.map((theme) => (

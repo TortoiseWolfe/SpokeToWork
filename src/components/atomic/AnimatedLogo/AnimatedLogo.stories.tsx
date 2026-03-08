@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { AnimatedLogo } from './AnimatedLogo';
 
 const meta: Meta<typeof AnimatedLogo> = {
@@ -102,4 +102,32 @@ export const LongText: Story = {
     size: 'md',
     animationSpeed: 'normal',
   },
+};
+
+export const ThemeComparison: Story = {
+  parameters: { layout: 'fullscreen' },
+  render: () => (
+    <div className="grid grid-cols-2 gap-4 p-4">
+      <div
+        data-theme="spoketowork-dark"
+        className="rounded-box bg-base-100 flex flex-col items-center gap-4 p-8"
+      >
+        <h3 className="text-base-content text-lg font-semibold">
+          spoketowork-dark
+        </h3>
+        <AnimatedLogo size="xl" />
+        <AnimatedLogo size="md" text="Route Your Job Search" />
+      </div>
+      <div
+        data-theme="spoketowork-light"
+        className="rounded-box bg-base-100 flex flex-col items-center gap-4 p-8"
+      >
+        <h3 className="text-base-content text-lg font-semibold">
+          spoketowork-light
+        </h3>
+        <AnimatedLogo size="xl" />
+        <AnimatedLogo size="md" text="Route Your Job Search" />
+      </div>
+    </div>
+  ),
 };

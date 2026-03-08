@@ -1,31 +1,30 @@
 'use client';
 
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 import dynamic from 'next/dynamic';
-import type { Map as LeafletMap, LatLngTuple } from 'leaflet';
-import { fixLeafletIconPaths, DEFAULT_MAP_CONFIG } from '@/utils/map-utils';
+import type { MapRef } from 'react-map-gl/maplibre';
+import { DEFAULT_MAP_CONFIG } from '@/utils/map-utils';
 import { LocationButton } from '@/components/map/LocationButton';
-import 'leaflet/dist/leaflet.css';
+import type { MapTheme } from '@/hooks/useMapTheme';
+import type { MapMarker } from './MapContainerInner';
 
 export interface MapContainerProps {
-  center?: LatLngTuple;
+  center?: [number, number]; // [lat, lng]
   zoom?: number;
   height?: string;
   width?: string;
   showUserLocation?: boolean;
-  markers?: Array<{
-    position: LatLngTuple;
-    popup?: string;
-    id: string;
-  }>;
+  markers?: MapMarker[];
   onLocationFound?: (position: GeolocationPosition) => void;
   onLocationError?: (error: GeolocationPositionError) => void;
-  onMapReady?: (map: LeafletMap) => void;
+  onMapReady?: (map: MapRef) => void;
+  onError?: (error: Error) => void;
   className?: string;
   testId?: string;
   style?: React.CSSProperties;
+  theme?: MapTheme;
   config?: {
-    center?: LatLngTuple;
+    center?: [number, number];
     zoom?: number;
     height?: string;
     showUserLocation?: boolean;
@@ -34,10 +33,24 @@ export interface MapContainerProps {
     scrollWheelZoom?: boolean;
     keyboardNavigation?: boolean;
     zoomControl?: boolean;
-    tileUrl?: string;
-    attribution?: string;
   };
   children?: React.ReactNode;
+
+  // Phase 2: controlled selection + imperative pan. All optional for
+  // backward compat with RouteBuilder and map/page.tsx.
+  /** Highlight this marker with a ring. Selection only — does not pan. */
+  selectedMarkerId?: string;
+  /** Fires when a marker is clicked. If provided, parent owns selection. */
+  onMarkerClick?: (marker: MapMarker) => void;
+  /**
+   * Imperative pan/zoom command. Component calls mapRef.flyTo() when this
+   * changes. Use seq to force re-fly to the same coords. Parent owns clearing.
+   */
+  flyToTarget?: {
+    center: [number, number]; // [lat, lng] — same convention as MapMarker.position
+    zoom?: number;
+    seq?: number;
+  } | null;
 }
 
 const MapContainerInner = dynamic(() => import('./MapContainerInner'), {
@@ -50,7 +63,7 @@ const MapContainerInner = dynamic(() => import('./MapContainerInner'), {
 });
 
 export const MapContainer: React.FC<MapContainerProps> = ({
-  center = DEFAULT_MAP_CONFIG.center,
+  center = DEFAULT_MAP_CONFIG.center as [number, number],
   zoom = DEFAULT_MAP_CONFIG.zoom,
   height = DEFAULT_MAP_CONFIG.height,
   width = DEFAULT_MAP_CONFIG.width,
@@ -59,26 +72,24 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   onLocationFound,
   onLocationError,
   onMapReady,
+  onError,
   className = '',
   testId = 'map-container',
   style,
+  theme = 'auto',
   config,
   children,
+  selectedMarkerId,
+  onMarkerClick,
+  flyToTarget,
 }) => {
-  const mapRef = useRef<LeafletMap | null>(null);
+  const mapRef = useRef<MapRef | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
 
-  useEffect(() => {
-    fixLeafletIconPaths();
-  }, []);
-
   const handleMapReady = useCallback(
-    (map: LeafletMap) => {
+    (map: MapRef) => {
       mapRef.current = map;
-      // Expose map instance to window for testing
-      if (typeof window !== 'undefined') {
-        (window as Window & { leafletMap?: LeafletMap }).leafletMap = map;
-      }
+      // window.maplibreMap is set by MapContainerInner.handleLoad (single source)
       if (onMapReady) {
         onMapReady(map);
       }
@@ -87,8 +98,6 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   );
 
   const handleLocationClick = useCallback(() => {
-    if (!mapRef.current) return;
-
     setLocationLoading(true);
 
     if (!navigator.geolocation) {
@@ -112,12 +121,13 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         if (onLocationFound) {
           onLocationFound(position);
         }
-        // Pan map to user location
+        // Pan map to user location using MapLibre API
         if (mapRef.current) {
-          mapRef.current.setView(
-            [position.coords.latitude, position.coords.longitude],
-            16
-          );
+          mapRef.current.flyTo({
+            center: [position.coords.longitude, position.coords.latitude],
+            zoom: 16,
+            duration: 1000,
+          });
         }
       },
       (error) => {
@@ -150,19 +160,23 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         onLocationFound={onLocationFound}
         onLocationError={onLocationError}
         onMapReady={handleMapReady}
-        tileUrl={config?.tileUrl}
-        attribution={config?.attribution}
+        onError={onError}
         scrollWheelZoom={config?.scrollWheelZoom}
         zoomControl={config?.zoomControl}
         keyboardNavigation={config?.keyboardNavigation}
+        theme={theme}
+        selectedMarkerId={selectedMarkerId}
+        onMarkerClick={onMarkerClick}
+        flyToTarget={flyToTarget}
       >
         {children}
       </MapContainerInner>
+      {/* Additional location button (MapLibre also has built-in GeolocateControl) */}
       {showUserLocation && (
         <LocationButton
           onClick={handleLocationClick}
           loading={locationLoading}
-          className="absolute top-4 right-4 z-[1000]"
+          className="absolute right-4 bottom-4 z-[1000]"
         />
       )}
     </div>

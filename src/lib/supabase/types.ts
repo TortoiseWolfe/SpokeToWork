@@ -308,6 +308,10 @@ export type Database = {
           bio: string | null;
           created_at: string;
           display_name: string | null;
+          distance_radius_miles: number | null;
+          home_address: string | null;
+          home_latitude: number | null;
+          home_longitude: number | null;
           id: string;
           updated_at: string;
           username: string | null;
@@ -318,6 +322,10 @@ export type Database = {
           bio?: string | null;
           created_at?: string;
           display_name?: string | null;
+          distance_radius_miles?: number | null;
+          home_address?: string | null;
+          home_latitude?: number | null;
+          home_longitude?: number | null;
           id: string;
           updated_at?: string;
           username?: string | null;
@@ -328,6 +336,10 @@ export type Database = {
           bio?: string | null;
           created_at?: string;
           display_name?: string | null;
+          distance_radius_miles?: number | null;
+          home_address?: string | null;
+          home_latitude?: number | null;
+          home_longitude?: number | null;
           id?: string;
           updated_at?: string;
           username?: string | null;
@@ -342,45 +354,6 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
-      };
-      oauth_states: {
-        Row: {
-          id: string;
-          state_token: string;
-          provider: string;
-          session_id: string | null;
-          return_url: string | null;
-          ip_address: string | null;
-          user_agent: string | null;
-          used: boolean;
-          created_at: string;
-          expires_at: string;
-        };
-        Insert: {
-          id?: string;
-          state_token: string;
-          provider: string;
-          session_id?: string | null;
-          return_url?: string | null;
-          ip_address?: string | null;
-          user_agent?: string | null;
-          used?: boolean;
-          created_at?: string;
-          expires_at?: string;
-        };
-        Update: {
-          id?: string;
-          state_token?: string;
-          provider?: string;
-          session_id?: string | null;
-          return_url?: string | null;
-          ip_address?: string | null;
-          user_agent?: string | null;
-          used?: boolean;
-          created_at?: string;
-          expires_at?: string;
-        };
-        Relationships: [];
       };
       rate_limit_attempts: {
         Row: {
@@ -760,6 +733,12 @@ export type Database = {
           p_identifier: string;
           p_attempt_type: string;
           p_ip_address: string | null;
+        };
+        Returns: void;
+      };
+      set_own_role: {
+        Args: {
+          p_role: string;
         };
         Returns: void;
       };

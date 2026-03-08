@@ -131,13 +131,13 @@ function NewGroupContent() {
       </header>
 
       {/* Main Content - Scrollable */}
-      <main className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-lg p-4">
           {/* Group Name Input */}
           <div className="form-control mb-6">
             <label htmlFor="group-name" className="label">
               <span className="label-text font-medium">Group Name</span>
-              <span className="label-text-alt text-base-content/60">
+              <span className="label-text-alt text-base-content/80">
                 {groupName.length}/{GROUP_CONSTRAINTS.MAX_NAME_LENGTH}
               </span>
             </label>
@@ -154,7 +154,7 @@ function NewGroupContent() {
               }
               disabled={isCreating}
             />
-            <p className="label-text-alt text-base-content/60 mt-2">
+            <p className="label-text-alt text-base-content/80 mt-2">
               {autoNamePreview}
             </p>
           </div>
@@ -272,7 +272,7 @@ function NewGroupContent() {
               />
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="text-base-content/40 absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2"
+                className="text-base-content/75 absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -303,7 +303,7 @@ function NewGroupContent() {
                 <span className="loading loading-spinner loading-lg" />
               </div>
             ) : availableConnections.length === 0 ? (
-              <div className="text-base-content/60 p-8 text-center">
+              <div className="text-base-content/80 p-8 text-center">
                 {searchQuery
                   ? 'No connections found'
                   : selectedMembers.length === searchResults.length
@@ -343,14 +343,14 @@ function NewGroupContent() {
                         {user.display_name || 'Unknown'}
                       </p>
                       {user.username && (
-                        <p className="text-base-content/60 truncate text-sm">
+                        <p className="text-base-content/80 truncate text-sm">
                           @{user.username}
                         </p>
                       )}
                     </div>
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="text-base-content/40 h-6 w-6"
+                      className="text-base-content/75 h-6 w-6"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -389,7 +389,7 @@ function NewGroupContent() {
             </div>
           )}
         </div>
-      </main>
+      </div>
 
       {/* Sticky Footer */}
       <footer className="border-base-300 bg-base-100 shrink-0 border-t p-4">

@@ -4,7 +4,7 @@
  */
 
 import { supabase, isSupabaseOnline } from '@/lib/supabase/client';
-import { queueOperation } from './offline-queue';
+import { queueOperation } from '@/lib/offline-queue';
 import type { Json } from '@/lib/supabase/types';
 import type {
   CreatePaymentIntentInput,
@@ -17,6 +17,13 @@ import type {
 } from '@/types/payment';
 import { validatePaymentAmount, validateCurrency } from '@/config/payment';
 import { validateAndSanitizeMetadata } from './metadata-validator';
+
+/**
+ * Type for joined payment_intents data in payment_results query
+ */
+interface JoinedPaymentIntent {
+  customer_email: string;
+}
 
 /**
  * Get authenticated user ID
@@ -215,7 +222,7 @@ export async function getPaymentHistory(
     status: item.status as PaymentActivity['status'],
     charged_amount: item.charged_amount ?? 0,
     charged_currency: item.charged_currency as Currency,
-    customer_email: (item.intent as any).customer_email,
+    customer_email: (item.intent as JoinedPaymentIntent).customer_email,
     webhook_verified: item.webhook_verified,
     created_at: item.created_at,
   }));

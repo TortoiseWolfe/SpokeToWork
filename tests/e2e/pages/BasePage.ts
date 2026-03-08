@@ -38,8 +38,8 @@ export class BasePage {
     const count = await loadingIndicators.count();
 
     if (count > 0) {
-      // Wait for all loading indicators to be hidden
-      await expect(loadingIndicators.first()).toBeHidden({ timeout: 10000 });
+      // Wait for all loading indicators to be hidden (30s for parallel execution)
+      await expect(loadingIndicators.first()).toBeHidden({ timeout: 30000 });
     }
 
     // Ensure the page is interactive

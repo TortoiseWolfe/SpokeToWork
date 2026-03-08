@@ -19,6 +19,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   createMessagingClient,
   type ConversationInsert,
+  type ConversationRow,
 } from '@/lib/supabase/messaging-client';
 import { encryptionService } from '@/lib/messaging/encryption';
 import { createLogger } from '@/lib/logger';
@@ -26,31 +27,44 @@ import { createLogger } from '@/lib/logger';
 const logger = createLogger('messaging:welcome');
 
 /**
- * Admin user ID constant (FR-010)
- * Fixed UUID for consistent welcome message sender
+ * Admin email constant (FR-010)
+ * The admin user created by seed-test-users.ts
+ * Used to look up admin for welcome message sender
  */
-export const ADMIN_USER_ID = '00000000-0000-0000-0000-000000000001';
+export const ADMIN_EMAIL = 'admin@spoketowork.com';
+
+/**
+ * Cached admin user ID (populated on first lookup)
+ */
+let cachedAdminUserId: string | null = null;
 
 /**
  * Welcome message content (FR-010)
- * Explains E2E encryption in layman's terms including:
- * - Message privacy
- * - Password-derived keys
- * - Cross-device access
+ * Tutorial explaining how to use SpokeToWork for job searching
  */
 export const WELCOME_MESSAGE_CONTENT = `Welcome to SpokeToWork!
 
-Your messages are protected by end-to-end encryption. Here's what that means:
+Here's how to get started with your job search:
 
-**Your messages are private** - Only you and the person you're messaging can read them. Not even we can see your conversations.
+**1. Set Your Home Location**
+Go to Companies → Home Location to set your starting point. This enables distance calculations so you can see how far each company is from home.
 
-**How it works** - Your password generates a unique "key" that locks and unlocks your messages. This key is created fresh each time you log in - we never store it.
+**2. Add Companies**
+Click "Add Company" to track places you want to apply. Enter the name and address - we'll find the coordinates automatically. Set the status and priority to stay organized.
 
-**Works on any device** - Since your key comes from your password, you can read your messages on any device just by logging in.
+**3. Track Your Progress**
+Update each company's status as you go:
+• Not Contacted → Contacted → Follow Up → Meeting → Outcome
 
-**Why this matters** - Even if someone accessed our servers, your conversations would look like scrambled nonsense without your password.
+**4. Export for the Road**
+Use "Export" to download your list as GPX (for navigation apps), CSV (spreadsheets), or a printable checklist to take with you.
 
-Feel free to explore!
+**5. Connect with Others**
+Use Messages to coordinate with fellow job seekers. Your conversations are end-to-end encrypted - only you and your contact can read them.
+
+**Quick Tip:** The Map view shows all your companies at once, making it easy to plan efficient routes for in-person visits.
+
+Good luck with your search!
 - The SpokeToWork Team`;
 
 /**
@@ -73,6 +87,33 @@ export interface SendWelcomeResult {
  */
 export class WelcomeService {
   /**
+   * Get admin user ID by email (cached for efficiency)
+   *
+   * @returns Admin user's UUID
+   * @throws Error if admin not found
+   */
+  async getAdminUserId(): Promise<string> {
+    if (cachedAdminUserId) {
+      return cachedAdminUserId;
+    }
+
+    const supabase = createClient();
+
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('username', 'spoketowork')
+      .single();
+
+    if (error || !data) {
+      throw new Error('Admin user not found');
+    }
+
+    cachedAdminUserId = data.id;
+    return data.id;
+  }
+
+  /**
    * Fetch admin's public key from database (FR-001, FR-010)
    *
    * @returns Admin's ECDH public key in JWK format
@@ -81,11 +122,12 @@ export class WelcomeService {
   async getAdminPublicKey(): Promise<JsonWebKey> {
     const supabase = createClient();
     const msgClient = createMessagingClient(supabase);
+    const adminUserId = await this.getAdminUserId();
 
     const { data, error } = await msgClient
       .from('user_encryption_keys')
       .select('public_key')
-      .eq('user_id', ADMIN_USER_ID)
+      .eq('user_id', adminUserId)
       .eq('revoked', false)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -157,7 +199,20 @@ export class WelcomeService {
         };
       }
 
-      // Step 2: Fetch admin's public key (FR-001) - with error handling (US3)
+      // Step 2: Get admin user ID (dynamic lookup)
+      let adminUserId: string;
+      try {
+        adminUserId = await this.getAdminUserId();
+      } catch (error) {
+        logger.error('Failed to get admin user ID', { error });
+        return {
+          success: false,
+          skipped: true,
+          reason: 'Admin user not found',
+        };
+      }
+
+      // Step 3: Fetch admin's public key (FR-001) - with error handling (US3)
       let adminPublicKeyJwk: JsonWebKey;
       try {
         adminPublicKeyJwk = await this.getAdminPublicKey();
@@ -196,6 +251,7 @@ export class WelcomeService {
       // Step 5: Get or create conversation with canonical ordering (FR-006)
       const conversationId = await this.getOrCreateAdminConversation(
         userId,
+        adminUserId,
         msgClient
       );
 
@@ -225,7 +281,7 @@ export class WelcomeService {
         .from('messages')
         .insert({
           conversation_id: conversationId,
-          sender_id: ADMIN_USER_ID,
+          sender_id: adminUserId,
           encrypted_content: encrypted.ciphertext,
           initialization_vector: encrypted.iv,
           sequence_number: nextSequenceNumber,
@@ -320,16 +376,16 @@ export class WelcomeService {
    * Uses canonical ordering (smaller UUID = participant_1_id) (FR-006).
    *
    * @param userId - Target user's UUID
+   * @param adminId - Admin user's UUID
    * @param msgClient - Messaging client
    * @returns Conversation ID
    * @private
    */
   private async getOrCreateAdminConversation(
     userId: string,
+    adminId: string,
     msgClient: ReturnType<typeof createMessagingClient>
   ): Promise<string | null> {
-    const adminId = ADMIN_USER_ID;
-
     // Apply canonical ordering (FR-006): participant_1 = min, participant_2 = max
     const [participant_1, participant_2] =
       adminId < userId ? [adminId, userId] : [userId, adminId];
@@ -357,11 +413,11 @@ export class WelcomeService {
       participant_2,
     });
 
-    const { data: created, error: createError } = await (msgClient as any)
+    const { data: created, error: createError } = await msgClient
       .from('conversations')
       .insert(insertData)
       .select('id')
-      .single();
+      .single<Pick<ConversationRow, 'id'>>();
 
     if (createError) {
       logger.error('Conversation insert failed', {

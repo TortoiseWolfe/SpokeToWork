@@ -35,17 +35,21 @@ export async function getStripe(): Promise<Stripe | null> {
 /**
  * Create Stripe Checkout Session
  * Calls Edge Function, then redirects to Stripe Checkout
+ *
+ * Uses URL-based redirect (modern Stripe API) instead of deprecated redirectToCheckout.
+ * Edge Function returns session.url for direct browser redirect.
  */
 export async function createCheckoutSession(
   paymentIntentId: string
 ): Promise<void> {
+  // Note: We don't need the Stripe instance for URL-based redirect,
+  // but we verify consent is granted
   const stripe = await getStripe();
   if (!stripe) {
     throw new Error('Stripe failed to load');
   }
 
   // Call Edge Function to create checkout session
-  // (Edge Function will be created in Phase 5)
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-stripe-checkout`,
     {
@@ -62,15 +66,30 @@ export async function createCheckoutSession(
     throw new Error(error.error || 'Failed to create checkout session');
   }
 
-  const { sessionId } = await response.json();
+  const data = await response.json();
 
-  // Redirect to Stripe Checkout
-  // Note: redirectToCheckout is deprecated in newer Stripe.js versions
-  // Using type assertion to handle deprecated API
-  const { error } = await (stripe as any).redirectToCheckout({ sessionId });
-
-  if (error) {
-    throw new Error(error.message || 'Failed to redirect to Stripe Checkout');
+  // Modern approach: Edge Function returns session.url for direct redirect
+  // Fallback: Legacy sessionId-based redirect (deprecated)
+  if (data.url) {
+    // Preferred: Direct URL redirect (type-safe)
+    window.location.href = data.url;
+  } else if (data.sessionId) {
+    // Legacy fallback: redirectToCheckout (deprecated but still functional)
+    // Type assertion needed because method is deprecated in types
+    interface LegacyStripe {
+      redirectToCheckout: (options: {
+        sessionId: string;
+      }) => Promise<{ error?: { message: string } }>;
+    }
+    const legacyStripe = stripe as unknown as LegacyStripe;
+    const { error } = await legacyStripe.redirectToCheckout({
+      sessionId: data.sessionId,
+    });
+    if (error) {
+      throw new Error(error.message || 'Failed to redirect to Stripe Checkout');
+    }
+  } else {
+    throw new Error('Invalid response from checkout endpoint');
   }
 }
 
@@ -121,11 +140,16 @@ export async function handleStripeRedirect(
 
 /**
  * Create Stripe subscription checkout
+ *
+ * Uses URL-based redirect (modern Stripe API) instead of deprecated redirectToCheckout.
+ * Edge Function returns session.url for direct browser redirect.
  */
 export async function createSubscriptionCheckout(
   priceId: string,
   customerEmail: string
 ): Promise<void> {
+  // Note: We don't need the Stripe instance for URL-based redirect,
+  // but we verify consent is granted
   const stripe = await getStripe();
   if (!stripe) {
     throw new Error('Stripe failed to load');
@@ -150,11 +174,29 @@ export async function createSubscriptionCheckout(
     throw new Error(error.error || 'Failed to create subscription checkout');
   }
 
-  const { sessionId } = await response.json();
+  const data = await response.json();
 
-  const { error } = await (stripe as any).redirectToCheckout({ sessionId });
-
-  if (error) {
-    throw new Error(error.message || 'Failed to redirect to Stripe Checkout');
+  // Modern approach: Edge Function returns session.url for direct redirect
+  // Fallback: Legacy sessionId-based redirect (deprecated)
+  if (data.url) {
+    // Preferred: Direct URL redirect (type-safe)
+    window.location.href = data.url;
+  } else if (data.sessionId) {
+    // Legacy fallback: redirectToCheckout (deprecated but still functional)
+    // Type assertion needed because method is deprecated in types
+    interface LegacyStripe {
+      redirectToCheckout: (options: {
+        sessionId: string;
+      }) => Promise<{ error?: { message: string } }>;
+    }
+    const legacyStripe = stripe as unknown as LegacyStripe;
+    const { error } = await legacyStripe.redirectToCheckout({
+      sessionId: data.sessionId,
+    });
+    if (error) {
+      throw new Error(error.message || 'Failed to redirect to Stripe Checkout');
+    }
+  } else {
+    throw new Error('Invalid response from checkout endpoint');
   }
 }

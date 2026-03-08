@@ -330,29 +330,32 @@ export class MarkdownProcessor {
 
     // Convert headers (after code blocks to avoid converting # in code)
     // Add IDs to headers for TOC navigation
+    // Trailing \n ensures a blank line after headings so paragraph splitter
+    // can separate them from following text (even without an explicit blank line
+    // in the source markdown).
     html = html.replace(/^###### (.*?)$/gm, (match, text) => {
       const id = this.generateId(text);
-      return `<h6 id="${id}">${text}</h6>`;
+      return `<h6 id="${id}">${text}</h6>\n`;
     });
     html = html.replace(/^##### (.*?)$/gm, (match, text) => {
       const id = this.generateId(text);
-      return `<h5 id="${id}">${text}</h5>`;
+      return `<h5 id="${id}">${text}</h5>\n`;
     });
     html = html.replace(/^#### (.*?)$/gm, (match, text) => {
       const id = this.generateId(text);
-      return `<h4 id="${id}">${text}</h4>`;
+      return `<h4 id="${id}">${text}</h4>\n`;
     });
     html = html.replace(/^### (.*?)$/gm, (match, text) => {
       const id = this.generateId(text);
-      return `<h3 id="${id}">${text}</h3>`;
+      return `<h3 id="${id}">${text}</h3>\n`;
     });
     html = html.replace(/^## (.*?)$/gm, (match, text) => {
       const id = this.generateId(text);
-      return `<h2 id="${id}">${text}</h2>`;
+      return `<h2 id="${id}">${text}</h2>\n`;
     });
     html = html.replace(/^# (.*?)$/gm, (match, text) => {
       const id = this.generateId(text);
-      return `<h1 id="${id}">${text}</h1>`;
+      return `<h1 id="${id}">${text}</h1>\n`;
     });
 
     // Convert inline code
@@ -413,6 +416,35 @@ export class MarkdownProcessor {
     // Convert links (after images to avoid conflicts)
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 
+    // Convert tables
+    html = html.replace(
+      /(?:^|\n)(\|.+\|)\n(\|[-:| ]+\|)\n((?:\|.+\|\n?)+)/gm,
+      (match, headerRow, separatorRow, bodyRows) => {
+        // Parse header cells
+        const headers = headerRow
+          .split('|')
+          .filter((cell: string) => cell.trim())
+          .map((cell: string) => `<th>${cell.trim()}</th>`)
+          .join('');
+
+        // Parse body rows
+        const rows = bodyRows
+          .trim()
+          .split('\n')
+          .map((row: string) => {
+            const cells = row
+              .split('|')
+              .filter((cell: string) => cell.trim())
+              .map((cell: string) => `<td>${cell.trim()}</td>`)
+              .join('');
+            return `<tr>${cells}</tr>`;
+          })
+          .join('\n');
+
+        return `<table class="table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
+      }
+    );
+
     // Convert line breaks to paragraphs
     const blocks = html.split(/\n\n+/);
     const processedBlocks = blocks.map((block) => {
@@ -428,6 +460,7 @@ export class MarkdownProcessor {
         trimmed.startsWith('<li') ||
         trimmed.startsWith('<pre') ||
         trimmed.startsWith('<code') ||
+        trimmed.startsWith('<table') ||
         trimmed.includes(CODE_PLACEHOLDER) // Check if it contains placeholder
       ) {
         return trimmed;

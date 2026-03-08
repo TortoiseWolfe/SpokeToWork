@@ -266,23 +266,23 @@ vi.mock('@/lib/supabase/messaging-client', () => ({
 }));
 
 // Mock key management
-// Mock GroupKeyService to return successful key distribution
+// Mock GroupKeyService to return successful key distribution (class mock for vitest 4.0)
 vi.mock('@/services/messaging/group-key-service', () => ({
-  GroupKeyService: vi.fn().mockImplementation(() => ({
-    generateGroupKey: vi.fn(() =>
+  GroupKeyService: class MockGroupKeyService {
+    generateGroupKey = vi.fn(() =>
       crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, [
         'encrypt',
         'decrypt',
       ])
-    ),
-    distributeGroupKey: vi.fn(() =>
+    );
+    distributeGroupKey = vi.fn(() =>
       Promise.resolve({
         successful: ['owner-user-id', 'member-a-id', 'member-b-id'],
         pending: [],
       })
-    ),
-    clearCache: vi.fn(),
-  })),
+    );
+    clearCache = vi.fn();
+  },
 }));
 
 vi.mock('@/services/messaging/key-service', () => ({

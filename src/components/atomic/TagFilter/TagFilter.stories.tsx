@@ -1,9 +1,9 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { useState } from 'react';
 import TagFilter from './TagFilter';
 
 const meta = {
-  title: 'Features/Blog/TagFilter',
+  title: 'Atomic Design/Atomic/TagFilter',
   component: TagFilter,
   parameters: {
     layout: 'padded',

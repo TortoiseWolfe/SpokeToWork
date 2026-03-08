@@ -1,8 +1,8 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import QueueStatusIndicator from './QueueStatusIndicator';
 
 const meta: Meta<typeof QueueStatusIndicator> = {
-  title: 'Components/Atomic/QueueStatusIndicator',
+  title: 'Atomic Design/Atomic/QueueStatusIndicator',
   component: QueueStatusIndicator,
   parameters: {
     layout: 'centered',

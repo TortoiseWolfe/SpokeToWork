@@ -35,6 +35,7 @@ export default function SignInForm({
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [remainingAttempts, setRemainingAttempts] = useState<number | null>(
     null
   );
@@ -83,7 +84,9 @@ export default function SignInForm({
     setRemainingAttempts(rateLimit.remaining);
     setLoading(true);
 
-    const { error: signInError } = await signIn(email, password);
+    const { error: signInError } = await signIn(email, password, {
+      rememberMe,
+    });
 
     setLoading(false);
 
@@ -91,6 +94,26 @@ export default function SignInForm({
       // Check if email needs verification
       if (signInError.message.toLowerCase().includes('email not confirmed')) {
         window.location.href = '/verify-email';
+        return;
+      }
+
+      // Normalize a GoTrue 429 to a friendly message.
+      // Skip recordFailedAttempt — GoTrue already counted this request against
+      // its own limiter, so incrementing our internal counter would double-count.
+      // Skip "attempts remaining" — the account is already locked server-side.
+      if (
+        (signInError as { status?: number }).status === 429 ||
+        signInError.message.toLowerCase().includes('rate limit')
+      ) {
+        await logAuthEvent({
+          event_type: 'sign_in',
+          event_data: { email, provider: 'email' },
+          success: false,
+          error_message: signInError.message,
+        });
+        setError(
+          'Too many sign-in attempts. Please wait a few minutes before trying again.'
+        );
         return;
       }
 
@@ -139,34 +162,26 @@ export default function SignInForm({
           logger.info('New user - initializing encryption keys');
           const keyPair = await keyManagementService.initializeKeys(password);
 
-          // Send welcome message (non-blocking, Feature 003-feature-004-welcome)
-          // Pass privateKey for ECDH shared secret derivation with admin's public key
-          import('@/services/messaging/welcome-service')
-            .then(({ welcomeService }) => {
-              // Get current user ID from auth context or session
-              const { createClient } = require('@/lib/supabase/client');
+          // Send welcome message (must complete before navigation)
+          if (keyPair.privateKey && keyPair.publicKeyJwk) {
+            try {
+              const { welcomeService } = await import(
+                '@/services/messaging/welcome-service'
+              );
+              const { createClient } = await import('@/lib/supabase/client');
               const supabase = createClient();
-              supabase.auth.getUser().then(({ data }: any) => {
-                if (
-                  data?.user?.id &&
-                  keyPair.privateKey &&
+              const { data } = await supabase.auth.getUser();
+              if (data?.user?.id) {
+                await welcomeService.sendWelcomeMessage(
+                  data.user.id,
+                  keyPair.privateKey,
                   keyPair.publicKeyJwk
-                ) {
-                  welcomeService
-                    .sendWelcomeMessage(
-                      data.user.id,
-                      keyPair.privateKey,
-                      keyPair.publicKeyJwk
-                    )
-                    .catch((err: Error) => {
-                      logger.error('Welcome message failed', { error: err });
-                    });
-                }
-              });
-            })
-            .catch((err: Error) => {
-              logger.error('Failed to load welcome service', { error: err });
-            });
+                );
+              }
+            } catch (err) {
+              logger.error('Welcome message failed', { error: err });
+            }
+          }
         } else {
           // Check if user needs migration (legacy random keys)
           const needsMigration = await keyManagementService.needsMigration();
@@ -182,31 +197,26 @@ export default function SignInForm({
             keyPair = await keyManagementService.deriveKeys(password);
           }
 
-          // Check if user needs welcome message (Feature 004)
-          // This handles cases where keys exist but welcome message wasn't sent
+          // Send welcome message if needed (Feature 004)
+          // Must complete before navigation — idempotent (skips if already sent)
           if (keyPair?.privateKey && keyPair?.publicKeyJwk) {
-            import('@/services/messaging/welcome-service')
-              .then(({ welcomeService }) => {
-                const { createClient } = require('@/lib/supabase/client');
-                const supabase = createClient();
-                supabase.auth.getUser().then(({ data }: any) => {
-                  if (data?.user?.id) {
-                    // welcomeService.sendWelcomeMessage checks welcome_message_sent flag
-                    welcomeService
-                      .sendWelcomeMessage(
-                        data.user.id,
-                        keyPair.privateKey,
-                        keyPair.publicKeyJwk
-                      )
-                      .catch((err: Error) => {
-                        logger.error('Welcome message failed', { error: err });
-                      });
-                  }
-                });
-              })
-              .catch((err: Error) => {
-                logger.error('Failed to load welcome service', { error: err });
-              });
+            try {
+              const { welcomeService } = await import(
+                '@/services/messaging/welcome-service'
+              );
+              const { createClient } = await import('@/lib/supabase/client');
+              const supabase = createClient();
+              const { data } = await supabase.auth.getUser();
+              if (data?.user?.id) {
+                await welcomeService.sendWelcomeMessage(
+                  data.user.id,
+                  keyPair.privateKey,
+                  keyPair.publicKeyJwk
+                );
+              }
+            } catch (err) {
+              logger.error('Welcome message failed', { error: err });
+            }
           }
         }
       } catch (keyError) {
@@ -259,6 +269,19 @@ export default function SignInForm({
           required
           disabled={loading}
         />
+      </div>
+
+      <div className="form-control">
+        <label className="label cursor-pointer justify-start gap-2">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            className="checkbox min-h-11 min-w-11"
+            disabled={loading}
+          />
+          <span className="label-text">Remember me</span>
+        </label>
       </div>
 
       {error && (

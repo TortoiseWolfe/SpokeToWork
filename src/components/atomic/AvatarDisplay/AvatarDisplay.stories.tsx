@@ -1,8 +1,8 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import AvatarDisplay from './AvatarDisplay';
 
 const meta: Meta<typeof AvatarDisplay> = {
-  title: 'Components/Atomic/AvatarDisplay',
+  title: 'Atomic Design/Atomic/AvatarDisplay',
   component: AvatarDisplay,
   parameters: {
     layout: 'centered',

@@ -20,8 +20,8 @@ export default function DocsPage() {
           external: true,
         },
         {
-          href: '/blog/spoketowork-intro',
-          label: 'Introduction to SpokeToWork',
+          href: '/blog/getting-started-job-hunt-companion',
+          label: 'Getting Started Guide',
           external: false,
         },
         {
@@ -39,11 +39,6 @@ export default function DocsPage() {
           href: 'https://github.com/TortoiseWolfe/SpokeToWork/blob/main/CLAUDE.md',
           label: 'CLAUDE.md - AI Development Guide',
           external: true,
-        },
-        {
-          href: '/blog/auto-configuration-system',
-          label: 'Auto-Configuration Guide',
-          external: false,
         },
         {
           href: 'https://github.com/TortoiseWolfe/SpokeToWork/blob/main/docs/FORKING-GUIDE.md',
@@ -88,9 +83,9 @@ export default function DocsPage() {
           external: true,
         },
         {
-          href: '/blog/spec-kit-workflow',
-          label: 'Spec Kit Workflow',
-          external: false,
+          href: 'https://github.com/TortoiseWolfe/SpokeToWork/blob/main/docs/prp-docs/SPECKIT-PRP-GUIDE.md',
+          label: 'Spec Kit Workflow Guide',
+          external: true,
         },
         {
           href: 'https://github.com/TortoiseWolfe/SpokeToWork/tree/main/docs/spec-kit',
@@ -154,9 +149,12 @@ export default function DocsPage() {
   ];
 
   return (
-    <main className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 md:py-12 lg:px-8">
+    <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 md:py-12 lg:px-8">
       <header className="mb-8 text-center sm:mb-10 md:mb-12">
-        <p className="text-base-content/70 text-base sm:text-lg md:text-xl">
+        <h1 className="mb-4 text-3xl font-bold sm:text-4xl md:text-5xl">
+          Documentation
+        </h1>
+        <p className="text-base-content/85 text-base sm:text-lg md:text-xl">
           Everything you need to know about SpokeToWork
         </p>
       </header>
@@ -169,7 +167,7 @@ export default function DocsPage() {
           >
             <div className="card-body">
               <h2 className="card-title text-2xl">{section.title}</h2>
-              <p className="text-base-content/70 mb-4">{section.description}</p>
+              <p className="text-base-content/85 mb-4">{section.description}</p>
               <div className="divider my-2"></div>
               <ul className="space-y-2">
                 {section.links.map((link, linkIndex) => (
@@ -243,6 +241,6 @@ export default function DocsPage() {
           </div>
         </div>
       </section>
-    </main>
+    </div>
   );
 }

@@ -30,6 +30,8 @@ export default function PWAInstall() {
   });
 
   useEffect(() => {
+    let swUpdateInterval: ReturnType<typeof setInterval> | null = null;
+
     // Register service worker (enabled in development for testing)
     if ('serviceWorker' in navigator) {
       // Skip in test environments
@@ -57,7 +59,7 @@ export default function PWAInstall() {
             });
 
             // Check for updates periodically
-            setInterval(() => {
+            swUpdateInterval = setInterval(() => {
               registration.update().catch((err) => {
                 logger.debug('SW update check failed', { error: err });
               });
@@ -89,10 +91,7 @@ export default function PWAInstall() {
       trackPWAEvent('install_prompt_shown');
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    // Check if the app was successfully installed
-    window.addEventListener('appinstalled', () => {
+    const handleAppInstalled = () => {
       logger.info('PWA installed');
       setIsInstalled(true);
       setShowInstallButton(false);
@@ -100,13 +99,18 @@ export default function PWAInstall() {
 
       // Track successful installation
       trackPWAEvent('installed');
-    });
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
       window.removeEventListener(
         'beforeinstallprompt',
         handleBeforeInstallPrompt
       );
+      window.removeEventListener('appinstalled', handleAppInstalled);
+      if (swUpdateInterval) clearInterval(swUpdateInterval);
     };
   }, [trackPWAEvent]);
 

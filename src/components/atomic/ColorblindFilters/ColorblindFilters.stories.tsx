@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/nextjs';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import React from 'react';
 import { ColorblindFilters } from './ColorblindFilters';
 import { ColorblindType } from '@/utils/colorblind';
@@ -25,7 +25,7 @@ const ColorDemo = ({ filterType }: { filterType?: ColorblindType }) => {
             ? `${filterType} Simulation`
             : 'Original Colors (No Filter)'}
         </h3>
-        <p className="mt-1 text-sm opacity-70">
+        <p className="text-base-content/85 mt-1 text-sm">
           {filterType
             ? 'How colors appear with this type of color blindness'
             : 'Normal color vision'}
@@ -39,7 +39,7 @@ const ColorDemo = ({ filterType }: { filterType?: ColorblindType }) => {
           <div key={color.name} className="flex flex-col items-center gap-2">
             <div className={`h-20 w-20 rounded-lg ${color.bg}`} />
             <span className="text-sm font-medium">{color.name}</span>
-            <span className="text-xs opacity-60">{color.hex}</span>
+            <span className="text-base-content/80 text-xs">{color.hex}</span>
           </div>
         ))}
       </div>
@@ -48,7 +48,7 @@ const ColorDemo = ({ filterType }: { filterType?: ColorblindType }) => {
 };
 
 const meta = {
-  title: 'Layout/Theme/ColorblindFilters',
+  title: 'Atomic Design/Atomic/ColorblindFilters',
   component: ColorblindFilters,
   parameters: {
     layout: 'centered',
