@@ -226,7 +226,7 @@ export class MessageService {
             sequence_number: nextSequenceNumber,
             deleted: false,
             edited: false,
-            delivered_at: new Date().toISOString(), // Mark as delivered immediately (saved to database)
+            // delivered_at left null — recipient marks as delivered when they receive it
           })
           .select()
           .single();
@@ -684,9 +684,10 @@ export class MessageService {
 
     logger.debug('markAsRead called', { count: messageIds.length });
     try {
+      const now = new Date().toISOString();
       const { error, count } = await msgClient
         .from('messages')
-        .update({ read_at: new Date().toISOString() })
+        .update({ read_at: now, delivered_at: now })
         .in('id', messageIds)
         .is('read_at', null); // Only update if not already read
 
@@ -705,6 +706,54 @@ export class MessageService {
         throw error;
       }
       throw new ConnectionError('Failed to mark messages as read', error);
+    }
+  }
+
+  /**
+   * Mark messages as delivered by setting delivered_at timestamp
+   * Task: T111
+   *
+   * Sets delivered_at for messages that haven't been marked delivered yet.
+   * Called when recipient's page loads messages from another user.
+   *
+   * @param messageIds - Array of message UUIDs to mark as delivered
+   */
+  async markAsDelivered(messageIds: string[]): Promise<void> {
+    const supabase = createClient();
+    const msgClient = createMessagingClient(supabase);
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      throw new AuthenticationError(
+        'You must be signed in to mark messages as delivered'
+      );
+    }
+
+    if (messageIds.length === 0) {
+      return;
+    }
+
+    logger.debug('markAsDelivered called', { count: messageIds.length });
+    try {
+      const now = new Date().toISOString();
+      const { error, count } = await msgClient
+        .from('messages')
+        .update({ delivered_at: now })
+        .in('id', messageIds)
+        .is('delivered_at', null); // Only update if not already delivered
+
+      if (error) {
+        logger.error('markAsDelivered error', { error: error.message });
+      } else {
+        logger.debug('markAsDelivered success', { updatedCount: count });
+      }
+    } catch (error) {
+      // Silent failure — delivery receipts shouldn't break the UI
+      logger.error('Failed to mark messages as delivered', { error });
     }
   }
 

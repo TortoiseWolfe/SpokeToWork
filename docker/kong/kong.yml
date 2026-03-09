@@ -64,6 +64,38 @@ services:
             - anon
             - admin
 
+  ## Realtime
+  - name: realtime-v1-ws
+    url: http://supabase-realtime:4000/socket/websocket
+    routes:
+      - name: realtime-v1-ws-route
+        strip_path: true
+        paths:
+          - /realtime/v1/websocket
+    plugins:
+      - name: cors
+
+  - name: realtime-v1
+    url: http://supabase-realtime:4000
+    routes:
+      - name: realtime-v1-route
+        strip_path: true
+        paths:
+          - /realtime/v1
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: false
+          key_names:
+            - apikey
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - anon
+            - admin
+
   ## Meta (postgres-meta)
   - name: meta
     url: http://supabase-meta:8080

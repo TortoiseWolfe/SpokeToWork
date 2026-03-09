@@ -88,22 +88,34 @@ async function ensureEmployerSetup(client: SupabaseClient) {
   });
 
   // Ensure a shared company exists
-  const { data: existingCompany } = await client
+  const { data: existingCompany, error: companyQueryErr } = await client
     .from('shared_companies')
     .select('id')
     .limit(1)
     .maybeSingle();
 
+  // Table may not exist in local Supabase environments
+  if (companyQueryErr?.message?.includes('does not exist')) {
+    throw new Error(
+      'shared_companies table not found — employer schema not migrated'
+    );
+  }
+
   let companyId: string;
   if (existingCompany) {
     companyId = existingCompany.id;
   } else {
-    const { data: newCompany } = await client
+    const { data: newCompany, error: insertErr } = await client
       .from('shared_companies')
       .insert({ name: 'E2E Test Company' })
       .select('id')
       .single();
-    companyId = newCompany!.id;
+    if (!newCompany || insertErr) {
+      throw new Error(
+        `Failed to create shared company: ${insertErr?.message || 'insert returned null'}`
+      );
+    }
+    companyId = newCompany.id;
   }
 
   // Ensure employer is linked to the company

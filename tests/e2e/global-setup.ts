@@ -11,7 +11,19 @@
 
 import { FullConfig } from '@playwright/test';
 import * as crypto from 'crypto';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { executeSQL } from './utils/supabase-admin';
+import { createTestUser } from './utils/test-user-factory';
+
+/** Admin Supabase client for local dev (bypasses RLS, works without Management API) */
+function getAdminClient(): SupabaseClient | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
 
 const ADMIN_USER = {
   id: '00000000-0000-0000-0000-000000000001',
@@ -258,23 +270,56 @@ async function ensureTestUserKeys(): Promise<void> {
     return;
   }
 
+  const adminClient = getAdminClient();
+
   for (const { email, password } of testUsers) {
     try {
-      // 1. Look up user_id
+      // 1. Look up user_id — try SQL first, fall back to admin client
+      let userId: string | undefined;
       const rows = (await executeSQL(
         `SELECT id FROM auth.users WHERE email = '${email}'`
       )) as { id: string }[];
-      const userId = rows[0]?.id;
-      if (!userId) {
-        console.log(`  ⚠ User ${email} not found in auth.users — skipping`);
-        continue;
+      userId = rows[0]?.id;
+
+      if (!userId && adminClient) {
+        const { data } = await adminClient.auth.admin.listUsers();
+        userId = data?.users?.find((u) => u.email === email)?.id;
       }
 
-      // 2. Check for existing non-revoked keys with salt
+      if (!userId) {
+        // User doesn't exist yet — create them via admin API
+        console.log(`  ⚠ User ${email} not found — creating via admin API...`);
+        try {
+          const created = await createTestUser(email, password, {
+            createProfile: true,
+          });
+          userId = created.id;
+          console.log(`  ✓ Created user ${email} (${userId})`);
+        } catch (createErr) {
+          console.warn(`  ⚠ Failed to create ${email}:`, createErr);
+          continue;
+        }
+      }
+
+      // 2. Check for existing non-revoked keys with salt — try SQL, fall back to admin client
+      let hasKeys = false;
       const existing = (await executeSQL(
         `SELECT id FROM user_encryption_keys WHERE user_id = '${userId}' AND revoked = false AND encryption_salt IS NOT NULL`
       )) as { id: string }[];
-      if (existing[0]?.id) {
+      hasKeys = !!existing[0]?.id;
+
+      if (!hasKeys && adminClient && existing.length === 0) {
+        // executeSQL returned empty (might have skipped) — check via admin client
+        const { data: keyRows } = await adminClient
+          .from('user_encryption_keys')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('revoked', false)
+          .not('encryption_salt', 'is', null);
+        hasKeys = !!(keyRows && keyRows.length > 0);
+      }
+
+      if (hasKeys) {
         console.log(`  ✓ ${email} already has encryption keys`);
         continue;
       }
@@ -314,12 +359,33 @@ async function ensureTestUserKeys(): Promise<void> {
 
       // 7. Store public_key + encryption_salt in database
       const saltBase64 = Buffer.from(salt).toString('base64');
+
+      // Try SQL first, then admin client
       const jwkJson = JSON.stringify(jwk).replace(/'/g, "''");
-      await executeSQL(`
+      const sqlResult = await executeSQL(`
         INSERT INTO user_encryption_keys (user_id, public_key, encryption_salt, revoked)
         VALUES ('${userId}', '${jwkJson}'::jsonb, '${saltBase64}', false)
         ON CONFLICT DO NOTHING
       `);
+
+      // If executeSQL skipped (returned []), use admin client
+      if (sqlResult.length === 0 && adminClient) {
+        const { error: insertErr } = await adminClient
+          .from('user_encryption_keys')
+          .insert({
+            user_id: userId,
+            public_key: jwk,
+            encryption_salt: saltBase64,
+            revoked: false,
+          });
+        if (insertErr) {
+          console.warn(
+            `  ⚠ Admin client key insert failed for ${email}:`,
+            insertErr.message
+          );
+          continue;
+        }
+      }
 
       console.log(`  ✓ Encryption keys seeded for ${email}`);
     } catch (error) {

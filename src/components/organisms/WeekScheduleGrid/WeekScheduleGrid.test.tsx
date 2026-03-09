@@ -62,7 +62,7 @@ describe('WeekScheduleGrid', () => {
     render(<WeekScheduleGrid {...defaultProps} />);
     expect(screen.getByLabelText('Previous week')).toBeInTheDocument();
     expect(screen.getByLabelText('Next week')).toBeInTheDocument();
-    expect(screen.getByText('Today')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument();
   });
 
   it('shows team member names', () => {

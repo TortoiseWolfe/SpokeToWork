@@ -287,18 +287,26 @@ test.describe('Route Layer Visibility', () => {
   test('all-bike-routes layer renders with correct styling', async ({
     page,
   }) => {
-    const layerInfo = await page.evaluate(() => {
+    // BikeRoutesLayer fetches GeoJSON asynchronously after map load,
+    // so poll until the source and layers appear (up to 15s).
+    const layerInfo = await page.evaluate(async () => {
       const map = (window as any).maplibreMap;
       if (!map) return null;
 
-      const source = map.getSource('all-bike-routes');
-      const layer = map.getLayer('all-bike-routes');
-      const casingLayer = map.getLayer('all-bike-routes-casing');
+      for (let i = 0; i < 30; i++) {
+        const source = map.getSource('all-bike-routes');
+        const layer = map.getLayer('all-bike-routes');
+        const casing = map.getLayer('all-bike-routes-casing');
+        if (source && layer && casing) {
+          return { sourceExists: true, layerExists: true, casingExists: true };
+        }
+        await new Promise((r) => setTimeout(r, 500));
+      }
 
       return {
-        sourceExists: !!source,
-        layerExists: !!layer,
-        casingExists: !!casingLayer,
+        sourceExists: !!map.getSource('all-bike-routes'),
+        layerExists: !!map.getLayer('all-bike-routes'),
+        casingExists: !!map.getLayer('all-bike-routes-casing'),
       };
     });
 

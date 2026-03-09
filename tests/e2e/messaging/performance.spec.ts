@@ -13,6 +13,11 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import {
+  completeEncryptionSetup,
+  dismissCookieBanner,
+  dismissReAuthModal,
+} from './test-helpers';
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 
@@ -356,27 +361,9 @@ test.beforeAll(async () => {
  */
 async function openConversation(page: Page) {
   await page.goto(`/messages?conversation=${conversationId}`);
-
-  // Each Playwright worker has its own browser context so the ReAuth modal
-  // fires independently.  Detect it explicitly — do NOT swallow errors.
-  const dialog = page.getByRole('dialog', {
-    name: /re-authentication required/i,
-  });
-  const dialogVisible = await dialog
-    .waitFor({ state: 'visible', timeout: 3000 })
-    .then(() => true)
-    .catch(() => false);
-
-  if (dialogVisible) {
-    await page
-      .getByRole('textbox', { name: /password/i })
-      .fill(TEST_USER_PRIMARY_PASSWORD);
-    await page.getByRole('button', { name: /unlock messages/i }).click();
-    // Argon2id key derivation is CPU-bound.  Under 10 parallel workers in a
-    // constrained Docker container it can take well over 10 s — use a generous
-    // timeout so we never proceed with the modal still open.
-    await dialog.waitFor({ state: 'hidden', timeout: 45000 });
-  }
+  await dismissCookieBanner(page);
+  await completeEncryptionSetup(page);
+  await dismissReAuthModal(page);
 
   // Wait for the thread container AND at least one rendered message bubble.
   await page
@@ -386,6 +373,28 @@ async function openConversation(page: Page) {
     .locator('[data-testid="message-bubble"]')
     .first()
     .waitFor({ state: 'visible', timeout: 30000 });
+}
+
+/**
+ * Scroll the message thread to the top and wait for React to process the
+ * scroll event.  Setting `scrollTop` programmatically does not reliably fire
+ * a native scroll event in headless Chromium, so we dispatch one manually
+ * AND poll until the jump-to-bottom button appears (proving React's
+ * handleScroll ran and set showScrollButton).
+ */
+async function scrollToTopAndWait(page: import('@playwright/test').Page) {
+  const messageThread = page.getByTestId('message-thread');
+  await messageThread.evaluate((el) => {
+    el.scrollTop = 0;
+    el.dispatchEvent(new Event('scroll', { bubbles: true }));
+  });
+  // Give the browser a tick, then re-dispatch in case the first was lost
+  await page.waitForTimeout(100);
+  await messageThread.evaluate((el) => {
+    if (el.scrollTop === 0) {
+      el.dispatchEvent(new Event('scroll', { bubbles: true }));
+    }
+  });
 }
 
 // ─── Virtual Scrolling Performance ──────────────────────────────────────────
@@ -415,10 +424,11 @@ test.describe('Virtual Scrolling Performance', () => {
 
     const messageThread = page.getByTestId('message-thread');
 
-    // Scroll away from bottom
+    // Scroll away from bottom (decrease scrollTop to move up)
     for (let i = 0; i < 10; i++) {
       await messageThread.evaluate((el) => {
-        el.scrollTop += 500;
+        el.scrollTop = Math.max(0, el.scrollTop - 500);
+        el.dispatchEvent(new Event('scroll', { bubbles: true }));
       });
       await page.waitForTimeout(100);
     }
@@ -443,6 +453,7 @@ test.describe('Virtual Scrolling Performance', () => {
     // a real position change that fires the scroll event driving pagination.
     await messageThread.evaluate((el) => {
       el.scrollTop = 0;
+      el.dispatchEvent(new Event('scroll', { bubbles: true }));
     });
 
     const paginationLoader = page.getByTestId('pagination-loader');
@@ -461,9 +472,7 @@ test.describe('Virtual Scrolling Performance', () => {
 
     // Component lands at the bottom on initial load; scrolling to 0
     // fires the scroll event that drives showScrollButton.
-    await messageThread.evaluate((el) => {
-      el.scrollTop = 0;
-    });
+    await scrollToTopAndWait(page);
 
     const jumpButton = page.getByTestId('jump-to-bottom');
     await expect(jumpButton).toBeVisible({ timeout: 5000 });
@@ -567,17 +576,20 @@ test.describe('Keyboard Navigation', () => {
 
     // Component lands at the bottom on initial load; scrolling to 0
     // fires the scroll event that renders the jump button.
-    await messageThread.evaluate((el) => {
-      el.scrollTop = 0;
-    });
+    await scrollToTopAndWait(page);
 
     const jumpButton = page.getByTestId('jump-to-bottom');
     await expect(jumpButton).toBeVisible({ timeout: 5000 });
 
-    // Tab through interactive elements until jump-to-bottom is focused
+    // The jump button sits between the message list (with many Edit/Delete
+    // buttons) and the message input in DOM order.  Rather than tabbing
+    // forward through potentially dozens of message buttons, focus the
+    // Send button (which follows the input) and Shift-Tab back — this
+    // reaches the jump button in far fewer key presses.
+    await page.locator('button[aria-label="Send message"]').focus();
     let focused = '';
-    for (let i = 0; i < 20; i++) {
-      await page.keyboard.press('Tab');
+    for (let i = 0; i < 10; i++) {
+      await page.keyboard.press('Shift+Tab');
       focused =
         (await page.evaluate(() =>
           document.activeElement?.getAttribute('data-testid')
@@ -609,6 +621,7 @@ test.describe('Scroll Restoration', () => {
     // a real position change that fires the scroll event driving pagination.
     await messageThread.evaluate((el) => {
       el.scrollTop = 0;
+      el.dispatchEvent(new Event('scroll', { bubbles: true }));
     });
 
     const paginationLoader = page.getByTestId('pagination-loader');

@@ -9,7 +9,13 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
-import { getAdminClient, ensureConnection } from './test-helpers';
+import {
+  getAdminClient,
+  ensureConnection,
+  completeEncryptionSetup,
+  dismissCookieBanner,
+  dismissReAuthModal,
+} from './test-helpers';
 
 // Always use localhost for E2E tests - we're testing local development
 const BASE_URL = 'http://localhost:3000';
@@ -24,9 +30,6 @@ const PRIMARY_USER = {
   password: process.env.TEST_USER_PRIMARY_PASSWORD!,
 };
 
-// Messaging password is the same as login password for encryption key derivation
-const MESSAGING_PASSWORD = PRIMARY_USER.password;
-
 /**
  * Helper: Sign in as the primary user and navigate to messages page
  * Handles encryption setup flow if needed
@@ -39,8 +42,11 @@ async function signInAndNavigateToMessages(page: Page) {
   // Check if already signed in (redirected away from sign-in)
   if (!page.url().includes('sign-in')) {
     await page.goto(BASE_URL + '/messages');
+    await dismissCookieBanner(page);
+    await completeEncryptionSetup(page);
     await page.waitForLoadState('networkidle');
-    return handleMessagingAuth(page);
+    await dismissReAuthModal(page);
+    return;
   }
 
   // Step 2: Fill in credentials and submit
@@ -53,80 +59,12 @@ async function signInAndNavigateToMessages(page: Page) {
 
   // Step 4: Navigate to messages page
   await page.goto(BASE_URL + '/messages');
+  await dismissCookieBanner(page);
+  await completeEncryptionSetup(page);
   await page.waitForLoadState('networkidle');
 
-  // Step 5: Handle messaging auth (setup or re-auth)
-  await handleMessagingAuth(page);
-}
-
-/**
- * Helper: Handle messaging authentication flow
- * - If redirected to /messages/setup, complete the setup flow
- * - If ReAuthModal appears, enter the messaging password
- */
-async function handleMessagingAuth(page: Page) {
-  // Wait for page to stabilize
-  await page.waitForTimeout(2000);
-
-  // Check if we got redirected to setup
-  if (page.url().includes('/messages/setup')) {
-    await completeEncryptionSetup(page);
-    return;
-  }
-
-  // Check for ReAuth modal
-  const modal = page.locator('[role="dialog"]').first();
-  const isModalVisible = await modal
-    .isVisible({ timeout: 3000 })
-    .catch(() => false);
-
-  if (isModalVisible) {
-    const modalText = await modal.textContent();
-
-    // Check if it's asking for password
-    if (
-      modalText?.toLowerCase().includes('password') ||
-      modalText?.toLowerCase().includes('encryption')
-    ) {
-      const passwordInput = modal.locator('input[type="password"]').first();
-      await passwordInput.fill(MESSAGING_PASSWORD);
-
-      // Look for submit/unlock button
-      const submitBtn = modal.locator('button[type="submit"]').first();
-      await submitBtn.click();
-
-      // Wait for modal to close
-      await page.waitForTimeout(2000);
-    }
-  }
-
-  // Final wait for messaging UI to be ready
-  await page.waitForTimeout(1000);
-}
-
-/**
- * Helper: Complete the encryption setup flow on /messages/setup
- */
-async function completeEncryptionSetup(page: Page) {
-  await page.waitForSelector('form', { timeout: 10000 });
-
-  const passwordInputs = page.locator('input[type="password"]');
-  const count = await passwordInputs.count();
-
-  if (count >= 2) {
-    // New user setup: password + confirm password
-    await passwordInputs.nth(0).fill(MESSAGING_PASSWORD);
-    await passwordInputs.nth(1).fill(MESSAGING_PASSWORD);
-  } else if (count === 1) {
-    // Single password field
-    await passwordInputs.nth(0).fill(MESSAGING_PASSWORD);
-  }
-
-  await page.click('button[type="submit"]');
-
-  // Wait for redirect back to messages
-  await page.waitForURL(/.*\/messages(?!.*setup)/, { timeout: 20000 });
-  await page.waitForTimeout(2000);
+  // Step 5: Handle ReAuth modal if it appears
+  await dismissReAuthModal(page);
 }
 
 test.describe('Group Chat E2E', () => {
@@ -234,21 +172,31 @@ test.describe('Group Chat E2E', () => {
 
       // Wait for new-group page
       await page.waitForURL(/.*\/messages\/new-group/, { timeout: 10000 });
+      await dismissCookieBanner(page);
+      await page.waitForLoadState('networkidle');
 
       // Enter group name
       const groupNameInput = page.locator('#group-name');
       const testGroupName = `Test Group ${Date.now()}`;
       await groupNameInput.fill(testGroupName);
 
-      // Wait for connections list to load
+      // Wait for connections list to fully load.
+      // The useEffect triggers loadConnections() which can be slow in Docker
+      // after 200+ prior tests. Wait for the spinner to appear then disappear,
+      // or for option buttons to appear directly.
       const connectionsList = page.locator(
         '[role="listbox"][aria-label="Available connections"]'
       );
       await expect(connectionsList).toBeVisible({ timeout: 10000 });
 
-      // Wait for at least one connection to appear
+      // Wait for option buttons OR empty state — the spinner must resolve
       const firstConnection = page.locator('button[role="option"]').first();
-      await expect(firstConnection).toBeVisible({ timeout: 10000 });
+      const emptyState = connectionsList.getByText(
+        /no connections|all connections selected/i
+      );
+      await expect(firstConnection.or(emptyState)).toBeVisible({
+        timeout: 45000,
+      });
 
       // Select members by clicking on them in the available connections list
       // Members are buttons with role="option" - clicking adds them to selected list
@@ -326,10 +274,10 @@ test.describe('Group Chat E2E', () => {
 
       // Navigate to new-group page
       await page.goto(BASE_URL + '/messages/new-group');
+      await dismissCookieBanner(page);
+      await completeEncryptionSetup(page);
       await page.waitForLoadState('networkidle');
-
-      // Handle any auth flow if needed
-      await handleMessagingAuth(page);
+      await dismissReAuthModal(page);
 
       // Wait for page to load
       const pageTitle = page.locator('h1:has-text("New Group")');

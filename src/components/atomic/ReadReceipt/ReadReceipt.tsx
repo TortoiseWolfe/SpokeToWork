@@ -115,7 +115,7 @@ export default function ReadReceipt({
   return (
     <div
       className={`inline-flex items-center${className ? ` ${className}` : ''}`}
-      data-testid="read-receipt"
+      data-testid="delivery-status"
       role="img"
       aria-label={`Message ${status}`}
     >

@@ -185,6 +185,40 @@ services:
     networks:
       - SpokeToWork
 
+  supabase-realtime:
+    image: supabase/realtime:v2.30.34
+    hostname: supabase-realtime
+    profiles: [supabase]
+    depends_on:
+      supabase-init:
+        condition: service_completed_successfully
+    environment:
+      PORT: 4000
+      DB_HOST: supabase-db
+      DB_PORT: 5432
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${SUPABASE_LOCAL_DB_PASSWORD:-your-super-secret-and-long-postgres-password}
+      DB_NAME: postgres
+      DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'
+      DB_ENC_KEY: supabaserealtime
+      API_JWT_SECRET: ${SUPABASE_LOCAL_JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      SECRET_KEY_BASE: change-me-realtime-secret-key-base
+      ERL_AFLAGS: -proto_dist inet_tcp
+      DNS_NODES: "''"
+      RLIMIT_NOFILE: 10000
+      APP_NAME: realtime
+      SEED_SELF_HOST: 'false'
+      REPLICATION_MODE: RLS
+      REPLICATION_POLL_INTERVAL: 100
+      SECURE_CHANNELS: 'true'
+      SLOT_NAME: supabase_realtime_rls
+      TEMPORARY_SLOT: 'true'
+      MAX_REPLICATION_LAG_MB: 1000
+      PROM_EX_PROM_MANUAL_METRICS_START_DELAY: 0
+    restart: unless-stopped
+    networks:
+      - SpokeToWork
+
   supabase-kong:
     image: kong:2.8.1
     profiles: [supabase]
@@ -192,6 +226,8 @@ services:
       supabase-auth:
         condition: service_started
       supabase-rest:
+        condition: service_started
+      supabase-realtime:
         condition: service_started
     ports:
       - '${SUPABASE_API_PORT:-0}:8000'

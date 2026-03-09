@@ -10,7 +10,12 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
-import { ensureConversation } from './test-helpers';
+import {
+  ensureConversation,
+  completeEncryptionSetup,
+  dismissCookieBanner,
+  dismissReAuthModal,
+} from './test-helpers';
 
 // Test user credentials — PRIMARY + TERTIARY per messaging E2E conventions
 const TEST_USER_1 = {
@@ -100,41 +105,38 @@ async function navigateToConversation(page: Page) {
   await ensureMessagingSetup();
 
   await page.goto('/messages?tab=connections');
-
-  // Handle ReAuth modal if encryption keys need unlocking
-  try {
-    const reAuthDialog = page.getByRole('dialog', {
-      name: /re-authentication required/i,
-    });
-    await reAuthDialog.waitFor({ state: 'visible', timeout: 5000 });
-    await page
-      .getByRole('textbox', { name: /password/i })
-      .fill(TEST_USER_1.password);
-    await page.getByRole('button', { name: /unlock messages/i }).click();
-    await reAuthDialog.waitFor({ state: 'hidden', timeout: 10000 });
-  } catch {
-    // Modal didn't appear - continue
-  }
+  await dismissCookieBanner(page);
+  await completeEncryptionSetup(page);
+  await dismissReAuthModal(page);
 
   // Wait for ConnectionManager to render
   await page
     .locator('[data-testid="connection-manager"]')
     .waitFor({ state: 'visible' });
 
-  // Switch to Accepted tab and click Message on first accepted connection
+  // Switch to Accepted tab and click Message on the TERTIARY user's connection
+  // (not the first one — SECONDARY's 1000-message perf conversation is also listed)
   await page.getByRole('tab', { name: /accepted/i }).click();
-  const messageButton = page.locator('[data-testid="message-button"]').first();
-  await messageButton.click({ timeout: 10000 });
+  const tertiaryName = TEST_USER_2.email.split('@')[0];
+  const connectionCard = page
+    .locator('[data-testid="connection-request"]')
+    .filter({ hasText: tertiaryName });
+  await connectionCard
+    .locator('[data-testid="message-button"]')
+    .click({ timeout: 10000 });
 
   // Message button creates conversation and switches to Chats tab;
   // click the conversation to open it
   const conversationButton = page
-    .locator('button[aria-label^="Conversation with"]')
+    .locator(`button[aria-label^="Conversation with ${tertiaryName}"]`)
     .first();
   await conversationButton.click({ timeout: 10000 });
 
   // Wait for conversation to open
   await page.waitForURL(/.*conversation=/, { timeout: 10000 });
+
+  // Dismiss cookie banner again — it may have appeared during encryption/navigation
+  await dismissCookieBanner(page);
 }
 
 /**
@@ -147,6 +149,14 @@ async function findMessageBubble(page: Page, text: string) {
   const byText = page
     .locator('[data-testid="message-bubble"]')
     .filter({ hasText: text });
+
+  // Wait for the optimistic ID to be replaced with a stable server UUID.
+  // Optimistic messages use "optimistic-*" as data-message-id which gets
+  // swapped on server confirmation, detaching the old DOM node mid-click.
+  await expect(byText).toHaveAttribute('data-message-id', /^(?!optimistic-)/, {
+    timeout: 10000,
+  });
+
   const messageId = await byText.getAttribute('data-message-id');
   return page.locator(`[data-message-id="${messageId}"]`);
 }

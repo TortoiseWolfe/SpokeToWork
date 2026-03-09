@@ -32,6 +32,12 @@ export interface ChatWindowProps {
   isBlocked?: boolean;
   /** Name of other participant */
   participantName?: string;
+  /** Whether other user is currently typing */
+  isTyping?: boolean;
+  /** Name of user who is typing */
+  typingUserName?: string;
+  /** Callback when typing status changes */
+  onTypingChange?: (isTyping: boolean) => void;
   /** Additional CSS classes */
   className?: string;
 }
@@ -60,6 +66,9 @@ export default function ChatWindow({
   sending = false,
   isBlocked = false,
   participantName = 'User',
+  isTyping = false,
+  typingUserName,
+  onTypingChange,
   className = '',
 }: ChatWindowProps) {
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
@@ -175,6 +184,8 @@ export default function ChatWindow({
           onLoadMore={onLoadMore}
           hasMore={hasMore}
           loading={loading}
+          isTyping={isTyping}
+          typingUserName={typingUserName || participantName}
           className="h-full"
         />
       </div>
@@ -185,6 +196,7 @@ export default function ChatWindow({
           onSend={onSendMessage}
           disabled={isBlocked}
           sending={sending}
+          onTypingChange={onTypingChange}
           inputRef={messageInputRef}
           placeholder={
             isBlocked

@@ -11,33 +11,13 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
-import { ensureConnection, ensureConversation } from './test-helpers';
-
-/**
- * Handle the ReAuthModal that appears when session is restored
- * but encryption keys need to be unlocked.
- */
-async function handleReAuthModal(page: Page, password: string) {
-  try {
-    // Wait for the ReAuth modal to appear (with short timeout)
-    const reAuthDialog = page.getByRole('dialog', {
-      name: /re-authentication required/i,
-    });
-
-    // Wait for it to be visible
-    await reAuthDialog.waitFor({ state: 'visible', timeout: 5000 });
-
-    // Fill password and unlock
-    const passwordInput = page.getByRole('textbox', { name: /password/i });
-    await passwordInput.fill(password);
-    await page.getByRole('button', { name: /unlock messages/i }).click();
-
-    // Wait for modal to close
-    await reAuthDialog.waitFor({ state: 'hidden', timeout: 10000 });
-  } catch {
-    // Modal didn't appear or already handled - continue
-  }
-}
+import {
+  ensureConnection,
+  ensureConversation,
+  completeEncryptionSetup,
+  dismissCookieBanner,
+  dismissReAuthModal,
+} from './test-helpers';
 
 const BASE_URL = process.env.NEXT_PUBLIC_DEPLOY_URL || 'http://localhost:3000';
 
@@ -94,13 +74,15 @@ test.describe('Offline Message Queue', () => {
 
       // ===== STEP 2: Navigate to conversation =====
       await page.goto(`${BASE_URL}/messages?tab=chats`);
-      await handleReAuthModal(page, USER_A.password);
+      await dismissCookieBanner(page);
+      await completeEncryptionSetup(page);
+      await dismissReAuthModal(page);
       const conversationItem = page
         .locator('[data-testid*="conversation"]')
         .first();
       await expect(conversationItem).toBeVisible({ timeout: 10000 });
       await conversationItem.click();
-      await page.waitForURL(/.*\/messages\?conversation=.*/);
+      await page.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
       // ===== STEP 3: Go offline =====
       await context.setOffline(true);
@@ -167,13 +149,15 @@ test.describe('Offline Message Queue', () => {
       await page.waitForURL(/\/profile/);
 
       await page.goto(`${BASE_URL}/messages?tab=chats`);
-      await handleReAuthModal(page, USER_A.password);
+      await dismissCookieBanner(page);
+      await completeEncryptionSetup(page);
+      await dismissReAuthModal(page);
       const conversationItem = page
         .locator('[data-testid*="conversation"]')
         .first();
       await expect(conversationItem).toBeVisible({ timeout: 10000 });
       await conversationItem.click();
-      await page.waitForURL(/.*\/messages\?conversation=.*/);
+      await page.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
       // ===== STEP 2: Go offline =====
       await context.setOffline(true);
@@ -237,13 +221,15 @@ test.describe('Offline Message Queue', () => {
       await page.waitForURL(/\/profile/);
 
       await page.goto(`${BASE_URL}/messages?tab=chats`);
-      await handleReAuthModal(page, USER_A.password);
+      await dismissCookieBanner(page);
+      await completeEncryptionSetup(page);
+      await dismissReAuthModal(page);
       const conversationItem = page
         .locator('[data-testid*="conversation"]')
         .first();
       await expect(conversationItem).toBeVisible({ timeout: 10000 });
       await conversationItem.click();
-      await page.waitForURL(/.*\/messages\?conversation=.*/);
+      await page.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
       // ===== STEP 2: Intercept API calls and simulate failures =====
       let attemptCount = 0;
@@ -330,26 +316,30 @@ test.describe('Offline Message Queue', () => {
 
       // ===== STEP 2: Both navigate to same conversation =====
       await pageA.goto(`${BASE_URL}/messages?tab=chats`);
-      await handleReAuthModal(pageA, USER_A.password);
+      await dismissCookieBanner(pageA);
+      await completeEncryptionSetup(pageA);
+      await dismissReAuthModal(pageA);
       const conversationA = pageA
         .locator('[data-testid*="conversation"]')
         .first();
       await expect(conversationA).toBeVisible({ timeout: 10000 });
       await conversationA.click();
-      await pageA.waitForURL(/.*\/messages\?conversation=.*/);
+      await pageA.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
       // Extract conversation ID from URL
       const urlA = pageA.url();
       const conversationId = new URL(urlA).searchParams.get('conversation');
 
       await pageB.goto(`${BASE_URL}/messages?tab=chats`);
-      await handleReAuthModal(pageB, USER_B.password);
+      await dismissCookieBanner(pageB);
+      await completeEncryptionSetup(pageB, USER_B.password);
+      await dismissReAuthModal(pageB, USER_B.password);
       const conversationB = pageB
         .locator('[data-testid*="conversation"]')
         .first();
       await expect(conversationB).toBeVisible({ timeout: 10000 });
       await conversationB.click();
-      await pageB.waitForURL(/.*\/messages\?conversation=.*/);
+      await pageB.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
       // ===== STEP 3: Both go offline =====
       await contextA.setOffline(true);
@@ -429,13 +419,15 @@ test.describe('Offline Message Queue', () => {
       await page.waitForURL(/\/profile/);
 
       await page.goto(`${BASE_URL}/messages?tab=chats`);
-      await handleReAuthModal(page, USER_A.password);
+      await dismissCookieBanner(page);
+      await completeEncryptionSetup(page);
+      await dismissReAuthModal(page);
       const conversationItem = page
         .locator('[data-testid*="conversation"]')
         .first();
       await expect(conversationItem).toBeVisible({ timeout: 10000 });
       await conversationItem.click();
-      await page.waitForURL(/.*\/messages\?conversation=.*/);
+      await page.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
       // ===== STEP 2: Intercept API and always fail =====
       await page.route('**/rest/v1/messages*', async (route) => {

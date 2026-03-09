@@ -50,11 +50,10 @@ paths = [
   '''LOCAL-SUPABASE-GUIDE\.md$''',
   '''docker/kong/kong\.yml$''',
   '''docker/supabase/.*''',
-  # Test files and fixtures
+  # Test files
   '''.*\.test\.ts$''',
   '''.*\.spec\.ts$''',
   '''.*\.stories\.tsx?$''',
-  '''tests/e2e/fixtures/.*''',
   '''test-results/.*''',
   '''playwright-report/.*''',
   # Gitignored paths (should never be committed)

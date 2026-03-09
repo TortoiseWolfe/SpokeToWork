@@ -68,9 +68,11 @@ export function useGroupMembers(
   const supabase = useMemo(() => createClient(), []);
 
   /**
-   * Fetch all accepted connections on mount
+   * Fetch all accepted connections on mount.
+   * Returns the fetched list so callers can use it immediately without
+   * waiting for the next React render cycle (avoids stale-closure bugs).
    */
-  const loadConnections = useCallback(async () => {
+  const loadConnections = useCallback(async (): Promise<ConnectedUser[]> => {
     setIsLoading(true);
     setError(null);
 
@@ -80,7 +82,7 @@ export function useGroupMembers(
       } = await supabase.auth.getUser();
       if (!user) {
         setError('Not authenticated');
-        return;
+        return [];
       }
 
       // Get all accepted connections
@@ -99,7 +101,7 @@ export function useGroupMembers(
 
       if (connError) {
         setError('Failed to load connections');
-        return;
+        return [];
       }
 
       // Map to connected users (the other person in each connection)
@@ -121,8 +123,10 @@ export function useGroupMembers(
 
       setAllConnections(connectedUsers);
       setSearchResults(connectedUsers);
+      return connectedUsers;
     } catch {
       setError('Failed to load connections');
+      return [];
     } finally {
       setIsLoading(false);
     }
@@ -133,19 +137,20 @@ export function useGroupMembers(
    */
   const searchConnections = useCallback(
     async (query: string) => {
-      // Load connections if not already loaded
-      if (allConnections.length === 0) {
-        await loadConnections();
+      // Use local data if already loaded, otherwise fetch first
+      let data = allConnections;
+      if (data.length === 0) {
+        data = await loadConnections();
       }
 
       const trimmedQuery = query.trim().toLowerCase();
 
       if (!trimmedQuery) {
-        setSearchResults(allConnections);
+        setSearchResults(data);
         return;
       }
 
-      const filtered = allConnections.filter(
+      const filtered = data.filter(
         (user) =>
           user.display_name?.toLowerCase().includes(trimmedQuery) ||
           user.id.toLowerCase().includes(trimmedQuery)

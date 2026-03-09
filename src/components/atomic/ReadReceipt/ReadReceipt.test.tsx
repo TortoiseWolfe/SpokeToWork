@@ -10,7 +10,7 @@ import ReadReceipt from './ReadReceipt';
 describe('ReadReceipt', () => {
   it('renders single checkmark for sent status', () => {
     const { container } = render(<ReadReceipt status="sent" />);
-    expect(screen.getByTestId('read-receipt')).toBeInTheDocument();
+    expect(screen.getByTestId('delivery-status')).toBeInTheDocument();
     expect(screen.getByLabelText('Message sent')).toBeInTheDocument();
 
     // Should have gray color
@@ -70,13 +70,13 @@ describe('ReadReceipt', () => {
     const { container: readContainer } = render(<ReadReceipt status="read" />);
 
     const sentIcon = sentContainer.querySelector(
-      '[data-testid="read-receipt"]'
+      '[data-testid="delivery-status"]'
     );
     const deliveredIcon = deliveredContainer.querySelector(
-      '[data-testid="read-receipt"]'
+      '[data-testid="delivery-status"]'
     );
     const readIcon = readContainer.querySelector(
-      '[data-testid="read-receipt"]'
+      '[data-testid="delivery-status"]'
     );
 
     // All should use inline-flex

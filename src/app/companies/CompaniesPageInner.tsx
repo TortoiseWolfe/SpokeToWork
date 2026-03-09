@@ -1348,7 +1348,6 @@ ${rows}
                     onStatusChange={handleStatusChange}
                     onAddToRoute={handleAddToRoute}
                     activeRouteCompanyIds={activeRouteCompanyIds}
-                    selectedCompanyId={selectedCompanyId ?? undefined}
                   />
                 </>
               )}

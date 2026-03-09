@@ -16,6 +16,8 @@ import { MessagingGate } from '@/components/auth/MessagingGate';
 import { messageService } from '@/services/messaging/message-service';
 import { keyManagementService } from '@/services/messaging/key-service';
 import { connectionService } from '@/services/messaging/connection-service';
+import { realtimeService } from '@/lib/messaging/realtime';
+import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { createLogger } from '@/lib/logger/logger';
 import type { DecryptedMessage, SidebarTab } from '@/types/messaging';
 
@@ -174,6 +176,41 @@ function MessagesContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadConversationInfo and loadMessages are intentionally excluded to prevent re-fetching when other state changes; they should only run when conversationId/auth state changes (FR-005)
   }, [conversationId, needsReAuth, checkingKeys]);
 
+  // Subscribe to new messages via Realtime (T098)
+  useEffect(() => {
+    if (!conversationId || needsReAuth || checkingKeys) return;
+
+    const unsubscribe = realtimeService.subscribeToMessages(
+      conversationId,
+      () => {
+        // Reload messages when a new one arrives from another user
+        loadMessages();
+      }
+    );
+
+    return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId, needsReAuth, checkingKeys]);
+
+  // Subscribe to message updates (delivery/read status changes) (T102)
+  useEffect(() => {
+    if (!conversationId || needsReAuth || checkingKeys) return;
+
+    const unsubscribe = realtimeService.subscribeToMessageUpdates(
+      conversationId,
+      () => {
+        // Reload messages when a status changes (delivered_at, read_at, edits)
+        loadMessages();
+      }
+    );
+
+    return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId, needsReAuth, checkingKeys]);
+
+  // Typing indicator (T099)
+  const typingIndicator = useTypingIndicator(conversationId || '');
+
   // Update drawer state when conversation changes
   useEffect(() => {
     if (conversationId) {
@@ -274,12 +311,14 @@ function MessagesContent() {
         }
       }
 
-      const unreadMessages = result.messages.filter(
-        (m) => !m.isOwn && !m.read_at
+      // Mark messages from other users as delivered (T111)
+      // Read marking is handled separately by useReadReceipts IntersectionObserver
+      const undeliveredMessages = result.messages.filter(
+        (m) => !m.isOwn && !m.delivered_at
       );
-      if (unreadMessages.length > 0) {
-        const messageIds = unreadMessages.map((m) => m.id);
-        messageService.markAsRead(messageIds).catch(() => {});
+      if (undeliveredMessages.length > 0) {
+        const messageIds = undeliveredMessages.map((m) => m.id);
+        messageService.markAsDelivered(messageIds).catch(() => {});
       }
 
       setHasMore(result.has_more);
@@ -296,6 +335,25 @@ function MessagesContent() {
   const handleSendMessage = async (content: string) => {
     if (!conversationId) return;
 
+    // Optimistic render: show message with "sent" status immediately (T111)
+    const tempId = `optimistic-${Date.now()}`;
+    const optimisticMsg: DecryptedMessage = {
+      id: tempId,
+      conversation_id: conversationId,
+      sender_id: '', // Will be replaced by loadMessages
+      content,
+      sequence_number: 0,
+      deleted: false,
+      edited: false,
+      edited_at: null,
+      delivered_at: null,
+      read_at: null,
+      created_at: new Date().toISOString(),
+      isOwn: true,
+      senderName: participantName,
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+
     try {
       setSending(true);
       setError(null);
@@ -305,8 +363,11 @@ function MessagesContent() {
         content,
       });
 
+      // Full reload replaces the optimistic message with real data
       await loadMessages();
     } catch (err: unknown) {
+      // Remove optimistic message on error
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
       const message =
         err instanceof Error
           ? err.message
@@ -504,6 +565,9 @@ function MessagesContent() {
                       loading={loading}
                       sending={sending}
                       participantName={participantName}
+                      isTyping={typingIndicator.isTyping}
+                      typingUserName={participantName}
+                      onTypingChange={typingIndicator.setTyping}
                       className="min-h-0 flex-1"
                     />
                   </ErrorBoundary>

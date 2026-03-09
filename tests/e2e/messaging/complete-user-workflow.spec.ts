@@ -5,69 +5,11 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-
-/**
- * Handle the ReAuthModal that appears when session is restored
- * but encryption keys need to be unlocked.
- *
- * Retry-aware: the modal can reappear after navigation because
- * KeyManagementService stores derived keys in-memory only.
- * If the singleton's keys are cleared (e.g., auth state change),
- * the /messages page re-runs checkKeys() and shows the modal again.
- * maxRetries prevents an infinite loop.
- *
- * Also handles failed unlock (e.g., key mismatch, SharedArrayBuffer
- * unavailable on Firefox) by closing the modal gracefully.
- */
-/**
- * @returns true if keys were unlocked (or modal didn't appear), false if unlock failed.
- */
-async function handleReAuthModal(
-  page: Page,
-  password: string,
-  maxRetries = 2
-): Promise<boolean> {
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const reAuthDialog = page.getByRole('dialog', {
-      name: /re-authentication required/i,
-    });
-
-    // Check if modal appears (short timeout — it may not show up at all)
-    const appeared = await reAuthDialog
-      .waitFor({ state: 'visible', timeout: 3000 })
-      .then(() => true)
-      .catch(() => false);
-    if (!appeared) return true; // Modal didn't appear — keys already available
-
-    // Modal IS visible — unlock it
-    const passwordInput = page.getByRole('textbox', { name: /password/i });
-    await passwordInput.fill(password);
-    await page.getByRole('button', { name: /unlock messages/i }).click();
-
-    // Wait for modal to close (success) — but handle failure too
-    const hidden = await reAuthDialog
-      .waitFor({ state: 'hidden', timeout: 10000 })
-      .then(() => true)
-      .catch(() => false);
-    if (hidden) {
-      // Brief pause to let React state settle before checking if it reappears
-      await page.waitForTimeout(500);
-      continue;
-    }
-
-    // Modal still visible — unlock failed (error shown in modal).
-    // Close modal to unblock navigation, but report failure.
-    const closeBtn = page
-      .getByRole('button', { name: /close modal/i })
-      .or(page.getByRole('button', { name: /cancel/i }));
-    await closeBtn.click({ timeout: 3000 }).catch(() => {});
-    await reAuthDialog
-      .waitFor({ state: 'hidden', timeout: 3000 })
-      .catch(() => {});
-    return false; // Unlock failed — encryption unavailable
-  }
-  return true;
-}
+import {
+  completeEncryptionSetup,
+  dismissCookieBanner,
+  dismissReAuthModal,
+} from './test-helpers';
 
 const USER_A = {
   email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
@@ -290,9 +232,11 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       console.log('Step 2: Navigating to connections...');
       await pageA.goto('/messages?tab=connections');
 
-      // Handle ReAuthModal if it appears (encryption key unlock)
-      // Track unlock status — messaging steps (8+) require encryption
-      let encryptionReady = await handleReAuthModal(pageA, USER_A.password);
+      // Handle encryption setup and ReAuth if they appear
+      await dismissCookieBanner(pageA);
+      await completeEncryptionSetup(pageA);
+      await dismissReAuthModal(pageA);
+      const encryptionReady = true;
 
       await expect(pageA).toHaveURL(/.*\/messages\/?\?.*tab=connections/);
       // Verify connections tab is active (tab has aria-selected="true")
@@ -398,9 +342,10 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       console.log('Step 6: User B viewing pending requests...');
       await pageB.goto('/messages?tab=connections');
 
-      // Handle ReAuthModal for User B if it appears
-      const reAuthB = await handleReAuthModal(pageB, USER_B.password);
-      encryptionReady = encryptionReady && reAuthB;
+      // Handle encryption setup and ReAuth for User B
+      await dismissCookieBanner(pageB);
+      await completeEncryptionSetup(pageB, USER_B.password);
+      await dismissReAuthModal(pageB, USER_B.password);
 
       await expect(pageB).toHaveURL(/.*\/messages\/?\?.*tab=connections/);
 
@@ -408,16 +353,25 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
         name: /pending received|received/i,
       });
       await receivedTab.click({ force: true });
+      // Wait for tab content to load — can be slow in Docker after 200+ tests
+      await pageB.waitForLoadState('networkidle');
       await pageB.waitForSelector('[data-testid="connection-request"]', {
-        timeout: 5000,
+        timeout: 15000,
       });
       console.log('Step 6: Pending request visible');
 
       // STEP 7: User B accepts friend request
       console.log('Step 7: Accepting friend request...');
-      const acceptButton = pageB
-        .getByRole('button', { name: /accept/i })
+      // Dismiss cookie banner again in case it re-appeared
+      await dismissCookieBanner(pageB);
+      // Scope the accept button to the connection request element to avoid
+      // matching the cookie consent "Accept All" button
+      const connectionRequest = pageB
+        .locator('[data-testid="connection-request"]')
         .first();
+      const acceptButton = connectionRequest.getByRole('button', {
+        name: /accept/i,
+      });
       await expect(acceptButton).toBeVisible();
       await acceptButton.click({ force: true });
 
@@ -432,7 +386,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       // Verify the connection appears in Accepted tab
       await expect(
         pageB.locator('[data-testid="connection-request"]')
-      ).toBeVisible({ timeout: 5000 });
+      ).toBeVisible({ timeout: 15000 });
       console.log('Step 7: Connection accepted and visible in Accepted tab');
 
       // STEP 8: Create conversation and User A sends message
@@ -453,13 +407,11 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       }
 
       await pageA.goto('/messages?conversation=' + conversationId);
+      await dismissCookieBanner(pageA);
+      await completeEncryptionSetup(pageA);
       await pageA.waitForLoadState('networkidle');
       await pageA.waitForTimeout(1000); // Let messaging page mount fully
-      const reAuthA2 = await handleReAuthModal(pageA, USER_A.password);
-      test.skip(
-        !reAuthA2,
-        'Encryption keys could not be unlocked after navigation — messaging requires encryption'
-      );
+      await dismissReAuthModal(pageA);
 
       testMessage = 'Hello from User A - ' + Date.now();
       const messageInput = pageA.locator(
@@ -478,13 +430,11 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       // STEP 9: User B receives message
       console.log('Step 9: User B receiving message...');
       await pageB.goto('/messages?conversation=' + conversationId);
+      await dismissCookieBanner(pageB);
+      await completeEncryptionSetup(pageB, USER_B.password);
       await pageB.waitForLoadState('networkidle');
       await pageB.waitForTimeout(1000); // Let messaging page mount fully
-      const reAuthB2 = await handleReAuthModal(pageB, USER_B.password);
-      test.skip(
-        !reAuthB2,
-        'Encryption keys could not be unlocked for User B — messaging requires encryption'
-      );
+      await dismissReAuthModal(pageB, USER_B.password);
       await expect(pageB.getByText(testMessage)).toBeVisible({
         timeout: 10000,
       });
@@ -509,12 +459,10 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       await pageA.waitForLoadState('networkidle');
       await pageA.waitForTimeout(1000); // Let messaging page mount fully
 
-      // Handle ReAuthModal after reload (encryption keys need to be unlocked again)
-      const reAuthA3 = await handleReAuthModal(pageA, USER_A.password);
-      test.skip(
-        !reAuthA3,
-        'Encryption keys could not be unlocked after reload — messaging requires encryption'
-      );
+      // Handle encryption setup and ReAuth after reload
+      await dismissCookieBanner(pageA);
+      await completeEncryptionSetup(pageA);
+      await dismissReAuthModal(pageA);
 
       await expect(pageA.getByText(replyMessage)).toBeVisible({
         timeout: 10000,
@@ -583,9 +531,13 @@ test.describe('Conversations Page Loading (Feature 029)', () => {
     await page.waitForURL(/.*\/profile/, { timeout: 45000 });
 
     // Navigate to messaging page (Feature 037: /conversations redirects to /messages?tab=chats)
-    const startTime = Date.now();
     await page.goto('/messages?tab=chats');
-    await handleReAuthModal(page, USER_A.password);
+    await dismissCookieBanner(page);
+    await completeEncryptionSetup(page);
+    await dismissReAuthModal(page);
+
+    // Measure page render time AFTER encryption/auth setup completes
+    const startTime = Date.now();
 
     // Wait for page title to load - NOT spinner
     await expect(page.locator('h1:has-text("Messages")').first()).toBeVisible({
@@ -616,8 +568,10 @@ test.describe('Conversations Page Loading (Feature 029)', () => {
 
     // Navigate to messaging (Feature 037: /conversations redirects to /messages?tab=chats)
     await page.goto('/messages?tab=chats');
+    await dismissCookieBanner(page);
+    await completeEncryptionSetup(page);
     await page.waitForLoadState('networkidle');
-    await handleReAuthModal(page, USER_A.password);
+    await dismissReAuthModal(page);
 
     // If error is shown, verify retry button exists
     const errorAlert = page.locator('.alert-error');

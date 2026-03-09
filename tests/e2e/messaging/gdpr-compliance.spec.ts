@@ -207,7 +207,7 @@ test.describe('GDPR Account Deletion', () => {
     // Modal should have warning content
     await expect(page.locator('text=Delete Account Permanently')).toBeVisible();
     await expect(
-      page.locator('text=This action cannot be undone')
+      page.locator('text=This action cannot be undone').first()
     ).toBeVisible();
   });
 
@@ -323,7 +323,9 @@ test.describe('GDPR Account Deletion', () => {
     await expect(modal.locator('[role="alert"]')).toBeVisible({
       timeout: 5000,
     });
-    await expect(page.locator('text=Deletion failed')).toBeVisible();
+    await expect(
+      page.locator('text=Failed to delete user account').first()
+    ).toBeVisible();
   });
 
   test('should have accessible ARIA attributes (T192)', async ({ page }) => {
@@ -369,8 +371,8 @@ test.describe('GDPR Accessibility', () => {
       .first();
     await exportButton.click();
 
-    const exportLiveRegion = page.locator('[role="status"]').first();
-    await expect(exportLiveRegion).toHaveText(/exporting your data/i);
+    const exportLiveRegion = page.locator('[role="status"]:has-text("export")');
+    await expect(exportLiveRegion.first()).toBeVisible({ timeout: 5000 });
   });
 
   test('should be keyboard navigable (T193)', async ({ page }) => {

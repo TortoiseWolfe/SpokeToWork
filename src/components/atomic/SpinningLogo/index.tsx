@@ -1,2 +1,2 @@
 export { SpinningLogo } from './SpinningLogo';
-export { LayeredSpokeToWorkLogo } from './LayeredScriptHammerLogo';
+export { LayeredSpokeToWorkLogo } from './LayeredSpokeToWorkLogo';

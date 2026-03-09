@@ -3,6 +3,9 @@ import {
   getAdminClient,
   ensureConnection,
   ensureConversation,
+  completeEncryptionSetup,
+  dismissReAuthModal,
+  dismissCookieBanner,
 } from './test-helpers';
 
 /**
@@ -51,6 +54,9 @@ async function isElementInViewport(
 }
 
 test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
+  // Encryption setup (argon2id) can take 30s+ on first run
+  test.setTimeout(90000);
+
   test.beforeEach(async ({ page }) => {
     // Seed connection + conversation so messaging UI has data
     if (adminClient) {
@@ -72,6 +78,8 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
     await page.waitForURL(/\/(dashboard|messages|profile|$)/, {
       timeout: 45000,
     });
+    // Wait for auth session to fully persist before navigating
+    await page.waitForLoadState('networkidle');
   });
 
   test('T003: Message input visible on mobile viewport (375x667)', async ({
@@ -79,21 +87,21 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
   }) => {
     await page.setViewportSize(VIEWPORTS.mobile);
     await page.goto('/messages');
+    await completeEncryptionSetup(page);
+    await dismissCookieBanner(page);
+    await dismissReAuthModal(page);
 
-    // Wait for page to load
+    // Wait for conversation list, then select a conversation to open chat view
+    const conversationItem = page
+      .locator('[data-testid*="conversation"]')
+      .first();
+    await conversationItem.waitFor({ state: 'visible', timeout: 15000 });
+    await conversationItem.click();
+
     await page.waitForSelector(
       '[data-testid="chat-window"], [data-testid="message-thread"]',
-      {
-        timeout: 10000,
-      }
+      { timeout: 10000 }
     );
-
-    // Find a conversation or create test scenario
-    const conversationLink = page.locator('a[href*="conversation="]').first();
-    if (await conversationLink.isVisible()) {
-      await conversationLink.click();
-      await page.waitForSelector('[data-testid="chat-window"]');
-    }
 
     // Check message input is visible
     const messageInput = page.locator(
@@ -114,19 +122,20 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
   }) => {
     await page.setViewportSize(VIEWPORTS.tablet);
     await page.goto('/messages');
+    await completeEncryptionSetup(page);
+    await dismissCookieBanner(page);
+    await dismissReAuthModal(page);
+
+    const conversationItem = page
+      .locator('[data-testid*="conversation"]')
+      .first();
+    await conversationItem.waitFor({ state: 'visible', timeout: 15000 });
+    await conversationItem.click();
 
     await page.waitForSelector(
       '[data-testid="chat-window"], [data-testid="message-thread"]',
-      {
-        timeout: 10000,
-      }
+      { timeout: 10000 }
     );
-
-    const conversationLink = page.locator('a[href*="conversation="]').first();
-    if (await conversationLink.isVisible()) {
-      await conversationLink.click();
-      await page.waitForSelector('[data-testid="chat-window"]');
-    }
 
     const messageInput = page.locator(
       'textarea[placeholder*="Type a message"], textarea[placeholder*="message"]'
@@ -145,19 +154,20 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
   }) => {
     await page.setViewportSize(VIEWPORTS.desktop);
     await page.goto('/messages');
+    await completeEncryptionSetup(page);
+    await dismissCookieBanner(page);
+    await dismissReAuthModal(page);
+
+    const conversationItem = page
+      .locator('[data-testid*="conversation"]')
+      .first();
+    await conversationItem.waitFor({ state: 'visible', timeout: 15000 });
+    await conversationItem.click();
 
     await page.waitForSelector(
       '[data-testid="chat-window"], [data-testid="message-thread"]',
-      {
-        timeout: 10000,
-      }
+      { timeout: 10000 }
     );
-
-    const conversationLink = page.locator('a[href*="conversation="]').first();
-    if (await conversationLink.isVisible()) {
-      await conversationLink.click();
-      await page.waitForSelector('[data-testid="chat-window"]');
-    }
 
     const messageInput = page.locator(
       'textarea[placeholder*="Type a message"], textarea[placeholder*="message"]'
@@ -173,6 +183,8 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
 });
 
 test.describe('Messaging Scroll - User Story 2: Scroll Through Messages', () => {
+  test.setTimeout(90000);
+
   test.beforeEach(async ({ page }) => {
     if (adminClient) {
       await ensureConnection(adminClient, USER_A_EMAIL, USER_B_EMAIL);
@@ -192,6 +204,7 @@ test.describe('Messaging Scroll - User Story 2: Scroll Through Messages', () => 
     await page.waitForURL(/\/(dashboard|messages|profile|$)/, {
       timeout: 45000,
     });
+    await page.waitForLoadState('networkidle');
   });
 
   test('T006: Scroll container constrained to MessageThread', async ({
@@ -199,19 +212,20 @@ test.describe('Messaging Scroll - User Story 2: Scroll Through Messages', () => 
   }) => {
     await page.setViewportSize(VIEWPORTS.desktop);
     await page.goto('/messages');
+    await completeEncryptionSetup(page);
+    await dismissCookieBanner(page);
+    await dismissReAuthModal(page);
+
+    const conversationItem = page
+      .locator('[data-testid*="conversation"]')
+      .first();
+    await conversationItem.waitFor({ state: 'visible', timeout: 15000 });
+    await conversationItem.click();
 
     await page.waitForSelector(
       '[data-testid="chat-window"], [data-testid="message-thread"]',
-      {
-        timeout: 10000,
-      }
+      { timeout: 10000 }
     );
-
-    const conversationLink = page.locator('a[href*="conversation="]').first();
-    if (await conversationLink.isVisible()) {
-      await conversationLink.click();
-      await page.waitForSelector('[data-testid="chat-window"]');
-    }
 
     // Get message thread element
     const messageThread = page.locator('[data-testid="message-thread"]');
@@ -240,6 +254,8 @@ test.describe('Messaging Scroll - User Story 2: Scroll Through Messages', () => 
 });
 
 test.describe('Messaging Scroll - User Story 3: Jump to Bottom Button', () => {
+  test.setTimeout(90000);
+
   test.beforeEach(async ({ page }) => {
     if (adminClient) {
       await ensureConnection(adminClient, USER_A_EMAIL, USER_B_EMAIL);
@@ -259,6 +275,7 @@ test.describe('Messaging Scroll - User Story 3: Jump to Bottom Button', () => {
     await page.waitForURL(/\/(dashboard|messages|profile|$)/, {
       timeout: 45000,
     });
+    await page.waitForLoadState('networkidle');
   });
 
   test('T007-T008: Jump button appears when scrolled and does not overlap input', async ({
@@ -266,19 +283,20 @@ test.describe('Messaging Scroll - User Story 3: Jump to Bottom Button', () => {
   }) => {
     await page.setViewportSize(VIEWPORTS.desktop);
     await page.goto('/messages');
+    await completeEncryptionSetup(page);
+    await dismissCookieBanner(page);
+    await dismissReAuthModal(page);
+
+    const conversationItem = page
+      .locator('[data-testid*="conversation"]')
+      .first();
+    await conversationItem.waitFor({ state: 'visible', timeout: 15000 });
+    await conversationItem.click();
 
     await page.waitForSelector(
       '[data-testid="chat-window"], [data-testid="message-thread"]',
-      {
-        timeout: 10000,
-      }
+      { timeout: 10000 }
     );
-
-    const conversationLink = page.locator('a[href*="conversation="]').first();
-    if (await conversationLink.isVisible()) {
-      await conversationLink.click();
-      await page.waitForSelector('[data-testid="chat-window"]');
-    }
 
     const messageThread = page.locator('[data-testid="message-thread"]');
 
@@ -320,19 +338,20 @@ test.describe('Messaging Scroll - User Story 3: Jump to Bottom Button', () => {
   test('T009: Jump button click scrolls to bottom', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.desktop);
     await page.goto('/messages');
+    await completeEncryptionSetup(page);
+    await dismissCookieBanner(page);
+    await dismissReAuthModal(page);
+
+    const conversationItem = page
+      .locator('[data-testid*="conversation"]')
+      .first();
+    await conversationItem.waitFor({ state: 'visible', timeout: 15000 });
+    await conversationItem.click();
 
     await page.waitForSelector(
       '[data-testid="chat-window"], [data-testid="message-thread"]',
-      {
-        timeout: 10000,
-      }
+      { timeout: 10000 }
     );
-
-    const conversationLink = page.locator('a[href*="conversation="]').first();
-    if (await conversationLink.isVisible()) {
-      await conversationLink.click();
-      await page.waitForSelector('[data-testid="chat-window"]');
-    }
 
     const messageThread = page.locator('[data-testid="message-thread"]');
 

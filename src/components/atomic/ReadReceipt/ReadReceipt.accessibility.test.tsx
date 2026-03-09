@@ -34,7 +34,7 @@ describe('ReadReceipt Accessibility', () => {
   it('should have proper ARIA role and label for sent status', () => {
     render(<ReadReceipt status="sent" />);
 
-    const receipt = screen.getByTestId('read-receipt');
+    const receipt = screen.getByTestId('delivery-status');
     expect(receipt).toHaveAttribute('role', 'img');
     expect(receipt).toHaveAttribute('aria-label', 'Message sent');
   });
@@ -42,7 +42,7 @@ describe('ReadReceipt Accessibility', () => {
   it('should have proper ARIA role and label for delivered status', () => {
     render(<ReadReceipt status="delivered" />);
 
-    const receipt = screen.getByTestId('read-receipt');
+    const receipt = screen.getByTestId('delivery-status');
     expect(receipt).toHaveAttribute('role', 'img');
     expect(receipt).toHaveAttribute('aria-label', 'Message delivered');
   });
@@ -50,7 +50,7 @@ describe('ReadReceipt Accessibility', () => {
   it('should have proper ARIA role and label for read status', () => {
     render(<ReadReceipt status="read" />);
 
-    const receipt = screen.getByTestId('read-receipt');
+    const receipt = screen.getByTestId('delivery-status');
     expect(receipt).toHaveAttribute('role', 'img');
     expect(receipt).toHaveAttribute('aria-label', 'Message read');
   });
@@ -79,21 +79,21 @@ describe('ReadReceipt Accessibility', () => {
   it('should support custom className', () => {
     render(<ReadReceipt status="sent" className="custom-class" />);
 
-    const receipt = screen.getByTestId('read-receipt');
+    const receipt = screen.getByTestId('delivery-status');
     expect(receipt).toHaveClass('custom-class');
   });
 
   it('should have proper color contrast for sent status (gray)', () => {
     render(<ReadReceipt status="sent" />);
 
-    const svg = screen.getByTestId('read-receipt').querySelector('svg');
+    const svg = screen.getByTestId('delivery-status').querySelector('svg');
     expect(svg).toHaveClass('text-base-content/75');
   });
 
   it('should have proper color contrast for delivered status (gray)', () => {
     render(<ReadReceipt status="delivered" />);
 
-    const svgs = screen.getByTestId('read-receipt').querySelectorAll('svg');
+    const svgs = screen.getByTestId('delivery-status').querySelectorAll('svg');
     svgs.forEach((svg) => {
       expect(svg).toHaveClass('text-base-content/75');
     });
@@ -102,7 +102,7 @@ describe('ReadReceipt Accessibility', () => {
   it('should have proper color contrast for read status (primary blue)', () => {
     render(<ReadReceipt status="read" />);
 
-    const svgs = screen.getByTestId('read-receipt').querySelectorAll('svg');
+    const svgs = screen.getByTestId('delivery-status').querySelectorAll('svg');
     svgs.forEach((svg) => {
       expect(svg).toHaveClass('text-primary');
     });

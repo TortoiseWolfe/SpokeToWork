@@ -130,6 +130,42 @@ setup('authenticate shared test user', async ({ page }) => {
     await createTestUser(email, password, { createProfile: true });
   }
 
+  // Ensure secondary and tertiary test users exist (needed for multi-user E2E tests)
+  const secondaryEmail = process.env.TEST_USER_SECONDARY_EMAIL;
+  const secondaryPassword = process.env.TEST_USER_SECONDARY_PASSWORD;
+  const tertiaryEmail = process.env.TEST_USER_TERTIARY_EMAIL;
+  const tertiaryPassword = process.env.TEST_USER_TERTIARY_PASSWORD;
+
+  if (secondaryEmail && secondaryPassword) {
+    try {
+      const { getUserByEmail } = await import('./utils/test-user-factory');
+      const existing = await getUserByEmail(secondaryEmail);
+      if (!existing) {
+        console.log(`Creating secondary test user: ${secondaryEmail}`);
+        await createTestUser(secondaryEmail, secondaryPassword, {
+          createProfile: true,
+        });
+      }
+    } catch (err) {
+      console.warn(`Failed to ensure secondary user: ${err}`);
+    }
+  }
+
+  if (tertiaryEmail && tertiaryPassword) {
+    try {
+      const { getUserByEmail } = await import('./utils/test-user-factory');
+      const existing = await getUserByEmail(tertiaryEmail);
+      if (!existing) {
+        console.log(`Creating tertiary test user: ${tertiaryEmail}`);
+        await createTestUser(tertiaryEmail, tertiaryPassword, {
+          createProfile: true,
+        });
+      }
+    } catch (err) {
+      console.warn(`Failed to ensure tertiary user: ${err}`);
+    }
+  }
+
   console.log(`Authenticating as: ${email}`);
 
   // Navigate to sign-in

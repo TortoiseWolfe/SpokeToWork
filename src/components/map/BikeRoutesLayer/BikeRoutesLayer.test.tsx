@@ -2,6 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { BikeRoutesLayer } from './BikeRoutesLayer';
 
+// Mock useDaisyColors to return deterministic values
+vi.mock('@/hooks/useDaisyColors', () => ({
+  useDaisyColors: () => ({
+    success: '#22c55e',
+    'base-100': '#ffffff',
+  }),
+}));
+
 // Mock react-map-gl/maplibre
 vi.mock('react-map-gl/maplibre', () => ({
   Source: ({ children, id }: { children: React.ReactNode; id: string }) => (
@@ -48,14 +56,14 @@ describe('BikeRoutesLayer', () => {
   });
 
   it('renders without crashing', async () => {
-    const { container } = render(<BikeRoutesLayer isDarkMode={false} />);
+    const { container } = render(<BikeRoutesLayer />);
     await waitFor(() => {
       expect(container).toBeTruthy();
     });
   });
 
   it('fetches GeoJSON on mount', async () => {
-    render(<BikeRoutesLayer isDarkMode={false} />);
+    render(<BikeRoutesLayer />);
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -65,7 +73,7 @@ describe('BikeRoutesLayer', () => {
   });
 
   it('renders source and layers after data loads', async () => {
-    const { getByTestId } = render(<BikeRoutesLayer isDarkMode={false} />);
+    const { getByTestId } = render(<BikeRoutesLayer />);
 
     await waitFor(() => {
       expect(getByTestId('source-all-bike-routes')).toBeInTheDocument();
@@ -74,8 +82,8 @@ describe('BikeRoutesLayer', () => {
     });
   });
 
-  it('uses light mode colors when isDarkMode is false', async () => {
-    const { getByTestId } = render(<BikeRoutesLayer isDarkMode={false} />);
+  it('uses theme-derived colors from useDaisyColors', async () => {
+    const { getByTestId } = render(<BikeRoutesLayer />);
 
     await waitFor(() => {
       const routeLayer = getByTestId('layer-all-bike-routes');
@@ -83,22 +91,12 @@ describe('BikeRoutesLayer', () => {
     });
   });
 
-  it('uses dark mode colors when isDarkMode is true', async () => {
-    const { getByTestId } = render(<BikeRoutesLayer isDarkMode={true} />);
-
-    await waitFor(() => {
-      const routeLayer = getByTestId('layer-all-bike-routes');
-      expect(routeLayer).toHaveAttribute('data-line-color', '#4ade80');
-    });
-  });
-
   it('handles fetch errors gracefully', async () => {
     vi.spyOn(global, 'fetch').mockRejectedValue(new Error('Network error'));
 
-    const { container } = render(<BikeRoutesLayer isDarkMode={false} />);
+    const { container } = render(<BikeRoutesLayer />);
 
     await waitFor(() => {
-      // Component should not crash and should render nothing
       expect(container.innerHTML).toBe('');
     });
   });
@@ -109,7 +107,7 @@ describe('BikeRoutesLayer', () => {
       status: 404,
     } as Response);
 
-    const { container } = render(<BikeRoutesLayer isDarkMode={false} />);
+    const { container } = render(<BikeRoutesLayer />);
 
     await waitFor(() => {
       expect(container.innerHTML).toBe('');
@@ -117,7 +115,7 @@ describe('BikeRoutesLayer', () => {
   });
 
   it('logs feature count on successful load', async () => {
-    render(<BikeRoutesLayer isDarkMode={false} />);
+    render(<BikeRoutesLayer />);
 
     await waitFor(() => {
       expect(console.log).toHaveBeenCalledWith('Loaded', 1, 'bike routes');
@@ -127,7 +125,7 @@ describe('BikeRoutesLayer', () => {
   it('logs error on fetch failure', async () => {
     vi.spyOn(global, 'fetch').mockRejectedValue(new Error('Network error'));
 
-    render(<BikeRoutesLayer isDarkMode={false} />);
+    render(<BikeRoutesLayer />);
 
     await waitFor(() => {
       expect(console.error).toHaveBeenCalledWith(
@@ -138,12 +136,9 @@ describe('BikeRoutesLayer', () => {
   });
 
   it('does not render when visible is false', async () => {
-    const { getByTestId } = render(
-      <BikeRoutesLayer isDarkMode={false} visible={false} />
-    );
+    const { getByTestId } = render(<BikeRoutesLayer visible={false} />);
 
     await waitFor(() => {
-      // Still renders the layers, but with visibility: none in layout
       expect(getByTestId('layer-all-bike-routes')).toBeInTheDocument();
     });
   });

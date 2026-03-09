@@ -26,6 +26,13 @@ export interface ModerationQueueItem {
   // Contribution-specific
   private_company_id?: string;
   private_company_name?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  notes?: string | null;
   // Edit suggestion-specific
   shared_company_id?: string;
   shared_company_name?: string;
@@ -86,7 +93,7 @@ export class AdminModerationService {
         private_company_id,
         status,
         created_at,
-        private_companies(name)
+        private_companies(name, latitude, longitude, address, phone, email, website, notes)
       `
       )
       .eq('status', 'pending')
@@ -123,14 +130,25 @@ export class AdminModerationService {
     // Combine and format
     const queue: ModerationQueueItem[] = [];
 
+    interface JoinedCompany {
+      name: string;
+      latitude?: number | null;
+      longitude?: number | null;
+      address?: string | null;
+      phone?: string | null;
+      email?: string | null;
+      website?: string | null;
+      notes?: string | null;
+    }
+
     for (const c of contributions ?? []) {
       const privateCompany = c.private_companies as
-        | { name: string }
-        | { name: string }[]
+        | JoinedCompany
+        | JoinedCompany[]
         | null;
-      const companyName = Array.isArray(privateCompany)
-        ? privateCompany[0]?.name
-        : privateCompany?.name;
+      const joined = Array.isArray(privateCompany)
+        ? privateCompany[0]
+        : privateCompany;
       queue.push({
         id: c.id,
         type: 'contribution',
@@ -138,7 +156,14 @@ export class AdminModerationService {
         status: c.status,
         created_at: c.created_at,
         private_company_id: c.private_company_id,
-        private_company_name: companyName,
+        private_company_name: joined?.name,
+        latitude: joined?.latitude ?? null,
+        longitude: joined?.longitude ?? null,
+        address: joined?.address ?? null,
+        phone: joined?.phone ?? null,
+        email: joined?.email ?? null,
+        website: joined?.website ?? null,
+        notes: joined?.notes ?? null,
       });
     }
 
