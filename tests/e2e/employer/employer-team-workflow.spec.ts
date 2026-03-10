@@ -352,15 +352,22 @@ test.describe('Employer Team Workflow', () => {
     }
 
     // Create pending connection request (worker → employer)
-    const { error: insertError } = await client
-      .from('user_connections')
-      .insert({
+    // Retry on Supabase Cloud connection timeouts
+    let insertError;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const result = await client.from('user_connections').insert({
         requester_id: workerId,
         addressee_id: employerId,
         status: 'pending',
       });
+      insertError = result.error;
+      if (!insertError) break;
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 3000));
+    }
     if (insertError) {
-      throw new Error(`Failed to insert connection: ${insertError.message}`);
+      throw new Error(
+        `Failed to insert connection after 3 attempts: ${insertError.message}`
+      );
     }
 
     // Verify the record exists in DB before polling UI

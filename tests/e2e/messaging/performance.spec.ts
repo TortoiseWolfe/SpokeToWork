@@ -279,30 +279,55 @@ test.beforeAll(async () => {
       .delete()
       .eq('conversation_id', conversationId);
   } else {
-    const { data: created } = await supabase
-      .from('conversations')
-      .insert({
-        participant_1_id: p1,
-        participant_2_id: p2,
-        is_group: false,
-        current_key_version: 1,
-      })
-      .select('id');
-    conversationId = created![0].id;
+    // Retry conversation creation (Supabase Cloud can return null transiently)
+    let lastError: string | undefined;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data: created, error } = await supabase
+        .from('conversations')
+        .insert({
+          participant_1_id: p1,
+          participant_2_id: p2,
+          is_group: false,
+          current_key_version: 1,
+        })
+        .select('id');
+      if (created?.[0]?.id) {
+        conversationId = created[0].id;
+        break;
+      }
+      lastError = error?.message ?? 'INSERT returned null';
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 2000));
+    }
+    if (!conversationId) {
+      throw new Error(
+        `Failed to create conversation after 3 attempts: ${lastError}`
+      );
+    }
   }
 
   // ── 6. Derive shared secret ────────────────────────────────────────
-  const { data: priKey } = await supabase
-    .from('user_encryption_keys')
-    .select('encryption_salt')
-    .eq('user_id', primary.id)
-    .eq('revoked', false)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Retry encryption key lookup (read replica lag can cause initial miss)
+  let priKey: { encryption_salt: string } | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data } = await supabase
+      .from('user_encryption_keys')
+      .select('encryption_salt')
+      .eq('user_id', primary.id)
+      .eq('revoked', false)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data?.encryption_salt) {
+      priKey = data;
+      break;
+    }
+    if (attempt < 2) await new Promise((r) => setTimeout(r, 2000));
+  }
 
   if (!priKey?.encryption_salt) {
-    throw new Error('PRIMARY user has no encryption keys with salt');
+    throw new Error(
+      'PRIMARY user has no encryption keys with salt after 3 attempts'
+    );
   }
 
   const primaryPrivKey = await derivePrivateKey(

@@ -240,10 +240,10 @@ test.describe('Friend Request Flow', () => {
       await expect(acceptButton).toBeVisible();
       await acceptButton.click({ force: true });
 
-      // Wait for request to disappear (no success message shown)
+      // Wait for request to disappear (Supabase realtime propagation can be slow)
       await expect(
         pageB.locator('[data-testid="connection-request"]')
-      ).toBeHidden({ timeout: 10000 });
+      ).toBeHidden({ timeout: 20000 });
 
       // ===== STEP 9: Verify connection appears in "Accepted" tab for User B =====
       // Reload to get fresh data after accepting

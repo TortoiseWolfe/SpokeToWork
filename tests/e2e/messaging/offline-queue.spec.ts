@@ -332,9 +332,9 @@ test.describe('Offline Message Queue', () => {
       await contextB.setOffline(false);
 
       // ===== STEP 6: Wait for sync =====
-      // Retry/backoff cycle + encryption during sync + Supabase Cloud latency needs >5s
-      await pageA.waitForTimeout(15000);
-      await pageB.waitForTimeout(15000);
+      // Retry/backoff cycle + encryption during sync + Supabase Cloud latency needs 25-30s
+      await pageA.waitForTimeout(30000);
+      await pageB.waitForTimeout(30000);
 
       // ===== STEP 7: Verify server determined order =====
       if (conversationId) {

@@ -436,7 +436,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       await pageB.waitForTimeout(1000); // Let messaging page mount fully
       await dismissReAuthModal(pageB, USER_B.password);
       await expect(pageB.getByText(testMessage)).toBeVisible({
-        timeout: 10000,
+        timeout: 20000,
       });
       console.log('Step 9: Message received');
 
@@ -465,7 +465,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       await dismissReAuthModal(pageA);
 
       await expect(pageA.getByText(replyMessage)).toBeVisible({
-        timeout: 10000,
+        timeout: 20000,
       });
       console.log('Step 11: Reply received');
 
