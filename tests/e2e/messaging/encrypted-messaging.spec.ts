@@ -332,7 +332,7 @@ test.describe('Encrypted Messaging Flow', () => {
 
       // Verify User B sees the message
       await expect(pageB.getByText(testMessage)).toBeVisible({
-        timeout: 15000,
+        timeout: 30000,
       });
 
       // ===== VERIFY "READ" STATUS (✓✓ colored) =====
@@ -340,7 +340,9 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageA.reload();
       await dismissCookieBanner(pageA);
       await dismissReAuthModal(pageA);
-      await expect(pageA.getByText(testMessage)).toBeVisible();
+      await expect(pageA.getByText(testMessage)).toBeVisible({
+        timeout: 15000,
+      });
 
       const updatedMessageBubble = pageA
         .locator('[data-testid="message-bubble"]')

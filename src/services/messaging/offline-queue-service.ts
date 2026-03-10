@@ -74,7 +74,8 @@ export class OfflineQueueService {
       | 'sender_id'
       | 'encrypted_content'
       | 'initialization_vector'
-    >
+    > &
+      Partial<Pick<QueuedMessage, 'plaintext_content'>>
   ): Promise<QueuedMessage> {
     const queuedMessage: QueuedMessage = {
       ...message,

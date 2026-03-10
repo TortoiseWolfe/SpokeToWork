@@ -301,7 +301,21 @@ function MessagesContent() {
       if (loadMore) {
         setMessages((prev) => [...result.messages, ...prev]);
       } else {
-        setMessages(result.messages);
+        setMessages((prev) => {
+          // Preserve optimistic messages not yet confirmed by server
+          const optimistic = prev.filter((m) =>
+            m.id.startsWith('optimistic-')
+          );
+          if (optimistic.length === 0) return result.messages;
+          // Remove optimistic messages whose content already appears in server results
+          const serverOwnContent = new Set(
+            result.messages.filter((m) => m.isOwn).map((m) => m.content)
+          );
+          const pending = optimistic.filter(
+            (m) => !serverOwnContent.has(m.content)
+          );
+          return [...result.messages, ...pending];
+        });
 
         if (result.messages.length > 0) {
           const firstOtherMessage = result.messages.find((m) => !m.isOwn);

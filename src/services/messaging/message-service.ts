@@ -78,6 +78,50 @@ export class MessageService {
       );
     }
 
+    // Check offline BEFORE any network requests (Bug fix: sendMessage previously
+    // made DB queries before checking navigator.onLine, causing errors that wiped
+    // optimistic messages from the UI)
+    if (!navigator.onLine) {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.user) {
+        throw new AuthenticationError(
+          'You must be signed in to send messages'
+        );
+      }
+
+      const messageId = crypto.randomUUID();
+      await offlineQueueService.queueMessage({
+        id: messageId,
+        conversation_id: input.conversation_id,
+        sender_id: session.user.id,
+        encrypted_content: '',
+        initialization_vector: '',
+        plaintext_content: content,
+      });
+
+      const queuedMessage: Message = {
+        id: messageId,
+        conversation_id: input.conversation_id,
+        sender_id: session.user.id,
+        encrypted_content: '',
+        initialization_vector: '',
+        sequence_number: 0,
+        deleted: false,
+        edited: false,
+        edited_at: null,
+        delivered_at: null,
+        read_at: null,
+        created_at: new Date().toISOString(),
+        key_version: 1,
+        is_system_message: false,
+        system_message_type: null,
+      };
+
+      return { message: queuedMessage, queued: true };
+    }
+
     // Get authenticated user
     const {
       data: { user },
@@ -164,43 +208,8 @@ export class MessageService {
         sharedSecret
       );
 
-      // Check if online - if offline, queue immediately
-      if (!navigator.onLine) {
-        const messageId = crypto.randomUUID();
-        await offlineQueueService.queueMessage({
-          id: messageId,
-          conversation_id: input.conversation_id,
-          sender_id: user.id,
-          encrypted_content: encrypted.ciphertext,
-          initialization_vector: encrypted.iv,
-        });
-
-        // Return a placeholder message object
-        const queuedMessage: Message = {
-          id: messageId,
-          conversation_id: input.conversation_id,
-          sender_id: user.id,
-          encrypted_content: encrypted.ciphertext,
-          initialization_vector: encrypted.iv,
-          sequence_number: 0, // Will be assigned when synced
-          deleted: false,
-          edited: false,
-          edited_at: null,
-          delivered_at: null,
-          read_at: null,
-          created_at: new Date().toISOString(),
-          key_version: 1,
-          is_system_message: false,
-          system_message_type: null,
-        };
-
-        return {
-          message: queuedMessage,
-          queued: true, // Message queued for later sync
-        };
-      }
-
       // Online - attempt to send to database
+      // (Offline case is handled at the top of sendMessage, before any network calls)
       try {
         // Get next sequence number for this conversation
         const { data: lastMessage } = await msgClient

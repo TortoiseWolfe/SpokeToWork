@@ -92,6 +92,7 @@ export interface QueuedMessage {
   sender_id: string; // User ID who sent the message
   encrypted_content: string;
   initialization_vector: string;
+  plaintext_content?: string; // Plaintext for offline-queued messages (encrypted during sync)
   status: QueueStatus; // Queue status
   synced: boolean;
   retries: number;

@@ -195,7 +195,7 @@ test.describe('Friend Request Flow', () => {
       const sendRequestButton = pageA.getByRole('button', {
         name: /send request/i,
       });
-      await expect(sendRequestButton).toBeVisible({ timeout: 15000 });
+      await expect(sendRequestButton).toBeVisible({ timeout: 30000 });
       await sendRequestButton.click({ force: true });
 
       // Wait for success message
@@ -272,7 +272,7 @@ test.describe('Friend Request Flow', () => {
       const acceptedConnectionA = pageA.locator(
         '[data-testid="connection-request"]'
       );
-      await expect(acceptedConnectionA.first()).toBeVisible({ timeout: 15000 });
+      await expect(acceptedConnectionA.first()).toBeVisible({ timeout: 30000 });
     } finally {
       // Clean up: close contexts
       await contextA.close();

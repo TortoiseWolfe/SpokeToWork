@@ -22,6 +22,8 @@ import {
   AuthenticationError,
 } from '@/types/messaging';
 import { createLogger } from '@/lib/logger';
+import { encryptionService } from '@/lib/messaging/encryption';
+import { keyManagementService } from '@/services/messaging/key-service';
 
 const logger = createLogger('offline-queue:message');
 
@@ -60,7 +62,8 @@ export class MessageQueueAdapter {
       | 'sender_id'
       | 'encrypted_content'
       | 'initialization_vector'
-    >
+    > &
+      Partial<Pick<QueuedMessage, 'plaintext_content'>>
   ): Promise<QueuedMessage> {
     const queuedMessage: QueuedMessage = {
       ...message,
@@ -152,37 +155,122 @@ export class MessageQueueAdapter {
             await new Promise((resolve) => setTimeout(resolve, delay));
           }
 
-          const { data: lastMessage } = await msgClient
-            .from('messages')
-            .select('sequence_number')
-            .eq('conversation_id', queuedMsg.conversation_id)
-            .order('sequence_number', { ascending: false })
-            .limit(1)
-            .single();
+          // Encrypt plaintext messages queued while offline
+          let encryptedContent = queuedMsg.encrypted_content;
+          let initializationVector = queuedMsg.initialization_vector;
 
-          const nextSequenceNumber = lastMessage
-            ? lastMessage.sequence_number + 1
-            : 1;
+          if (queuedMsg.plaintext_content && !queuedMsg.encrypted_content) {
+            const { data: conversation } = await msgClient
+              .from('conversations')
+              .select('participant_1_id, participant_2_id')
+              .eq('id', queuedMsg.conversation_id)
+              .single();
 
-          const { error: insertError } = await msgClient
-            .from('messages')
-            .insert({
-              conversation_id: queuedMsg.conversation_id,
-              sender_id: queuedMsg.sender_id,
-              encrypted_content: queuedMsg.encrypted_content,
-              initialization_vector: queuedMsg.initialization_vector,
-              sequence_number: nextSequenceNumber,
-              deleted: false,
-              edited: false,
-              delivered_at: new Date().toISOString(),
-            })
-            .select()
-            .single();
+            if (!conversation) {
+              throw new ConnectionError('Conversation not found during sync');
+            }
 
-          if (insertError) {
-            throw new ConnectionError(
-              'Failed to insert message: ' + insertError.message
+            const recipientId =
+              conversation.participant_1_id === user.id
+                ? conversation.participant_2_id
+                : conversation.participant_1_id;
+
+            if (!recipientId) {
+              throw new ConnectionError(
+                'No recipient found for conversation during sync'
+              );
+            }
+
+            const senderKeys = keyManagementService.getCurrentKeys();
+            if (!senderKeys) {
+              throw new ConnectionError(
+                'Encryption keys not available during sync'
+              );
+            }
+
+            const recipientPublicKey =
+              await keyManagementService.getUserPublicKey(recipientId);
+            if (!recipientPublicKey) {
+              throw new ConnectionError(
+                'Recipient public key not found during sync'
+              );
+            }
+
+            const recipientKeyCrypto = await crypto.subtle.importKey(
+              'jwk',
+              recipientPublicKey,
+              { name: 'ECDH', namedCurve: 'P-256' },
+              false,
+              []
             );
+            const sharedSecret = await encryptionService.deriveSharedSecret(
+              senderKeys.privateKey,
+              recipientKeyCrypto
+            );
+            const encrypted = await encryptionService.encryptMessage(
+              queuedMsg.plaintext_content,
+              sharedSecret
+            );
+
+            encryptedContent = encrypted.ciphertext;
+            initializationVector = encrypted.iv;
+          }
+
+          // Insert with retry loop for sequence number conflicts
+          const MAX_INSERT_ATTEMPTS = 3;
+          let inserted = false;
+          let finalSequenceNumber = 0;
+
+          for (
+            let attempt = 0;
+            attempt < MAX_INSERT_ATTEMPTS;
+            attempt++
+          ) {
+            const { data: lastMessage } = await msgClient
+              .from('messages')
+              .select('sequence_number')
+              .eq('conversation_id', queuedMsg.conversation_id)
+              .order('sequence_number', { ascending: false })
+              .limit(1)
+              .single();
+
+            const nextSequenceNumber = lastMessage
+              ? lastMessage.sequence_number + 1
+              : 1;
+
+            const { error: insertError } = await msgClient
+              .from('messages')
+              .insert({
+                conversation_id: queuedMsg.conversation_id,
+                sender_id: queuedMsg.sender_id,
+                encrypted_content: encryptedContent,
+                initialization_vector: initializationVector,
+                sequence_number: nextSequenceNumber,
+                deleted: false,
+                edited: false,
+                delivered_at: new Date().toISOString(),
+              })
+              .select()
+              .single();
+
+            if (!insertError) {
+              finalSequenceNumber = nextSequenceNumber;
+              inserted = true;
+              break;
+            }
+
+            if (attempt >= MAX_INSERT_ATTEMPTS - 1) {
+              throw new ConnectionError(
+                'Failed to insert message: ' + insertError.message
+              );
+            }
+
+            // Brief delay before retry on sequence conflict
+            await new Promise((r) => setTimeout(r, 100 * (attempt + 1)));
+          }
+
+          if (!inserted) {
+            throw new ConnectionError('Failed to insert message after retries');
           }
 
           await msgClient
@@ -193,7 +281,7 @@ export class MessageQueueAdapter {
           await messagingDb.messaging_queued_messages.update(queuedMsg.id, {
             status: 'sent' as QueueStatus,
             synced: true,
-            sequence_number: nextSequenceNumber,
+            sequence_number: finalSequenceNumber,
           });
 
           successCount++;
