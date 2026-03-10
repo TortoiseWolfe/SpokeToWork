@@ -130,7 +130,14 @@ async function navigateToConversation(page: Page) {
   const conversationButton = page
     .locator(`button[aria-label^="Conversation with ${tertiaryName}"]`)
     .first();
-  await conversationButton.click({ timeout: 30000 });
+  // Retry with reload if conversation button doesn't appear (read replica lag)
+  try {
+    await conversationButton.click({ timeout: 15000 });
+  } catch {
+    await page.goto('/messages?tab=chats');
+    await page.waitForTimeout(2000);
+    await conversationButton.click({ timeout: 15000 });
+  }
 
   // Wait for conversation to open
   await page.waitForURL(/.*conversation=/, { timeout: 30000 });

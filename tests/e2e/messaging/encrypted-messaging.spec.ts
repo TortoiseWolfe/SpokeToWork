@@ -385,11 +385,10 @@ test.describe('Encrypted Messaging Flow', () => {
 
     for (let i = 0; i < messagesToSend; i++) {
       const messageInput = page.locator('textarea[aria-label="Message input"]');
+      // Wait for textarea to be enabled (sending cycle: setSending(true) → network → setSending(false))
+      await expect(messageInput).toBeEnabled({ timeout: 10000 });
       await messageInput.fill(`Pagination test message ${i + 1}`);
       await page.getByRole('button', { name: /send/i }).click();
-
-      // Wait a bit between messages to ensure they have different sequence numbers
-      await page.waitForTimeout(500);
     }
 
     // Wait for last message to appear

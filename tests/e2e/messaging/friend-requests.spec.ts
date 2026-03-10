@@ -316,11 +316,11 @@ test.describe('Friend Request Flow', () => {
       const sendReqBtn = pageB
         .getByRole('button', { name: /send request/i })
         .first();
-      await expect(sendReqBtn).toBeVisible({ timeout: 15000 });
+      await expect(sendReqBtn).toBeVisible({ timeout: 30000 });
       await sendReqBtn.click({ force: true });
       await expect(pageB.getByText(/friend request sent/i).first()).toBeVisible(
         {
-          timeout: 5000,
+          timeout: 10000,
         }
       );
 
