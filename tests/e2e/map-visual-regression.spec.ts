@@ -114,8 +114,9 @@ test.describe('Map Visual Regression Tests', () => {
     ({ browserName }) => browserName === 'firefox',
     'Firefox headless CI: MapLibre external tile loading is unreliable'
   );
-  // Firefox CI can be slow to initialize MapLibre — extend timeout
-  test.setTimeout(60000);
+  // CI can be slow to initialize MapLibre + load external tiles — extend timeout
+  // waitForMapLoad uses up to 55s + 30s for bike routes, so 120s gives headroom
+  test.setTimeout(120000);
 
   test.beforeEach(async ({ page }) => {
     await page.goto('/map');

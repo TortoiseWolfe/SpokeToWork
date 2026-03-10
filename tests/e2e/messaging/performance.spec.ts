@@ -185,12 +185,13 @@ test.beforeAll(async () => {
   }
 
   // ── 2. Ensure user_profiles exist ──────────────────────────────────
+  // user_profiles PK is `id` (not `user_id`) — references auth.users(id)
   await supabase.from('user_profiles').upsert(
     [
-      { user_id: primary.id, display_name: 'Primary User' },
-      { user_id: secondary.id, display_name: 'Secondary User' },
+      { id: primary.id, display_name: 'Primary User' },
+      { id: secondary.id, display_name: 'Secondary User' },
     ],
-    { onConflict: 'user_id', ignoreDuplicates: true }
+    { onConflict: 'id', ignoreDuplicates: true }
   );
 
   // ── 3. Ensure SECONDARY has encryption keys ────────────────────────

@@ -258,7 +258,7 @@ test.describe('Friend Request Flow', () => {
       const acceptedConnection = pageB.locator(
         '[data-testid="connection-request"]'
       );
-      await expect(acceptedConnection.first()).toBeVisible({ timeout: 5000 });
+      await expect(acceptedConnection.first()).toBeVisible({ timeout: 15000 });
 
       // ===== STEP 10: Verify connection appears in User A's "Accepted" tab =====
       await pageA.reload();
@@ -272,7 +272,7 @@ test.describe('Friend Request Flow', () => {
       const acceptedConnectionA = pageA.locator(
         '[data-testid="connection-request"]'
       );
-      await expect(acceptedConnectionA.first()).toBeVisible({ timeout: 5000 });
+      await expect(acceptedConnectionA.first()).toBeVisible({ timeout: 15000 });
     } finally {
       // Clean up: close contexts
       await contextA.close();

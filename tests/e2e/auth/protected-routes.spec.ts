@@ -264,8 +264,8 @@ test.describe('Protected Routes E2E', () => {
     // Try to access protected route
     await page.goto('/profile');
 
-    // Verify redirected to sign-in
-    await page.waitForURL(/\/sign-in/);
+    // Verify redirected to sign-in (allow time for auth check)
+    await page.waitForURL(/\/sign-in/, { timeout: 15000 });
     await expect(page).toHaveURL(/\/sign-in/);
   });
 

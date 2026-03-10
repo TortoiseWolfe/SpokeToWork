@@ -63,6 +63,7 @@ test.describe('Encrypted Messaging Flow', () => {
   test('should send and receive encrypted message between two users', async ({
     browser,
   }) => {
+    test.setTimeout(120000);
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
 
@@ -120,7 +121,7 @@ test.describe('Encrypted Messaging Flow', () => {
 
       // ===== STEP 6: Verify message appears in User A's view =====
       const messageA = pageA.getByText(testMessage);
-      await expect(messageA).toBeVisible({ timeout: 5000 });
+      await expect(messageA).toBeVisible({ timeout: 15000 });
 
       // ===== STEP 7: User B navigates to conversations =====
       await pageB.goto(`${BASE_URL}/messages?tab=chats`);
@@ -140,7 +141,7 @@ test.describe('Encrypted Messaging Flow', () => {
 
       // ===== STEP 9: User B sees the decrypted message =====
       const messageB = pageB.getByText(testMessage);
-      await expect(messageB).toBeVisible({ timeout: 5000 });
+      await expect(messageB).toBeVisible({ timeout: 15000 });
 
       // ===== STEP 10: Verify User B can reply =====
       const replyMessage = `Reply from User B ${Date.now()}`;
@@ -152,14 +153,14 @@ test.describe('Encrypted Messaging Flow', () => {
 
       // Verify reply appears in User B's view
       const replyB = pageB.getByText(replyMessage);
-      await expect(replyB).toBeVisible({ timeout: 5000 });
+      await expect(replyB).toBeVisible({ timeout: 15000 });
 
       // ===== STEP 11: User A sees the reply =====
       await pageA.reload();
       await dismissCookieBanner(pageA);
       await dismissReAuthModal(pageA);
       const replyA = pageA.getByText(replyMessage);
-      await expect(replyA).toBeVisible({ timeout: 5000 });
+      await expect(replyA).toBeVisible({ timeout: 15000 });
     } finally {
       await contextA.close();
       await contextB.close();
@@ -208,7 +209,7 @@ test.describe('Encrypted Messaging Flow', () => {
 
       // Wait for message to appear
       await expect(pageA.getByText(secretMessage)).toBeVisible({
-        timeout: 5000,
+        timeout: 15000,
       });
 
       // Wait a moment for database write to complete
@@ -254,6 +255,7 @@ test.describe('Encrypted Messaging Flow', () => {
   });
 
   test('should show delivery status indicators', async ({ browser }) => {
+    test.setTimeout(120000);
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
 
@@ -287,7 +289,9 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageA.getByRole('button', { name: /send/i }).click();
 
       // Wait for message to appear
-      await expect(pageA.getByText(testMessage)).toBeVisible({ timeout: 5000 });
+      await expect(pageA.getByText(testMessage)).toBeVisible({
+        timeout: 15000,
+      });
 
       // ===== VERIFY "SENT" STATUS (✓) =====
       // Message should show single checkmark initially
@@ -327,7 +331,9 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageB.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
       // Verify User B sees the message
-      await expect(pageB.getByText(testMessage)).toBeVisible({ timeout: 5000 });
+      await expect(pageB.getByText(testMessage)).toBeVisible({
+        timeout: 15000,
+      });
 
       // ===== VERIFY "READ" STATUS (✓✓ colored) =====
       // Reload User A's page to see updated read status

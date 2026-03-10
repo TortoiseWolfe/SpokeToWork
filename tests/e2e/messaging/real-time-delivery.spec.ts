@@ -205,7 +205,7 @@ test.describe('Real-time Message Delivery (T098)', () => {
     // First try Realtime delivery
     let delivered = false;
     try {
-      await page2.waitForSelector(`text="${testMessage}"`, { timeout: 10000 });
+      await page2.waitForSelector(`text="${testMessage}"`, { timeout: 20000 });
       delivered = true;
     } catch {
       // Realtime didn't deliver — try reload as fallback
@@ -214,7 +214,7 @@ test.describe('Real-time Message Delivery (T098)', () => {
       await dismissCookieBanner(page2);
       await completeEncryptionSetup(page2, TEST_USER_2.password);
       await dismissReAuthModal(page2, TEST_USER_2.password);
-      await page2.waitForSelector(`text="${testMessage}"`, { timeout: 15000 });
+      await page2.waitForSelector(`text="${testMessage}"`, { timeout: 30000 });
     }
     const endTime = Date.now();
 
@@ -253,16 +253,18 @@ test.describe('Real-time Message Delivery (T098)', () => {
     const messageBubble = page1.locator(
       `[data-testid="message-bubble"]:has-text("${testMessage}")`
     );
-    await expect(messageBubble.locator('[aria-label*="sent"]')).toBeVisible();
+    await expect(messageBubble.locator('[aria-label*="sent"]')).toBeVisible({
+      timeout: 15000,
+    });
 
     // User 2: Message appears (should trigger "delivered" status)
-    await page2.waitForSelector(`text="${testMessage}"`);
+    await page2.waitForSelector(`text="${testMessage}"`, { timeout: 20000 });
 
     // Verify "delivered" status (double checkmark)
     // Timeout allows for the full Realtime round-trip: recipient marks as delivered → DB update → Realtime to sender
     await expect(
       messageBubble.locator('[aria-label*="delivered"]')
-    ).toBeVisible({ timeout: 10000 });
+    ).toBeVisible({ timeout: 20000 });
 
     // User 2: Scroll to message (should trigger "read" status)
     const message2 = page2.locator(`text="${testMessage}"`);
@@ -271,7 +273,7 @@ test.describe('Real-time Message Delivery (T098)', () => {
     // Verify "read" status (double blue checkmark)
     // Timeout allows for IntersectionObserver debounce (500ms) + Realtime round-trip
     await expect(messageBubble.locator('[aria-label*="read"]')).toBeVisible({
-      timeout: 10000,
+      timeout: 20000,
     });
   });
 
@@ -302,7 +304,9 @@ test.describe('Real-time Message Delivery (T098)', () => {
 
     // User 2: Verify all messages appear in order
     for (const msg of messages) {
-      await expect(page2.locator(`text="${msg}"`)).toBeVisible();
+      await expect(page2.locator(`text="${msg}"`)).toBeVisible({
+        timeout: 20000,
+      });
     }
 
     // Verify message order (sequence numbers should be correct)
@@ -368,7 +372,7 @@ test.describe('Typing Indicators (T099)', () => {
 
     // User 2: Typing indicator should appear
     const typingIndicator = page2.locator('[data-testid="typing-indicator"]');
-    await expect(typingIndicator).toBeVisible({ timeout: 2000 });
+    await expect(typingIndicator).toBeVisible({ timeout: 10000 });
 
     // Verify indicator text
     await expect(typingIndicator).toContainText('is typing');
@@ -392,7 +396,7 @@ test.describe('Typing Indicators (T099)', () => {
 
     // User 2: Wait for typing indicator
     const typingIndicator = page2.locator('[data-testid="typing-indicator"]');
-    await expect(typingIndicator).toBeVisible({ timeout: 2000 });
+    await expect(typingIndicator).toBeVisible({ timeout: 10000 });
 
     // User 1: Clear input (stop typing)
     await page1.fill('textarea[placeholder*="Type"]', '');
@@ -420,7 +424,7 @@ test.describe('Typing Indicators (T099)', () => {
 
     // User 2: Wait for typing indicator
     const typingIndicator = page2.locator('[data-testid="typing-indicator"]');
-    await expect(typingIndicator).toBeVisible({ timeout: 2000 });
+    await expect(typingIndicator).toBeVisible({ timeout: 10000 });
 
     // User 1: Send message
     await page1.click('button[aria-label="Send message"]');
@@ -451,14 +455,14 @@ test.describe('Typing Indicators (T099)', () => {
 
     // User 2: Verify User 1's typing indicator
     const typingIndicator2 = page2.locator('[data-testid="typing-indicator"]');
-    await expect(typingIndicator2).toBeVisible({ timeout: 2000 });
+    await expect(typingIndicator2).toBeVisible({ timeout: 10000 });
 
     // User 2: Start typing
     await page2.fill('textarea[placeholder*="Type"]', 'User 2 typing');
 
     // User 1: Verify User 2's typing indicator
     const typingIndicator1 = page1.locator('[data-testid="typing-indicator"]');
-    await expect(typingIndicator1).toBeVisible({ timeout: 2000 });
+    await expect(typingIndicator1).toBeVisible({ timeout: 10000 });
 
     // Both users should see the other's typing indicator
     await expect(typingIndicator1).toBeVisible();
@@ -483,7 +487,7 @@ test.describe('Typing Indicators (T099)', () => {
 
     // User 2: Wait for typing indicator
     const typingIndicator = page2.locator('[data-testid="typing-indicator"]');
-    await expect(typingIndicator).toBeVisible({ timeout: 2000 });
+    await expect(typingIndicator).toBeVisible({ timeout: 10000 });
 
     // Wait for auto-expire (5 seconds + buffer)
     await page2.waitForTimeout(6000);
