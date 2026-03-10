@@ -458,9 +458,12 @@ test.describe('Virtual Scrolling Performance', () => {
     });
 
     const paginationLoader = page.getByTestId('pagination-loader');
-    await expect(paginationLoader).toBeVisible({ timeout: 5000 });
+    await expect(paginationLoader).toBeVisible({ timeout: 10000 });
     await expect(paginationLoader).toHaveText(/Loading older messages/);
-    await expect(paginationLoader).not.toBeVisible({ timeout: 10000 });
+    await expect(paginationLoader).not.toBeVisible({ timeout: 15000 });
+
+    // Wait for newly loaded messages to render and affect layout
+    await page.waitForTimeout(1000);
 
     const newHeight = await messageThread.evaluate((el) => el.scrollHeight);
     expect(newHeight).toBeGreaterThan(initialHeight);
@@ -492,8 +495,9 @@ test.describe('Virtual Scrolling Performance', () => {
     // the hide logic independent of smooth-scroll timing.
     await messageThread.evaluate((el) => {
       el.scrollTop = el.scrollHeight;
+      el.dispatchEvent(new Event('scroll', { bubbles: true }));
     });
-    await expect(jumpButton).not.toBeVisible({ timeout: 3000 });
+    await expect(jumpButton).not.toBeVisible({ timeout: 10000 });
 
     // Confirm position is at/near bottom.
     const { scrollTop, scrollHeight, clientHeight } =

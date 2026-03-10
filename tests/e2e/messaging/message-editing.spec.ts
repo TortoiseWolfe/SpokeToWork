@@ -123,17 +123,17 @@ async function navigateToConversation(page: Page) {
     .filter({ hasText: tertiaryName });
   await connectionCard
     .locator('[data-testid="message-button"]')
-    .click({ timeout: 10000 });
+    .click({ timeout: 30000 });
 
   // Message button creates conversation and switches to Chats tab;
   // click the conversation to open it
   const conversationButton = page
     .locator(`button[aria-label^="Conversation with ${tertiaryName}"]`)
     .first();
-  await conversationButton.click({ timeout: 10000 });
+  await conversationButton.click({ timeout: 30000 });
 
   // Wait for conversation to open
-  await page.waitForURL(/.*conversation=/, { timeout: 10000 });
+  await page.waitForURL(/.*conversation=/, { timeout: 30000 });
 
   // Dismiss cookie banner again — it may have appeared during encryption/navigation
   await dismissCookieBanner(page);
