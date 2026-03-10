@@ -21,6 +21,30 @@ docker compose --profile supabase up -d
 echo "Waiting for port assignments..."
 sleep 3
 
+# Apply database migrations (idempotent — safe to re-run).
+# The monolithic migration uses IF NOT EXISTS / DO blocks throughout,
+# so running it on an already-migrated DB is a no-op.
+echo "Applying database migrations..."
+DB_PASSWORD="${SUPABASE_LOCAL_DB_PASSWORD:-your-super-secret-and-long-postgres-password}"
+for f in supabase/migrations/*.sql; do
+  [ -f "$f" ] || continue
+  echo "  Applying $(basename "$f")..."
+  PGPASSWORD="$DB_PASSWORD" docker compose exec -T supabase-db \
+    psql -U supabase_admin -d postgres -v ON_ERROR_STOP=0 -f - < "$f" > /dev/null 2>&1
+done
+
+# Apply seed data
+if [ -f supabase/seed-test-user.sql ]; then
+  echo "  Applying seed-test-user.sql..."
+  PGPASSWORD="$DB_PASSWORD" docker compose exec -T supabase-db \
+    psql -U supabase_admin -d postgres -v ON_ERROR_STOP=0 -f - < supabase/seed-test-user.sql > /dev/null 2>&1
+fi
+
+# Reload PostgREST schema cache so new tables/functions are visible
+docker compose exec -T supabase-db \
+  psql -U supabase_admin -d postgres -c "NOTIFY pgrst, 'reload schema';" > /dev/null 2>&1
+echo "Migrations applied."
+
 # Discover Kong port (pinned via SUPABASE_API_PORT in .env)
 KONG_PORT=$(docker compose port supabase-kong 8000 2>/dev/null | cut -d: -f2)
 
