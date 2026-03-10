@@ -142,7 +142,7 @@ Edit `.env` - comment out cloud values and use local:
 
 # Use local Supabase (requires SUPABASE_API_PORT=54321 in .env, or use `docker compose port supabase-kong 8000` to find the dynamic port):
 NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
-NEXT_PUBLIC_SUPABASE_ANON_KEY=set-anon-key-in-env-file
+NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_LOCAL_ANON_KEY}  # from .env
 ```
 
 **Stop local Supabase:**

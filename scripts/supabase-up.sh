@@ -13,7 +13,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-ANON_KEY="${SUPABASE_LOCAL_ANON_KEY:-set-anon-key-in-env-file}"
+ANON_KEY="${SUPABASE_LOCAL_ANON_KEY:?Set SUPABASE_LOCAL_ANON_KEY in .env}"
 
 echo "Phase 1: Starting all services..."
 docker compose --profile supabase up -d

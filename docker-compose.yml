@@ -202,7 +202,7 @@ services:
       DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'
       DB_ENC_KEY: supabaserealtime
       API_JWT_SECRET: ${SUPABASE_LOCAL_JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
-      SECRET_KEY_BASE: change-me-realtime-secret-key-base
+      SECRET_KEY_BASE: ${SUPABASE_LOCAL_REALTIME_SECRET:-change-me-realtime-secret-key-base}
       ERL_AFLAGS: -proto_dist inet_tcp
       DNS_NODES: "''"
       RLIMIT_NOFILE: 10000
