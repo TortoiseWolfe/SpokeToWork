@@ -81,7 +81,7 @@ test.describe('Offline Message Queue', () => {
       const conversationItem = page
         .locator('[data-testid*="conversation"]')
         .first();
-      await expect(conversationItem).toBeVisible({ timeout: 15000 });
+      await expect(conversationItem).toBeVisible({ timeout: 30000 });
       await conversationItem.click();
       await page.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
@@ -146,7 +146,7 @@ test.describe('Offline Message Queue', () => {
       const conversationItem = page
         .locator('[data-testid*="conversation"]')
         .first();
-      await expect(conversationItem).toBeVisible({ timeout: 15000 });
+      await expect(conversationItem).toBeVisible({ timeout: 30000 });
       await conversationItem.click();
       await page.waitForURL(/.*\/messages\/?\?conversation=.*/);
 

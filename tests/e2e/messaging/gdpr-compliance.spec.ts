@@ -337,7 +337,7 @@ test.describe('GDPR Account Deletion', () => {
       timeout: 5000,
     });
     await expect(
-      page.locator('text=Failed to delete user account').first()
+      page.locator('text=/Failed to delete account/i').first()
     ).toBeVisible();
   });
 

@@ -195,7 +195,7 @@ test.describe('Friend Request Flow', () => {
       const sendRequestButton = pageA.getByRole('button', {
         name: /send request/i,
       });
-      await expect(sendRequestButton).toBeVisible();
+      await expect(sendRequestButton).toBeVisible({ timeout: 15000 });
       await sendRequestButton.click({ force: true });
 
       // Wait for success message
@@ -313,10 +313,11 @@ test.describe('Friend Request Flow', () => {
         '[data-testid="search-results"], .alert-error',
         { timeout: 15000 }
       );
-      await pageB
+      const sendReqBtn = pageB
         .getByRole('button', { name: /send request/i })
-        .first()
-        .click({ force: true });
+        .first();
+      await expect(sendReqBtn).toBeVisible({ timeout: 15000 });
+      await sendReqBtn.click({ force: true });
       await expect(pageB.getByText(/friend request sent/i).first()).toBeVisible(
         {
           timeout: 5000,

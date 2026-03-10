@@ -413,11 +413,11 @@ test.describe('Flow 1: Email/Password Signup → Welcome Message', () => {
 
       // Poll for async operations (key generation, welcome message) — Firefox CI can be very slow
       let keysAfterSignIn = false;
-      for (let attempt = 0; attempt < 15; attempt++) {
+      for (let attempt = 0; attempt < 20; attempt++) {
         await page.waitForTimeout(3000);
         keysAfterSignIn = await hasEncryptionKeys(testUserId);
         if (keysAfterSignIn) break;
-        console.log(`Keys not yet created (attempt ${attempt + 1}/15)...`);
+        console.log(`Keys not yet created (attempt ${attempt + 1}/20)...`);
       }
       console.log(`Keys created: ${keysAfterSignIn}`);
       expect(keysAfterSignIn).toBe(true);
@@ -684,11 +684,11 @@ test.describe('Flow 5: Sign Out and Sign Back In', () => {
 
       // Poll for keys — Firefox CI can be slow creating encryption keys
       let keysAfterFirstSignIn = false;
-      for (let attempt = 0; attempt < 15; attempt++) {
+      for (let attempt = 0; attempt < 20; attempt++) {
         await page.waitForTimeout(3000);
         keysAfterFirstSignIn = await hasEncryptionKeys(testUserId);
         if (keysAfterFirstSignIn) break;
-        console.log(`Keys not yet created (attempt ${attempt + 1}/15)...`);
+        console.log(`Keys not yet created (attempt ${attempt + 1}/20)...`);
       }
       expect(keysAfterFirstSignIn).toBe(true);
       console.log('Keys created after first sign-in');

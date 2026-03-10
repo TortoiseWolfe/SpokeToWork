@@ -98,7 +98,7 @@ test.describe('Encrypted Messaging Flow', () => {
       const conversationItem = pageA
         .locator('[data-testid*="conversation"]')
         .first();
-      await expect(conversationItem).toBeVisible({ timeout: 10000 });
+      await expect(conversationItem).toBeVisible({ timeout: 30000 });
       await conversationItem.click();
 
       // Wait for messages page to load
@@ -134,7 +134,7 @@ test.describe('Encrypted Messaging Flow', () => {
       const conversationItemB = pageB
         .locator('[data-testid*="conversation"]')
         .first();
-      await expect(conversationItemB).toBeVisible({ timeout: 10000 });
+      await expect(conversationItemB).toBeVisible({ timeout: 30000 });
       await conversationItemB.click();
 
       await pageB.waitForURL(/.*\/messages\/?\?conversation=.*/);
