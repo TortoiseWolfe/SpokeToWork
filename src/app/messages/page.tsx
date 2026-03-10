@@ -358,13 +358,16 @@ function MessagesContent() {
       setSending(true);
       setError(null);
 
-      await messageService.sendMessage({
+      const result = await messageService.sendMessage({
         conversation_id: conversationId,
         content,
       });
 
-      // Full reload replaces the optimistic message with real data
-      await loadMessages();
+      // Only reload from server when message was sent online.
+      // When queued offline, keep the optimistic message in the UI.
+      if (!result.queued) {
+        await loadMessages();
+      }
     } catch (err: unknown) {
       // Remove optimistic message on error
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
