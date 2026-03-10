@@ -1,42 +1,32 @@
 'use client';
 
 /**
- * SplitWorkspaceLayout — device-category-gated dual layout.
+ * SplitWorkspaceLayout — collapsible panels around a persistent map.
  *
- * Desktop/tablet: two-column grid, table left, map right. Table panel
- * scrolls; map panel pins (MapContainer owns its own height via height="100%").
+ * Desktop/tablet: up to three columns — route sidebar (left, via drawer),
+ * map (center, always visible), company table (right, collapsible).
+ * Floating toggle buttons on the map let users open/close each panel.
  *
  * Mobile: map is fixed full-screen, mobileSheet slot renders over it.
- * The caller wraps mobileSheet content in BottomSheet (Task 8) — this
- * template doesn't know about sheet mechanics.
- *
- * Branch is on useDeviceType().category, NOT a CSS breakpoint. Category keys
- * on touch + Math.max(width, height): iPhone in landscape stays mobile,
- * tablet rotation doesn't flip category. Only a non-touch desktop window
- * crossing 768px flips — a developer action. We accept the map remount on
- * that flip rather than keeping both DOMs mounted (two MapContainers = two
- * tile loads).
- *
- * Hydration gate: useDeviceType SSR-defaults to desktop. Without a `mounted`
- * check, a mobile user sees a one-frame flash of the desktop grid before
- * useEffect corrects the category. Skeleton until first client render.
- *
- * Design: docs/plans/2026-03-06-split-workspace-layout-design.md
  */
 
 import React, { useEffect, useState } from 'react';
 import { useDeviceType } from '@/hooks/useDeviceType';
 
 export interface SplitWorkspaceLayoutProps {
-  /** Left panel on desktop. Typically CompanyTable + header chrome. */
+  /** Right panel on desktop. Typically CompanyTable + header chrome. */
   table: React.ReactNode;
-  /** Right panel on desktop, full-screen on mobile. Typically CompanyMap. */
+  /** Center panel on desktop, full-screen on mobile. Typically CompanyMap. */
   map: React.ReactNode;
   /**
    * Mobile-only. Rendered over the full-screen map. Caller wraps in
-   * BottomSheet. Unmounted on desktop/tablet.
+   * BottomSheet.
    */
   mobileSheet: React.ReactNode;
+  /** Optional callback to toggle the routes drawer (left side). */
+  onToggleRoutes?: () => void;
+  /** Whether the routes drawer is currently open. Hides the Routes button when true. */
+  routesOpen?: boolean;
   className?: string;
 }
 
@@ -44,10 +34,13 @@ export function SplitWorkspaceLayout({
   table,
   map,
   mobileSheet,
+  onToggleRoutes,
+  routesOpen = false,
   className = '',
 }: SplitWorkspaceLayoutProps) {
   const { category } = useDeviceType();
   const [mounted, setMounted] = useState(false);
+  const [showTable, setShowTable] = useState(true);
 
   useEffect(() => {
     setMounted(true);
@@ -78,23 +71,48 @@ export function SplitWorkspaceLayout({
     );
   }
 
-  // desktop + tablet share the side-by-side grid
+  // desktop + tablet: map always visible, table panel collapsible via width transition
   return (
     <div
       data-testid="split-workspace-desktop"
-      className={`grid h-full grid-cols-[1fr_1fr] ${className}`}
+      className={`relative flex h-full overflow-hidden ${className}`}
     >
       <div
-        data-testid="split-workspace-table-panel"
-        className="border-base-300 h-full overflow-y-auto border-r"
+        data-testid="split-workspace-map-panel"
+        className="relative min-w-0 flex-1 overflow-hidden"
       >
-        {table}
+        {/* Map fills panel via absolute positioning — percentage heights
+            can fail inside flex layouts, so we pin to edges instead */}
+        <div className="absolute inset-0">{map}</div>
+        {/* Panel toggles — same row, routes on left, list on right (left of map controls) */}
+        <div className="absolute left-3 right-14 top-3 z-[1000] flex justify-between">
+          {onToggleRoutes && !routesOpen ? (
+            <button
+              type="button"
+              className="btn btn-sm btn-neutral shadow-lg"
+              onClick={onToggleRoutes}
+              aria-label="Open routes sidebar"
+            >
+              Routes
+            </button>
+          ) : <div />}
+          <button
+            type="button"
+            className="btn btn-sm btn-neutral shadow-lg"
+            onClick={() => setShowTable(!showTable)}
+            aria-label={showTable ? 'Hide company list' : 'Show company list'}
+          >
+            {showTable ? 'Hide List' : 'Show List'}
+          </button>
+        </div>
       </div>
       <div
-        data-testid="split-workspace-map-panel"
-        className="h-full overflow-hidden"
+        data-testid="split-workspace-table-panel"
+        className={`border-base-300 h-full min-h-0 overflow-y-auto border-l transition-[width] duration-300 ${
+          showTable ? 'w-1/2' : 'w-0 overflow-hidden border-0'
+        }`}
       >
-        {map}
+        {table}
       </div>
     </div>
   );

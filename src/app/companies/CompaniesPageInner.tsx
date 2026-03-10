@@ -11,7 +11,7 @@
  * @see src/lib/companies/multi-tenant-service.ts
  */
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { createLogger } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -195,6 +195,40 @@ export function CompaniesPageInner() {
 
   // Feature 041: Route planning state
   const [showRouteBuilder, setShowRouteBuilder] = useState(false);
+  const [routesDrawerOpen, setRoutesDrawerOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Full-screen workspace: measure nav, set explicit height on wrapper,
+  // hide footer. Bypasses the fragile h-full parent chain.
+  // Deps include loading flags because the wrapper isn't in the DOM until
+  // loading completes (early return renders a spinner instead).
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const nav = document.querySelector('nav') ?? document.querySelector('header');
+    const navH = nav ? nav.getBoundingClientRect().height : 0;
+    el.style.height = `calc(100dvh - ${navH}px)`;
+    const prevHtmlOv = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    const footer = document.querySelector('footer');
+    const prevFooter = footer?.style.display ?? '';
+    if (footer) (footer as HTMLElement).style.display = 'none';
+    return () => {
+      el.style.height = '';
+      document.documentElement.style.overflow = prevHtmlOv;
+      if (footer) (footer as HTMLElement).style.display = prevFooter;
+    };
+  }, [authLoading, isLoadingProfile]);
+
+  // Close routes drawer on Escape
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setRoutesDrawerOpen(false);
+    };
+    if (routesDrawerOpen) document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [routesDrawerOpen]);
+
   const [editingRoute, setEditingRoute] = useState<BicycleRoute | null>(null);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [routeCompaniesPreview, setRouteCompaniesPreview] = useState<
@@ -1167,17 +1201,12 @@ ${rows}
     : null;
 
   return (
-    <div className="drawer lg:drawer-open min-h-screen">
-      <input
-        id="routes-drawer"
-        type="checkbox"
-        className="drawer-toggle"
-        aria-label="Toggle routes sidebar"
-      />
-      <div className="drawer-content flex min-h-screen flex-col">
+    <div ref={containerRef} className="relative overflow-hidden">
+      <div className="flex h-full flex-col">
         {/* Main Content */}
         <SplitWorkspaceLayout
-          className="flex-1"
+          routesOpen={routesDrawerOpen}
+          onToggleRoutes={() => setRoutesDrawerOpen(true)}
           table={
             <div className="container mx-auto px-4 py-8">
               {/* Header */}
@@ -1196,13 +1225,6 @@ ${rows}
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {/* Mobile route toggle */}
-                  <label
-                    htmlFor="routes-drawer"
-                    className="btn btn-outline btn-sm drawer-button lg:hidden"
-                  >
-                    Routes
-                  </label>
                   <button
                     className="btn btn-outline btn-sm"
                     onClick={() => {
@@ -1556,13 +1578,14 @@ ${rows}
           map={
             <CompanyMap
               markers={markers}
-              center={[
-                DEFAULT_MAP_CONFIG.center[0],
-                DEFAULT_MAP_CONFIG.center[1],
-              ]}
+              center={
+                homeLocation
+                  ? [homeLocation.latitude, homeLocation.longitude]
+                  : [DEFAULT_MAP_CONFIG.center[0], DEFAULT_MAP_CONFIG.center[1]]
+              }
               zoom={DEFAULT_MAP_CONFIG.zoom}
               flyToCompanyId={flyToCompanyId}
-              className="h-full"
+              className="h-full w-full"
             />
           }
           mobileSheet={
@@ -1577,27 +1600,44 @@ ${rows}
           }
         />
       </div>
+      {/* Routes sidebar backdrop */}
+      <div
+        className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 ${
+          routesDrawerOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+        onClick={() => setRoutesDrawerOpen(false)}
+        aria-hidden="true"
+      />
+
+      {/* Routes sidebar — slides from left */}
       {user && (
-        <div className="drawer-side z-40">
-          <label
-            htmlFor="routes-drawer"
-            className="drawer-overlay"
-            aria-label="Close routes sidebar"
-          />
-          <div className="bg-base-200 border-base-300 min-h-full w-80 border-r">
-            <RouteSidebar
-              routes={routes}
-              activeRouteId={activeRouteId}
-              isLoading={isLoadingRoutes}
-              onCreateRoute={() => {
-                setEditingRoute(null);
-                setShowRouteBuilder(true);
-              }}
-              onRouteSelect={handleSelectRoute}
-              onEditRoute={handleEditRoute}
-              onDeleteRoute={handleDeleteRoute}
-            />
+        <div
+          className={`bg-base-200 border-base-300 fixed top-0 left-0 z-50 h-full w-80 border-r shadow-xl transition-transform duration-300 ease-in-out ${
+            routesDrawerOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <div className="flex items-center justify-end p-2">
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              aria-label="Close routes sidebar"
+              onClick={() => setRoutesDrawerOpen(false)}
+            >
+              ✕
+            </button>
           </div>
+          <RouteSidebar
+            routes={routes}
+            activeRouteId={activeRouteId}
+            isLoading={isLoadingRoutes}
+            onCreateRoute={() => {
+              setEditingRoute(null);
+              setShowRouteBuilder(true);
+            }}
+            onRouteSelect={handleSelectRoute}
+            onEditRoute={handleEditRoute}
+            onDeleteRoute={handleDeleteRoute}
+          />
         </div>
       )}
     </div>

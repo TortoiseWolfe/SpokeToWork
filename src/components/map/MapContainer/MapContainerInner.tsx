@@ -422,7 +422,20 @@ const MapContainerInner: React.FC<MapContainerInnerProps> = ({
     [onLocationError]
   );
 
+  // Resize map when container dimensions change (e.g. panel collapse/expand)
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(() => {
+      mapRef.current?.resize();
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
   return (
+    <div ref={containerRef} style={{ width: '100%', height: '100%' }}>
     <Map
       ref={mapRef}
       initialViewState={{
@@ -512,6 +525,7 @@ const MapContainerInner: React.FC<MapContainerInnerProps> = ({
       {/* Children (route overlays, etc.) */}
       {children}
     </Map>
+    </div>
   );
 };
 
