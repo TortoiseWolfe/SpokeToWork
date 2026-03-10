@@ -38,8 +38,8 @@ SECRET_KEY_BASE: ${SUPABASE_LOCAL_REALTIME_SECRET:-change-me-realtime-secret-key
 SUPABASE_ANON_KEY: ${SUPABASE_LOCAL_ANON_KEY:-set-anon-key-in-env-file}
 
 # ❌ WRONG - hardcoded secret value
-SECRET_KEY_BASE: SCRUBBED_REALTIME_SECRET
-SUPABASE_ANON_KEY: <jwt-token-here>
+SECRET_KEY_BASE: <real-secret-here>
+SUPABASE_ANON_KEY: <real-jwt-here>
 ```
 
 ### Correct Pattern for scripts
