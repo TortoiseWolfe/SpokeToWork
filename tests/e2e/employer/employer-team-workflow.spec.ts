@@ -228,6 +228,14 @@ test.describe('Employer Team Workflow', () => {
       // (Same pattern as the "pending badge" test below, which passes reliably.)
       const { employerId, workerId } = await getUserIds(client);
 
+      // Clean up any existing connection from prior test runs/retries
+      await client
+        .from('user_connections')
+        .delete()
+        .or(
+          `and(requester_id.eq.${employerId},addressee_id.eq.${workerId}),and(requester_id.eq.${workerId},addressee_id.eq.${employerId})`
+        );
+
       const { error: insertError } = await client
         .from('user_connections')
         .insert({
