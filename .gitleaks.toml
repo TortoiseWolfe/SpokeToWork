@@ -48,6 +48,8 @@ paths = [
   '''docs/.*\.md$''',
   # Local Supabase config (contains official Supabase demo keys, not real secrets)
   '''LOCAL-SUPABASE-GUIDE\.md$''',
+  # CLAUDE.md documents local Supabase setup with official demo anon key
+  '''CLAUDE\.md$''',
   '''docker/kong/kong\.yml$''',
   '''docker/supabase/.*''',
   # Test files and fixtures
