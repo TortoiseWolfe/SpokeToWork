@@ -50,7 +50,8 @@ paths = [
   '''LOCAL-SUPABASE-GUIDE\.md$''',
   '''docker/kong/kong\.yml$''',
   '''docker/supabase/.*''',
-  # Test files
+  # Test files and fixtures
+  '''tests/e2e/fixtures/.*''',
   '''.*\.test\.ts$''',
   '''.*\.spec\.ts$''',
   '''.*\.stories\.tsx?$''',
