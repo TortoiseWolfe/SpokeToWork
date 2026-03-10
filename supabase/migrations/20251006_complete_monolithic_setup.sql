@@ -290,6 +290,8 @@ END;
 $$;
 
 -- Cleanup old audit logs (90 days)
+-- Drop first to handle return-type changes idempotently
+DROP FUNCTION IF EXISTS cleanup_old_audit_logs();
 CREATE OR REPLACE FUNCTION cleanup_old_audit_logs()
 RETURNS void
 LANGUAGE plpgsql
@@ -1500,7 +1502,13 @@ CREATE TABLE IF NOT EXISTS job_applications (
 );
 
 -- Indexes for common queries
-CREATE INDEX IF NOT EXISTS idx_job_applications_company ON job_applications(company_id);
+-- company_id index: only create if column still exists (Feature 014 drops it later)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'job_applications' AND column_name = 'company_id') THEN
+    CREATE INDEX IF NOT EXISTS idx_job_applications_company ON job_applications(company_id);
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_job_applications_user ON job_applications(user_id);
 CREATE INDEX IF NOT EXISTS idx_job_applications_status ON job_applications(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_job_applications_outcome ON job_applications(user_id, outcome);
@@ -1562,47 +1570,37 @@ COMMENT ON TABLE job_applications IS 'Job applications tracking - multiple per c
 -- ============================================================================
 -- Maps existing company status to new application status/outcome
 
-INSERT INTO job_applications (
-  company_id,
-  user_id,
-  position_title,
-  status,
-  outcome,
-  priority,
-  notes,
-  follow_up_date,
-  is_active,
-  created_at,
-  updated_at
-)
-SELECT
-  c.id,
-  c.user_id,
-  'Imported Application',
-  CASE c.status
-    WHEN 'not_contacted' THEN 'not_applied'
-    WHEN 'contacted' THEN 'applied'
-    WHEN 'follow_up' THEN 'applied'
-    WHEN 'meeting' THEN 'interviewing'
-    WHEN 'outcome_positive' THEN 'closed'
-    WHEN 'outcome_negative' THEN 'closed'
-    ELSE 'not_applied'
-  END,
-  CASE c.status
-    WHEN 'outcome_positive' THEN 'hired'
-    WHEN 'outcome_negative' THEN 'rejected'
-    ELSE 'pending'
-  END,
-  c.priority,
-  c.notes,
-  c.follow_up_date,
-  c.is_active,
-  c.created_at,
-  c.updated_at
-FROM companies c
-WHERE NOT EXISTS (
-  SELECT 1 FROM job_applications ja WHERE ja.company_id = c.id
-);
+-- Data migration: only runs if company_id column still exists (Feature 014 drops it later)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'job_applications' AND column_name = 'company_id') THEN
+    INSERT INTO job_applications (
+      company_id, user_id, position_title, status, outcome,
+      priority, notes, follow_up_date, is_active, created_at, updated_at
+    )
+    SELECT
+      c.id, c.user_id, 'Imported Application',
+      CASE c.status
+        WHEN 'not_contacted' THEN 'not_applied'
+        WHEN 'contacted' THEN 'applied'
+        WHEN 'follow_up' THEN 'applied'
+        WHEN 'meeting' THEN 'interviewing'
+        WHEN 'outcome_positive' THEN 'closed'
+        WHEN 'outcome_negative' THEN 'closed'
+        ELSE 'not_applied'
+      END,
+      CASE c.status
+        WHEN 'outcome_positive' THEN 'hired'
+        WHEN 'outcome_negative' THEN 'rejected'
+        ELSE 'pending'
+      END,
+      c.priority, c.notes, c.follow_up_date, c.is_active, c.created_at, c.updated_at
+    FROM companies c
+    WHERE NOT EXISTS (
+      SELECT 1 FROM job_applications ja WHERE ja.company_id = c.id
+    );
+  END IF;
+END $$;
 
 -- ============================================================================
 -- PART 12: MULTI-TENANT COMPANY DATA MODEL (Feature 012)
@@ -3062,6 +3060,7 @@ CREATE INDEX IF NOT EXISTS idx_team_members_email ON team_members(company_id, em
 
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "team_members_employer_read" ON team_members;
 CREATE POLICY "team_members_employer_read" ON team_members
   FOR SELECT USING (
     EXISTS (
@@ -3071,6 +3070,7 @@ CREATE POLICY "team_members_employer_read" ON team_members
     )
   );
 
+DROP POLICY IF EXISTS "team_members_employer_insert" ON team_members;
 CREATE POLICY "team_members_employer_insert" ON team_members
   FOR INSERT WITH CHECK (added_by = auth.uid() AND EXISTS (
     SELECT 1 FROM employer_company_links
@@ -3078,6 +3078,7 @@ CREATE POLICY "team_members_employer_insert" ON team_members
       AND employer_company_links.shared_company_id = team_members.company_id
   ));
 
+DROP POLICY IF EXISTS "team_members_employer_update" ON team_members;
 CREATE POLICY "team_members_employer_update" ON team_members
   FOR UPDATE USING (EXISTS (
     SELECT 1 FROM employer_company_links
@@ -3085,6 +3086,7 @@ CREATE POLICY "team_members_employer_update" ON team_members
       AND employer_company_links.shared_company_id = team_members.company_id
   ));
 
+DROP POLICY IF EXISTS "team_members_employer_delete" ON team_members;
 CREATE POLICY "team_members_employer_delete" ON team_members
   FOR DELETE USING (EXISTS (
     SELECT 1 FROM employer_company_links
@@ -3092,6 +3094,7 @@ CREATE POLICY "team_members_employer_delete" ON team_members
       AND employer_company_links.shared_company_id = team_members.company_id
   ));
 
+DROP TRIGGER IF EXISTS set_team_members_updated_at ON team_members;
 CREATE TRIGGER set_team_members_updated_at
   BEFORE UPDATE ON team_members
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -3137,6 +3140,7 @@ CREATE INDEX IF NOT EXISTS idx_team_shifts_user_date
 
 ALTER TABLE team_shifts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "team_shifts_employer_read" ON team_shifts;
 CREATE POLICY "team_shifts_employer_read" ON team_shifts
   FOR SELECT USING (
     EXISTS (
@@ -3146,6 +3150,7 @@ CREATE POLICY "team_shifts_employer_read" ON team_shifts
     )
   );
 
+DROP POLICY IF EXISTS "team_shifts_employer_insert" ON team_shifts;
 CREATE POLICY "team_shifts_employer_insert" ON team_shifts
   FOR INSERT WITH CHECK (created_by = auth.uid() AND EXISTS (
     SELECT 1 FROM employer_company_links
@@ -3153,6 +3158,7 @@ CREATE POLICY "team_shifts_employer_insert" ON team_shifts
       AND employer_company_links.shared_company_id = team_shifts.company_id
   ));
 
+DROP POLICY IF EXISTS "team_shifts_employer_update" ON team_shifts;
 CREATE POLICY "team_shifts_employer_update" ON team_shifts
   FOR UPDATE USING (EXISTS (
     SELECT 1 FROM employer_company_links
@@ -3160,6 +3166,7 @@ CREATE POLICY "team_shifts_employer_update" ON team_shifts
       AND employer_company_links.shared_company_id = team_shifts.company_id
   ));
 
+DROP POLICY IF EXISTS "team_shifts_employer_delete" ON team_shifts;
 CREATE POLICY "team_shifts_employer_delete" ON team_shifts
   FOR DELETE USING (EXISTS (
     SELECT 1 FROM employer_company_links
@@ -3167,6 +3174,7 @@ CREATE POLICY "team_shifts_employer_delete" ON team_shifts
       AND employer_company_links.shared_company_id = team_shifts.company_id
   ));
 
+DROP TRIGGER IF EXISTS set_team_shifts_updated_at ON team_shifts;
 CREATE TRIGGER set_team_shifts_updated_at
   BEFORE UPDATE ON team_shifts
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
