@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useCallback } from 'react';
+import Image from 'next/image';
 import type { TeamShift } from '@/types/schedule';
 import type { BusinessHours } from '@/types/schedule';
 import { formatTime } from '@/types/schedule';
@@ -368,9 +369,11 @@ export default function WeekScheduleGrid({
                       aria-label={`Set schedule for ${member.display_name}`}
                     >
                       {member.avatar_url ? (
-                        <img
+                        <Image
                           src={member.avatar_url}
                           alt=""
+                          width={24}
+                          height={24}
                           className="h-6 w-6 rounded-full"
                         />
                       ) : (
@@ -398,9 +401,11 @@ export default function WeekScheduleGrid({
                   ) : (
                     <div className="flex items-center gap-2">
                       {member.avatar_url ? (
-                        <img
+                        <Image
                           src={member.avatar_url}
                           alt=""
+                          width={24}
+                          height={24}
                           className="h-6 w-6 rounded-full"
                         />
                       ) : (

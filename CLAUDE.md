@@ -10,6 +10,56 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 4. **Clean Architecture** - Follow established patterns consistently
 5. **No Technical Debt** - Never commit TODOs or workarounds
 
+## NEVER Hardcode Secrets in Committed Files (MANDATORY)
+
+**CRITICAL**: No secret, token, key, or credential may appear as a literal value in any file that is committed to git. This includes `docker-compose.yml`, `kong.yml`, scripts, source code, and documentation.
+
+### The Rules
+
+1. **ALL secrets go in `.env`** (gitignored). No exceptions.
+2. **Committed files use `${VAR:-placeholder}`** where `placeholder` is a non-secret default like `change-me-realtime-secret-key-base` or `set-anon-key-in-env-file`.
+3. **`.env.example` shows variable names only** with commented-out placeholder values.
+4. **NEVER allowlist secrets in `.gitleaks.toml`** — not in `regexes`, not in `commits`, not anywhere. If gitleaks flags a real secret, the fix is to remove the secret from committed files, not to suppress the warning.
+5. **If a secret leaks into git history**, scrub it with `git-filter-repo --replace-text` and force push. Do not add the commit hash to an allowlist.
+
+### What Counts as a Secret
+
+- API keys, tokens, passwords (obvious)
+- JWTs (even "demo" JWTs — they are valid credentials for local Supabase)
+- OAuth client IDs and secrets
+- `SECRET_KEY_BASE`, realtime secrets, webhook secrets
+- GitHub PATs, Supabase access tokens
+
+### Correct Pattern for docker-compose.yml
+
+```yaml
+# ✅ CORRECT - secret comes from .env, with inert placeholder default
+SECRET_KEY_BASE: ${SUPABASE_LOCAL_REALTIME_SECRET:-change-me-realtime-secret-key-base}
+SUPABASE_ANON_KEY: ${SUPABASE_LOCAL_ANON_KEY:-set-anon-key-in-env-file}
+
+# ❌ WRONG - hardcoded secret value
+SECRET_KEY_BASE: SCRUBBED_REALTIME_SECRET
+SUPABASE_ANON_KEY: <jwt-token-here>
+```
+
+### Correct Pattern for scripts
+
+```bash
+# ✅ CORRECT - fail loudly if not set in .env
+ANON_KEY="${SUPABASE_LOCAL_ANON_KEY:?Set SUPABASE_LOCAL_ANON_KEY in .env}"
+
+# ❌ WRONG - hardcoded fallback with real secret
+ANON_KEY="${SUPABASE_LOCAL_ANON_KEY:-<jwt-token-here>}"
+```
+
+### If Gitleaks Blocks a Push
+
+1. Find the flagged secret in committed files
+2. Move the value to `.env`
+3. Replace with `${VAR:-placeholder}` in the committed file
+4. If the secret is in git history, scrub with `git-filter-repo`
+5. **NEVER** add the secret pattern to `.gitleaks.toml` allowlists
+
 ## Docker-First Development (MANDATORY)
 
 **CRITICAL**: This project REQUIRES Docker. Local pnpm/npm commands are NOT supported.
