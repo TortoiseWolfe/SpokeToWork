@@ -420,8 +420,9 @@ test.describe('Employer Team Workflow', () => {
 
     // Navigate to employer dashboard and poll for connection request
     // (useConnections hook fetches once on mount — need reload to refetch)
+    // Supabase Cloud read replica lag can exceed 60s — poll up to 12 times
     let requestFound = false;
-    for (let attempt = 0; attempt < 8; attempt++) {
+    for (let attempt = 0; attempt < 12; attempt++) {
       await page.goto('/employer');
       await expect(
         page.getByRole('heading', { name: 'Employer Dashboard' })
@@ -435,7 +436,10 @@ test.describe('Employer Team Workflow', () => {
       const receivedTab = page.getByRole('tab', {
         name: /pending received|received/i,
       });
-      if (await receivedTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+      const tabVisible = await receivedTab
+        .isVisible({ timeout: 5000 })
+        .catch(() => false);
+      if (tabVisible) {
         await receivedTab.click({ force: true });
         // Wait for the connection list to render after tab switch
         await page.waitForTimeout(2000);
@@ -444,11 +448,15 @@ test.describe('Employer Team Workflow', () => {
           .isVisible({ timeout: 8000 })
           .catch(() => false);
         if (requestFound) break;
+        console.log(
+          `Team badge attempt ${attempt + 1}/12: received tab visible but no request`
+        );
+      } else {
+        console.log(
+          `Team badge attempt ${attempt + 1}/12: received tab not visible (read replica lag)`
+        );
       }
-      console.log(
-        `Team badge attempt ${attempt + 1}/8: connection request not visible`
-      );
-      await page.waitForTimeout(4000);
+      await page.waitForTimeout(5000);
     }
     expect(requestFound).toBe(true);
   });
