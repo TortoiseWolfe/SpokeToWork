@@ -18,6 +18,7 @@ import {
   dismissCookieBanner,
   dismissReAuthModal,
 } from './test-helpers';
+import { loginAndVerify } from '../utils/auth-helpers';
 
 const BASE_URL = process.env.NEXT_PUBLIC_DEPLOY_URL || 'http://localhost:3000';
 
@@ -67,21 +68,10 @@ test.describe('Offline Message Queue', () => {
 
     try {
       // ===== STEP 1: User A signs in =====
-      await page.goto(`${BASE_URL}/sign-in`);
-      await page.fill('#email', USER_A.email);
-      await page.fill('#password', USER_A.password);
-      await page.click('button[type="submit"]');
-      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
-      try {
-        await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-          timeout: 45000,
-        });
-      } catch {
-        await page.waitForLoadState('domcontentloaded');
-        if (page.url().includes('/sign-in')) {
-          throw new Error('Sign-in failed after 45s');
-        }
-      }
+      await loginAndVerify(page, {
+        email: USER_A.email,
+        password: USER_A.password,
+      });
 
       // ===== STEP 2: Navigate to conversation =====
       await page.goto(`${BASE_URL}/messages?tab=chats`);
@@ -143,21 +133,10 @@ test.describe('Offline Message Queue', () => {
 
     try {
       // ===== STEP 1: Sign in and navigate to conversation =====
-      await page.goto(`${BASE_URL}/sign-in`);
-      await page.fill('#email', USER_A.email);
-      await page.fill('#password', USER_A.password);
-      await page.click('button[type="submit"]');
-      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
-      try {
-        await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-          timeout: 45000,
-        });
-      } catch {
-        await page.waitForLoadState('domcontentloaded');
-        if (page.url().includes('/sign-in')) {
-          throw new Error('Sign-in failed after 45s');
-        }
-      }
+      await loginAndVerify(page, {
+        email: USER_A.email,
+        password: USER_A.password,
+      });
 
       await page.goto(`${BASE_URL}/messages?tab=chats`);
       await dismissCookieBanner(page);
@@ -219,21 +198,10 @@ test.describe('Offline Message Queue', () => {
 
     try {
       // ===== STEP 1: Sign in and navigate to conversation =====
-      await page.goto(`${BASE_URL}/sign-in`);
-      await page.fill('#email', USER_A.email);
-      await page.fill('#password', USER_A.password);
-      await page.click('button[type="submit"]');
-      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
-      try {
-        await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-          timeout: 45000,
-        });
-      } catch {
-        await page.waitForLoadState('domcontentloaded');
-        if (page.url().includes('/sign-in')) {
-          throw new Error('Sign-in failed after 45s');
-        }
-      }
+      await loginAndVerify(page, {
+        email: USER_A.email,
+        password: USER_A.password,
+      });
 
       await page.goto(`${BASE_URL}/messages?tab=chats`);
       await dismissCookieBanner(page);
@@ -301,37 +269,14 @@ test.describe('Offline Message Queue', () => {
 
     try {
       // ===== STEP 1: Both users sign in =====
-      await pageA.goto(`${BASE_URL}/sign-in`);
-      await pageA.fill('#email', USER_A.email);
-      await pageA.fill('#password', USER_A.password);
-      await pageA.click('button[type="submit"]');
-      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
-      try {
-        await pageA.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-          timeout: 45000,
-        });
-      } catch {
-        await pageA.waitForLoadState('domcontentloaded');
-        if (pageA.url().includes('/sign-in')) {
-          throw new Error('User A sign-in failed after 45s');
-        }
-      }
-
-      await pageB.goto(`${BASE_URL}/sign-in`);
-      await pageB.fill('#email', USER_B.email);
-      await pageB.fill('#password', USER_B.password);
-      await pageB.click('button[type="submit"]');
-      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
-      try {
-        await pageB.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-          timeout: 45000,
-        });
-      } catch {
-        await pageB.waitForLoadState('domcontentloaded');
-        if (pageB.url().includes('/sign-in')) {
-          throw new Error('User B sign-in failed after 45s');
-        }
-      }
+      await loginAndVerify(pageA, {
+        email: USER_A.email,
+        password: USER_A.password,
+      });
+      await loginAndVerify(pageB, {
+        email: USER_B.email,
+        password: USER_B.password,
+      });
 
       // ===== STEP 2: Both navigate to same conversation =====
       await pageA.goto(`${BASE_URL}/messages?tab=chats`);
@@ -441,21 +386,10 @@ test.describe('Offline Message Queue', () => {
 
     try {
       // ===== STEP 1: Sign in and navigate to conversation =====
-      await page.goto(`${BASE_URL}/sign-in`);
-      await page.fill('#email', USER_A.email);
-      await page.fill('#password', USER_A.password);
-      await page.click('button[type="submit"]');
-      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
-      try {
-        await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-          timeout: 45000,
-        });
-      } catch {
-        await page.waitForLoadState('domcontentloaded');
-        if (page.url().includes('/sign-in')) {
-          throw new Error('Sign-in failed after 45s');
-        }
-      }
+      await loginAndVerify(page, {
+        email: USER_A.email,
+        password: USER_A.password,
+      });
 
       await page.goto(`${BASE_URL}/messages?tab=chats`);
       await dismissCookieBanner(page);

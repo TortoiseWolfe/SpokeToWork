@@ -20,6 +20,7 @@ import {
   dismissCookieBanner,
   dismissReAuthModal,
 } from './test-helpers';
+import { loginAndVerify } from '../utils/auth-helpers';
 
 const BASE_URL = process.env.NEXT_PUBLIC_DEPLOY_URL || 'http://localhost:3000';
 
@@ -72,39 +73,16 @@ test.describe('Encrypted Messaging Flow', () => {
 
     try {
       // ===== STEP 1: User A signs in =====
-      await pageA.goto(`${BASE_URL}/sign-in`);
-      await pageA.waitForLoadState('networkidle');
-      await pageA.fill('#email', USER_A.email);
-      await pageA.fill('#password', USER_A.password);
-      await pageA.click('button[type="submit"]');
-      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
-      try {
-        await pageA.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-          timeout: 45000,
-        });
-      } catch {
-        await pageA.waitForLoadState('domcontentloaded');
-        if (pageA.url().includes('/sign-in')) {
-          throw new Error('User A sign-in failed after 45s');
-        }
-      }
+      await loginAndVerify(pageA, {
+        email: USER_A.email,
+        password: USER_A.password,
+      });
 
       // ===== STEP 2: User B signs in (in separate context) =====
-      await pageB.goto(`${BASE_URL}/sign-in`);
-      await pageB.fill('#email', USER_B.email);
-      await pageB.fill('#password', USER_B.password);
-      await pageB.click('button[type="submit"]');
-      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
-      try {
-        await pageB.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-          timeout: 45000,
-        });
-      } catch {
-        await pageB.waitForLoadState('domcontentloaded');
-        if (pageB.url().includes('/sign-in')) {
-          throw new Error('User B sign-in failed after 45s');
-        }
-      }
+      await loginAndVerify(pageB, {
+        email: USER_B.email,
+        password: USER_B.password,
+      });
 
       // ===== STEP 3: User A navigates to conversations =====
       await pageA.goto(`${BASE_URL}/messages?tab=chats`);
@@ -202,20 +180,10 @@ test.describe('Encrypted Messaging Flow', () => {
 
     try {
       // Sign in as User A
-      await pageA.goto(`${BASE_URL}/sign-in`);
-      await pageA.fill('#email', USER_A.email);
-      await pageA.fill('#password', USER_A.password);
-      await pageA.click('button[type="submit"]');
-      try {
-        await pageA.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-          timeout: 45000,
-        });
-      } catch {
-        await pageA.waitForLoadState('domcontentloaded');
-        if (pageA.url().includes('/sign-in')) {
-          throw new Error('User A sign-in failed after 45s');
-        }
-      }
+      await loginAndVerify(pageA, {
+        email: USER_A.email,
+        password: USER_A.password,
+      });
 
       // Navigate to conversation
       await pageA.goto(`${BASE_URL}/messages?tab=chats`);
@@ -293,21 +261,10 @@ test.describe('Encrypted Messaging Flow', () => {
 
     try {
       // User A signs in and navigates to conversation
-      await pageA.goto(`${BASE_URL}/sign-in`);
-      await pageA.fill('#email', USER_A.email);
-      await pageA.fill('#password', USER_A.password);
-      await pageA.click('button[type="submit"]');
-      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
-      try {
-        await pageA.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-          timeout: 45000,
-        });
-      } catch {
-        await pageA.waitForLoadState('domcontentloaded');
-        if (pageA.url().includes('/sign-in')) {
-          throw new Error('User A sign-in failed after 45s');
-        }
-      }
+      await loginAndVerify(pageA, {
+        email: USER_A.email,
+        password: USER_A.password,
+      });
 
       await pageA.goto(`${BASE_URL}/messages?tab=chats`);
       await dismissCookieBanner(pageA);
@@ -353,20 +310,10 @@ test.describe('Encrypted Messaging Flow', () => {
       );
 
       // ===== USER B READS THE MESSAGE =====
-      await pageB.goto(`${BASE_URL}/sign-in`);
-      await pageB.fill('#email', USER_B.email);
-      await pageB.fill('#password', USER_B.password);
-      await pageB.click('button[type="submit"]');
-      try {
-        await pageB.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-          timeout: 45000,
-        });
-      } catch {
-        await pageB.waitForLoadState('domcontentloaded');
-        if (pageB.url().includes('/sign-in')) {
-          throw new Error('User B sign-in failed after 45s');
-        }
-      }
+      await loginAndVerify(pageB, {
+        email: USER_B.email,
+        password: USER_B.password,
+      });
 
       await pageB.goto(`${BASE_URL}/messages?tab=chats`);
       await dismissCookieBanner(pageB);
@@ -411,21 +358,10 @@ test.describe('Encrypted Messaging Flow', () => {
   });
 
   test('should load message history with pagination', async ({ page }) => {
-    await page.goto(`${BASE_URL}/sign-in`);
-    await page.fill('#email', USER_A.email);
-    await page.fill('#password', USER_A.password);
-    await page.click('button[type="submit"]');
-    // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
-    try {
-      await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-        timeout: 45000,
-      });
-    } catch {
-      await page.waitForLoadState('domcontentloaded');
-      if (page.url().includes('/sign-in')) {
-        throw new Error('Sign-in failed after 45s');
-      }
-    }
+    await loginAndVerify(page, {
+      email: USER_A.email,
+      password: USER_A.password,
+    });
 
     await page.goto(`${BASE_URL}/messages?tab=chats`);
     await dismissCookieBanner(page);
@@ -520,21 +456,10 @@ test.describe('Encryption Key Security', () => {
     });
 
     // Sign in and send a message
-    await page.goto(`${BASE_URL}/sign-in`);
-    await page.fill('#email', USER_A.email);
-    await page.fill('#password', USER_A.password);
-    await page.click('button[type="submit"]');
-    // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
-    try {
-      await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-        timeout: 45000,
-      });
-    } catch {
-      await page.waitForLoadState('domcontentloaded');
-      if (page.url().includes('/sign-in')) {
-        throw new Error('Sign-in failed after 45s');
-      }
-    }
+    await loginAndVerify(page, {
+      email: USER_A.email,
+      password: USER_A.password,
+    });
 
     await page.goto(`${BASE_URL}/messages?tab=chats`);
     await dismissCookieBanner(page);

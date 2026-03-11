@@ -16,6 +16,7 @@ import {
   dismissCookieBanner,
   dismissReAuthModal,
 } from './test-helpers';
+import { loginAndVerify } from '../utils/auth-helpers';
 
 // Always use localhost for E2E tests - we're testing local development
 const BASE_URL = 'http://localhost:3000';
@@ -35,45 +36,15 @@ const PRIMARY_USER = {
  * Handles encryption setup flow if needed
  */
 async function signInAndNavigateToMessages(page: Page) {
-  // Step 1: Navigate to sign-in page
-  await page.goto(BASE_URL + '/sign-in');
-  await page.waitForLoadState('networkidle');
+  await loginAndVerify(page, {
+    email: PRIMARY_USER.email,
+    password: PRIMARY_USER.password,
+  });
 
-  // Check if already signed in (redirected away from sign-in)
-  if (!page.url().includes('sign-in')) {
-    await page.goto(BASE_URL + '/messages');
-    await dismissCookieBanner(page);
-    await completeEncryptionSetup(page);
-    await page.waitForLoadState('networkidle');
-    await dismissReAuthModal(page);
-    return;
-  }
-
-  // Step 2: Fill in credentials and submit
-  await page.fill('#email', PRIMARY_USER.email);
-  await page.fill('#password', PRIMARY_USER.password);
-  await page.click('button[type="submit"]');
-
-  // Step 3: Wait for redirect (confirms auth success)
-  // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
-  try {
-    await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-      timeout: 45000,
-    });
-  } catch {
-    await page.waitForLoadState('domcontentloaded');
-    if (page.url().includes('/sign-in')) {
-      throw new Error('Sign-in failed after 45s');
-    }
-  }
-
-  // Step 4: Navigate to messages page
   await page.goto(BASE_URL + '/messages');
   await dismissCookieBanner(page);
   await completeEncryptionSetup(page);
   await page.waitForLoadState('networkidle');
-
-  // Step 5: Handle ReAuth modal if it appears
   await dismissReAuthModal(page);
 }
 

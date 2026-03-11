@@ -15,6 +15,7 @@ import {
   dismissCookieBanner,
   dismissReAuthModal,
 } from './test-helpers';
+import { loginAndVerify } from '../utils/auth-helpers';
 
 const adminClient = getAdminClient();
 
@@ -28,27 +29,6 @@ const TEST_USER_2 = {
   email: process.env.TEST_USER_SECONDARY_EMAIL || 'test2@example.com',
   password: process.env.TEST_USER_SECONDARY_PASSWORD!,
 };
-
-/**
- * Sign in helper function
- */
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in');
-  await page.fill('#email', email);
-  await page.fill('#password', password);
-  await page.click('button[type="submit"]');
-  // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
-  try {
-    await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-      timeout: 45000,
-    });
-  } catch {
-    await page.waitForLoadState('domcontentloaded');
-    if (page.url().includes('/sign-in')) {
-      throw new Error('Sign-in failed after 45s');
-    }
-  }
-}
 
 /**
  * Create or find existing conversation between two users.
@@ -178,8 +158,14 @@ test.describe('Real-time Message Delivery (T098)', () => {
     page2 = await context2.newPage();
 
     // Sign in both users
-    await signIn(page1, TEST_USER_1.email, TEST_USER_1.password);
-    await signIn(page2, TEST_USER_2.email, TEST_USER_2.password);
+    await loginAndVerify(page1, {
+      email: TEST_USER_1.email,
+      password: TEST_USER_1.password,
+    });
+    await loginAndVerify(page2, {
+      email: TEST_USER_2.email,
+      password: TEST_USER_2.password,
+    });
   });
 
   test.afterEach(async () => {
@@ -358,8 +344,14 @@ test.describe('Typing Indicators (T099)', () => {
     page2 = await context2.newPage();
 
     // Sign in both users
-    await signIn(page1, TEST_USER_1.email, TEST_USER_1.password);
-    await signIn(page2, TEST_USER_2.email, TEST_USER_2.password);
+    await loginAndVerify(page1, {
+      email: TEST_USER_1.email,
+      password: TEST_USER_1.password,
+    });
+    await loginAndVerify(page2, {
+      email: TEST_USER_2.email,
+      password: TEST_USER_2.password,
+    });
   });
 
   test.afterEach(async () => {

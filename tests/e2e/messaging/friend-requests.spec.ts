@@ -24,6 +24,7 @@ import {
   dismissCookieBanner,
   dismissReAuthModal,
 } from './test-helpers';
+import { loginAndVerify } from '../utils/auth-helpers';
 
 // Test users - use PRIMARY and TERTIARY from standardized test fixtures
 const USER_A = {
@@ -165,12 +166,10 @@ test.describe('Friend Request Flow', () => {
 
     try {
       // ===== STEP 1: User A signs in =====
-      await pageA.goto('/sign-in');
-      await pageA.waitForLoadState('networkidle');
-      await pageA.fill('#email', USER_A.email);
-      await pageA.fill('#password', USER_A.password);
-      await pageA.click('button[type="submit"]');
-      await pageA.waitForURL(/.*\/profile/, { timeout: 45000 });
+      await loginAndVerify(pageA, {
+        email: USER_A.email,
+        password: USER_A.password,
+      });
 
       // ===== STEP 2: User A navigates to connections page =====
       await pageA.goto('/messages?tab=connections');
@@ -206,12 +205,10 @@ test.describe('Friend Request Flow', () => {
       });
 
       // ===== STEP 5: User B signs in =====
-      await pageB.goto('/sign-in');
-      await pageB.waitForLoadState('networkidle');
-      await pageB.fill('#email', USER_B.email);
-      await pageB.fill('#password', USER_B.password);
-      await pageB.click('button[type="submit"]');
-      await pageB.waitForURL(/.*\/profile/, { timeout: 45000 });
+      await loginAndVerify(pageB, {
+        email: USER_B.email,
+        password: USER_B.password,
+      });
 
       // ===== STEP 6: User B navigates to connections page =====
       await pageB.goto('/messages?tab=connections');
@@ -294,12 +291,10 @@ test.describe('Friend Request Flow', () => {
 
     try {
       // User B sends request to User A (searching by username of A)
-      await pageB.goto('/sign-in');
-      await pageB.waitForLoadState('networkidle');
-      await pageB.fill('#email', USER_B.email);
-      await pageB.fill('#password', USER_B.password);
-      await pageB.click('button[type="submit"]');
-      await pageB.waitForURL(/.*\/profile/, { timeout: 45000 });
+      await loginAndVerify(pageB, {
+        email: USER_B.email,
+        password: USER_B.password,
+      });
 
       await pageB.goto('/messages?tab=connections');
       await dismissCookieBanner(pageB);
@@ -327,12 +322,10 @@ test.describe('Friend Request Flow', () => {
       );
 
       // User A signs in and declines
-      await pageA.goto('/sign-in');
-      await pageA.waitForLoadState('networkidle');
-      await pageA.fill('#email', USER_A.email);
-      await pageA.fill('#password', USER_A.password);
-      await pageA.click('button[type="submit"]');
-      await pageA.waitForURL(/.*\/profile/, { timeout: 45000 });
+      await loginAndVerify(pageA, {
+        email: USER_A.email,
+        password: USER_A.password,
+      });
 
       await pageA.goto('/messages?tab=connections');
       await dismissCookieBanner(pageA);
@@ -367,12 +360,10 @@ test.describe('Friend Request Flow', () => {
     test.setTimeout(60000);
 
     // Sign in as User A
-    await page.goto('/sign-in');
-    await page.waitForLoadState('networkidle');
-    await page.fill('#email', USER_A.email);
-    await page.fill('#password', USER_A.password);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
+    await loginAndVerify(page, {
+      email: USER_A.email,
+      password: USER_A.password,
+    });
 
     // Send friend request to User B
     await page.goto('/messages?tab=connections');
@@ -421,12 +412,10 @@ test.describe('Friend Request Flow', () => {
   test('User cannot send duplicate requests', async ({ page }) => {
     test.setTimeout(60000);
 
-    await page.goto('/sign-in');
-    await page.waitForLoadState('networkidle');
-    await page.fill('#email', USER_A.email);
-    await page.fill('#password', USER_A.password);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
+    await loginAndVerify(page, {
+      email: USER_A.email,
+      password: USER_A.password,
+    });
 
     await page.goto('/messages?tab=connections');
     await dismissCookieBanner(page);
@@ -481,12 +470,10 @@ test.describe('Accessibility', () => {
   });
 
   test('connections page meets WCAG standards', async ({ page }) => {
-    await page.goto('/sign-in');
-    await page.waitForLoadState('networkidle');
-    await page.fill('#email', USER_A.email);
-    await page.fill('#password', USER_A.password);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
+    await loginAndVerify(page, {
+      email: USER_A.email,
+      password: USER_A.password,
+    });
 
     await page.goto('/messages?tab=connections');
     await dismissCookieBanner(page);
@@ -514,12 +501,10 @@ test.describe('Accessibility', () => {
   });
 
   test('tab navigation works correctly', async ({ page }) => {
-    await page.goto('/sign-in');
-    await page.waitForLoadState('networkidle');
-    await page.fill('#email', USER_A.email);
-    await page.fill('#password', USER_A.password);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
+    await loginAndVerify(page, {
+      email: USER_A.email,
+      password: USER_A.password,
+    });
 
     await page.goto('/messages?tab=connections');
     await dismissCookieBanner(page);

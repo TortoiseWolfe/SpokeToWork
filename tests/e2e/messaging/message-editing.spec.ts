@@ -16,6 +16,7 @@ import {
   dismissCookieBanner,
   dismissReAuthModal,
 } from './test-helpers';
+import { loginAndVerify } from '../utils/auth-helpers';
 
 // Test user credentials — PRIMARY + TERTIARY per messaging E2E conventions
 const TEST_USER_1 = {
@@ -84,27 +85,6 @@ async function ensureMessagingSetup(): Promise<void> {
   await ensureConversation(supabase, TEST_USER_1.email, TEST_USER_2.email);
 
   messagingSetupDone = true;
-}
-
-/**
- * Sign in helper function
- */
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in');
-  await page.fill('#email', email);
-  await page.fill('#password', password);
-  await page.click('button[type="submit"]');
-  // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
-  try {
-    await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-      timeout: 45000,
-    });
-  } catch {
-    await page.waitForLoadState('domcontentloaded');
-    if (page.url().includes('/sign-in')) {
-      throw new Error('Sign-in failed after 45s');
-    }
-  }
 }
 
 /**
@@ -228,7 +208,10 @@ test.describe('Message Editing', () => {
 
   test.beforeEach(async ({ page }) => {
     // Sign in as User 1
-    await signIn(page, TEST_USER_1.email, TEST_USER_1.password);
+    await loginAndVerify(page, {
+      email: TEST_USER_1.email,
+      password: TEST_USER_1.password,
+    });
   });
 
   test('T115: should edit message within 15-minute window', async ({
@@ -375,7 +358,10 @@ test.describe('Message Deletion', () => {
 
   test.beforeEach(async ({ page }) => {
     // Sign in as User 1
-    await signIn(page, TEST_USER_1.email, TEST_USER_1.password);
+    await loginAndVerify(page, {
+      email: TEST_USER_1.email,
+      password: TEST_USER_1.password,
+    });
   });
 
   test('T116: should delete message within 15-minute window', async ({
@@ -500,7 +486,10 @@ test.describe('Time Window Restrictions', () => {
   test.describe.configure({ timeout: 90000 });
 
   test.beforeEach(async ({ page }) => {
-    await signIn(page, TEST_USER_1.email, TEST_USER_1.password);
+    await loginAndVerify(page, {
+      email: TEST_USER_1.email,
+      password: TEST_USER_1.password,
+    });
   });
 
   test('T117: should not show Edit/Delete buttons for messages older than 15 minutes', async ({
@@ -632,7 +621,10 @@ test.describe('Accessibility', () => {
   test.describe.configure({ timeout: 90000 });
 
   test.beforeEach(async ({ page }) => {
-    await signIn(page, TEST_USER_1.email, TEST_USER_1.password);
+    await loginAndVerify(page, {
+      email: TEST_USER_1.email,
+      password: TEST_USER_1.password,
+    });
   });
 
   test('T130: edit mode should have proper ARIA labels', async ({ page }) => {
