@@ -60,25 +60,41 @@ function isValidUUID(value: string): boolean {
   return uuidRegex.test(value);
 }
 
-async function executeSQL(query: string): Promise<SQLResult[]> {
-  const response = await fetch(
-    `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${ACCESS_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ query }),
-    }
-  );
+async function executeSQL(
+  query: string,
+  retries = 3,
+  baseDelay = 1000
+): Promise<SQLResult[]> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const response = await fetch(
+      `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query }),
+      }
+    );
 
-  if (!response.ok) {
+    if (response.ok) {
+      return response.json();
+    }
+
+    // Handle rate limiting with exponential backoff
+    if (response.status === 429 && attempt < retries) {
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.log(`Rate limited, retrying in ${delay}ms...`);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+
     const errorText = await response.text();
     throw new Error(`SQL execution failed: ${response.status} - ${errorText}`);
   }
 
-  return response.json();
+  throw new Error('Exhausted retries');
 }
 
 async function createTestUserDirect(

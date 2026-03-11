@@ -25,31 +25,47 @@ function escapeSQL(value: string): string {
 /**
  * Execute SQL via Supabase Management API (bypasses RLS)
  */
-export async function executeSQL(query: string): Promise<unknown[]> {
+export async function executeSQL(
+  query: string,
+  retries = 3,
+  baseDelay = 1000
+): Promise<unknown[]> {
   if (!PROJECT_REF || !ACCESS_TOKEN) {
     console.log('Skipping SQL: Missing SUPABASE_URL or ACCESS_TOKEN');
     return [];
   }
 
-  const response = await fetch(
-    `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${ACCESS_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ query }),
-    }
-  );
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const response = await fetch(
+      `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query }),
+      }
+    );
 
-  if (!response.ok) {
+    if (response.ok) {
+      return response.json();
+    }
+
+    // Handle rate limiting with exponential backoff
+    if (response.status === 429 && attempt < retries) {
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.log(`Rate limited, retrying in ${delay}ms...`);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+
     const errorText = await response.text();
     console.warn(`SQL warning: ${response.status} - ${errorText}`);
     return [];
   }
 
-  return response.json();
+  return [];
 }
 
 /**

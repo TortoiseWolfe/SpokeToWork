@@ -40,23 +40,41 @@ function escapeSQL(str: string): string {
   return str.replace(/'/g, "''");
 }
 
-async function executeSQL(query: string): Promise<unknown[]> {
-  const response = await fetch(
-    `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${ACCESS_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ query }),
+async function executeSQL(
+  query: string,
+  retries = 3,
+  baseDelay = 1000
+): Promise<unknown[]> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const response = await fetch(
+      `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query }),
+      }
+    );
+
+    if (response.ok) {
+      return response.json();
     }
-  );
-  if (!response.ok) {
+
+    // Handle rate limiting with exponential backoff
+    if (response.status === 429 && attempt < retries) {
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.log(`Rate limited, retrying in ${delay}ms...`);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+
     const errorText = await response.text();
     throw new Error(`SQL failed: ${response.status} - ${errorText}`);
   }
-  return response.json();
+
+  throw new Error('Exhausted retries');
 }
 
 /**
