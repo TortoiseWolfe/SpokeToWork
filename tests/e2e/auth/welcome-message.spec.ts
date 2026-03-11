@@ -131,6 +131,7 @@ test.describe('Welcome Message Flow', () => {
     page,
     browserName,
   }) => {
+    test.setTimeout(120_000); // Key generation + welcome message chain can take 45s+
     // hash-wasm Argon2id requires SharedArrayBuffer; Firefox blocks it without COOP/COEP headers
     test.skip(
       browserName === 'firefox',
@@ -164,11 +165,8 @@ test.describe('Welcome Message Flow', () => {
     await page.waitForURL(/\/(profile|companies)/, { timeout: 20000 });
     console.log(`Sign-in complete, URL: ${page.url()}`);
 
-    // Give the async welcome message time to complete
-    await page.waitForTimeout(5000);
-
-    // Step 2: Verify welcome message was sent
-    console.log('Step 2: Checking database...');
+    // Step 2: Poll for welcome message completion (key gen + trigger chain can take 30-45s)
+    console.log('Step 2: Polling database for welcome message...');
 
     const users = (await executeSQL(
       `SELECT id FROM auth.users WHERE email ILIKE '${escapeSQL(TEST_EMAIL)}'`
@@ -179,11 +177,18 @@ test.describe('Welcome Message Flow', () => {
     const adminUserId = await getAdminUserId();
     console.log(`Admin user ID: ${adminUserId}`);
 
-    // Check welcome_message_sent flag
-    // All interpolated values use escapeSQL to prevent injection (047-test-security)
-    const profiles = (await executeSQL(
-      `SELECT welcome_message_sent FROM user_profiles WHERE id = '${escapeSQL(testUserId)}'`
-    )) as { welcome_message_sent: boolean }[];
+    // Poll for welcome_message_sent flag (key generation + welcome message chain can be slow)
+    let profiles: { welcome_message_sent: boolean }[] = [];
+    for (let attempt = 0; attempt < 15; attempt++) {
+      await page.waitForTimeout(3000);
+      profiles = (await executeSQL(
+        `SELECT welcome_message_sent FROM user_profiles WHERE id = '${escapeSQL(testUserId)}'`
+      )) as { welcome_message_sent: boolean }[];
+      if (profiles[0]?.welcome_message_sent) break;
+      console.log(
+        `welcome_message_sent not yet true (attempt ${attempt + 1}/15)...`
+      );
+    }
     console.log(`welcome_message_sent: ${profiles[0]?.welcome_message_sent}`);
 
     // Check for conversation with admin

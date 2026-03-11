@@ -460,8 +460,17 @@ test.describe('Flow 4: Account Deletion', () => {
       testUserId = await createTestUserDirect(testEmail, TEST_PASSWORD);
       expect(testUserId).toBeTruthy();
 
-      // Allow database triggers to propagate (user_profiles creation)
-      await sleep(2000);
+      // Poll for profile creation (trigger may be slow under CI load)
+      let profileReady = false;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        await sleep(2000);
+        profileReady = await profileExists(testUserId);
+        if (profileReady) break;
+        console.log(`Profile not yet created (attempt ${attempt + 1}/5)...`);
+      }
+      if (!profileReady) {
+        console.warn('Profile trigger may not have fired — proceeding anyway');
+      }
 
       // Sign in first to establish session and create keys
       console.log('Signing in...');

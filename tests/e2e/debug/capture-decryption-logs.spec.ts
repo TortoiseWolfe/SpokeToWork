@@ -84,7 +84,8 @@ test.describe('Capture Decryption Logs', () => {
       await pageA.fill('#email', USER_A.email);
       await pageA.fill('#password', USER_A.password);
       await pageA.click('button[type="submit"]', { force: true });
-      await pageA.waitForURL(/.*\/profile/, { timeout: 15000 });
+      // CI runners can be slow with Supabase Cloud auth redirects
+      await pageA.waitForURL(/.*\/profile/, { timeout: 30000 });
       console.log('[Test] User A signed in');
 
       // Navigate to conversation with messages

@@ -5,6 +5,7 @@ test.describe('Debug Route Sidebar', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
   test('show companies on route', async ({ page, browserName }) => {
+    test.setTimeout(120_000); // Sign-in + navigation + screenshots need more than 30s default
     // Skip non-chromium browsers for faster debugging
     test.skip(browserName !== 'chromium', 'Only run on chromium for debugging');
 

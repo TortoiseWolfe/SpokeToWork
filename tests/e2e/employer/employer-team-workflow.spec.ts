@@ -351,6 +351,14 @@ test.describe('Employer Team Workflow', () => {
       return;
     }
 
+    // Clean up any stale connections before inserting (prevents duplicate key constraint)
+    await client
+      .from('user_connections')
+      .delete()
+      .or(
+        `and(requester_id.eq.${workerId},addressee_id.eq.${employerId}),and(requester_id.eq.${employerId},addressee_id.eq.${workerId})`
+      );
+
     // Create pending connection request (worker → employer)
     // Retry on Supabase Cloud connection timeouts
     let insertError;
