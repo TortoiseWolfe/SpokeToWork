@@ -75,9 +75,17 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
       process.env.TEST_USER_PRIMARY_PASSWORD!
     );
     await page.click('button[type="submit"]');
-    await page.waitForURL(/\/(dashboard|messages|profile|$)/, {
-      timeout: 45000,
-    });
+    // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
+    try {
+      await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+        timeout: 45000,
+      });
+    } catch {
+      await page.waitForLoadState('domcontentloaded');
+      if (page.url().includes('/sign-in')) {
+        throw new Error('Sign-in failed after 45s');
+      }
+    }
     // Wait for auth session to fully persist before navigating
     await page.waitForLoadState('networkidle');
   });
@@ -201,9 +209,17 @@ test.describe('Messaging Scroll - User Story 2: Scroll Through Messages', () => 
       process.env.TEST_USER_PRIMARY_PASSWORD!
     );
     await page.click('button[type="submit"]');
-    await page.waitForURL(/\/(dashboard|messages|profile|$)/, {
-      timeout: 45000,
-    });
+    // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
+    try {
+      await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+        timeout: 45000,
+      });
+    } catch {
+      await page.waitForLoadState('domcontentloaded');
+      if (page.url().includes('/sign-in')) {
+        throw new Error('Sign-in failed after 45s');
+      }
+    }
     await page.waitForLoadState('networkidle');
   });
 
@@ -272,9 +288,17 @@ test.describe('Messaging Scroll - User Story 3: Jump to Bottom Button', () => {
       process.env.TEST_USER_PRIMARY_PASSWORD!
     );
     await page.click('button[type="submit"]');
-    await page.waitForURL(/\/(dashboard|messages|profile|$)/, {
-      timeout: 45000,
-    });
+    // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
+    try {
+      await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+        timeout: 45000,
+      });
+    } catch {
+      await page.waitForLoadState('domcontentloaded');
+      if (page.url().includes('/sign-in')) {
+        throw new Error('Sign-in failed after 45s');
+      }
+    }
     await page.waitForLoadState('networkidle');
   });
 

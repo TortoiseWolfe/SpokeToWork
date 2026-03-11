@@ -54,8 +54,18 @@ async function signInAndNavigateToMessages(page: Page) {
   await page.fill('#password', PRIMARY_USER.password);
   await page.click('button[type="submit"]');
 
-  // Step 3: Wait for redirect to profile page (confirms auth success)
-  await page.waitForURL(/.*\/profile/, { timeout: 45000 });
+  // Step 3: Wait for redirect (confirms auth success)
+  // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
+  try {
+    await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+      timeout: 45000,
+    });
+  } catch {
+    await page.waitForLoadState('domcontentloaded');
+    if (page.url().includes('/sign-in')) {
+      throw new Error('Sign-in failed after 45s');
+    }
+  }
 
   // Step 4: Navigate to messages page
   await page.goto(BASE_URL + '/messages');

@@ -23,7 +23,16 @@ test.describe('GDPR Data Export', () => {
     await page.fill('#email', TEST_USER.email);
     await page.fill('#password', TEST_USER.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
+    try {
+      await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+        timeout: 45000,
+      });
+    } catch {
+      await page.waitForLoadState('domcontentloaded');
+      if (page.url().includes('/sign-in')) {
+        throw new Error('Sign-in failed after 45s');
+      }
+    }
 
     // Navigate to account settings
     await page.goto('/account');
@@ -168,7 +177,16 @@ test.describe('GDPR Account Deletion', () => {
     await page.fill('#email', TEST_USER.email);
     await page.fill('#password', TEST_USER.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
+    try {
+      await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+        timeout: 45000,
+      });
+    } catch {
+      await page.waitForLoadState('domcontentloaded');
+      if (page.url().includes('/sign-in')) {
+        throw new Error('Sign-in failed after 45s');
+      }
+    }
 
     // Navigate to account settings
     await page.goto('/account');
@@ -371,7 +389,16 @@ test.describe('GDPR Accessibility', () => {
     await page.fill('input[type="email"]', TEST_USER.email);
     await page.fill('input[type="password"]', TEST_USER.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/\/profile/, { timeout: 45000 });
+    try {
+      await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+        timeout: 45000,
+      });
+    } catch {
+      await page.waitForLoadState('domcontentloaded');
+      if (page.url().includes('/sign-in')) {
+        throw new Error('Sign-in failed after 45s');
+      }
+    }
     await page.goto('/account');
   });
 

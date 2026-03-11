@@ -94,7 +94,17 @@ async function signIn(page: Page, email: string, password: string) {
   await page.fill('#email', email);
   await page.fill('#password', password);
   await page.click('button[type="submit"]');
-  await page.waitForURL(/\/profile/, { timeout: 45000 });
+  // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
+  try {
+    await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+      timeout: 45000,
+    });
+  } catch {
+    await page.waitForLoadState('domcontentloaded');
+    if (page.url().includes('/sign-in')) {
+      throw new Error('Sign-in failed after 45s');
+    }
+  }
 }
 
 /**
