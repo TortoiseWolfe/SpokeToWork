@@ -19,7 +19,7 @@ export const getUserIdByEmail = async (
   client: SupabaseClient,
   email: string
 ): Promise<string | null> => {
-  const { data } = await client.auth.admin.listUsers();
+  const { data } = await client.auth.admin.listUsers({ perPage: 1000 });
   return data?.users?.find((u) => u.email === email)?.id ?? null;
 };
 

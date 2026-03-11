@@ -57,7 +57,9 @@ const getAdminClient = (): SupabaseClient | null => {
 const getUserIds = async (
   client: SupabaseClient
 ): Promise<{ userAId: string | null; userBId: string | null }> => {
-  const { data: authUsers } = await client.auth.admin.listUsers();
+  const { data: authUsers } = await client.auth.admin.listUsers({
+    perPage: 1000,
+  });
   let userAId: string | null = null;
   let userBId: string | null = null;
 
@@ -115,7 +117,7 @@ const cleanupConnections = async (): Promise<void> => {
   const client = getAdminClient();
   if (!client) return;
 
-  const { data: users } = await client.auth.admin.listUsers();
+  const { data: users } = await client.auth.admin.listUsers({ perPage: 1000 });
   const userAId = users?.users?.find((u) => u.email === USER_A.email)?.id;
   const userBId = users?.users?.find((u) => u.email === USER_B.email)?.id;
 

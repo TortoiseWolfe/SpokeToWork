@@ -44,13 +44,20 @@ const getAdminClient = (): SupabaseClient | null => {
   return adminClient;
 };
 
-/** Get user IDs from auth.users. */
+/** Get user IDs from auth.users by email lookup.
+ *  listUsers() defaults to 50 per page — if there are >50 users (e2e tests
+ *  create/delete many), our test users may not be on page 1. Use perPage: 1000
+ *  to avoid pagination issues.
+ */
 async function getUserIds(client: SupabaseClient) {
-  const { data: authUsers } = await client.auth.admin.listUsers();
   let employerId: string | null = null;
   let workerId: string | null = null;
-  if (authUsers?.users) {
-    for (const user of authUsers.users) {
+
+  const { data: allUsers } = await client.auth.admin.listUsers({
+    perPage: 1000,
+  });
+  if (allUsers?.users) {
+    for (const user of allUsers.users) {
       if (user.email === EMPLOYER.email) employerId = user.id;
       if (user.email === WORKER.email) workerId = user.id;
     }

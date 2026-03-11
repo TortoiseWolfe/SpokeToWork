@@ -106,7 +106,9 @@ test.describe('Row Level Security Policies', () => {
     );
 
     // Get a real user ID to satisfy the FK constraint on template_user_id
-    const { data: users } = await supabaseAdmin.auth.admin.listUsers();
+    const { data: users } = await supabaseAdmin.auth.admin.listUsers({
+      perPage: 1000,
+    });
     const realUserId = users?.users?.[0]?.id;
     if (!realUserId) {
       test.skip(true, 'No users in auth.users for FK reference');
@@ -146,7 +148,9 @@ test.describe('Row Level Security Policies', () => {
     );
 
     // Get a real user ID to satisfy FK constraint
-    const { data: users } = await supabaseAdmin.auth.admin.listUsers();
+    const { data: users } = await supabaseAdmin.auth.admin.listUsers({
+      perPage: 1000,
+    });
     const realUserId = users?.users?.[0]?.id;
     if (!realUserId) {
       test.skip(true, 'No users in auth.users for FK reference');
@@ -227,7 +231,9 @@ test.describe('Row Level Security Policies', () => {
     );
 
     // Get a real user ID to satisfy FK constraint
-    const { data: users } = await supabaseAdmin.auth.admin.listUsers();
+    const { data: users } = await supabaseAdmin.auth.admin.listUsers({
+      perPage: 1000,
+    });
     const realUserId = users?.users?.[0]?.id;
     if (!realUserId) {
       test.skip(true, 'No users in auth.users for FK reference');

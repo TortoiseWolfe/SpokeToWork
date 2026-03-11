@@ -101,7 +101,9 @@ export async function createTestUser(
   const client = getAdminClient();
 
   // Check if user already exists
-  const { data: existingUsers } = await client.auth.admin.listUsers();
+  const { data: existingUsers } = await client.auth.admin.listUsers({
+    perPage: 1000,
+  });
   const existingUser = existingUsers?.users?.find((u) => u.email === email);
 
   if (existingUser) {
@@ -239,7 +241,7 @@ export async function deleteTestUser(userId: string): Promise<boolean> {
 export async function deleteTestUserByEmail(email: string): Promise<boolean> {
   const client = getAdminClient();
 
-  const { data: users } = await client.auth.admin.listUsers();
+  const { data: users } = await client.auth.admin.listUsers({ perPage: 1000 });
   const user = users?.users?.find((u) => u.email === email);
 
   if (!user) {
@@ -256,7 +258,7 @@ export async function deleteTestUserByEmail(email: string): Promise<boolean> {
 export async function getUserByEmail(email: string): Promise<User | null> {
   const client = getAdminClient();
 
-  const { data: users } = await client.auth.admin.listUsers();
+  const { data: users } = await client.auth.admin.listUsers({ perPage: 1000 });
   return users?.users?.find((u) => u.email === email) || null;
 }
 

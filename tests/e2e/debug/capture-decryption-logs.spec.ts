@@ -52,7 +52,9 @@ test.describe('Capture Decryption Logs', () => {
 
     try {
       // Get user IDs
-      const { data: authUsers } = (await client?.auth.admin.listUsers()) ?? {
+      const { data: authUsers } = (await client?.auth.admin.listUsers({
+        perPage: 1000,
+      })) ?? {
         data: null,
       };
       let userAId: string | null = null;

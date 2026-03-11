@@ -48,7 +48,9 @@ const getAdminClient = (): SupabaseClient | null => {
 const getUserIds = async (
   client: SupabaseClient
 ): Promise<{ userAId: string | null; userBId: string | null }> => {
-  const { data: authUsers } = await client.auth.admin.listUsers();
+  const { data: authUsers } = await client.auth.admin.listUsers({
+    perPage: 1000,
+  });
   let userAId: string | null = null;
   let userBId: string | null = null;
 

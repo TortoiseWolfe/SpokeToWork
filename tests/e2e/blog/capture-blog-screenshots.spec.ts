@@ -277,7 +277,9 @@ test.describe.serial('Blog Screenshot Capture with Accuracy Audit', () => {
       console.log('🧹 Flushing test user data for clean screenshots...');
 
       // Get user ID from auth.users
-      const { data: authData } = await adminClient.auth.admin.listUsers();
+      const { data: authData } = await adminClient.auth.admin.listUsers({
+        perPage: 1000,
+      });
       const user = authData?.users?.find((u) => u.email === TEST_USER?.email);
 
       if (user) {

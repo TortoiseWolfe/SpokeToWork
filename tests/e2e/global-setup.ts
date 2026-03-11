@@ -282,7 +282,9 @@ async function ensureTestUserKeys(): Promise<void> {
       userId = rows[0]?.id;
 
       if (!userId && adminClient) {
-        const { data } = await adminClient.auth.admin.listUsers();
+        const { data } = await adminClient.auth.admin.listUsers({
+          perPage: 1000,
+        });
         userId = data?.users?.find((u) => u.email === email)?.id;
       }
 

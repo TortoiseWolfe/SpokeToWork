@@ -43,7 +43,7 @@ async function ensureMessagingSetup(): Promise<void> {
 
   // Get user IDs via auth admin API
   const { data: listResult, error: usersError } =
-    await supabase.auth.admin.listUsers();
+    await supabase.auth.admin.listUsers({ perPage: 1000 });
   if (usersError) {
     throw new Error(`Failed to list users: ${usersError.message}`);
   }
@@ -179,7 +179,9 @@ test.beforeAll(async () => {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   const supabase = createClient(supabaseUrl, serviceKey);
 
-  const { data: listResult } = await supabase.auth.admin.listUsers();
+  const { data: listResult } = await supabase.auth.admin.listUsers({
+    perPage: 1000,
+  });
   const users = Array.isArray(listResult)
     ? listResult
     : ((listResult as { users: unknown[] })?.users ?? []);

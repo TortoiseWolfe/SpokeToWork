@@ -166,7 +166,9 @@ test.beforeAll(async () => {
   );
 
   // ── 1. Resolve user UUIDs ───────────────────────────────────────────
-  const { data: userList } = await supabase.auth.admin.listUsers();
+  const { data: userList } = await supabase.auth.admin.listUsers({
+    perPage: 1000,
+  });
   const users = Array.isArray(userList)
     ? userList
     : ((userList as { users: unknown[] })?.users ?? []);
