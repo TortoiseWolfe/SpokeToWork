@@ -217,7 +217,7 @@ export async function dismissReAuthModal(
             // Wait for modal to close (argon2id key derivation takes 10-20s on CI)
             const closed = await modal
               .first()
-              .waitFor({ state: 'hidden', timeout: 30000 })
+              .waitFor({ state: 'hidden', timeout: 45000 })
               .then(() => true)
               .catch(() => false);
             await page.waitForTimeout(500);
