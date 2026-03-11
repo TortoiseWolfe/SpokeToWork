@@ -172,8 +172,7 @@ export async function dismissCookieBanner(page: Page): Promise<void> {
 async function waitForPageReady(page: Page): Promise<void> {
   await page.waitForLoadState('domcontentloaded');
   // Wait for React hydration + messaging context initialization.
-  // In Docker, this can take 3-5s after domcontentloaded fires.
-  await page.waitForTimeout(3000);
+  await page.waitForTimeout(1500);
 }
 
 /** Dismiss the ReAuth modal/dialog that appears when encryption keys need unlocking */
@@ -191,7 +190,7 @@ export async function dismissReAuthModal(
     try {
       const modal = page.locator('[role="presentation"], [role="dialog"]');
       // First attempt waits longer — React hydration can be slow in Docker
-      const timeout = attempt === 0 ? 15000 : 5000;
+      const timeout = attempt === 0 ? 10000 : 3000;
       if (
         await modal
           .first()
@@ -199,24 +198,23 @@ export async function dismissReAuthModal(
           .catch(() => false)
       ) {
         // Wait for spinner phase to end — ReAuthModal checks keys before showing the form
-        // The password input appears after the key check completes (up to 8s in Docker)
         const passwordInput = page.locator(
           '#reauth-password, input[type="password"]'
         );
         if (
           await passwordInput
             .first()
-            .isVisible({ timeout: 10000 })
+            .isVisible({ timeout: 8000 })
             .catch(() => false)
         ) {
           await passwordInput.first().fill(pw);
           const unlockBtn = page.getByRole('button', { name: /unlock/i });
           if (await unlockBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
             await unlockBtn.click();
-            // Wait for modal to close (argon2id key derivation can take 10-20s)
+            // Wait for modal to close (argon2id key derivation ~10-15s)
             const closed = await modal
               .first()
-              .waitFor({ state: 'hidden', timeout: 45000 })
+              .waitFor({ state: 'hidden', timeout: 20000 })
               .then(() => true)
               .catch(() => false);
             await page.waitForTimeout(500);

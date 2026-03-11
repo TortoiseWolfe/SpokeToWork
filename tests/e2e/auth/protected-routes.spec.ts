@@ -306,8 +306,9 @@ test.describe('Protected Routes E2E', () => {
       DEFAULT_TEST_PASSWORD
     );
 
-    // Allow Supabase to fully process user creation before sign-in (WebKit needs this)
-    await page.waitForTimeout(2000);
+    // Allow Supabase GoTrue to fully propagate user before sign-in
+    // WebKit under concurrent CI load needs 5s+ for newly created users
+    await page.waitForTimeout(5000);
 
     // Sign in as the user to be deleted using robust helper
     await loginAndVerify(
