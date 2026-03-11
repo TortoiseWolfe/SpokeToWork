@@ -1,8 +1,30 @@
 // Security Hardening: Brute Force Prevention E2E Test
 // Feature 017 - Task T015
 // Purpose: Test server-side rate limiting prevents brute force attacks
+//
+// Rate limiting is implemented via Supabase RPC functions (check_rate_limit,
+// record_failed_attempt), NOT GoTrue's built-in 429 limiter.
+// Each sign-in attempt involves 3 async calls:
+//   1. checkRateLimit() RPC
+//   2. signInWithPassword() GoTrue call
+//   3. recordFailedAttempt() RPC (on failure)
+// We must wait for the error message to appear in the DOM after each attempt
+// to guarantee the full cycle (including recordFailedAttempt) has completed
+// before submitting the next attempt.
 
 import { test, expect } from '@playwright/test';
+
+// The error message element rendered by SignInForm
+const ERROR_ALERT = '.alert-error';
+
+// Lockout message from SignInForm line 78:
+// "Too many failed attempts. Your account has been temporarily locked. Please try again in ${time}."
+const LOCKOUT_TEXT =
+  /too many failed attempts|temporarily locked|too many sign-in attempts/i;
+
+// Normal credential error from GoTrue:
+// "Invalid login credentials" (optionally with " (N attempts remaining)")
+const CREDENTIAL_ERROR = /invalid.*login.*credentials|invalid.*credentials/i;
 
 test.describe('Brute Force Prevention - REQ-SEC-003', () => {
   // Requires live Supabase backend for server-side rate limiting.
@@ -17,86 +39,77 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
   const testEmail = `brute-force-test-${Date.now()}@mailinator.com`;
   const wrongPassword = 'WrongPassword123!';
 
-  test('should lockout after 5 failed login attempts', async ({ page }) => {
-    await page.goto('/sign-in');
+  /**
+   * Submit a failed login attempt and wait for the error message to appear.
+   * This guarantees the full RPC cycle (checkRateLimit → signIn → recordFailedAttempt)
+   * has completed before returning, preventing race conditions between attempts.
+   */
+  async function submitAndWaitForError(
+    page: import('@playwright/test').Page,
+    email: string
+  ): Promise<string> {
+    // Clear any existing error so we can detect the new one
+    await page.evaluate(() => {
+      const alert = document.querySelector('.alert-error');
+      if (alert) alert.remove();
+    });
 
-    // Attempt 1-5: Try to sign in with wrong password
-    for (let i = 1; i <= 5; i++) {
-      await page.fill('input[type="email"]', testEmail);
-      await page.fill('input[type="password"]', wrongPassword);
-      await page.click('button[type="submit"]');
-
-      // Wait for error message
-      await page.waitForTimeout(1000);
-
-      if (i < 5) {
-        // First 4 attempts should show normal error
-        await expect(
-          page.locator('text=/invalid.*credentials|incorrect.*password/i')
-        ).toBeVisible();
-      }
-    }
-
-    // Attempt 6: Should be locked out
-    await page.fill('input[type="email"]', testEmail);
+    await page.fill('input[type="email"]', email);
     await page.fill('input[type="password"]', wrongPassword);
     await page.click('button[type="submit"]');
 
-    // Check if rate limiting actually triggered — skip if Supabase config doesn't enforce it
-    const rateLimitVisible = await page
-      .locator('text=/rate.*limit|too.*many.*attempts|locked|exceeded/i')
-      .isVisible({ timeout: 5000 })
-      .catch(() => false);
+    // Wait for the error alert to appear (proves full submit cycle completed)
+    const errorEl = page.locator(ERROR_ALERT);
+    await expect(errorEl).toBeVisible({ timeout: 15000 });
 
-    if (!rateLimitVisible) {
-      test.skip(
-        true,
-        'Rate limiting not triggered — Supabase config may not enforce at this threshold'
-      );
-      return;
+    return (await errorEl.textContent()) || '';
+  }
+
+  test('should lockout after 5 failed login attempts', async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.goto('/sign-in');
+
+    // Attempts 1-5: Each must complete fully before the next starts
+    for (let i = 1; i <= 5; i++) {
+      const errorText = await submitAndWaitForError(page, testEmail);
+      console.log(`Attempt ${i}: ${errorText}`);
+
+      if (i < 5) {
+        // Should show normal credential error
+        expect(errorText).toMatch(CREDENTIAL_ERROR);
+      }
     }
 
+    // Attempt 6: Should be locked out (checkRateLimit returns allowed: false)
+    const lockoutText = await submitAndWaitForError(page, testEmail);
+    console.log(`Attempt 6 (lockout): ${lockoutText}`);
+
+    expect(lockoutText).toMatch(LOCKOUT_TEXT);
+
     // Error message should mention time to wait
-    await expect(
-      page.locator('text=/15.*minutes?|try.*again.*later/i')
-    ).toBeVisible();
+    // SignInForm shows: "Please try again in 15 minutes." or "in X minutes"
+    expect(lockoutText).toMatch(/try again in|minutes?|wait/i);
   });
 
   test('should persist lockout across browser sessions', async ({
     browser,
   }) => {
+    test.setTimeout(120_000);
+
     // First browser session - trigger lockout
     const context1 = await browser.newContext();
     const page1 = await context1.newPage();
 
     await page1.goto('/sign-in');
 
-    // Make 5 failed attempts
+    // Make 5 failed attempts (wait for each to complete)
     for (let i = 0; i < 5; i++) {
-      await page1.fill('input[type="email"]', testEmail);
-      await page1.fill('input[type="password"]', wrongPassword);
-      await page1.click('button[type="submit"]');
-      await page1.waitForTimeout(500);
+      await submitAndWaitForError(page1, testEmail);
     }
 
     // Verify locked
-    await page1.fill('input[type="email"]', testEmail);
-    await page1.fill('input[type="password"]', wrongPassword);
-    await page1.click('button[type="submit"]');
-
-    const rateLimitVisible = await page1
-      .locator('text=/rate.*limit|locked|too.*many.*attempts|exceeded/i')
-      .isVisible({ timeout: 5000 })
-      .catch(() => false);
-
-    if (!rateLimitVisible) {
-      await context1.close();
-      test.skip(
-        true,
-        'Rate limiting not triggered — Supabase config may not enforce at this threshold'
-      );
-      return;
-    }
+    const lockoutText = await submitAndWaitForError(page1, testEmail);
+    expect(lockoutText).toMatch(LOCKOUT_TEXT);
 
     await context1.close();
 
@@ -109,46 +122,31 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
     await page2.goto('/sign-in');
 
     // Should STILL be locked (server-side enforcement)
-    await page2.fill('input[type="email"]', testEmail);
-    await page2.fill('input[type="password"]', wrongPassword);
-    await page2.click('button[type="submit"]');
-
-    await expect(
-      page2.locator('text=/rate.*limit|locked|too.*many.*attempts|exceeded/i')
-    ).toBeVisible({
-      timeout: 5000,
-    });
+    const lockoutText2 = await submitAndWaitForError(page2, testEmail);
+    expect(lockoutText2).toMatch(LOCKOUT_TEXT);
 
     await context2.close();
   });
 
   test('should show remaining attempts counter', async ({ page }) => {
+    test.setTimeout(120_000);
     const uniqueEmail = `attempts-test-${Date.now()}@mailinator.com`;
 
     await page.goto('/sign-in');
 
-    // First attempt
-    await page.fill('input[type="email"]', uniqueEmail);
-    await page.fill('input[type="password"]', wrongPassword);
-    await page.click('button[type="submit"]');
-    await page.waitForTimeout(500);
+    // First attempt — should show credential error, not lockout
+    const error1 = await submitAndWaitForError(page, uniqueEmail);
+    expect(error1).toMatch(CREDENTIAL_ERROR);
+    expect(error1).not.toMatch(LOCKOUT_TEXT);
 
-    // Should show "4 attempts remaining" or similar
-    // (This depends on implementation showing the counter)
-    // For now, just verify no lockout yet
-    await expect(page.locator('text=/rate.*limit|locked/i')).not.toBeVisible();
-
-    // Second attempt
-    await page.fill('input[type="email"]', uniqueEmail);
-    await page.fill('input[type="password"]', wrongPassword);
-    await page.click('button[type="submit"]');
-    await page.waitForTimeout(500);
-
-    // Still not locked
-    await expect(page.locator('text=/rate.*limit|locked/i')).not.toBeVisible();
+    // Second attempt — still not locked
+    const error2 = await submitAndWaitForError(page, uniqueEmail);
+    expect(error2).toMatch(CREDENTIAL_ERROR);
+    expect(error2).not.toMatch(LOCKOUT_TEXT);
   });
 
   test('should track different users independently', async ({ browser }) => {
+    test.setTimeout(120_000);
     const userA = `user-a-${Date.now()}@mailinator.com`;
     const userB = `user-b-${Date.now()}@mailinator.com`;
 
@@ -158,54 +156,23 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
     const contextB = await browser.newContext();
     const pageB = await contextB.newPage();
 
-    // Lock out User A (500ms between attempts — WebKit needs more time)
+    // Lock out User A (wait for each attempt to complete)
     await pageA.goto('/sign-in');
     for (let i = 0; i < 5; i++) {
-      await pageA.fill('input[type="email"]', userA);
-      await pageA.fill('input[type="password"]', wrongPassword);
-      await pageA.click('button[type="submit"]');
-      await pageA.waitForTimeout(500);
+      await submitAndWaitForError(pageA, userA);
     }
-
-    // Let server-side rate limit state settle before final attempt
-    await pageA.waitForTimeout(1000);
 
     // User A should be locked
-    await pageA.fill('input[type="email"]', userA);
-    await pageA.fill('input[type="password"]', wrongPassword);
-    await pageA.click('button[type="submit"]');
-
-    // Broader selector to catch various Supabase GoTrue error formats
-    const rateLimitLocator = pageA.locator(
-      'text=/rate.*limit|locked|too.*many.*attempts|exceeded/i'
-    );
-    const rateLimitVisible = await rateLimitLocator
-      .isVisible({ timeout: 5000 })
-      .catch(() => false);
-
-    if (!rateLimitVisible) {
-      // Server-side rate limiting not triggered — skip rather than false-fail
-      // (GoTrue rate-limit behavior varies by Supabase instance config)
-      await contextA.close();
-      await contextB.close();
-      test.skip(
-        true,
-        'Rate limiting not triggered — Supabase config may not enforce at this threshold'
-      );
-      return;
-    }
+    const lockoutText = await submitAndWaitForError(pageA, userA);
+    expect(lockoutText).toMatch(LOCKOUT_TEXT);
 
     // User B should still be able to attempt
     await pageB.goto('/sign-in');
-    await pageB.fill('input[type="email"]', userB);
-    await pageB.fill('input[type="password"]', wrongPassword);
-    await pageB.click('button[type="submit"]');
+    const errorB = await submitAndWaitForError(pageB, userB);
 
-    // User B should see normal error, not rate limit
-    await expect(pageB.locator('text=/invalid.*credentials/i')).toBeVisible();
-    await expect(
-      pageB.locator('text=/rate.*limit|locked|too.*many/i')
-    ).not.toBeVisible();
+    // User B should see normal error, not lockout
+    expect(errorB).toMatch(CREDENTIAL_ERROR);
+    expect(errorB).not.toMatch(LOCKOUT_TEXT);
 
     await contextA.close();
     await contextB.close();
@@ -214,34 +181,18 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
   test('should track different attempt types independently', async ({
     page,
   }) => {
+    test.setTimeout(180_000);
     const email = `types-test-${Date.now()}@mailinator.com`;
 
-    // Try to lock out sign_in attempts (threshold varies by Supabase config)
+    // Lock out sign_in attempts (5 attempts to trigger lockout)
     await page.goto('/sign-in');
-    for (let i = 0; i < 10; i++) {
-      await page.fill('input[type="email"]', email);
-      await page.fill('input[type="password"]', wrongPassword);
-      await page.click('button[type="submit"]');
-      await page.waitForTimeout(500);
+    for (let i = 0; i < 5; i++) {
+      await submitAndWaitForError(page, email);
     }
 
-    // Check if rate limiting triggered — skip if Supabase config doesn't enforce it
-    await page.fill('input[type="email"]', email);
-    await page.fill('input[type="password"]', wrongPassword);
-    await page.click('button[type="submit"]');
-
-    const rateLimitVisible = await page
-      .locator('text=/rate.*limit/i')
-      .isVisible({ timeout: 3000 })
-      .catch(() => false);
-
-    if (!rateLimitVisible) {
-      test.skip(
-        true,
-        'Rate limiting not triggered — Supabase config may not enforce at this threshold'
-      );
-      return;
-    }
+    // Verify lockout is triggered for sign_in
+    const lockoutText = await submitAndWaitForError(page, email);
+    expect(lockoutText).toMatch(LOCKOUT_TEXT);
 
     // sign_up should still work (different attempt type)
     await page.goto('/sign-up');
@@ -249,100 +200,64 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
     await page.fill('input[type="password"]', 'ValidPassword123!');
     await page.click('button[type="submit"]');
 
-    // Should NOT show rate limit (different attempt type)
-    await expect(page.locator('text=/rate.*limit/i')).not.toBeVisible();
+    // Should NOT show lockout (different attempt type)
+    // Wait briefly for any error to appear
+    await page.waitForTimeout(3000);
+    const signUpError = page.locator(ERROR_ALERT);
+    const hasSignUpError = await signUpError
+      .isVisible({ timeout: 2000 })
+      .catch(() => false);
+    if (hasSignUpError) {
+      const signUpErrorText = (await signUpError.textContent()) || '';
+      expect(signUpErrorText).not.toMatch(LOCKOUT_TEXT);
+    }
   });
 
   test('should not bypass rate limiting by clearing localStorage', async ({
     page,
   }) => {
+    test.setTimeout(120_000);
     const email = `bypass-test-${Date.now()}@mailinator.com`;
 
     await page.goto('/sign-in');
 
-    // Make 5 failed attempts (1s between to ensure Supabase counts each as distinct)
+    // Make 5 failed attempts (wait for each to complete)
     for (let i = 0; i < 5; i++) {
-      await page.fill('input[type="email"]', email);
-      await page.fill('input[type="password"]', wrongPassword);
-      await page.click('button[type="submit"]');
-      await page.waitForTimeout(1000);
+      await submitAndWaitForError(page, email);
     }
 
-    // Check if rate limiting actually triggered before testing bypass
-    await page.fill('input[type="email"]', email);
-    await page.fill('input[type="password"]', wrongPassword);
-    await page.click('button[type="submit"]');
-
-    const rateLimitVisible = await page
-      .locator('text=/rate.*limit|locked|too.*many.*attempts|exceeded/i')
-      .isVisible({ timeout: 5000 })
-      .catch(() => false);
-
-    if (!rateLimitVisible) {
-      test.skip(
-        true,
-        'Rate limiting not triggered — Supabase config may not enforce at this threshold'
-      );
-      return;
-    }
+    // Verify lockout triggered
+    const lockoutText = await submitAndWaitForError(page, email);
+    expect(lockoutText).toMatch(LOCKOUT_TEXT);
 
     // Clear localStorage (client-side bypass attempt)
     await page.evaluate(() => localStorage.clear());
-    await page.waitForTimeout(2000); // Let server-side rate limit state settle
 
-    // Try again - should STILL be locked (server-side enforcement)
+    // Try again after reload - should STILL be locked (server-side enforcement)
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await page.fill('input[type="email"]', email);
-    await page.fill('input[type="password"]', wrongPassword);
-    await page.click('button[type="submit"]');
 
-    await expect(
-      page.locator('text=/rate.*limit|locked|too.*many.*attempts|exceeded/i')
-    ).toBeVisible({
-      timeout: 10000,
-    });
+    const lockoutText2 = await submitAndWaitForError(page, email);
+    expect(lockoutText2).toMatch(LOCKOUT_TEXT);
   });
 
   test('should display lockout expiration time', async ({ page }) => {
+    test.setTimeout(120_000);
     const email = `lockout-time-${Date.now()}@mailinator.com`;
 
     await page.goto('/sign-in');
 
-    // Trigger lockout
+    // Trigger lockout (wait for each attempt to complete)
     for (let i = 0; i < 5; i++) {
-      await page.fill('input[type="email"]', email);
-      await page.fill('input[type="password"]', wrongPassword);
-      await page.click('button[type="submit"]');
-      await page.waitForTimeout(300);
+      await submitAndWaitForError(page, email);
     }
 
-    // Attempt again
-    await page.fill('input[type="email"]', email);
-    await page.fill('input[type="password"]', wrongPassword);
-    await page.click('button[type="submit"]');
+    // Attempt again — should show lockout with time info
+    const lockoutText = await submitAndWaitForError(page, email);
+    console.log(`Lockout message: ${lockoutText}`);
 
-    // Check if rate limiting actually triggered
-    const rateLimitLocator = page.locator(
-      'text=/rate.*limit|locked|too.*many.*attempts|exceeded/i'
-    );
-    const rateLimitVisible = await rateLimitLocator
-      .isVisible({ timeout: 5000 })
-      .catch(() => false);
-
-    if (!rateLimitVisible) {
-      test.skip(
-        true,
-        'Rate limiting not triggered — Supabase config may not enforce at this threshold'
-      );
-      return;
-    }
-
-    // Should show when user can try again
-    const errorMessage = await rateLimitLocator.textContent();
-
-    expect(errorMessage).toBeTruthy();
-    // Message should contain time information
-    expect(errorMessage).toMatch(/15|minutes?|try.*again|wait/i);
+    expect(lockoutText).toMatch(LOCKOUT_TEXT);
+    // SignInForm shows: "Please try again in 15 minutes." or "in X minutes"
+    expect(lockoutText).toMatch(/try again in|minutes?|wait/i);
   });
 });
