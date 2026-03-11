@@ -8,9 +8,14 @@
 //   1. checkRateLimit() RPC
 //   2. signInWithPassword() GoTrue call
 //   3. recordFailedAttempt() RPC (on failure)
-// We must wait for the error message to appear in the DOM after each attempt
-// to guarantee the full cycle (including recordFailedAttempt) has completed
-// before submitting the next attempt.
+//
+// IMPORTANT: Each attempt navigates to a fresh /sign-in page because:
+// 1. Direct DOM removal (alert.remove()) corrupts React's virtual DOM,
+//    causing subsequent render cycles to silently fail.
+// 2. The page reload provides ~200-500ms of natural spacing between GoTrue
+//    requests, preventing GoTrue's IP-level rate limiter from returning 429s
+//    that cause the Supabase client's internal retry backoff to exceed the
+//    toBeVisible timeout.
 
 import { test, expect } from '@playwright/test';
 
@@ -41,33 +46,33 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
 
   /**
    * Submit a failed login attempt and wait for the error message to appear.
-   * This guarantees the full RPC cycle (checkRateLimit → signIn → recordFailedAttempt)
-   * has completed before returning, preventing race conditions between attempts.
+   * Navigates to a fresh /sign-in page each time to:
+   * - Avoid React DOM corruption from manual DOM removal
+   * - Provide natural spacing between GoTrue requests (prevents IP-level 429s)
+   * - Guarantee the full RPC cycle has completed before the next attempt
    */
   async function submitAndWaitForError(
     page: import('@playwright/test').Page,
     email: string
   ): Promise<string> {
-    // Clear any existing error so we can detect the new one
-    await page.evaluate(() => {
-      const alert = document.querySelector('.alert-error');
-      if (alert) alert.remove();
-    });
+    // Fresh page load avoids stale DOM state and spaces GoTrue requests
+    await page.goto('/sign-in');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.fill('input[type="email"]', email);
     await page.fill('input[type="password"]', wrongPassword);
     await page.click('button[type="submit"]');
 
     // Wait for the error alert to appear (proves full submit cycle completed)
+    // 30s timeout accommodates GoTrue internal retry backoff if needed
     const errorEl = page.locator(ERROR_ALERT);
-    await expect(errorEl).toBeVisible({ timeout: 15000 });
+    await expect(errorEl).toBeVisible({ timeout: 30000 });
 
     return (await errorEl.textContent()) || '';
   }
 
   test('should lockout after 5 failed login attempts', async ({ page }) => {
-    test.setTimeout(120_000);
-    await page.goto('/sign-in');
+    test.setTimeout(180_000);
 
     // Attempts 1-5: Each must complete fully before the next starts
     for (let i = 1; i <= 5; i++) {
@@ -94,13 +99,11 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
   test('should persist lockout across browser sessions', async ({
     browser,
   }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
 
     // First browser session - trigger lockout
     const context1 = await browser.newContext();
     const page1 = await context1.newPage();
-
-    await page1.goto('/sign-in');
 
     // Make 5 failed attempts (wait for each to complete)
     for (let i = 0; i < 5; i++) {
@@ -119,8 +122,6 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
     });
     const page2 = await context2.newPage();
 
-    await page2.goto('/sign-in');
-
     // Should STILL be locked (server-side enforcement)
     const lockoutText2 = await submitAndWaitForError(page2, testEmail);
     expect(lockoutText2).toMatch(LOCKOUT_TEXT);
@@ -131,8 +132,6 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
   test('should show remaining attempts counter', async ({ page }) => {
     test.setTimeout(120_000);
     const uniqueEmail = `attempts-test-${Date.now()}@mailinator.com`;
-
-    await page.goto('/sign-in');
 
     // First attempt — should show credential error, not lockout
     const error1 = await submitAndWaitForError(page, uniqueEmail);
@@ -146,7 +145,7 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
   });
 
   test('should track different users independently', async ({ browser }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
     const userA = `user-a-${Date.now()}@mailinator.com`;
     const userB = `user-b-${Date.now()}@mailinator.com`;
 
@@ -157,7 +156,6 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
     const pageB = await contextB.newPage();
 
     // Lock out User A (wait for each attempt to complete)
-    await pageA.goto('/sign-in');
     for (let i = 0; i < 5; i++) {
       await submitAndWaitForError(pageA, userA);
     }
@@ -167,7 +165,6 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
     expect(lockoutText).toMatch(LOCKOUT_TEXT);
 
     // User B should still be able to attempt
-    await pageB.goto('/sign-in');
     const errorB = await submitAndWaitForError(pageB, userB);
 
     // User B should see normal error, not lockout
@@ -185,7 +182,6 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
     const email = `types-test-${Date.now()}@mailinator.com`;
 
     // Lock out sign_in attempts (5 attempts to trigger lockout)
-    await page.goto('/sign-in');
     for (let i = 0; i < 5; i++) {
       await submitAndWaitForError(page, email);
     }
@@ -216,10 +212,8 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
   test('should not bypass rate limiting by clearing localStorage', async ({
     page,
   }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
     const email = `bypass-test-${Date.now()}@mailinator.com`;
-
-    await page.goto('/sign-in');
 
     // Make 5 failed attempts (wait for each to complete)
     for (let i = 0; i < 5; i++) {
@@ -242,10 +236,8 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
   });
 
   test('should display lockout expiration time', async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
     const email = `lockout-time-${Date.now()}@mailinator.com`;
-
-    await page.goto('/sign-in');
 
     // Trigger lockout (wait for each attempt to complete)
     for (let i = 0; i < 5; i++) {
