@@ -172,7 +172,8 @@ export async function dismissCookieBanner(page: Page): Promise<void> {
 async function waitForPageReady(page: Page): Promise<void> {
   await page.waitForLoadState('domcontentloaded');
   // Wait for React hydration + messaging context initialization.
-  await page.waitForTimeout(1500);
+  // In Docker/CI, this can take 3-5s after domcontentloaded fires.
+  await page.waitForTimeout(3000);
 }
 
 /** Dismiss the ReAuth modal/dialog that appears when encryption keys need unlocking */
@@ -190,7 +191,7 @@ export async function dismissReAuthModal(
     try {
       const modal = page.locator('[role="presentation"], [role="dialog"]');
       // First attempt waits longer — React hydration can be slow in Docker
-      const timeout = attempt === 0 ? 10000 : 3000;
+      const timeout = attempt === 0 ? 15000 : 5000;
       if (
         await modal
           .first()
@@ -198,25 +199,46 @@ export async function dismissReAuthModal(
           .catch(() => false)
       ) {
         // Wait for spinner phase to end — ReAuthModal checks keys before showing the form
+        // The password input appears after the key check completes (up to 8s in Docker)
         const passwordInput = page.locator(
           '#reauth-password, input[type="password"]'
         );
         if (
           await passwordInput
             .first()
-            .isVisible({ timeout: 8000 })
+            .isVisible({ timeout: 10000 })
             .catch(() => false)
         ) {
           await passwordInput.first().fill(pw);
           const unlockBtn = page.getByRole('button', { name: /unlock/i });
           if (await unlockBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
             await unlockBtn.click();
-            // Wait for modal to close (argon2id key derivation ~10-15s)
-            const closed = await modal
-              .first()
-              .waitFor({ state: 'hidden', timeout: 20000 })
-              .then(() => true)
-              .catch(() => false);
+
+            // Wait for modal to close. Argon2id key derivation can take 10-30s.
+            // But if the password field gets cleared (form reset = error), bail
+            // out immediately instead of waiting the full timeout.
+            let closed = false;
+            for (let poll = 0; poll < 6; poll++) {
+              // Check every 5s for up to 30s total
+              const hidden = await modal
+                .first()
+                .waitFor({ state: 'hidden', timeout: 5000 })
+                .then(() => true)
+                .catch(() => false);
+              if (hidden) {
+                closed = true;
+                break;
+              }
+              // Check if password field was cleared (indicates unlock failed)
+              const fieldValue = await passwordInput
+                .first()
+                .inputValue()
+                .catch(() => '');
+              if (!fieldValue) {
+                // Form was reset — unlock failed, bail out to retry
+                break;
+              }
+            }
             await page.waitForTimeout(500);
             if (closed) return;
             // Modal didn't close — might need to retry (e.g. wrong password error)
