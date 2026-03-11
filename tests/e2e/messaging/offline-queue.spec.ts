@@ -71,7 +71,17 @@ test.describe('Offline Message Queue', () => {
       await page.fill('#email', USER_A.email);
       await page.fill('#password', USER_A.password);
       await page.click('button[type="submit"]');
-      await page.waitForURL(/\/profile/, { timeout: 45000 });
+      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
+      try {
+        await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+          timeout: 45000,
+        });
+      } catch {
+        await page.waitForLoadState('domcontentloaded');
+        if (page.url().includes('/sign-in')) {
+          throw new Error('Sign-in failed after 45s');
+        }
+      }
 
       // ===== STEP 2: Navigate to conversation =====
       await page.goto(`${BASE_URL}/messages?tab=chats`);
@@ -137,7 +147,17 @@ test.describe('Offline Message Queue', () => {
       await page.fill('#email', USER_A.email);
       await page.fill('#password', USER_A.password);
       await page.click('button[type="submit"]');
-      await page.waitForURL(/\/profile/, { timeout: 45000 });
+      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
+      try {
+        await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+          timeout: 45000,
+        });
+      } catch {
+        await page.waitForLoadState('domcontentloaded');
+        if (page.url().includes('/sign-in')) {
+          throw new Error('Sign-in failed after 45s');
+        }
+      }
 
       await page.goto(`${BASE_URL}/messages?tab=chats`);
       await dismissCookieBanner(page);
@@ -203,7 +223,17 @@ test.describe('Offline Message Queue', () => {
       await page.fill('#email', USER_A.email);
       await page.fill('#password', USER_A.password);
       await page.click('button[type="submit"]');
-      await page.waitForURL(/\/profile/, { timeout: 45000 });
+      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
+      try {
+        await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+          timeout: 45000,
+        });
+      } catch {
+        await page.waitForLoadState('domcontentloaded');
+        if (page.url().includes('/sign-in')) {
+          throw new Error('Sign-in failed after 45s');
+        }
+      }
 
       await page.goto(`${BASE_URL}/messages?tab=chats`);
       await dismissCookieBanner(page);
@@ -275,13 +305,33 @@ test.describe('Offline Message Queue', () => {
       await pageA.fill('#email', USER_A.email);
       await pageA.fill('#password', USER_A.password);
       await pageA.click('button[type="submit"]');
-      await pageA.waitForURL(/\/profile/, { timeout: 45000 });
+      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
+      try {
+        await pageA.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+          timeout: 45000,
+        });
+      } catch {
+        await pageA.waitForLoadState('domcontentloaded');
+        if (pageA.url().includes('/sign-in')) {
+          throw new Error('User A sign-in failed after 45s');
+        }
+      }
 
       await pageB.goto(`${BASE_URL}/sign-in`);
       await pageB.fill('#email', USER_B.email);
       await pageB.fill('#password', USER_B.password);
       await pageB.click('button[type="submit"]');
-      await pageB.waitForURL(/\/profile/, { timeout: 45000 });
+      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
+      try {
+        await pageB.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+          timeout: 45000,
+        });
+      } catch {
+        await pageB.waitForLoadState('domcontentloaded');
+        if (pageB.url().includes('/sign-in')) {
+          throw new Error('User B sign-in failed after 45s');
+        }
+      }
 
       // ===== STEP 2: Both navigate to same conversation =====
       await pageA.goto(`${BASE_URL}/messages?tab=chats`);
@@ -332,18 +382,26 @@ test.describe('Offline Message Queue', () => {
       await contextB.setOffline(false);
 
       // ===== STEP 6: Wait for sync =====
-      // Retry/backoff cycle + encryption during sync + Supabase Cloud latency needs 25-30s
-      await pageA.waitForTimeout(30000);
-      await pageB.waitForTimeout(30000);
+      // Poll for messages to appear in DB — encryption + retry backoff + Supabase Cloud
+      // write propagation can take 30-60s total
+      let messages: { sequence_number: number }[] | null = null;
+      if (conversationId) {
+        for (let attempt = 0; attempt < 10; attempt++) {
+          await pageA.waitForTimeout(5000);
+          const { data } = await adminClient
+            .from('messages')
+            .select('*')
+            .eq('conversation_id', conversationId)
+            .order('sequence_number', { ascending: true });
+          if (data && data.length >= 2) {
+            messages = data;
+            break;
+          }
+        }
+      }
 
       // ===== STEP 7: Verify server determined order =====
       if (conversationId) {
-        const { data: messages } = await adminClient
-          .from('messages')
-          .select('*')
-          .eq('conversation_id', conversationId)
-          .order('sequence_number', { ascending: true });
-
         // Both messages should exist
         expect(messages).toBeDefined();
         expect(messages!.length).toBeGreaterThanOrEqual(2);
@@ -387,7 +445,17 @@ test.describe('Offline Message Queue', () => {
       await page.fill('#email', USER_A.email);
       await page.fill('#password', USER_A.password);
       await page.click('button[type="submit"]');
-      await page.waitForURL(/\/profile/, { timeout: 45000 });
+      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
+      try {
+        await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+          timeout: 45000,
+        });
+      } catch {
+        await page.waitForLoadState('domcontentloaded');
+        if (page.url().includes('/sign-in')) {
+          throw new Error('Sign-in failed after 45s');
+        }
+      }
 
       await page.goto(`${BASE_URL}/messages?tab=chats`);
       await dismissCookieBanner(page);

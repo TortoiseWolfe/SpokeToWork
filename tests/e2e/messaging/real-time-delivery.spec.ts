@@ -327,6 +327,9 @@ test.describe('Real-time Message Delivery (T098)', () => {
 });
 
 test.describe('Typing Indicators (T099)', () => {
+  // Dual-user beforeEach: 2 sign-ins (45s each) + encryption setup > 30s default
+  test.describe.configure({ timeout: 120000 });
+
   let context1: BrowserContext;
   let context2: BrowserContext;
   let page1: Page;

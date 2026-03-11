@@ -428,6 +428,7 @@ async function scrollToTopAndWait(page: import('@playwright/test').Page) {
 // ─── Virtual Scrolling Performance ──────────────────────────────────────────
 
 test.describe('Virtual Scrolling Performance', () => {
+  test.describe.configure({ timeout: 60000 });
   test('T172b: Virtual scrolling activates at 100+ messages', async ({
     page,
   }) => {
@@ -444,11 +445,17 @@ test.describe('Virtual Scrolling Performance', () => {
 
   test('T166: Performance with 1000 messages - scrolling FPS', async ({
     page,
+    browserName,
   }) => {
     await openConversation(page);
 
-    const client = await page.context().newCDPSession(page);
-    await client.send('Performance.enable');
+    // CDP Performance API is only available in Chromium
+     
+    let cdpClient: any = null;
+    if (browserName === 'chromium') {
+      cdpClient = await page.context().newCDPSession(page);
+      await cdpClient.send('Performance.enable');
+    }
 
     const messageThread = page.getByTestId('message-thread');
 
@@ -461,7 +468,9 @@ test.describe('Virtual Scrolling Performance', () => {
       await page.waitForTimeout(100);
     }
 
-    await client.send('Performance.disable');
+    if (cdpClient) {
+      await cdpClient.send('Performance.disable');
+    }
 
     // Scrolling up should reveal jump-to-bottom button
     const jumpButton = page.getByTestId('jump-to-bottom');

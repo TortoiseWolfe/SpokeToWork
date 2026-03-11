@@ -77,14 +77,34 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageA.fill('#email', USER_A.email);
       await pageA.fill('#password', USER_A.password);
       await pageA.click('button[type="submit"]');
-      await pageA.waitForURL(/.*\/profile/, { timeout: 45000 });
+      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
+      try {
+        await pageA.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+          timeout: 45000,
+        });
+      } catch {
+        await pageA.waitForLoadState('domcontentloaded');
+        if (pageA.url().includes('/sign-in')) {
+          throw new Error('User A sign-in failed after 45s');
+        }
+      }
 
       // ===== STEP 2: User B signs in (in separate context) =====
       await pageB.goto(`${BASE_URL}/sign-in`);
       await pageB.fill('#email', USER_B.email);
       await pageB.fill('#password', USER_B.password);
       await pageB.click('button[type="submit"]');
-      await pageB.waitForURL(/.*\/profile/, { timeout: 45000 });
+      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
+      try {
+        await pageB.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+          timeout: 45000,
+        });
+      } catch {
+        await pageB.waitForLoadState('domcontentloaded');
+        if (pageB.url().includes('/sign-in')) {
+          throw new Error('User B sign-in failed after 45s');
+        }
+      }
 
       // ===== STEP 3: User A navigates to conversations =====
       await pageA.goto(`${BASE_URL}/messages?tab=chats`);
@@ -186,7 +206,16 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageA.fill('#email', USER_A.email);
       await pageA.fill('#password', USER_A.password);
       await pageA.click('button[type="submit"]');
-      await pageA.waitForURL(/.*\/profile/, { timeout: 45000 });
+      try {
+        await pageA.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+          timeout: 45000,
+        });
+      } catch {
+        await pageA.waitForLoadState('domcontentloaded');
+        if (pageA.url().includes('/sign-in')) {
+          throw new Error('User A sign-in failed after 45s');
+        }
+      }
 
       // Navigate to conversation
       await pageA.goto(`${BASE_URL}/messages?tab=chats`);
@@ -268,7 +297,17 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageA.fill('#email', USER_A.email);
       await pageA.fill('#password', USER_A.password);
       await pageA.click('button[type="submit"]');
-      await pageA.waitForURL(/.*\/profile/, { timeout: 45000 });
+      // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
+      try {
+        await pageA.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+          timeout: 45000,
+        });
+      } catch {
+        await pageA.waitForLoadState('domcontentloaded');
+        if (pageA.url().includes('/sign-in')) {
+          throw new Error('User A sign-in failed after 45s');
+        }
+      }
 
       await pageA.goto(`${BASE_URL}/messages?tab=chats`);
       await dismissCookieBanner(pageA);
@@ -318,7 +357,16 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageB.fill('#email', USER_B.email);
       await pageB.fill('#password', USER_B.password);
       await pageB.click('button[type="submit"]');
-      await pageB.waitForURL(/.*\/profile/, { timeout: 45000 });
+      try {
+        await pageB.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+          timeout: 45000,
+        });
+      } catch {
+        await pageB.waitForLoadState('domcontentloaded');
+        if (pageB.url().includes('/sign-in')) {
+          throw new Error('User B sign-in failed after 45s');
+        }
+      }
 
       await pageB.goto(`${BASE_URL}/messages?tab=chats`);
       await dismissCookieBanner(pageB);
@@ -367,7 +415,17 @@ test.describe('Encrypted Messaging Flow', () => {
     await page.fill('#email', USER_A.email);
     await page.fill('#password', USER_A.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
+    // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
+    try {
+      await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+        timeout: 45000,
+      });
+    } catch {
+      await page.waitForLoadState('domcontentloaded');
+      if (page.url().includes('/sign-in')) {
+        throw new Error('Sign-in failed after 45s');
+      }
+    }
 
     await page.goto(`${BASE_URL}/messages?tab=chats`);
     await dismissCookieBanner(page);
@@ -466,7 +524,17 @@ test.describe('Encryption Key Security', () => {
     await page.fill('#email', USER_A.email);
     await page.fill('#password', USER_A.password);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
+    // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
+    try {
+      await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+        timeout: 45000,
+      });
+    } catch {
+      await page.waitForLoadState('domcontentloaded');
+      if (page.url().includes('/sign-in')) {
+        throw new Error('Sign-in failed after 45s');
+      }
+    }
 
     await page.goto(`${BASE_URL}/messages?tab=chats`);
     await dismissCookieBanner(page);

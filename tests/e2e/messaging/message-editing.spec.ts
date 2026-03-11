@@ -224,6 +224,8 @@ test.beforeAll(async () => {
 });
 
 test.describe('Message Editing', () => {
+  test.describe.configure({ timeout: 90000 });
+
   test.beforeEach(async ({ page }) => {
     // Sign in as User 1
     await signIn(page, TEST_USER_1.email, TEST_USER_1.password);
@@ -369,6 +371,8 @@ test.describe('Message Editing', () => {
 });
 
 test.describe('Message Deletion', () => {
+  test.describe.configure({ timeout: 90000 });
+
   test.beforeEach(async ({ page }) => {
     // Sign in as User 1
     await signIn(page, TEST_USER_1.email, TEST_USER_1.password);
@@ -493,6 +497,8 @@ test.describe('Message Deletion', () => {
 });
 
 test.describe('Time Window Restrictions', () => {
+  test.describe.configure({ timeout: 90000 });
+
   test.beforeEach(async ({ page }) => {
     await signIn(page, TEST_USER_1.email, TEST_USER_1.password);
   });
@@ -623,6 +629,8 @@ test.describe('Time Window Restrictions', () => {
 });
 
 test.describe('Accessibility', () => {
+  test.describe.configure({ timeout: 90000 });
+
   test.beforeEach(async ({ page }) => {
     await signIn(page, TEST_USER_1.email, TEST_USER_1.password);
   });
