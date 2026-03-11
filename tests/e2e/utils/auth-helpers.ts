@@ -51,6 +51,8 @@ export async function loginAndVerify(
   // Use longer timeouts for local Supabase which can be slow under concurrent load
   const { urlTimeout = 30000, elementTimeout = 30000 } = options;
 
+  const maxAttempts = 3;
+
   // Navigate to sign-in page
   // Firefox: NS_BINDING_ABORTED can abort goto if previous navigation cleanup is running
   try {
@@ -60,32 +62,51 @@ export async function loginAndVerify(
     await page.goto('/sign-in');
   }
 
-  // Fill credentials
-  await page.fill(
-    'input[type="email"], input[name="email"]',
-    credentials.email
-  );
-  await page.fill(
-    'input[type="password"], input[name="password"]',
-    credentials.password
-  );
+  // Retry loop: GoTrue may need 5-15s to propagate freshly created test users
+  // under concurrent CI load (12 shards creating users simultaneously)
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    // Fill credentials
+    await page.fill(
+      'input[type="email"], input[name="email"]',
+      credentials.email
+    );
+    await page.fill(
+      'input[type="password"], input[name="password"]',
+      credentials.password
+    );
 
-  // Submit the form
-  await page.click('button[type="submit"]');
+    // Submit the form
+    await page.click('button[type="submit"]');
 
-  // Wait for URL to change away from sign-in.
-  // WebKit may not detect window.location.href hard navigation via waitForURL(),
-  // so fall back to waitForLoadState and re-check the URL manually.
-  try {
-    await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-      timeout: urlTimeout,
-    });
-  } catch {
-    await page.waitForLoadState('networkidle');
-    if (page.url().includes('/sign-in')) {
+    // Wait for URL to change away from sign-in.
+    // WebKit may not detect window.location.href hard navigation via waitForURL(),
+    // so fall back to waitForLoadState and re-check the URL manually.
+    try {
+      await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
+        timeout: urlTimeout,
+      });
+      break; // Success — URL changed
+    } catch {
+      await page.waitForLoadState('networkidle');
+      if (!page.url().includes('/sign-in')) {
+        break; // WebKit fallback — URL did change
+      }
+
+      // Still on /sign-in — GoTrue may not have propagated the user yet
+      if (attempt < maxAttempts) {
+        console.log(
+          `loginAndVerify: attempt ${attempt} failed for ${credentials.email}, ` +
+            `retrying in 5s (GoTrue propagation delay)`
+        );
+        await page.waitForTimeout(5000);
+        // Reload sign-in page to clear any error state
+        await page.goto('/sign-in');
+        continue;
+      }
+
       throw new Error(
-        `Login failed: still on sign-in page after ${urlTimeout}ms. ` +
-          `Check credentials for ${credentials.email}.`
+        `Login failed: still on sign-in page after ${maxAttempts} attempts ` +
+          `(${urlTimeout}ms each). Check credentials for ${credentials.email}.`
       );
     }
   }

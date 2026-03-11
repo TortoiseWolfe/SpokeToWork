@@ -214,31 +214,12 @@ export async function dismissReAuthModal(
           if (await unlockBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
             await unlockBtn.click();
 
-            // Wait for modal to close. Argon2id key derivation can take 10-30s.
-            // But if the password field gets cleared (form reset = error), bail
-            // out immediately instead of waiting the full timeout.
-            let closed = false;
-            for (let poll = 0; poll < 6; poll++) {
-              // Check every 5s for up to 30s total
-              const hidden = await modal
-                .first()
-                .waitFor({ state: 'hidden', timeout: 5000 })
-                .then(() => true)
-                .catch(() => false);
-              if (hidden) {
-                closed = true;
-                break;
-              }
-              // Check if password field was cleared (indicates unlock failed)
-              const fieldValue = await passwordInput
-                .first()
-                .inputValue()
-                .catch(() => '');
-              if (!fieldValue) {
-                // Form was reset — unlock failed, bail out to retry
-                break;
-              }
-            }
+            // Wait for modal to close (argon2id key derivation takes 10-20s on CI)
+            const closed = await modal
+              .first()
+              .waitFor({ state: 'hidden', timeout: 30000 })
+              .then(() => true)
+              .catch(() => false);
             await page.waitForTimeout(500);
             if (closed) return;
             // Modal didn't close — might need to retry (e.g. wrong password error)
@@ -248,10 +229,12 @@ export async function dismissReAuthModal(
             continue;
           }
         }
-        // Press Escape as last resort
-        await page.keyboard.press('Escape');
-        await page.waitForTimeout(500);
-        return;
+        // Escape won't close modal — onClose prop not passed to ReAuthModal by parent.
+        // Continue to retry instead of returning with a stuck modal overlay.
+        console.log(
+          `dismissReAuthModal: password/unlock not found on attempt ${attempt + 1}, retrying`
+        );
+        continue;
       }
       // No modal visible — done
       return;
