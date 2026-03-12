@@ -112,6 +112,10 @@ test.describe('Offline Message Queue', () => {
       const isOnline = await page.evaluate(() => navigator.onLine);
       expect(isOnline).toBe(true);
 
+      // Playwright's setOffline(false) doesn't reliably fire the browser 'online'
+      // event in headless mode. Manually dispatch it to trigger offline queue sync.
+      await page.evaluate(() => window.dispatchEvent(new Event('online')));
+
       // ===== STEP 7: Wait for message to sync =====
       // After going online, the message should eventually show delivered status
       // or remain visible without error indicators
@@ -176,6 +180,9 @@ test.describe('Offline Message Queue', () => {
 
       // ===== STEP 5: Go online =====
       await context.setOffline(false);
+
+      // Manually dispatch 'online' event — headless browsers don't always fire it.
+      await page.evaluate(() => window.dispatchEvent(new Event('online')));
 
       // ===== STEP 6: Wait for sync and verify messages persist =====
       await page.waitForTimeout(5000);
@@ -325,6 +332,15 @@ test.describe('Offline Message Queue', () => {
       // ===== STEP 5: Both go online simultaneously =====
       await contextA.setOffline(false);
       await contextB.setOffline(false);
+
+      // Playwright's setOffline(false) doesn't reliably fire the browser 'online'
+      // event in headless mode, but the app's offline queue sync depends on it.
+      // Manually dispatch the event to trigger the sync.
+      await pageA.evaluate(() => window.dispatchEvent(new Event('online')));
+      await pageB.evaluate(() => window.dispatchEvent(new Event('online')));
+
+      // Give the sync function time to encrypt queued messages and send to Supabase
+      await pageA.waitForTimeout(5000);
 
       // ===== STEP 6: Wait for sync =====
       // Poll for messages to appear in DB — encryption + retry backoff + Supabase Cloud
