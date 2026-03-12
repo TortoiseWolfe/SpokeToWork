@@ -159,7 +159,8 @@ async function encryptMessage(
  * message-editing beforeAll cleanup — which targets PRIMARY↔TERTIARY — cannot
  * race-delete the seeded data.
  */
-test.beforeAll(async () => {
+test.beforeAll(async ({}, testInfo) => {
+  testInfo.setTimeout(120000); // Seeding 1000+ messages can take >30s on CI
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!

@@ -111,9 +111,24 @@ async function navigateToConversation(page: Page) {
   const connectionCard = page
     .locator('[data-testid="connection-request"]')
     .filter({ hasText: tertiaryName });
-  await connectionCard
-    .locator('[data-testid="message-button"]')
-    .click({ timeout: 30000 });
+  // Retry with reload if connection card doesn't appear (read replica lag)
+  try {
+    await connectionCard
+      .locator('[data-testid="message-button"]')
+      .click({ timeout: 30000 });
+  } catch {
+    await page.reload();
+    await dismissCookieBanner(page);
+    await completeEncryptionSetup(page);
+    await dismissReAuthModal(page);
+    await page
+      .locator('[data-testid="connection-manager"]')
+      .waitFor({ state: 'visible' });
+    await page.getByRole('tab', { name: /accepted/i }).click();
+    await connectionCard
+      .locator('[data-testid="message-button"]')
+      .click({ timeout: 30000 });
+  }
 
   // Message button creates conversation and switches to Chats tab;
   // click the conversation to open it
