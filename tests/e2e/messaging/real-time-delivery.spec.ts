@@ -74,7 +74,16 @@ async function setupConversation(
     await dismissCookieBanner(page2);
     await completeEncryptionSetup(page2, TEST_USER_2.password);
     await dismissReAuthModal(page2, TEST_USER_2.password);
-    await page2.click('button:has-text("Pending Received")');
+    try {
+      await page2.click('button:has-text("Pending Received")');
+    } catch {
+      // Page may have reloaded during encryption — retry
+      await page2.reload();
+      await dismissCookieBanner(page2);
+      await completeEncryptionSetup(page2, TEST_USER_2.password);
+      await dismissReAuthModal(page2, TEST_USER_2.password);
+      await page2.click('button:has-text("Pending Received")');
+    }
 
     const acceptButton = page2.locator(
       `button:has-text("Accept"):near(:text("${TEST_USER_1.email}"))`
@@ -128,6 +137,9 @@ async function setupConversation(
 }
 
 test.describe('Real-time Message Delivery (T098)', () => {
+  // beforeEach runs 2× loginAndVerify + setupConversation — needs 90s+ on webkit
+  test.describe.configure({ timeout: 120000 });
+
   let context1: BrowserContext;
   let context2: BrowserContext;
   let page1: Page;

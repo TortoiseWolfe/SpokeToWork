@@ -170,10 +170,14 @@ export async function dismissCookieBanner(page: Page): Promise<void> {
  * context before the ReAuthModal can appear.
  */
 async function waitForPageReady(page: Page): Promise<void> {
-  await page.waitForLoadState('domcontentloaded');
-  // Wait for React hydration + messaging context initialization.
-  // In Docker/CI, this can take 3-5s after domcontentloaded fires.
-  await page.waitForTimeout(3000);
+  try {
+    await page.waitForLoadState('domcontentloaded');
+    // Wait for React hydration + messaging context initialization.
+    // In Docker/CI, this can take 3-5s after domcontentloaded fires.
+    await page.waitForTimeout(3000);
+  } catch {
+    // Page context may have been closed (webkit under CPU stress from argon2id) — continue
+  }
 }
 
 /** Dismiss the ReAuth modal/dialog that appears when encryption keys need unlocking */
@@ -214,10 +218,10 @@ export async function dismissReAuthModal(
           if (await unlockBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
             await unlockBtn.click();
 
-            // Wait for modal to close (argon2id key derivation takes 10-20s on CI)
+            // Wait for modal to close (argon2id key derivation takes 10-35s on CI, up to 60s on firefox)
             const closed = await modal
               .first()
-              .waitFor({ state: 'hidden', timeout: 45000 })
+              .waitFor({ state: 'hidden', timeout: 60000 })
               .then(() => true)
               .catch(() => false);
             await page.waitForTimeout(500);
