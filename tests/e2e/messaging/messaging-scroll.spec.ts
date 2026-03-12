@@ -3,6 +3,7 @@ import {
   getAdminClient,
   ensureConnection,
   ensureConversation,
+  cleanupMessagingData,
   completeEncryptionSetup,
   dismissReAuthModal,
   dismissCookieBanner,
@@ -58,11 +59,23 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
   // Encryption setup (argon2id) can take 30s+ on first run
   test.setTimeout(90000);
 
+  let conversationId: string | null = null;
+
+  test.beforeAll(async () => {
+    if (adminClient) {
+      await cleanupMessagingData(adminClient, USER_A_EMAIL, USER_B_EMAIL);
+    }
+  });
+
   test.beforeEach(async ({ page }) => {
     // Seed connection + conversation so messaging UI has data
     if (adminClient) {
       await ensureConnection(adminClient, USER_A_EMAIL, USER_B_EMAIL);
-      await ensureConversation(adminClient, USER_A_EMAIL, USER_B_EMAIL);
+      conversationId = await ensureConversation(
+        adminClient,
+        USER_A_EMAIL,
+        USER_B_EMAIL
+      );
     }
 
     // Login as test user
@@ -76,17 +89,10 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
     page,
   }) => {
     await page.setViewportSize(VIEWPORTS.mobile);
-    await page.goto('/messages');
+    await page.goto(`/messages?conversation=${conversationId}`);
     await completeEncryptionSetup(page);
     await dismissCookieBanner(page);
     await dismissReAuthModal(page);
-
-    // Wait for conversation list, then select a conversation to open chat view
-    const conversationItem = page
-      .locator('[data-testid*="conversation"]')
-      .first();
-    await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
-    await conversationItem.click();
 
     await page.waitForSelector(
       '[data-testid="chat-window"], [data-testid="message-thread"]',
@@ -111,16 +117,10 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
     page,
   }) => {
     await page.setViewportSize(VIEWPORTS.tablet);
-    await page.goto('/messages');
+    await page.goto(`/messages?conversation=${conversationId}`);
     await completeEncryptionSetup(page);
     await dismissCookieBanner(page);
     await dismissReAuthModal(page);
-
-    const conversationItem = page
-      .locator('[data-testid*="conversation"]')
-      .first();
-    await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
-    await conversationItem.click();
 
     await page.waitForSelector(
       '[data-testid="chat-window"], [data-testid="message-thread"]',
@@ -143,16 +143,10 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
     page,
   }) => {
     await page.setViewportSize(VIEWPORTS.desktop);
-    await page.goto('/messages');
+    await page.goto(`/messages?conversation=${conversationId}`);
     await completeEncryptionSetup(page);
     await dismissCookieBanner(page);
     await dismissReAuthModal(page);
-
-    const conversationItem = page
-      .locator('[data-testid*="conversation"]')
-      .first();
-    await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
-    await conversationItem.click();
 
     await page.waitForSelector(
       '[data-testid="chat-window"], [data-testid="message-thread"]',
@@ -175,10 +169,16 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
 test.describe('Messaging Scroll - User Story 2: Scroll Through Messages', () => {
   test.setTimeout(90000);
 
+  let conversationId: string | null = null;
+
   test.beforeEach(async ({ page }) => {
     if (adminClient) {
       await ensureConnection(adminClient, USER_A_EMAIL, USER_B_EMAIL);
-      await ensureConversation(adminClient, USER_A_EMAIL, USER_B_EMAIL);
+      conversationId = await ensureConversation(
+        adminClient,
+        USER_A_EMAIL,
+        USER_B_EMAIL
+      );
     }
 
     await loginAndVerify(page, {
@@ -191,16 +191,10 @@ test.describe('Messaging Scroll - User Story 2: Scroll Through Messages', () => 
     page,
   }) => {
     await page.setViewportSize(VIEWPORTS.desktop);
-    await page.goto('/messages');
+    await page.goto(`/messages?conversation=${conversationId}`);
     await completeEncryptionSetup(page);
     await dismissCookieBanner(page);
     await dismissReAuthModal(page);
-
-    const conversationItem = page
-      .locator('[data-testid*="conversation"]')
-      .first();
-    await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
-    await conversationItem.click();
 
     await page.waitForSelector(
       '[data-testid="chat-window"], [data-testid="message-thread"]',
@@ -236,10 +230,16 @@ test.describe('Messaging Scroll - User Story 2: Scroll Through Messages', () => 
 test.describe('Messaging Scroll - User Story 3: Jump to Bottom Button', () => {
   test.setTimeout(90000);
 
+  let conversationId: string | null = null;
+
   test.beforeEach(async ({ page }) => {
     if (adminClient) {
       await ensureConnection(adminClient, USER_A_EMAIL, USER_B_EMAIL);
-      await ensureConversation(adminClient, USER_A_EMAIL, USER_B_EMAIL);
+      conversationId = await ensureConversation(
+        adminClient,
+        USER_A_EMAIL,
+        USER_B_EMAIL
+      );
     }
 
     await loginAndVerify(page, {
@@ -252,16 +252,10 @@ test.describe('Messaging Scroll - User Story 3: Jump to Bottom Button', () => {
     page,
   }) => {
     await page.setViewportSize(VIEWPORTS.desktop);
-    await page.goto('/messages');
+    await page.goto(`/messages?conversation=${conversationId}`);
     await completeEncryptionSetup(page);
     await dismissCookieBanner(page);
     await dismissReAuthModal(page);
-
-    const conversationItem = page
-      .locator('[data-testid*="conversation"]')
-      .first();
-    await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
-    await conversationItem.click();
 
     await page.waitForSelector(
       '[data-testid="chat-window"], [data-testid="message-thread"]',
@@ -307,16 +301,10 @@ test.describe('Messaging Scroll - User Story 3: Jump to Bottom Button', () => {
 
   test('T009: Jump button click scrolls to bottom', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.desktop);
-    await page.goto('/messages');
+    await page.goto(`/messages?conversation=${conversationId}`);
     await completeEncryptionSetup(page);
     await dismissCookieBanner(page);
     await dismissReAuthModal(page);
-
-    const conversationItem = page
-      .locator('[data-testid*="conversation"]')
-      .first();
-    await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
-    await conversationItem.click();
 
     await page.waitForSelector(
       '[data-testid="chat-window"], [data-testid="message-thread"]',

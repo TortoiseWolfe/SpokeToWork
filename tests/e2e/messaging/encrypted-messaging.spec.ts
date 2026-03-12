@@ -16,6 +16,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import {
   ensureConnection,
   ensureConversation,
+  cleanupMessagingData,
   completeEncryptionSetup,
   dismissCookieBanner,
   dismissReAuthModal,
@@ -56,10 +57,22 @@ const getAdminClient = () => {
 const adminClient = getAdminClient();
 
 test.describe('Encrypted Messaging Flow', () => {
+  let conversationId: string | null = null;
+
+  test.beforeAll(async () => {
+    if (adminClient) {
+      await cleanupMessagingData(adminClient, USER_A.email, USER_B.email);
+    }
+  });
+
   test.beforeEach(async () => {
     if (adminClient) {
       await ensureConnection(adminClient, USER_A.email, USER_B.email);
-      await ensureConversation(adminClient, USER_A.email, USER_B.email);
+      conversationId = await ensureConversation(
+        adminClient,
+        USER_A.email,
+        USER_B.email
+      );
     }
   });
 
@@ -86,36 +99,13 @@ test.describe('Encrypted Messaging Flow', () => {
         password: USER_B.password,
       });
 
-      // ===== STEP 3: User A navigates to conversations =====
-      await pageA.goto(`${BASE_URL}/messages?tab=chats`);
+      // ===== STEP 3: User A navigates directly to conversation =====
+      await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
       await dismissCookieBanner(pageA);
       await completeEncryptionSetup(pageA);
       await dismissReAuthModal(pageA);
-      await expect(pageA).toHaveURL(/.*\/messages/);
 
-      // ===== STEP 4: User A selects conversation with User B =====
-      // Use .first() — displayName filter is brittle (email prefix may not match rendered name)
-      const conversationItem = pageA
-        .locator('[data-testid*="conversation"]')
-        .first();
-      // Retry with reload if conversation list doesn't populate (read replica lag)
-      try {
-        await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
-      } catch {
-        await pageA.reload();
-        await dismissCookieBanner(pageA);
-        await dismissReAuthModal(pageA);
-        await pageA
-          .locator('[data-testid*="conversation"]')
-          .first()
-          .waitFor({ state: 'visible', timeout: 30000 });
-      }
-      await conversationItem.click();
-
-      // Wait for messages page to load
-      await pageA.waitForURL(/.*\/messages\/?\?conversation=.*/);
-
-      // ===== STEP 5: User A sends an encrypted message =====
+      // ===== STEP 4: User A sends an encrypted message =====
       const testMessage = `Test encrypted message ${Date.now()}`;
       const messageInput = pageA.locator(
         'textarea[aria-label="Message input"]'
@@ -134,34 +124,13 @@ test.describe('Encrypted Messaging Flow', () => {
       const messageA = pageA.getByText(testMessage);
       await expect(messageA).toBeVisible({ timeout: 15000 });
 
-      // ===== STEP 7: User B navigates to conversations =====
-      await pageB.goto(`${BASE_URL}/messages?tab=chats`);
+      // ===== STEP 6: User B navigates directly to conversation =====
+      await pageB.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
       await dismissCookieBanner(pageB);
       await completeEncryptionSetup(pageB, USER_B.password);
       await dismissReAuthModal(pageB, USER_B.password);
-      await expect(pageB).toHaveURL(/.*\/messages/);
 
-      // ===== STEP 8: User B opens conversation with User A =====
-      const conversationItemB = pageB
-        .locator('[data-testid*="conversation"]')
-        .first();
-      // Retry with reload if conversation list doesn't populate (read replica lag)
-      try {
-        await conversationItemB.waitFor({ state: 'visible', timeout: 30000 });
-      } catch {
-        await pageB.reload();
-        await dismissCookieBanner(pageB);
-        await dismissReAuthModal(pageB, USER_B.password);
-        await pageB
-          .locator('[data-testid*="conversation"]')
-          .first()
-          .waitFor({ state: 'visible', timeout: 30000 });
-      }
-      await pageB.locator('[data-testid*="conversation"]').first().click();
-
-      await pageB.waitForURL(/.*\/messages\/?\?conversation=.*/);
-
-      // ===== STEP 9: User B sees the decrypted message =====
+      // ===== STEP 7: User B sees the decrypted message =====
       const messageB = pageB.getByText(testMessage);
       await expect(messageB).toBeVisible({ timeout: 30000 });
 
@@ -210,17 +179,11 @@ test.describe('Encrypted Messaging Flow', () => {
         password: USER_A.password,
       });
 
-      // Navigate to conversation
-      await pageA.goto(`${BASE_URL}/messages?tab=chats`);
+      // Navigate directly to conversation
+      await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
       await dismissCookieBanner(pageA);
       await completeEncryptionSetup(pageA);
       await dismissReAuthModal(pageA);
-      const conversationItem = pageA
-        .locator('[data-testid*="conversation"]')
-        .first();
-      await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
-      await conversationItem.click();
-      await pageA.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
       // Send a test message with known plaintext
       const secretMessage = `Secret message for zero-knowledge test ${Date.now()}`;
@@ -286,23 +249,16 @@ test.describe('Encrypted Messaging Flow', () => {
     const pageB = await contextB.newPage();
 
     try {
-      // User A signs in and navigates to conversation
+      // User A signs in and navigates directly to conversation
       await loginAndVerify(pageA, {
         email: USER_A.email,
         password: USER_A.password,
       });
 
-      await pageA.goto(`${BASE_URL}/messages?tab=chats`);
+      await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
       await dismissCookieBanner(pageA);
       await completeEncryptionSetup(pageA);
       await dismissReAuthModal(pageA);
-      // Use .first() — displayName filter is brittle (email prefix may not match rendered name)
-      const conversationItem = pageA
-        .locator('[data-testid*="conversation"]')
-        .first();
-      await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
-      await conversationItem.click();
-      await pageA.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
       // Send a message
       const testMessage = `Delivery status test ${Date.now()}`;
@@ -343,29 +299,10 @@ test.describe('Encrypted Messaging Flow', () => {
         password: USER_B.password,
       });
 
-      await pageB.goto(`${BASE_URL}/messages?tab=chats`);
+      await pageB.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
       await dismissCookieBanner(pageB);
       await completeEncryptionSetup(pageB, USER_B.password);
       await dismissReAuthModal(pageB, USER_B.password);
-      const conversationItemB = pageB
-        .locator('[data-testid*="conversation"]')
-        .first();
-      try {
-        await conversationItemB.waitFor({ state: 'visible', timeout: 30000 });
-        await conversationItemB.click();
-      } catch {
-        // Conversation item detached due to realtime re-render — reload and retry
-        await pageB.reload();
-        await dismissCookieBanner(pageB);
-        await completeEncryptionSetup(pageB, USER_B.password);
-        await dismissReAuthModal(pageB, USER_B.password);
-        await pageB
-          .locator('[data-testid*="conversation"]')
-          .first()
-          .waitFor({ state: 'visible', timeout: 30000 });
-        await pageB.locator('[data-testid*="conversation"]').first().click();
-      }
-      await pageB.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
       // Verify User B sees the message (reload fallback for read replica lag)
       try {
@@ -417,27 +354,10 @@ test.describe('Encrypted Messaging Flow', () => {
       password: USER_A.password,
     });
 
-    await page.goto(`${BASE_URL}/messages?tab=chats`);
+    await page.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
     await dismissCookieBanner(page);
     await completeEncryptionSetup(page);
     await dismissReAuthModal(page);
-    const conversationItem = page
-      .locator('[data-testid*="conversation"]')
-      .first();
-    // Retry with reload if conversation list doesn't populate (read replica lag)
-    try {
-      await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
-    } catch {
-      await page.reload();
-      await dismissCookieBanner(page);
-      await dismissReAuthModal(page);
-      await page
-        .locator('[data-testid*="conversation"]')
-        .first()
-        .waitFor({ state: 'visible', timeout: 30000 });
-    }
-    await page.locator('[data-testid*="conversation"]').first().click();
-    await page.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
     // ===== SEND MULTIPLE MESSAGES =====
     const messageCount = 55; // More than default page size (50)
@@ -496,10 +416,16 @@ test.describe('Encrypted Messaging Flow', () => {
 });
 
 test.describe('Encryption Key Security', () => {
+  let conversationId: string | null = null;
+
   test.beforeEach(async () => {
     if (adminClient) {
       await ensureConnection(adminClient, USER_A.email, USER_B.email);
-      await ensureConversation(adminClient, USER_A.email, USER_B.email);
+      conversationId = await ensureConversation(
+        adminClient,
+        USER_A.email,
+        USER_B.email
+      );
     }
   });
 
@@ -528,27 +454,10 @@ test.describe('Encryption Key Security', () => {
       password: USER_A.password,
     });
 
-    await page.goto(`${BASE_URL}/messages?tab=chats`);
+    await page.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
     await dismissCookieBanner(page);
     await completeEncryptionSetup(page);
     await dismissReAuthModal(page);
-    const conversationItem = page
-      .locator('[data-testid*="conversation"]')
-      .first();
-    // Retry with reload if conversation list doesn't populate (read replica lag)
-    try {
-      await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
-    } catch {
-      await page.reload();
-      await dismissCookieBanner(page);
-      await dismissReAuthModal(page);
-      await page
-        .locator('[data-testid*="conversation"]')
-        .first()
-        .waitFor({ state: 'visible', timeout: 30000 });
-    }
-    await page.locator('[data-testid*="conversation"]').first().click();
-    await page.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
     const messageInput = page.locator('textarea[aria-label="Message input"]');
     await messageInput.fill('Key security test message');

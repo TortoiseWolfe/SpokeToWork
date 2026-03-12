@@ -11,7 +11,9 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import {
+  ensureConnection,
   ensureConversation,
+  cleanupMessagingData,
   completeEncryptionSetup,
   dismissCookieBanner,
   dismissReAuthModal,
@@ -29,128 +31,21 @@ const TEST_USER_2 = {
   password: process.env.TEST_USER_TERTIARY_PASSWORD!,
 };
 
-/**
- * Ensure an accepted connection exists between PRIMARY and TERTIARY
- * so the UI can create a conversation via the Message button.
- * Runs once per test file via module-level flag.
- */
-let messagingSetupDone = false;
-async function ensureMessagingSetup(): Promise<void> {
-  if (messagingSetupDone) return;
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const supabase = createClient(supabaseUrl, serviceKey);
-
-  // Get user IDs via auth admin API
-  const { data: listResult, error: usersError } =
-    await supabase.auth.admin.listUsers({ perPage: 1000 });
-  if (usersError) {
-    throw new Error(`Failed to list users: ${usersError.message}`);
-  }
-
-  // listUsers returns { users: User[] } in supabase-js v2
-  const users = Array.isArray(listResult)
-    ? listResult
-    : ((listResult as { users: unknown[] })?.users ?? []);
-  const primaryUser = users.find(
-    (u: { email?: string }) => u.email === TEST_USER_1.email
-  ) as { id: string } | undefined;
-  const tertiaryUser = users.find(
-    (u: { email?: string }) => u.email === TEST_USER_2.email
-  ) as { id: string } | undefined;
-
-  if (!primaryUser || !tertiaryUser) {
-    throw new Error(
-      `Messaging test users not found: primary=${primaryUser?.id}, tertiary=${tertiaryUser?.id}`
-    );
-  }
-
-  // Upsert accepted connection (service role bypasses RLS)
-  const { error: upsertError } = await supabase.from('user_connections').upsert(
-    {
-      requester_id: primaryUser.id,
-      addressee_id: tertiaryUser.id,
-      status: 'accepted',
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'requester_id,addressee_id' }
-  );
-
-  if (upsertError) {
-    throw new Error(`Failed to upsert connection: ${upsertError.message}`);
-  }
-
-  // Also ensure conversation exists so navigateToConversation can find it
-  await ensureConversation(supabase, TEST_USER_1.email, TEST_USER_2.email);
-
-  messagingSetupDone = true;
-}
+/** Module-scoped conversation ID, populated by beforeAll/beforeEach. */
+let conversationId: string | null = null;
 
 /**
- * Navigate to conversation helper
+ * Navigate directly to the seeded conversation.
+ * Connection + conversation are seeded by admin client, so no UI-based flow needed.
  */
 async function navigateToConversation(page: Page) {
-  // Ensure accepted connection exists in DB before navigating
-  await ensureMessagingSetup();
-
-  await page.goto('/messages?tab=connections');
+  await page.goto(`/messages?conversation=${conversationId}`);
   await dismissCookieBanner(page);
   await completeEncryptionSetup(page);
   await dismissReAuthModal(page);
-
-  // Wait for ConnectionManager to render
-  await page
-    .locator('[data-testid="connection-manager"]')
-    .waitFor({ state: 'visible' });
-
-  // Switch to Accepted tab and click Message on the TERTIARY user's connection
-  // (not the first one — SECONDARY's 1000-message perf conversation is also listed)
-  await page.getByRole('tab', { name: /accepted/i }).click();
-  const tertiaryName = TEST_USER_2.email.split('@')[0];
-  const connectionCard = page
-    .locator('[data-testid="connection-request"]')
-    .filter({ hasText: tertiaryName });
-  // Retry with reload if connection card doesn't appear (read replica lag)
-  try {
-    await connectionCard
-      .locator('[data-testid="message-button"]')
-      .click({ timeout: 30000 });
-  } catch {
-    await page.reload();
-    await dismissCookieBanner(page);
-    await completeEncryptionSetup(page);
-    await dismissReAuthModal(page);
-    await page
-      .locator('[data-testid="connection-manager"]')
-      .waitFor({ state: 'visible' });
-    await page.getByRole('tab', { name: /accepted/i }).click();
-    await connectionCard
-      .locator('[data-testid="message-button"]')
-      .click({ timeout: 30000 });
-  }
-
-  // Message button creates conversation and switches to Chats tab;
-  // click the conversation to open it
-  const conversationButton = page
-    .locator(`button[aria-label^="Conversation with ${tertiaryName}"]`)
-    .first();
-  // Retry with reload if conversation button doesn't appear (read replica lag)
-  try {
-    await conversationButton.click({ timeout: 15000 });
-  } catch {
-    await page.goto('/messages?tab=chats');
-    await dismissCookieBanner(page);
-    await completeEncryptionSetup(page);
-    await dismissReAuthModal(page);
-    await conversationButton.click({ timeout: 30000 });
-  }
-
-  // Wait for conversation to open
-  await page.waitForURL(/.*conversation=/, { timeout: 30000 });
-
-  // Dismiss cookie banner again — it may have appeared during encryption/navigation
-  await dismissCookieBanner(page);
+  await page.waitForSelector('textarea[aria-label="Message input"]', {
+    timeout: 30000,
+  });
 }
 
 /**
@@ -176,48 +71,23 @@ async function findMessageBubble(page: Page, text: string) {
 }
 
 /**
- * Delete all accumulated messages from the shared test conversation so each
- * test run starts with a clean slate.  Without this, repeated runs deposit
- * dozens of messages that eventually degrade Realtime delivery and cause
- * send-wait timeouts.
+ * Clean up messages and seed connection/conversation before tests.
  */
 test.beforeAll(async () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceKey) return;
+
   const supabase = createClient(supabaseUrl, serviceKey);
+  await cleanupMessagingData(supabase, TEST_USER_1.email, TEST_USER_2.email);
 
-  const { data: listResult } = await supabase.auth.admin.listUsers({
-    perPage: 1000,
-  });
-  const users = Array.isArray(listResult)
-    ? listResult
-    : ((listResult as { users: unknown[] })?.users ?? []);
-  const primaryUser = users.find(
-    (u: { email?: string }) => u.email === TEST_USER_1.email
-  ) as { id: string } | undefined;
-  const tertiaryUser = users.find(
-    (u: { email?: string }) => u.email === TEST_USER_2.email
-  ) as { id: string } | undefined;
-
-  if (!primaryUser || !tertiaryUser) return;
-
-  // Canonical ordering: participant_1_id < participant_2_id
-  const p1 =
-    primaryUser.id < tertiaryUser.id ? primaryUser.id : tertiaryUser.id;
-  const p2 =
-    primaryUser.id < tertiaryUser.id ? tertiaryUser.id : primaryUser.id;
-
-  const { data: conversations } = await supabase
-    .from('conversations')
-    .select('id')
-    .eq('participant_1_id', p1)
-    .eq('participant_2_id', p2);
-
-  if (conversations) {
-    for (const conv of conversations) {
-      await supabase.from('messages').delete().eq('conversation_id', conv.id);
-    }
-  }
+  // Seed connection + conversation; store ID for direct URL navigation
+  await ensureConnection(supabase, TEST_USER_1.email, TEST_USER_2.email);
+  conversationId = await ensureConversation(
+    supabase,
+    TEST_USER_1.email,
+    TEST_USER_2.email
+  );
 });
 
 test.describe('Message Editing', () => {

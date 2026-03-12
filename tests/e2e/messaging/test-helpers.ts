@@ -282,3 +282,35 @@ export const ensureConversation = async (
   }
   return data.id;
 };
+
+/**
+ * Delete all messages from conversations between two users.
+ * Call in beforeAll() to start each test file with clean state.
+ * Keeps the conversation row so ensureConversation can reuse it.
+ */
+export const cleanupMessagingData = async (
+  client: SupabaseClient,
+  emailA: string,
+  emailB: string
+): Promise<void> => {
+  const [idA, idB] = await Promise.all([
+    getUserIdByEmail(client, emailA),
+    getUserIdByEmail(client, emailB),
+  ]);
+  if (!idA || !idB) return;
+
+  const p1 = idA < idB ? idA : idB;
+  const p2 = idA < idB ? idB : idA;
+
+  const { data: conversations } = await client
+    .from('conversations')
+    .select('id')
+    .eq('participant_1_id', p1)
+    .eq('participant_2_id', p2);
+
+  if (conversations) {
+    for (const conv of conversations) {
+      await client.from('messages').delete().eq('conversation_id', conv.id);
+    }
+  }
+};

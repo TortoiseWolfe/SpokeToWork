@@ -723,3 +723,21 @@ test.describe('Scroll Restoration', () => {
     ).toBeLessThan(100);
   });
 });
+
+/**
+ * Clean up the 1000 seeded messages after all tests complete.
+ * Without this, subsequent messaging tests pick up stale data
+ * from the performance conversation.
+ */
+test.afterAll(async () => {
+  if (!conversationId) return;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceKey) return;
+
+  const supabase = createClient(supabaseUrl, serviceKey);
+  await supabase
+    .from('messages')
+    .delete()
+    .eq('conversation_id', conversationId);
+});

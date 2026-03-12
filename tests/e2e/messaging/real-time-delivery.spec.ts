@@ -11,6 +11,7 @@ import {
   getAdminClient,
   ensureConnection,
   ensureConversation,
+  cleanupMessagingData,
   completeEncryptionSetup,
   dismissCookieBanner,
   dismissReAuthModal,
@@ -31,121 +32,47 @@ const TEST_USER_2 = {
 };
 
 /**
- * Create or find existing conversation between two users.
- * Returns conversationId and whether encryption keys were successfully unlocked.
+ * Navigate both pages directly to the seeded conversation.
+ * Connection + conversation are seeded by admin client in beforeEach,
+ * so no UI-based friend request flow is needed.
  */
-async function setupConversation(
+async function navigateBothToConversation(
   page1: Page,
-  page2: Page
-): Promise<{ conversationId: string | null; encryptionReady: boolean }> {
-  // User 1: Navigate to connections page and send friend request if not already connected
-  await page1.goto('/messages?tab=connections');
+  page2: Page,
+  convId: string
+): Promise<void> {
+  await page1.goto(`/messages?conversation=${convId}`);
   await dismissCookieBanner(page1);
   await completeEncryptionSetup(page1);
   await dismissReAuthModal(page1);
 
-  // Check if already connected — click "Accepted" tab (the actual connected state)
-  const acceptedTab = page1.locator('button:has-text("Accepted")');
-  if (await acceptedTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await acceptedTab.click();
-  }
-  const alreadyConnected = await page1
-    .locator(`text=${TEST_USER_2.email}`)
-    .isVisible({ timeout: 3000 })
-    .catch(() => false);
-
-  if (!alreadyConnected) {
-    // Search for User 2
-    const searchInput = page1.locator('#user-search-input');
-    await searchInput.fill(TEST_USER_2.email);
-    await searchInput.press('Enter');
-
-    // Send friend request
-    const sendButton = page1.locator(
-      `button:has-text("Send Request"):near(:text("${TEST_USER_2.email}"))`
-    );
-    if (await sendButton.isVisible()) {
-      await sendButton.click();
-      await expect(page1.locator('text=Friend request sent')).toBeVisible();
-    }
-
-    // User 2: Accept friend request
-    await page2.goto('/messages?tab=connections');
-    await dismissCookieBanner(page2);
-    await completeEncryptionSetup(page2, TEST_USER_2.password);
-    await dismissReAuthModal(page2, TEST_USER_2.password);
-    try {
-      await page2.click('button:has-text("Pending Received")');
-    } catch {
-      // Page may have reloaded during encryption — retry
-      await page2.reload();
-      await dismissCookieBanner(page2);
-      await completeEncryptionSetup(page2, TEST_USER_2.password);
-      await dismissReAuthModal(page2, TEST_USER_2.password);
-      await page2.click('button:has-text("Pending Received")');
-    }
-
-    const acceptButton = page2.locator(
-      `button:has-text("Accept"):near(:text("${TEST_USER_1.email}"))`
-    );
-    if (await acceptButton.isVisible()) {
-      await acceptButton.click();
-      await expect(page2.locator('text=Friend request accepted')).toBeVisible();
-    }
-  }
-
-  // Both users navigate to messages page
-  await page1.goto('/messages');
-  await dismissCookieBanner(page1);
-  await completeEncryptionSetup(page1);
-  await dismissReAuthModal(page1);
-  await page2.goto('/messages');
+  await page2.goto(`/messages?conversation=${convId}`);
   await dismissCookieBanner(page2);
   await completeEncryptionSetup(page2, TEST_USER_2.password);
   await dismissReAuthModal(page2, TEST_USER_2.password);
-
-  // User 1: Click on conversation with User 2
-  // ConversationListItem renders <div data-testid="conversation-*"> with display_name (email prefix)
-  const displayName2 = TEST_USER_2.email.split('@')[0];
-  const conversationItem = page1
-    .locator('[data-testid*="conversation"]')
-    .filter({ hasText: displayName2 });
-  await conversationItem.waitFor({ state: 'visible', timeout: 15000 });
-  await conversationItem.locator('button').first().click();
-
-  // Wait for conversation to load — URL uses ?conversation= query param
-  await page1.waitForURL(/.*\/messages\/?\?conversation=.*/, {
-    timeout: 10000,
-  });
-
-  // Extract conversation ID from URL query param
-  const url1 = new URL(page1.url());
-  const conversationId = url1.searchParams.get('conversation');
-
-  if (conversationId) {
-    // User 2: Navigate to same conversation (hard navigation triggers re-auth modal)
-    await page2.goto(`/messages?conversation=${conversationId}`);
-    await dismissCookieBanner(page2);
-    await completeEncryptionSetup(page2, TEST_USER_2.password);
-    await dismissReAuthModal(page2, TEST_USER_2.password);
-  }
-
-  return {
-    conversationId,
-    encryptionReady: true,
-  };
 }
 
 test.describe('Real-time Message Delivery (T098)', () => {
-  // beforeEach runs 2× loginAndVerify + setupConversation — needs 90s+ on webkit
+  // beforeEach runs 2× loginAndVerify + navigation — needs 90s+ on webkit
   test.describe.configure({ timeout: 120000 });
 
   let context1: BrowserContext;
   let context2: BrowserContext;
   let page1: Page;
   let page2: Page;
+  let conversationId: string | null = null;
 
-  test.beforeEach(async ({ browser, browserName }) => {
+  test.beforeAll(async () => {
+    if (adminClient) {
+      await cleanupMessagingData(
+        adminClient,
+        TEST_USER_1.email,
+        TEST_USER_2.email
+      );
+    }
+  });
+
+  test.beforeEach(async ({ browser }) => {
     // These tests require two authenticated users with encryption keys.
     test.skip(
       !TEST_USER_1.password || !TEST_USER_2.password,
@@ -155,7 +82,7 @@ test.describe('Real-time Message Delivery (T098)', () => {
     // Seed connection + conversation so messaging UI has data
     if (adminClient) {
       await ensureConnection(adminClient, TEST_USER_1.email, TEST_USER_2.email);
-      await ensureConversation(
+      conversationId = await ensureConversation(
         adminClient,
         TEST_USER_1.email,
         TEST_USER_2.email
@@ -187,16 +114,8 @@ test.describe('Real-time Message Delivery (T098)', () => {
 
   test('should deliver message in <500ms between two windows', async () => {
     test.setTimeout(60000);
-    // Setup: Establish connection and navigate to conversation
-    const { conversationId, encryptionReady } = await setupConversation(
-      page1,
-      page2
-    );
-    test.skip(
-      !encryptionReady,
-      'Encryption keys could not be unlocked — messaging requires encryption'
-    );
     expect(conversationId).not.toBeNull();
+    await navigateBothToConversation(page1, page2, conversationId!);
 
     // Wait for Realtime subscriptions to establish on both pages
     await page1.waitForTimeout(3000);
@@ -241,16 +160,8 @@ test.describe('Real-time Message Delivery (T098)', () => {
 
   test('should show delivery status (sent → delivered → read)', async () => {
     test.setTimeout(60000);
-    // Setup: Establish connection and navigate to conversation
-    const { conversationId, encryptionReady } = await setupConversation(
-      page1,
-      page2
-    );
-    test.skip(
-      !encryptionReady,
-      'Encryption keys could not be unlocked — messaging requires encryption'
-    );
     expect(conversationId).not.toBeNull();
+    await navigateBothToConversation(page1, page2, conversationId!);
 
     // User 1: Send a message
     const testMessage = `Delivery status test ${Date.now()}`;
@@ -287,16 +198,8 @@ test.describe('Real-time Message Delivery (T098)', () => {
 
   test('should handle rapid message exchanges', async () => {
     test.setTimeout(60000);
-    // Setup: Establish connection and navigate to conversation
-    const { conversationId, encryptionReady } = await setupConversation(
-      page1,
-      page2
-    );
-    test.skip(
-      !encryptionReady,
-      'Encryption keys could not be unlocked — messaging requires encryption'
-    );
     expect(conversationId).not.toBeNull();
+    await navigateBothToConversation(page1, page2, conversationId!);
 
     // User 1: Send 3 messages rapidly
     const messages = [
@@ -332,8 +235,9 @@ test.describe('Typing Indicators (T099)', () => {
   let context2: BrowserContext;
   let page1: Page;
   let page2: Page;
+  let conversationId: string | null = null;
 
-  test.beforeEach(async ({ browser, browserName }) => {
+  test.beforeEach(async ({ browser }) => {
     test.skip(
       !TEST_USER_1.password || !TEST_USER_2.password,
       'Missing PRIMARY or SECONDARY test user credentials'
@@ -341,7 +245,7 @@ test.describe('Typing Indicators (T099)', () => {
 
     if (adminClient) {
       await ensureConnection(adminClient, TEST_USER_1.email, TEST_USER_2.email);
-      await ensureConversation(
+      conversationId = await ensureConversation(
         adminClient,
         TEST_USER_1.email,
         TEST_USER_2.email
@@ -373,16 +277,8 @@ test.describe('Typing Indicators (T099)', () => {
 
   test('should show typing indicator when user types', async () => {
     test.setTimeout(60000);
-    // Setup: Establish connection and navigate to conversation
-    const { conversationId, encryptionReady } = await setupConversation(
-      page1,
-      page2
-    );
-    test.skip(
-      !encryptionReady,
-      'Encryption keys could not be unlocked — messaging requires encryption'
-    );
     expect(conversationId).not.toBeNull();
+    await navigateBothToConversation(page1, page2, conversationId!);
 
     // User 1: Start typing
     await page1.fill('textarea[placeholder*="Type"]', 'Hello');
@@ -397,16 +293,8 @@ test.describe('Typing Indicators (T099)', () => {
 
   test('should hide typing indicator when user stops typing', async () => {
     test.setTimeout(60000);
-    // Setup: Establish connection and navigate to conversation
-    const { conversationId, encryptionReady } = await setupConversation(
-      page1,
-      page2
-    );
-    test.skip(
-      !encryptionReady,
-      'Encryption keys could not be unlocked — messaging requires encryption'
-    );
     expect(conversationId).not.toBeNull();
+    await navigateBothToConversation(page1, page2, conversationId!);
 
     // User 1: Start typing
     await page1.fill('textarea[placeholder*="Type"]', 'Hello');
@@ -424,16 +312,8 @@ test.describe('Typing Indicators (T099)', () => {
 
   test('should remove typing indicator when message is sent', async () => {
     test.setTimeout(60000);
-    // Setup: Establish connection and navigate to conversation
-    const { conversationId, encryptionReady } = await setupConversation(
-      page1,
-      page2
-    );
-    test.skip(
-      !encryptionReady,
-      'Encryption keys could not be unlocked — messaging requires encryption'
-    );
     expect(conversationId).not.toBeNull();
+    await navigateBothToConversation(page1, page2, conversationId!);
 
     // User 1: Start typing
     const testMessage = `Typing test ${Date.now()}`;
@@ -456,16 +336,8 @@ test.describe('Typing Indicators (T099)', () => {
 
   test('should show multiple typing indicators correctly', async () => {
     test.setTimeout(60000);
-    // Setup: Establish connection and navigate to conversation
-    const { conversationId, encryptionReady } = await setupConversation(
-      page1,
-      page2
-    );
-    test.skip(
-      !encryptionReady,
-      'Encryption keys could not be unlocked — messaging requires encryption'
-    );
     expect(conversationId).not.toBeNull();
+    await navigateBothToConversation(page1, page2, conversationId!);
 
     // User 1: Start typing
     await page1.fill('textarea[placeholder*="Type"]', 'User 1 typing');
@@ -488,16 +360,8 @@ test.describe('Typing Indicators (T099)', () => {
 
   test('should auto-expire typing indicator after 5 seconds', async () => {
     test.setTimeout(60000);
-    // Setup: Establish connection and navigate to conversation
-    const { conversationId, encryptionReady } = await setupConversation(
-      page1,
-      page2
-    );
-    test.skip(
-      !encryptionReady,
-      'Encryption keys could not be unlocked — messaging requires encryption'
-    );
     expect(conversationId).not.toBeNull();
+    await navigateBothToConversation(page1, page2, conversationId!);
 
     // User 1: Start typing
     await page1.fill('textarea[placeholder*="Type"]', 'Auto-expire test');
