@@ -48,6 +48,7 @@ jobs:
         run: pnpm build
         env:
           GITHUB_ACTIONS: false
+          NEXT_PUBLIC_E2E_TEST_MODE: 'true'
           NEXT_PUBLIC_EMAILJS_PUBLIC_KEY: ${{ secrets.EMAILJS_PUBLIC_KEY }}
           NEXT_PUBLIC_EMAILJS_SERVICE_ID: ${{ secrets.EMAILJS_SERVICE_ID }}
           NEXT_PUBLIC_EMAILJS_TEMPLATE_ID: ${{ secrets.EMAILJS_TEMPLATE_ID }}
@@ -113,6 +114,7 @@ jobs:
           CI: true
           SKIP_WEBSERVER: true
           BASE_URL: http://localhost:3000
+          NEXT_PUBLIC_E2E_TEST_MODE: 'true'
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TEST_USER_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
@@ -173,6 +175,7 @@ jobs:
           CI: true
           SKIP_WEBSERVER: true
           BASE_URL: http://localhost:3000
+          NEXT_PUBLIC_E2E_TEST_MODE: 'true'
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
           TEST_USER_PRIMARY_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
@@ -256,6 +259,7 @@ jobs:
           SKIP_WEBSERVER: true
           BASE_URL: http://localhost:3000
           DEBUG: pw:api
+          NEXT_PUBLIC_E2E_TEST_MODE: 'true'
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TEST_USER_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}

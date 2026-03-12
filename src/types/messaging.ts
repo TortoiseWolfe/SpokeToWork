@@ -442,15 +442,21 @@ export const CRYPTO_PARAMS = {
 /**
  * Argon2 configuration (OWASP recommended for password hashing)
  * Per FR-001: Argon2id with memory=65536 (64MB), timeCost=3, parallelism=4, hashLength=32
+ *
+ * In E2E test builds (NEXT_PUBLIC_E2E_TEST_MODE=true), parameters are reduced
+ * to avoid 30-60 second key derivation blocking every test. Test builds are
+ * ephemeral CI artifacts, never deployed to production.
  */
+const isE2ETestMode = process.env.NEXT_PUBLIC_E2E_TEST_MODE === 'true';
+
 export const ARGON2_CONFIG = {
-  TYPE: 'argon2id', // Hybrid of argon2i and argon2d (best for passwords)
-  MEMORY_COST: 65536, // 64 MB
-  TIME_COST: 3, // 3 iterations
-  PARALLELISM: 4, // 4 parallel lanes
+  TYPE: 'argon2id' as const, // Hybrid of argon2i and argon2d (best for passwords)
+  MEMORY_COST: isE2ETestMode ? 1024 : 65536, // 1 MB (test) vs 64 MB (prod)
+  TIME_COST: isE2ETestMode ? 1 : 3, // 1 (test) vs 3 iterations (prod)
+  PARALLELISM: isE2ETestMode ? 1 : 4, // 1 (test) vs 4 parallel lanes (prod)
   HASH_LENGTH: 32, // 256 bits for P-256 seed
   SALT_LENGTH: 16, // 16 bytes
-} as const;
+};
 
 export const OFFLINE_QUEUE_CONFIG = {
   MAX_RETRIES: 5,

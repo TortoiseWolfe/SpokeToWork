@@ -14,6 +14,7 @@ import * as crypto from 'crypto';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { executeSQL } from './utils/supabase-admin';
 import { createTestUser } from './utils/test-user-factory';
+import { ARGON2_CONFIG } from '../../src/types/messaging';
 
 /** Admin Supabase client for local dev (bypasses RLS, works without Management API) */
 function getAdminClient(): SupabaseClient | null {
@@ -303,40 +304,24 @@ async function ensureTestUserKeys(): Promise<void> {
         }
       }
 
-      // 2. Check for existing non-revoked keys with salt — try SQL, fall back to admin client
-      let hasKeys = false;
-      const existing = (await executeSQL(
-        `SELECT id FROM user_encryption_keys WHERE user_id = '${userId}' AND revoked = false AND encryption_salt IS NOT NULL`
-      )) as { id: string }[];
-      hasKeys = !!existing[0]?.id;
-
-      if (!hasKeys && adminClient && existing.length === 0) {
-        // executeSQL returned empty (might have skipped) — check via admin client
-        const { data: keyRows } = await adminClient
-          .from('user_encryption_keys')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('revoked', false)
-          .not('encryption_salt', 'is', null);
-        hasKeys = !!(keyRows && keyRows.length > 0);
-      }
-
-      if (hasKeys) {
-        console.log(`  ✓ ${email} already has encryption keys`);
-        continue;
-      }
+      // 2. Delete existing keys — always recreate to match current ARGON2_CONFIG
+      //    (keys from previous runs may use different Argon2 parameters)
+      await executeSQL(
+        `DELETE FROM user_encryption_keys WHERE user_id = '${userId}'`
+      );
 
       // 3. Generate random salt (16 bytes, matching ARGON2_CONFIG.SALT_LENGTH)
       const salt = crypto.randomBytes(16);
 
-      // 4. Argon2id hash — same params as ARGON2_CONFIG in src/types/messaging.ts
+      // 4. Argon2id hash — uses ARGON2_CONFIG from src/types/messaging.ts
+      //    In E2E test mode: ~1s. In production: 10-30s.
       const seed = await argon2id({
         password,
         salt,
-        parallelism: 4, // ARGON2_CONFIG.PARALLELISM
-        iterations: 3, // ARGON2_CONFIG.TIME_COST
-        memorySize: 65536, // ARGON2_CONFIG.MEMORY_COST (64 MB)
-        hashLength: 32, // ARGON2_CONFIG.HASH_LENGTH
+        parallelism: ARGON2_CONFIG.PARALLELISM,
+        iterations: ARGON2_CONFIG.TIME_COST,
+        memorySize: ARGON2_CONFIG.MEMORY_COST,
+        hashLength: ARGON2_CONFIG.HASH_LENGTH,
         outputType: 'binary',
       });
 
