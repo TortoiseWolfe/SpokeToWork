@@ -364,9 +364,11 @@ test.describe('Offline Message Queue', () => {
       // Reload both pages to re-establish Supabase channels, then verify.
       await pageA.reload();
       await dismissCookieBanner(pageA);
+      await completeEncryptionSetup(pageA);
       await dismissReAuthModal(pageA);
       await pageB.reload();
       await dismissCookieBanner(pageB);
+      await completeEncryptionSetup(pageB, USER_B.password);
       await dismissReAuthModal(pageB, USER_B.password);
 
       // Wait for conversation view to load after reload
