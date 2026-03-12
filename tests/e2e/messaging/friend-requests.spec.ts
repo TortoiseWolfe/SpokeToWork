@@ -223,9 +223,9 @@ test.describe('Friend Request Flow', () => {
       });
       await receivedTab.click({ force: true });
 
-      // Wait for request to appear
+      // Wait for request to appear (Supabase realtime propagation can be slow on CI)
       await pageB.waitForSelector('[data-testid="connection-request"]', {
-        timeout: 5000,
+        timeout: 15000,
       });
 
       // ===== STEP 8: User B accepts the request =====
@@ -337,7 +337,7 @@ test.describe('Friend Request Flow', () => {
       await receivedTab.click({ force: true });
 
       await pageA.waitForSelector('[data-testid="connection-request"]', {
-        timeout: 5000,
+        timeout: 15000,
       });
 
       // Decline the request
@@ -392,9 +392,9 @@ test.describe('Friend Request Flow', () => {
     // Go to "Sent" tab
     await sentTab.click({ force: true });
 
-    // Find the pending request
+    // Find the pending request (Supabase realtime propagation can be slow on CI)
     await page.waitForSelector('[data-testid="connection-request"]', {
-      timeout: 5000,
+      timeout: 15000,
     });
 
     // Cancel the request

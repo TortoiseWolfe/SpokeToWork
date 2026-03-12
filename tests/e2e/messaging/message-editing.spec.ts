@@ -125,6 +125,7 @@ async function navigateToConversation(page: Page) {
     await conversationButton.click({ timeout: 15000 });
   } catch {
     await page.goto('/messages?tab=chats');
+    await dismissReAuthModal(page);
     await page.waitForTimeout(2000);
     await conversationButton.click({ timeout: 15000 });
   }

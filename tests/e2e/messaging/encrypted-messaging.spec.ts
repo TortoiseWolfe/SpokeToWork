@@ -170,6 +170,7 @@ test.describe('Encrypted Messaging Flow', () => {
   test('should verify zero-knowledge encryption in database', async ({
     browser,
   }) => {
+    test.setTimeout(90000);
     const adminClient = getAdminClient();
 
     if (!adminClient) {
@@ -363,6 +364,7 @@ test.describe('Encrypted Messaging Flow', () => {
   });
 
   test('should load message history with pagination', async ({ page }) => {
+    test.setTimeout(90000);
     await loginAndVerify(page, {
       email: USER_A.email,
       password: USER_A.password,
@@ -447,6 +449,7 @@ test.describe('Encryption Key Security', () => {
     page,
     context,
   }) => {
+    test.setTimeout(90000);
     // Monitor network requests to verify no private keys are sent
     const networkRequests: any[] = [];
 

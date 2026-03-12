@@ -363,16 +363,17 @@ test.describe('Offline Message Queue', () => {
         );
       }
 
-      // ===== STEP 8: Both users should see same order =====
+      // ===== STEP 8: Both users should see messages from this test =====
       // Real-time updates should sync the final order to both clients
       await pageA.waitForTimeout(2000);
       await pageB.waitForTimeout(2000);
 
-      const messagesA = await pageA.locator('[data-testid*="message"]').all();
-      const messagesB = await pageB.locator('[data-testid*="message"]').all();
-
-      // Both should see the same number of messages
-      expect(messagesA.length).toBe(messagesB.length);
+      // Verify both users see the specific messages sent in THIS test
+      // (not a total count — accumulated messages from prior runs make counts unreliable)
+      await expect(pageA.getByText(messageA)).toBeVisible({ timeout: 10000 });
+      await expect(pageA.getByText(messageB)).toBeVisible({ timeout: 10000 });
+      await expect(pageB.getByText(messageA)).toBeVisible({ timeout: 10000 });
+      await expect(pageB.getByText(messageB)).toBeVisible({ timeout: 10000 });
     } finally {
       await contextA.close();
       await contextB.close();
