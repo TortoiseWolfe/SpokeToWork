@@ -68,8 +68,8 @@ function sleep(ms: number): Promise<void> {
  */
 async function executeSQL(
   query: string,
-  retries = 3,
-  baseDelay = 1000
+  retries = 5,
+  baseDelay = 2000
 ): Promise<SQLResult[]> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     const response = await fetch(
@@ -88,10 +88,13 @@ async function executeSQL(
       return response.json();
     }
 
-    // Handle rate limiting with exponential backoff
+    // Handle rate limiting with exponential backoff + jitter
     if (response.status === 429 && attempt < retries) {
-      const delay = baseDelay * Math.pow(2, attempt);
-      console.log(`Rate limited, retrying in ${delay}ms...`);
+      const jitter = Math.random() * 1000;
+      const delay = baseDelay * Math.pow(2, attempt) + jitter;
+      console.log(
+        `Rate limited, retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${retries})...`
+      );
       await sleep(delay);
       continue;
     }
