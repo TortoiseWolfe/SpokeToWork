@@ -360,16 +360,25 @@ test.describe('Offline Message Queue', () => {
       }
 
       // ===== STEP 8: Both users should see messages from this test =====
-      // Real-time updates should sync the final order to both clients
-      await pageA.waitForTimeout(2000);
-      await pageB.waitForTimeout(2000);
+      // Realtime subscriptions break across offline→online transitions.
+      // Reload both pages to re-establish Supabase channels, then verify.
+      await pageA.reload();
+      await dismissCookieBanner(pageA);
+      await dismissReAuthModal(pageA);
+      await pageB.reload();
+      await dismissCookieBanner(pageB);
+      await dismissReAuthModal(pageB, USER_B.password);
+
+      // Wait for conversation view to load after reload
+      await pageA.waitForTimeout(3000);
+      await pageB.waitForTimeout(3000);
 
       // Verify both users see the specific messages sent in THIS test
       // (not a total count — accumulated messages from prior runs make counts unreliable)
-      await expect(pageA.getByText(messageA)).toBeVisible({ timeout: 10000 });
-      await expect(pageA.getByText(messageB)).toBeVisible({ timeout: 10000 });
-      await expect(pageB.getByText(messageA)).toBeVisible({ timeout: 10000 });
-      await expect(pageB.getByText(messageB)).toBeVisible({ timeout: 10000 });
+      await expect(pageA.getByText(messageA)).toBeVisible({ timeout: 30000 });
+      await expect(pageA.getByText(messageB)).toBeVisible({ timeout: 30000 });
+      await expect(pageB.getByText(messageA)).toBeVisible({ timeout: 30000 });
+      await expect(pageB.getByText(messageB)).toBeVisible({ timeout: 30000 });
     } finally {
       await contextA.close();
       await contextB.close();

@@ -140,9 +140,10 @@ async function navigateToConversation(page: Page) {
     await conversationButton.click({ timeout: 15000 });
   } catch {
     await page.goto('/messages?tab=chats');
+    await dismissCookieBanner(page);
+    await completeEncryptionSetup(page);
     await dismissReAuthModal(page);
-    await page.waitForTimeout(2000);
-    await conversationButton.click({ timeout: 15000 });
+    await conversationButton.click({ timeout: 30000 });
   }
 
   // Wait for conversation to open

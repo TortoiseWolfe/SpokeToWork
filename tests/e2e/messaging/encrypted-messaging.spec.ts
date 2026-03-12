@@ -356,9 +356,10 @@ test.describe('Encrypted Messaging Flow', () => {
       // Reload User A's page to see updated read status
       await pageA.reload();
       await dismissCookieBanner(pageA);
+      await completeEncryptionSetup(pageA);
       await dismissReAuthModal(pageA);
       await expect(pageA.getByText(testMessage)).toBeVisible({
-        timeout: 15000,
+        timeout: 30000,
       });
 
       const updatedMessageBubble = pageA

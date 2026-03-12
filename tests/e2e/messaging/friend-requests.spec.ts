@@ -224,9 +224,20 @@ test.describe('Friend Request Flow', () => {
       await receivedTab.click({ force: true });
 
       // Wait for request to appear (Supabase realtime propagation can be slow on CI)
-      await pageB.waitForSelector('[data-testid="connection-request"]', {
-        timeout: 15000,
-      });
+      // Reload fallback for read replica lag — especially needed on webkit
+      try {
+        await pageB.waitForSelector('[data-testid="connection-request"]', {
+          timeout: 15000,
+        });
+      } catch {
+        await pageB.reload();
+        await dismissCookieBanner(pageB);
+        await dismissReAuthModal(pageB, USER_B.password);
+        await receivedTab.click({ force: true });
+        await pageB.waitForSelector('[data-testid="connection-request"]', {
+          timeout: 30000,
+        });
+      }
 
       // ===== STEP 8: User B accepts the request =====
       // Scope to connection request element to avoid matching cookie "Accept All"
