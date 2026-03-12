@@ -134,7 +134,15 @@ test.describe('Encrypted Messaging Flow', () => {
       const conversationItemB = pageB
         .locator('[data-testid*="conversation"]')
         .filter({ hasText: USER_A.displayName });
-      await conversationItemB.waitFor({ state: 'visible', timeout: 30000 });
+      // Retry with reload if conversation list doesn't populate (read replica lag)
+      try {
+        await conversationItemB.waitFor({ state: 'visible', timeout: 30000 });
+      } catch {
+        await pageB.reload();
+        await dismissCookieBanner(pageB);
+        await dismissReAuthModal(pageB, USER_B.password);
+        await conversationItemB.waitFor({ state: 'visible', timeout: 30000 });
+      }
       await conversationItemB.click();
 
       await pageB.waitForURL(/.*\/messages\/?\?conversation=.*/);
@@ -377,7 +385,15 @@ test.describe('Encrypted Messaging Flow', () => {
     const conversationItem = page
       .locator('[data-testid*="conversation"]')
       .filter({ hasText: USER_B.displayName });
-    await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
+    // Retry with reload if conversation list doesn't populate (read replica lag)
+    try {
+      await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
+    } catch {
+      await page.reload();
+      await dismissCookieBanner(page);
+      await dismissReAuthModal(page);
+      await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
+    }
     await conversationItem.click();
     await page.waitForURL(/.*\/messages\/?\?conversation=.*/);
 

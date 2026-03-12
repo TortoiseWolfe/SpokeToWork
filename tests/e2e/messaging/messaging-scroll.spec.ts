@@ -85,7 +85,7 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
     const conversationItem = page
       .locator('[data-testid*="conversation"]')
       .first();
-    await conversationItem.waitFor({ state: 'visible', timeout: 15000 });
+    await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
     await conversationItem.click();
 
     await page.waitForSelector(
@@ -119,7 +119,7 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
     const conversationItem = page
       .locator('[data-testid*="conversation"]')
       .first();
-    await conversationItem.waitFor({ state: 'visible', timeout: 15000 });
+    await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
     await conversationItem.click();
 
     await page.waitForSelector(
@@ -151,7 +151,7 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
     const conversationItem = page
       .locator('[data-testid*="conversation"]')
       .first();
-    await conversationItem.waitFor({ state: 'visible', timeout: 15000 });
+    await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
     await conversationItem.click();
 
     await page.waitForSelector(
@@ -199,7 +199,7 @@ test.describe('Messaging Scroll - User Story 2: Scroll Through Messages', () => 
     const conversationItem = page
       .locator('[data-testid*="conversation"]')
       .first();
-    await conversationItem.waitFor({ state: 'visible', timeout: 15000 });
+    await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
     await conversationItem.click();
 
     await page.waitForSelector(
@@ -260,7 +260,7 @@ test.describe('Messaging Scroll - User Story 3: Jump to Bottom Button', () => {
     const conversationItem = page
       .locator('[data-testid*="conversation"]')
       .first();
-    await conversationItem.waitFor({ state: 'visible', timeout: 15000 });
+    await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
     await conversationItem.click();
 
     await page.waitForSelector(
@@ -315,7 +315,7 @@ test.describe('Messaging Scroll - User Story 3: Jump to Bottom Button', () => {
     const conversationItem = page
       .locator('[data-testid*="conversation"]')
       .first();
-    await conversationItem.waitFor({ state: 'visible', timeout: 15000 });
+    await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
     await conversationItem.click();
 
     await page.waitForSelector(

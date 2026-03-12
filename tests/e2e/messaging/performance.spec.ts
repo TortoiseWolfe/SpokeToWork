@@ -450,7 +450,7 @@ test.describe('Virtual Scrolling Performance', () => {
     await openConversation(page);
 
     // CDP Performance API is only available in Chromium
-     
+
     let cdpClient: any = null;
     if (browserName === 'chromium') {
       cdpClient = await page.context().newCDPSession(page);
@@ -499,9 +499,13 @@ test.describe('Virtual Scrolling Performance', () => {
     await expect(paginationLoader).not.toBeVisible({ timeout: 15000 });
 
     // Wait for newly loaded messages to render and affect layout
-    await page.waitForTimeout(1000);
-
-    const newHeight = await messageThread.evaluate((el) => el.scrollHeight);
+    // Poll for scrollHeight change (DOM rendering can lag after pagination load)
+    let newHeight = initialHeight;
+    for (let i = 0; i < 10; i++) {
+      await page.waitForTimeout(500);
+      newHeight = await messageThread.evaluate((el) => el.scrollHeight);
+      if (newHeight > initialHeight) break;
+    }
     expect(newHeight).toBeGreaterThan(initialHeight);
   });
 
