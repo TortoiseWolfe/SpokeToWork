@@ -7,6 +7,7 @@ import {
   dismissReAuthModal,
   dismissCookieBanner,
 } from './test-helpers';
+import { loginAndVerify } from '../utils/auth-helpers';
 
 /**
  * Messaging Scroll E2E Tests
@@ -65,29 +66,10 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
     }
 
     // Login as test user
-    await page.goto('/sign-in');
-    await page.fill(
-      'input[type="email"]',
-      process.env.TEST_USER_PRIMARY_EMAIL!
-    );
-    await page.fill(
-      'input[type="password"]',
-      process.env.TEST_USER_PRIMARY_PASSWORD!
-    );
-    await page.click('button[type="submit"]');
-    // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
-    try {
-      await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-        timeout: 45000,
-      });
-    } catch {
-      await page.waitForLoadState('domcontentloaded');
-      if (page.url().includes('/sign-in')) {
-        throw new Error('Sign-in failed after 45s');
-      }
-    }
-    // Wait for auth session to fully persist before navigating
-    await page.waitForLoadState('networkidle');
+    await loginAndVerify(page, {
+      email: process.env.TEST_USER_PRIMARY_EMAIL!,
+      password: process.env.TEST_USER_PRIMARY_PASSWORD!,
+    });
   });
 
   test('T003: Message input visible on mobile viewport (375x667)', async ({
@@ -199,28 +181,10 @@ test.describe('Messaging Scroll - User Story 2: Scroll Through Messages', () => 
       await ensureConversation(adminClient, USER_A_EMAIL, USER_B_EMAIL);
     }
 
-    await page.goto('/sign-in');
-    await page.fill(
-      'input[type="email"]',
-      process.env.TEST_USER_PRIMARY_EMAIL!
-    );
-    await page.fill(
-      'input[type="password"]',
-      process.env.TEST_USER_PRIMARY_PASSWORD!
-    );
-    await page.click('button[type="submit"]');
-    // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
-    try {
-      await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-        timeout: 45000,
-      });
-    } catch {
-      await page.waitForLoadState('domcontentloaded');
-      if (page.url().includes('/sign-in')) {
-        throw new Error('Sign-in failed after 45s');
-      }
-    }
-    await page.waitForLoadState('networkidle');
+    await loginAndVerify(page, {
+      email: process.env.TEST_USER_PRIMARY_EMAIL!,
+      password: process.env.TEST_USER_PRIMARY_PASSWORD!,
+    });
   });
 
   test('T006: Scroll container constrained to MessageThread', async ({
@@ -278,28 +242,10 @@ test.describe('Messaging Scroll - User Story 3: Jump to Bottom Button', () => {
       await ensureConversation(adminClient, USER_A_EMAIL, USER_B_EMAIL);
     }
 
-    await page.goto('/sign-in');
-    await page.fill(
-      'input[type="email"]',
-      process.env.TEST_USER_PRIMARY_EMAIL!
-    );
-    await page.fill(
-      'input[type="password"]',
-      process.env.TEST_USER_PRIMARY_PASSWORD!
-    );
-    await page.click('button[type="submit"]');
-    // WebKit: NS_BINDING_ABORTED can cause waitForURL to miss the redirect
-    try {
-      await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-        timeout: 45000,
-      });
-    } catch {
-      await page.waitForLoadState('domcontentloaded');
-      if (page.url().includes('/sign-in')) {
-        throw new Error('Sign-in failed after 45s');
-      }
-    }
-    await page.waitForLoadState('networkidle');
+    await loginAndVerify(page, {
+      email: process.env.TEST_USER_PRIMARY_EMAIL!,
+      password: process.env.TEST_USER_PRIMARY_PASSWORD!,
+    });
   });
 
   test('T007-T008: Jump button appears when scrolled and does not overlap input', async ({

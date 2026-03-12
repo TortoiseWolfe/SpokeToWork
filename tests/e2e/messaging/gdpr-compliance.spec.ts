@@ -7,6 +7,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { loginAndVerify } from '../utils/auth-helpers';
 
 // Test user - use PRIMARY from standardized test fixtures (Feature 026)
 // No fallbacks allowed per security requirements (047-test-security)
@@ -18,21 +19,10 @@ const TEST_USER = {
 test.describe('GDPR Data Export', () => {
   test.beforeEach(async ({ page }) => {
     // Sign in as test user
-    await page.goto('/sign-in');
-    await page.waitForLoadState('networkidle');
-    await page.fill('#email', TEST_USER.email);
-    await page.fill('#password', TEST_USER.password);
-    await page.click('button[type="submit"]');
-    try {
-      await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-        timeout: 45000,
-      });
-    } catch {
-      await page.waitForLoadState('domcontentloaded');
-      if (page.url().includes('/sign-in')) {
-        throw new Error('Sign-in failed after 45s');
-      }
-    }
+    await loginAndVerify(page, {
+      email: TEST_USER.email,
+      password: TEST_USER.password,
+    });
 
     // Navigate to account settings
     await page.goto('/account');
@@ -172,21 +162,10 @@ test.describe('GDPR Account Deletion', () => {
   test.beforeEach(async ({ page }) => {
     // Sign in as test user
     // NOTE: Account deletion tests use mocked responses to prevent actual deletion
-    await page.goto('/sign-in');
-    await page.waitForLoadState('networkidle');
-    await page.fill('#email', TEST_USER.email);
-    await page.fill('#password', TEST_USER.password);
-    await page.click('button[type="submit"]');
-    try {
-      await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-        timeout: 45000,
-      });
-    } catch {
-      await page.waitForLoadState('domcontentloaded');
-      if (page.url().includes('/sign-in')) {
-        throw new Error('Sign-in failed after 45s');
-      }
-    }
+    await loginAndVerify(page, {
+      email: TEST_USER.email,
+      password: TEST_USER.password,
+    });
 
     // Navigate to account settings
     await page.goto('/account');
@@ -385,20 +364,10 @@ test.describe('GDPR Account Deletion', () => {
 
 test.describe('GDPR Accessibility', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/sign-in');
-    await page.fill('input[type="email"]', TEST_USER.email);
-    await page.fill('input[type="password"]', TEST_USER.password);
-    await page.click('button[type="submit"]');
-    try {
-      await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-        timeout: 45000,
-      });
-    } catch {
-      await page.waitForLoadState('domcontentloaded');
-      if (page.url().includes('/sign-in')) {
-        throw new Error('Sign-in failed after 45s');
-      }
-    }
+    await loginAndVerify(page, {
+      email: TEST_USER.email,
+      password: TEST_USER.password,
+    });
     await page.goto('/account');
   });
 

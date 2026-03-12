@@ -10,6 +10,7 @@ import {
   dismissCookieBanner,
   dismissReAuthModal,
 } from './test-helpers';
+import { loginAndVerify } from '../utils/auth-helpers';
 
 const USER_A = {
   email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
@@ -222,12 +223,10 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
     try {
       // STEP 1: User A signs in
       console.log('Step 1: User A signing in...');
-      await pageA.goto('/sign-in');
-      await pageA.waitForLoadState('networkidle');
-      await pageA.fill('#email', USER_A.email);
-      await pageA.fill('#password', USER_A.password);
-      await pageA.click('button[type="submit"]');
-      await pageA.waitForURL(/.*\/profile/, { timeout: 45000 });
+      await loginAndVerify(pageA, {
+        email: USER_A.email,
+        password: USER_A.password,
+      });
       console.log('Step 1: User A signed in');
 
       // STEP 2: Navigate to connections
@@ -332,12 +331,10 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
 
       // STEP 5: User B signs in
       console.log('Step 5: User B signing in...');
-      await pageB.goto('/sign-in');
-      await pageB.waitForLoadState('networkidle');
-      await pageB.fill('#email', USER_B.email);
-      await pageB.fill('#password', USER_B.password);
-      await pageB.click('button[type="submit"]');
-      await pageB.waitForURL(/.*\/profile/, { timeout: 45000 });
+      await loginAndVerify(pageB, {
+        email: USER_B.email,
+        password: USER_B.password,
+      });
       console.log('Step 5: User B signed in');
 
       // STEP 6: User B views pending requests
@@ -525,12 +522,10 @@ test.describe('Conversations Page Loading (Feature 029)', () => {
     test.setTimeout(30000);
 
     // Sign in
-    await page.goto('/sign-in');
-    await page.waitForLoadState('networkidle');
-    await page.fill('#email', USER_A.email);
-    await page.fill('#password', USER_A.password);
-    await page.click('button[type="submit"]', { force: true });
-    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
+    await loginAndVerify(page, {
+      email: USER_A.email,
+      password: USER_A.password,
+    });
 
     // Navigate to messaging page (Feature 037: /conversations redirects to /messages?tab=chats)
     await page.goto('/messages?tab=chats');
@@ -561,12 +556,10 @@ test.describe('Conversations Page Loading (Feature 029)', () => {
     test.setTimeout(30000);
 
     // Sign in
-    await page.goto('/sign-in');
-    await page.waitForLoadState('networkidle');
-    await page.fill('#email', USER_A.email);
-    await page.fill('#password', USER_A.password);
-    await page.click('button[type="submit"]', { force: true });
-    await page.waitForURL(/.*\/profile/, { timeout: 45000 });
+    await loginAndVerify(page, {
+      email: USER_A.email,
+      password: USER_A.password,
+    });
 
     // Navigate to messaging (Feature 037: /conversations redirects to /messages?tab=chats)
     await page.goto('/messages?tab=chats');

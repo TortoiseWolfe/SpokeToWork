@@ -25,8 +25,10 @@ import { loginAndVerify } from '../utils/auth-helpers';
 const BASE_URL = process.env.NEXT_PUBLIC_DEPLOY_URL || 'http://localhost:3000';
 
 // Test users - use PRIMARY and TERTIARY from standardized test fixtures (Feature 026)
+const USER_A_EMAIL = process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com';
 const USER_A = {
-  email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
+  displayName: USER_A_EMAIL.split('@')[0],
+  email: USER_A_EMAIL,
   password: process.env.TEST_USER_PRIMARY_PASSWORD!,
 };
 
@@ -92,11 +94,11 @@ test.describe('Encrypted Messaging Flow', () => {
       await expect(pageA).toHaveURL(/.*\/messages/);
 
       // ===== STEP 4: User A selects conversation with User B =====
-      // Click on the conversation with User B (should exist from friend request acceptance)
+      // Filter by User B's display name to ensure correct conversation
       const conversationItem = pageA
         .locator('[data-testid*="conversation"]')
-        .first();
-      await expect(conversationItem).toBeVisible({ timeout: 30000 });
+        .filter({ hasText: USER_B.displayName });
+      await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
       await conversationItem.click();
 
       // Wait for messages page to load
@@ -131,15 +133,15 @@ test.describe('Encrypted Messaging Flow', () => {
       // ===== STEP 8: User B opens conversation with User A =====
       const conversationItemB = pageB
         .locator('[data-testid*="conversation"]')
-        .first();
-      await expect(conversationItemB).toBeVisible({ timeout: 30000 });
+        .filter({ hasText: USER_A.displayName });
+      await conversationItemB.waitFor({ state: 'visible', timeout: 30000 });
       await conversationItemB.click();
 
       await pageB.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
       // ===== STEP 9: User B sees the decrypted message =====
       const messageB = pageB.getByText(testMessage);
-      await expect(messageB).toBeVisible({ timeout: 15000 });
+      await expect(messageB).toBeVisible({ timeout: 30000 });
 
       // ===== STEP 10: Verify User B can reply =====
       const replyMessage = `Reply from User B ${Date.now()}`;
@@ -192,7 +194,8 @@ test.describe('Encrypted Messaging Flow', () => {
       await dismissReAuthModal(pageA);
       const conversationItem = pageA
         .locator('[data-testid*="conversation"]')
-        .first();
+        .filter({ hasText: USER_B.displayName });
+      await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
       await conversationItem.click();
       await pageA.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
@@ -272,7 +275,8 @@ test.describe('Encrypted Messaging Flow', () => {
       await dismissReAuthModal(pageA);
       const conversationItem = pageA
         .locator('[data-testid*="conversation"]')
-        .first();
+        .filter({ hasText: USER_B.displayName });
+      await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
       await conversationItem.click();
       await pageA.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
@@ -321,7 +325,8 @@ test.describe('Encrypted Messaging Flow', () => {
       await dismissReAuthModal(pageB, USER_B.password);
       const conversationItemB = pageB
         .locator('[data-testid*="conversation"]')
-        .first();
+        .filter({ hasText: USER_A.displayName });
+      await conversationItemB.waitFor({ state: 'visible', timeout: 30000 });
       await conversationItemB.click();
       await pageB.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
@@ -369,7 +374,8 @@ test.describe('Encrypted Messaging Flow', () => {
     await dismissReAuthModal(page);
     const conversationItem = page
       .locator('[data-testid*="conversation"]')
-      .first();
+      .filter({ hasText: USER_B.displayName });
+    await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
     await conversationItem.click();
     await page.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
@@ -467,7 +473,8 @@ test.describe('Encryption Key Security', () => {
     await dismissReAuthModal(page);
     const conversationItem = page
       .locator('[data-testid*="conversation"]')
-      .first();
+      .filter({ hasText: USER_B.displayName });
+    await conversationItem.waitFor({ state: 'visible', timeout: 30000 });
     await conversationItem.click();
     await page.waitForURL(/.*\/messages\/?\?conversation=.*/);
 
