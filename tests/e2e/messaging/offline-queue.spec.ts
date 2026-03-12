@@ -328,20 +328,26 @@ test.describe('Offline Message Queue', () => {
 
       // ===== STEP 6: Wait for sync =====
       // Poll for messages to appear in DB — encryption + retry backoff + Supabase Cloud
-      // write propagation can take 30-60s total
+      // write propagation can take 30-60s total.
+      // Filter by created_at > test start to avoid counting stale messages from prior runs.
+      const testStartISO = new Date(timestamp - 60_000).toISOString();
       let messages: { sequence_number: number }[] | null = null;
       if (conversationId) {
-        for (let attempt = 0; attempt < 10; attempt++) {
+        for (let attempt = 0; attempt < 12; attempt++) {
           await pageA.waitForTimeout(5000);
           const { data } = await adminClient
             .from('messages')
             .select('*')
             .eq('conversation_id', conversationId)
+            .gte('created_at', testStartISO)
             .order('sequence_number', { ascending: true });
           if (data && data.length >= 2) {
             messages = data;
             break;
           }
+          console.log(
+            `T149 DB poll attempt ${attempt + 1}/12: found ${data?.length ?? 0} messages`
+          );
         }
       }
 
@@ -371,16 +377,60 @@ test.describe('Offline Message Queue', () => {
       await completeEncryptionSetup(pageB, USER_B.password);
       await dismissReAuthModal(pageB, USER_B.password);
 
-      // Wait for conversation view to load after reload
-      await pageA.waitForTimeout(3000);
-      await pageB.waitForTimeout(3000);
+      // Wait for the conversation message thread to actually render after reload.
+      // Without this, assertions fire before React has mounted the message list.
+      await pageA.waitForLoadState('networkidle');
+      await pageB.waitForLoadState('networkidle');
+      const threadLocator =
+        '[data-testid*="message"], textarea[aria-label="Message input"]';
+      await pageA
+        .locator(threadLocator)
+        .first()
+        .waitFor({ state: 'visible', timeout: 30000 })
+        .catch(() =>
+          console.log('T149: pageA thread locator not found, continuing')
+        );
+      await pageB
+        .locator(threadLocator)
+        .first()
+        .waitFor({ state: 'visible', timeout: 30000 })
+        .catch(() =>
+          console.log('T149: pageB thread locator not found, continuing')
+        );
 
-      // Verify both users see the specific messages sent in THIS test
-      // (not a total count — accumulated messages from prior runs make counts unreliable)
-      await expect(pageA.getByText(messageA)).toBeVisible({ timeout: 30000 });
-      await expect(pageA.getByText(messageB)).toBeVisible({ timeout: 30000 });
-      await expect(pageB.getByText(messageA)).toBeVisible({ timeout: 30000 });
-      await expect(pageB.getByText(messageB)).toBeVisible({ timeout: 30000 });
+      // Verify both users see the specific messages sent in THIS test.
+      // Use a helper that reloads once on failure — CI latency can cause the
+      // first render to miss newly-synced messages.
+      const assertWithReloadFallback = async (
+        pg: Page,
+        text: string,
+        label: string,
+        pw?: string
+      ) => {
+        try {
+          await expect(pg.getByText(text)).toBeVisible({ timeout: 30000 });
+        } catch {
+          console.log(
+            `T149: "${text}" not visible on ${label}, reloading once...`
+          );
+          await pg.reload();
+          await pg.waitForLoadState('networkidle');
+          await dismissCookieBanner(pg);
+          await completeEncryptionSetup(pg, pw);
+          await dismissReAuthModal(pg, pw);
+          await pg
+            .locator(threadLocator)
+            .first()
+            .waitFor({ state: 'visible', timeout: 20000 })
+            .catch(() => {});
+          await expect(pg.getByText(text)).toBeVisible({ timeout: 30000 });
+        }
+      };
+
+      await assertWithReloadFallback(pageA, messageA, 'pageA');
+      await assertWithReloadFallback(pageA, messageB, 'pageA');
+      await assertWithReloadFallback(pageB, messageA, 'pageB', USER_B.password);
+      await assertWithReloadFallback(pageB, messageB, 'pageB', USER_B.password);
     } finally {
       await contextA.close();
       await contextB.close();

@@ -42,8 +42,8 @@ function escapeSQL(str: string): string {
 
 async function executeSQL(
   query: string,
-  retries = 3,
-  baseDelay = 1000
+  retries = 5,
+  baseDelay = 2000
 ): Promise<unknown[]> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     const response = await fetch(
@@ -93,6 +93,11 @@ async function getAdminUserId(): Promise<string> {
 }
 
 test.describe('Welcome Message Flow', () => {
+  // Allow extra time for the beforeEach SQL calls — with 12 CI shards the
+  // Supabase Management API rate-limits (429) and retries eat into the
+  // default 30 s test timeout.
+  test.setTimeout(90_000);
+
   test.beforeEach(async () => {
     // Get test user ID (use ILIKE for case-insensitive match - Supabase stores lowercase)
     const users = (await executeSQL(

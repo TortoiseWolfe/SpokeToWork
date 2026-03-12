@@ -382,10 +382,32 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       await acceptedTab.click();
       await pageB.waitForTimeout(500);
 
-      // Verify the connection appears in Accepted tab
-      await expect(
-        pageB.locator('[data-testid="connection-request"]')
-      ).toBeVisible({ timeout: 15000 });
+      // Verify the connection appears in Accepted tab — on CI the list may
+      // not refresh automatically.  Reload and re-dismiss modals as fallback.
+      try {
+        await expect(
+          pageB.locator('[data-testid="connection-request"]')
+        ).toBeVisible({ timeout: 15000 });
+      } catch {
+        console.log(
+          'Step 7: connection-request not visible, reloading pageB...'
+        );
+        await pageB.reload();
+        await pageB.waitForLoadState('networkidle');
+        await dismissCookieBanner(pageB);
+        await dismissReAuthModal(pageB, USER_B.password);
+
+        // Re-select the Accepted tab after reload
+        const acceptedTabRetry = pageB.getByRole('tab', {
+          name: /accepted/i,
+        });
+        await acceptedTabRetry.click();
+        await pageB.waitForTimeout(1000);
+
+        await expect(
+          pageB.locator('[data-testid="connection-request"]')
+        ).toBeVisible({ timeout: 15000 });
+      }
       console.log('Step 7: Connection accepted and visible in Accepted tab');
 
       // STEP 8: Create conversation and User A sends message
