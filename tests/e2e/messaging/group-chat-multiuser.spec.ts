@@ -257,12 +257,11 @@ test.describe('Group Chat E2E', () => {
       await page.goto(BASE_URL + '/messages/new-group');
       await dismissCookieBanner(page);
       await completeEncryptionSetup(page);
-      await page.waitForLoadState('networkidle');
       await dismissReAuthModal(page);
 
-      // Wait for page to load
+      // Wait for page to fully render
       const pageTitle = page.locator('h1:has-text("New Group")');
-      await expect(pageTitle).toBeVisible({ timeout: 10000 });
+      await expect(pageTitle).toBeVisible({ timeout: 15000 });
 
       // Click back button
       const backButton = page.locator('a[aria-label="Back to messages"]');

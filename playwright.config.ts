@@ -114,6 +114,8 @@ export default defineConfig({
     {
       name: 'firefox',
       testIgnore: /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts/,
+      // 1 retry (vs chromium's 2) — firefox is 2-3x slower, shard 2/4 hits 75min timeout
+      retries: process.env.CI ? 1 : 0,
       use: {
         ...devices['Desktop Firefox'],
         storageState: './tests/e2e/fixtures/storage-state-auth.json',
@@ -126,6 +128,8 @@ export default defineConfig({
     {
       name: 'webkit',
       testIgnore: /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts/,
+      // 1 retry (vs chromium's 2) — webkit is 2-3x slower, shard 2/4 hits 75min timeout
+      retries: process.env.CI ? 1 : 0,
       use: {
         ...devices['Desktop Safari'],
         storageState: './tests/e2e/fixtures/storage-state-auth.json',
