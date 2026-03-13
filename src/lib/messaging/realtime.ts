@@ -15,13 +15,8 @@
 
 import { createClient } from '@/lib/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import type { Message, TypingIndicator } from '@/types/messaging';
-import { AuthenticationError } from '@/types/messaging';
+import type { Message } from '@/types/messaging';
 import { createLogger } from '@/lib/logger';
-import {
-  createMessagingClient,
-  type TypingIndicatorInsert,
-} from '@/lib/supabase/messaging-client';
 
 const logger = createLogger('messaging:realtime');
 
@@ -133,8 +128,12 @@ export class RealtimeService {
    * Subscribe to typing indicators in a conversation
    * Task: T103
    *
-   * Listens for INSERT, UPDATE, and DELETE events on typing_indicators table.
-   * Indicators auto-expire after 5 seconds if not updated.
+   * Uses Supabase Broadcast (not CDC/postgres_changes) for typing indicators.
+   * Broadcast is the correct transport for ephemeral data like typing status:
+   * - No database round-trip required for real-time delivery
+   * - No dependency on CDC publication or REPLICA IDENTITY configuration
+   * - Lower latency than WAL → CDC → subscriber pipeline
+   * - Indicators auto-expire after 5 seconds on the client side
    *
    * @param conversation_id - Conversation UUID to subscribe to
    * @param callback - Function called when typing status changes (userId, isTyping)
@@ -153,30 +152,16 @@ export class RealtimeService {
       this.channels.delete(channelName);
     }
 
-    // Create new channel for all typing indicator events
+    // Create new channel using Broadcast for typing indicators
     const channel = supabase
       .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // Listen to INSERT, UPDATE, DELETE
-          schema: 'public',
-          table: 'typing_indicators',
-          filter: `conversation_id=eq.${conversation_id}`,
-        },
-        (payload) => {
-          const indicator = payload.new as TypingIndicator;
-
-          if (payload.eventType === 'DELETE') {
-            // User stopped typing (expired or explicit stop)
-            const oldIndicator = payload.old as TypingIndicator;
-            callback(oldIndicator.user_id, false);
-          } else {
-            // INSERT or UPDATE - typing status changed
-            callback(indicator.user_id, indicator.is_typing);
-          }
-        }
-      )
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        const { user_id, is_typing } = payload.payload as {
+          user_id: string;
+          is_typing: boolean;
+        };
+        callback(user_id, is_typing);
+      })
       .subscribe();
 
     this.channels.set(channelName, channel);
@@ -192,9 +177,9 @@ export class RealtimeService {
    * Update own typing status
    * Tasks: T104, T106, T107
    *
-   * UPSERTs typing indicator with debounce logic:
+   * Sends typing status via Supabase Broadcast with debounce logic:
    * - Only sends update after 1 second of typing activity (debounce)
-   * - Automatically expires if no update for 5 seconds (database trigger)
+   * - Stop-typing is sent immediately (no debounce)
    * - Silent failures (errors logged but not thrown to avoid disrupting UX)
    *
    * @param conversation_id - Conversation UUID
@@ -227,21 +212,20 @@ export class RealtimeService {
       this.typingTimers.delete(timerKey);
     }
 
+    const channelName = `typing:${conversation_id}`;
+
     if (isTyping) {
       // Debounce: Wait 1 second before sending typing indicator
-      const timer = setTimeout(async () => {
+      const timer = setTimeout(() => {
         try {
-          const msgClient = createMessagingClient(supabase);
-          // UPSERT typing indicator
-          const typingIndicator: TypingIndicatorInsert = {
-            conversation_id,
-            user_id: user.id,
-            is_typing: true,
-            updated_at: new Date().toISOString(),
-          };
-          await msgClient.from('typing_indicators').upsert(typingIndicator, {
-            onConflict: 'conversation_id,user_id',
-          });
+          const channel = this.channels.get(channelName);
+          if (channel) {
+            channel.send({
+              type: 'broadcast',
+              event: 'typing',
+              payload: { user_id: user.id, is_typing: true },
+            });
+          }
         } catch (error) {
           // Silent failure - log but don't throw
           logger.error('Failed to set typing status', { error });
@@ -252,14 +236,16 @@ export class RealtimeService {
 
       this.typingTimers.set(timerKey, timer);
     } else {
-      // User stopped typing - immediately remove indicator
+      // User stopped typing - immediately send
       try {
-        const msgClient = createMessagingClient(supabase);
-        await msgClient
-          .from('typing_indicators')
-          .delete()
-          .eq('conversation_id', conversation_id)
-          .eq('user_id', user.id);
+        const channel = this.channels.get(channelName);
+        if (channel) {
+          channel.send({
+            type: 'broadcast',
+            event: 'typing',
+            payload: { user_id: user.id, is_typing: false },
+          });
+        }
       } catch (error) {
         // Silent failure - log but don't throw
         logger.error('Failed to clear typing status', { error });

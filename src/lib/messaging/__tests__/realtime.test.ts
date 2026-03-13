@@ -7,13 +7,14 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { RealtimeService } from '../realtime';
-import type { Message, TypingIndicator } from '@/types/messaging';
+import type { Message } from '@/types/messaging';
 
 // Mock Supabase client
 const mockChannel = {
   on: vi.fn().mockReturnThis(),
   subscribe: vi.fn().mockReturnThis(),
   unsubscribe: vi.fn(),
+  send: vi.fn().mockResolvedValue('ok'),
 };
 
 const mockSupabase = {
@@ -190,7 +191,7 @@ describe('RealtimeService', () => {
   });
 
   describe('subscribeToTypingIndicators', () => {
-    it('should subscribe to all typing indicator events', () => {
+    it('should subscribe to broadcast typing events', () => {
       const callback = vi.fn();
 
       service.subscribeToTypingIndicators(conversationId, callback);
@@ -199,13 +200,8 @@ describe('RealtimeService', () => {
         `typing:${conversationId}`
       );
       expect(mockChannel.on).toHaveBeenCalledWith(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'typing_indicators',
-          filter: `conversation_id=eq.${conversationId}`,
-        },
+        'broadcast',
+        { event: 'typing' },
         expect.any(Function)
       );
     });
@@ -215,7 +211,7 @@ describe('RealtimeService', () => {
       let typingHandler: (payload: any) => void;
 
       mockChannel.on.mockImplementation((event, config, handler) => {
-        if (config.table === 'typing_indicators') {
+        if (event === 'broadcast' && config.event === 'typing') {
           typingHandler = handler;
         }
         return mockChannel;
@@ -223,25 +219,19 @@ describe('RealtimeService', () => {
 
       service.subscribeToTypingIndicators(conversationId, callback);
 
-      const indicator: TypingIndicator = {
-        id: 'indicator-1',
-        conversation_id: conversationId,
-        user_id: 'user-2',
-        is_typing: true,
-        updated_at: new Date().toISOString(),
-      };
-
-      typingHandler!({ new: indicator, eventType: 'INSERT' });
+      typingHandler!({
+        payload: { user_id: 'user-2', is_typing: true },
+      });
 
       expect(callback).toHaveBeenCalledWith('user-2', true);
     });
 
-    it('should call callback when user stops typing (DELETE event)', () => {
+    it('should call callback when user stops typing', () => {
       const callback = vi.fn();
       let typingHandler: (payload: any) => void;
 
       mockChannel.on.mockImplementation((event, config, handler) => {
-        if (config.table === 'typing_indicators') {
+        if (event === 'broadcast' && config.event === 'typing') {
           typingHandler = handler;
         }
         return mockChannel;
@@ -249,15 +239,9 @@ describe('RealtimeService', () => {
 
       service.subscribeToTypingIndicators(conversationId, callback);
 
-      const indicator: TypingIndicator = {
-        id: 'indicator-1',
-        conversation_id: conversationId,
-        user_id: 'user-2',
-        is_typing: false,
-        updated_at: new Date().toISOString(),
-      };
-
-      typingHandler!({ old: indicator, eventType: 'DELETE' });
+      typingHandler!({
+        payload: { user_id: 'user-2', is_typing: false },
+      });
 
       expect(callback).toHaveBeenCalledWith('user-2', false);
     });
@@ -267,23 +251,37 @@ describe('RealtimeService', () => {
     it('should debounce typing status updates by 1 second', async () => {
       vi.useFakeTimers();
 
+      // Subscribe first to create the channel
+      service.subscribeToTypingIndicators(conversationId, vi.fn());
+
       await service.setTypingStatus(conversationId, true);
 
-      // Should not call database immediately
-      expect(mockSupabase.from).not.toHaveBeenCalled();
+      // Should not send broadcast immediately
+      expect(mockChannel.send).not.toHaveBeenCalled();
 
       // Fast-forward 1 second
       await vi.advanceTimersByTimeAsync(1000);
 
-      expect(mockSupabase.from).toHaveBeenCalledWith('typing_indicators');
+      expect(mockChannel.send).toHaveBeenCalledWith({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { user_id: 'test-user-id', is_typing: true },
+      });
 
       vi.useRealTimers();
     });
 
-    it('should immediately clear typing status when isTyping=false', async () => {
+    it('should immediately send stop-typing when isTyping=false', async () => {
+      // Subscribe first to create the channel
+      service.subscribeToTypingIndicators(conversationId, vi.fn());
+
       await service.setTypingStatus(conversationId, false);
 
-      expect(mockSupabase.from).toHaveBeenCalledWith('typing_indicators');
+      expect(mockChannel.send).toHaveBeenCalledWith({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { user_id: 'test-user-id', is_typing: false },
+      });
     });
 
     it('should handle authentication errors silently', async () => {
@@ -316,6 +314,9 @@ describe('RealtimeService', () => {
     it('should clear pending typing timers', async () => {
       vi.useFakeTimers();
 
+      // Subscribe first to create the channel
+      service.subscribeToTypingIndicators(conversationId, vi.fn());
+
       await service.setTypingStatus(conversationId, true);
 
       service.unsubscribeFromConversation(conversationId);
@@ -323,8 +324,8 @@ describe('RealtimeService', () => {
       // Fast-forward past debounce
       vi.advanceTimersByTime(1000);
 
-      // Database should not be called (timer was cleared)
-      expect(mockSupabase.from).not.toHaveBeenCalled();
+      // Broadcast should not be sent (timer was cleared)
+      expect(mockChannel.send).not.toHaveBeenCalled();
 
       vi.useRealTimers();
     });
@@ -337,17 +338,20 @@ describe('RealtimeService', () => {
       const callback = vi.fn();
       service.subscribeToMessages('conv-1', callback);
       service.subscribeToMessages('conv-2', callback);
+      // Subscribe to typing first so the channel exists for setTypingStatus
+      service.subscribeToTypingIndicators('conv-1', vi.fn());
       await service.setTypingStatus('conv-1', true);
 
       service.cleanup();
 
-      expect(mockChannel.unsubscribe).toHaveBeenCalledTimes(2);
+      // 3 channels: 2 messages + 1 typing
+      expect(mockChannel.unsubscribe).toHaveBeenCalledTimes(3);
 
       // Fast-forward past debounce
       vi.advanceTimersByTime(1000);
 
-      // Database should not be called (timers cleared)
-      expect(mockSupabase.from).not.toHaveBeenCalled();
+      // Broadcast should not be sent (timers cleared)
+      expect(mockChannel.send).not.toHaveBeenCalled();
 
       vi.useRealTimers();
     });
