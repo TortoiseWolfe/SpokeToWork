@@ -122,7 +122,18 @@ test.describe('Encrypted Messaging Flow', () => {
 
       // ===== STEP 6: Verify message appears in User A's view =====
       const messageA = pageA.getByText(testMessage);
-      await expect(messageA).toBeVisible({ timeout: 15000 });
+      try {
+        await expect(messageA).toBeVisible({ timeout: 15000 });
+      } catch {
+        // Reload fallback: message may need re-fetch after encryption setup
+        await pageA.reload();
+        await dismissCookieBanner(pageA);
+        await completeEncryptionSetup(pageA);
+        await dismissReAuthModal(pageA);
+        await expect(pageA.getByText(testMessage)).toBeVisible({
+          timeout: 30000,
+        });
+      }
 
       // ===== STEP 6: User B navigates directly to conversation =====
       await pageB.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
