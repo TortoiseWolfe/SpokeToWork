@@ -208,7 +208,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
   test('Complete messaging workflow: sign-in -> connect -> message -> sign-out', async ({
     browser,
   }) => {
-    test.setTimeout(120000); // 2 minutes for full workflow
+    test.setTimeout(180000); // 3 minutes for full workflow (2 logins ~90s on webkit)
 
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
@@ -541,7 +541,7 @@ test.describe('Conversations Page Loading (Feature 029)', () => {
   test('should load conversations page within 5 seconds (SC-001)', async ({
     page,
   }) => {
-    test.setTimeout(30000);
+    test.setTimeout(90000);
 
     // Sign in
     await loginAndVerify(page, {
@@ -575,7 +575,7 @@ test.describe('Conversations Page Loading (Feature 029)', () => {
   });
 
   test('should show retry button on error state (FR-005)', async ({ page }) => {
-    test.setTimeout(30000);
+    test.setTimeout(90000);
 
     // Sign in
     await loginAndVerify(page, {

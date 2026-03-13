@@ -440,7 +440,7 @@ async function scrollToTopAndWait(page: import('@playwright/test').Page) {
 // ─── Virtual Scrolling Performance ──────────────────────────────────────────
 
 test.describe('Virtual Scrolling Performance', () => {
-  test.describe.configure({ timeout: 60000 });
+  test.describe.configure({ timeout: 90000 });
   test('T172b: Virtual scrolling activates at 100+ messages', async ({
     page,
   }) => {

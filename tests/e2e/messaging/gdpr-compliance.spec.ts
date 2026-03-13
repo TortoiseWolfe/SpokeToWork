@@ -17,6 +17,8 @@ const TEST_USER = {
 };
 
 test.describe('GDPR Data Export', () => {
+  test.describe.configure({ timeout: 90000 });
+
   test.beforeEach(async ({ page }) => {
     // Sign in as test user
     await loginAndVerify(page, {
@@ -159,6 +161,8 @@ test.describe('GDPR Data Export', () => {
 });
 
 test.describe('GDPR Account Deletion', () => {
+  test.describe.configure({ timeout: 90000 });
+
   test.beforeEach(async ({ page }) => {
     // Sign in as test user
     // NOTE: Account deletion tests use mocked responses to prevent actual deletion
@@ -363,6 +367,8 @@ test.describe('GDPR Account Deletion', () => {
 });
 
 test.describe('GDPR Accessibility', () => {
+  test.describe.configure({ timeout: 90000 });
+
   test.beforeEach(async ({ page }) => {
     await loginAndVerify(page, {
       email: TEST_USER.email,

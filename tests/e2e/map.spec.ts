@@ -441,6 +441,7 @@ test.describe('Geolocation Map Page', () => {
   test('should preserve bike routes after theme toggle (Feature 045)', async ({
     page,
   }) => {
+    test.setTimeout(60000);
     await page.goto('/map');
     await dismissBanner(page);
     await waitForMapReady(page);

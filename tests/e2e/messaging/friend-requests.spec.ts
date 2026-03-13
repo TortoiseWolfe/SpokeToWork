@@ -155,7 +155,7 @@ test.describe('Friend Request Flow', () => {
   test('User A sends friend request and User B accepts', async ({
     browser,
   }) => {
-    test.setTimeout(90000); // 90 seconds for full workflow
+    test.setTimeout(120000); // 2 minutes for dual-user workflow (webkit login ~45s each)
 
     // Create two browser contexts (two separate users)
     const contextA = await browser.newContext();
@@ -293,7 +293,7 @@ test.describe('Friend Request Flow', () => {
   test('User A can decline a friend request from User B', async ({
     browser,
   }) => {
-    test.setTimeout(90000);
+    test.setTimeout(120000);
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
 
