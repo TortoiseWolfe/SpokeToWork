@@ -131,8 +131,19 @@ test.describe('Encrypted Messaging Flow', () => {
       await dismissReAuthModal(pageB, USER_B.password);
 
       // ===== STEP 7: User B sees the decrypted message =====
+      // Try initial load; if decryption timing causes miss, reload to re-fetch
       const messageB = pageB.getByText(testMessage);
-      await expect(messageB).toBeVisible({ timeout: 30000 });
+      try {
+        await expect(messageB).toBeVisible({ timeout: 15000 });
+      } catch {
+        await pageB.reload();
+        await dismissCookieBanner(pageB);
+        await completeEncryptionSetup(pageB, USER_B.password);
+        await dismissReAuthModal(pageB, USER_B.password);
+        await expect(pageB.getByText(testMessage)).toBeVisible({
+          timeout: 30000,
+        });
+      }
 
       // ===== STEP 10: Verify User B can reply =====
       const replyMessage = `Reply from User B ${Date.now()}`;

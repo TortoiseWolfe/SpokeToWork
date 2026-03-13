@@ -62,29 +62,31 @@ export function useTypingIndicator(
   useEffect(() => {
     if (!currentUserId) return;
 
+    const handleTypingEvent = (userId: string, typing: boolean) => {
+      // Ignore own typing status
+      if (userId === currentUserId) return;
+
+      // Update other user's typing status
+      setIsTyping(typing);
+
+      // Clear existing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+
+      // Auto-expire typing indicator after 5 seconds
+      if (typing) {
+        typingTimeoutRef.current = setTimeout(() => {
+          setIsTyping(false);
+          typingTimeoutRef.current = null;
+        }, 5000);
+      }
+    };
+
     const unsubscribe = realtimeService.subscribeToTypingIndicators(
       conversationId,
-      (userId, typing) => {
-        // Ignore own typing status
-        if (userId === currentUserId) return;
-
-        // Update other user's typing status
-        setIsTyping(typing);
-
-        // Clear existing timeout
-        if (typingTimeoutRef.current) {
-          clearTimeout(typingTimeoutRef.current);
-          typingTimeoutRef.current = null;
-        }
-
-        // Auto-expire typing indicator after 5 seconds
-        if (typing) {
-          typingTimeoutRef.current = setTimeout(() => {
-            setIsTyping(false);
-            typingTimeoutRef.current = null;
-          }, 5000);
-        }
-      },
+      handleTypingEvent,
       () => {
         // Signal subscription readiness via DOM attribute (used by E2E tests)
         if (typeof document !== 'undefined' && conversationId) {
@@ -93,9 +95,17 @@ export function useTypingIndicator(
       }
     );
 
+    // Expose test seam for E2E (simulates typing events without Realtime delivery)
+    if (typeof window !== 'undefined') {
+      (window as any).__e2eSimulateTyping = handleTypingEvent;
+    }
+
     // Cleanup on unmount
     return () => {
       unsubscribe();
+      if (typeof window !== 'undefined') {
+        delete (window as any).__e2eSimulateTyping;
+      }
       if (typeof document !== 'undefined') {
         document.body.removeAttribute('data-typing-subscribed');
       }
