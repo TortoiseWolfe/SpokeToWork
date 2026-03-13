@@ -276,10 +276,31 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
 
       // STEP 4: Send friend request
       console.log('Step 4: Sending friend request...');
-      const sendRequestButton = pageA.getByRole('button', {
+      let sendRequestButton = pageA.getByRole('button', {
         name: /send request/i,
       });
-      await expect(sendRequestButton).toBeVisible({ timeout: 30000 });
+      // Retry with reload if cleanup hasn't propagated to read replica
+      try {
+        await expect(sendRequestButton).toBeVisible({ timeout: 15000 });
+      } catch {
+        console.log('Step 4: Send Request not visible, reloading...');
+        await pageA.reload();
+        await dismissCookieBanner(pageA);
+        await completeEncryptionSetup(pageA);
+        await dismissReAuthModal(pageA);
+        const retrySearch = pageA.locator('#user-search-input');
+        await expect(retrySearch).toBeVisible({ timeout: 5000 });
+        await retrySearch.fill(USER_B.displayName);
+        await retrySearch.press('Enter');
+        await pageA.waitForSelector(
+          '[data-testid="search-results"], .alert-error',
+          { timeout: 15000 }
+        );
+        sendRequestButton = pageA.getByRole('button', {
+          name: /send request/i,
+        });
+        await expect(sendRequestButton).toBeVisible({ timeout: 15000 });
+      }
 
       // Log button state before click
       const isDisabled = await sendRequestButton.isDisabled();
@@ -456,9 +477,20 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       await pageB.waitForLoadState('networkidle');
       await pageB.waitForTimeout(1000); // Let messaging page mount fully
       await dismissReAuthModal(pageB, USER_B.password);
-      await expect(pageB.getByText(testMessage)).toBeVisible({
-        timeout: 20000,
-      });
+      // Reload fallback for Supabase Cloud read replica lag
+      try {
+        await expect(pageB.getByText(testMessage)).toBeVisible({
+          timeout: 15000,
+        });
+      } catch {
+        await pageB.reload();
+        await dismissCookieBanner(pageB);
+        await completeEncryptionSetup(pageB, USER_B.password);
+        await dismissReAuthModal(pageB, USER_B.password);
+        await expect(pageB.getByText(testMessage)).toBeVisible({
+          timeout: 30000,
+        });
+      }
       console.log('Step 9: Message received');
 
       // STEP 10: User B replies
@@ -485,9 +517,20 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       await completeEncryptionSetup(pageA);
       await dismissReAuthModal(pageA);
 
-      await expect(pageA.getByText(replyMessage)).toBeVisible({
-        timeout: 20000,
-      });
+      // Reload fallback for Supabase Cloud read replica lag
+      try {
+        await expect(pageA.getByText(replyMessage)).toBeVisible({
+          timeout: 15000,
+        });
+      } catch {
+        await pageA.reload();
+        await dismissCookieBanner(pageA);
+        await completeEncryptionSetup(pageA);
+        await dismissReAuthModal(pageA);
+        await expect(pageA.getByText(replyMessage)).toBeVisible({
+          timeout: 30000,
+        });
+      }
       console.log('Step 11: Reply received');
 
       // STEP 12: Sign out both users

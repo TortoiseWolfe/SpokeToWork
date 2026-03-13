@@ -193,10 +193,31 @@ test.describe('Friend Request Flow', () => {
       );
 
       // ===== STEP 4: User A sends friend request =====
-      const sendRequestButton = pageA.getByRole('button', {
+      // Retry with reload if cleanup hasn't propagated to read replica
+      let sendRequestButton = pageA.getByRole('button', {
         name: /send request/i,
       });
-      await expect(sendRequestButton).toBeVisible({ timeout: 30000 });
+      try {
+        await expect(sendRequestButton).toBeVisible({ timeout: 15000 });
+      } catch {
+        // Read replica may still show old connection — reload to force fresh query
+        await pageA.reload();
+        await dismissCookieBanner(pageA);
+        await completeEncryptionSetup(pageA);
+        await dismissReAuthModal(pageA);
+        const retrySearchInput = pageA.locator('#user-search-input');
+        await expect(retrySearchInput).toBeVisible({ timeout: 5000 });
+        await retrySearchInput.fill(USER_B.displayName);
+        await retrySearchInput.press('Enter');
+        await pageA.waitForSelector(
+          '[data-testid="search-results"], .alert-error',
+          { timeout: 15000 }
+        );
+        sendRequestButton = pageA.getByRole('button', {
+          name: /send request/i,
+        });
+        await expect(sendRequestButton).toBeVisible({ timeout: 15000 });
+      }
       await sendRequestButton.click({ force: true });
 
       // Wait for success message
