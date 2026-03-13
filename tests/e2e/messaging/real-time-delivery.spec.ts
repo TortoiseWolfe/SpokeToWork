@@ -129,7 +129,7 @@ test.describe('Real-time Message Delivery (T098)', () => {
   });
 
   test('should deliver message in <500ms between two windows', async () => {
-    test.setTimeout(60000);
+    // Use describe-level timeout (120s) — beforeEach runs 2× loginAndVerify (~90s on webkit)
     expect(conversationId).not.toBeNull();
     await navigateBothToConversation(page1, page2, conversationId!);
 
@@ -171,7 +171,7 @@ test.describe('Real-time Message Delivery (T098)', () => {
   });
 
   test('should show delivery status (sent → delivered → read)', async () => {
-    test.setTimeout(60000);
+    // Use describe-level timeout (120s) — beforeEach runs 2× loginAndVerify (~90s on webkit)
     expect(conversationId).not.toBeNull();
     await navigateBothToConversation(page1, page2, conversationId!);
 
@@ -209,7 +209,7 @@ test.describe('Real-time Message Delivery (T098)', () => {
   });
 
   test('should handle rapid message exchanges', async () => {
-    test.setTimeout(60000);
+    // Use describe-level timeout (120s) — beforeEach runs 2× loginAndVerify (~90s on webkit)
     expect(conversationId).not.toBeNull();
     await navigateBothToConversation(page1, page2, conversationId!);
 
@@ -288,7 +288,7 @@ test.describe('Typing Indicators (T099)', () => {
   });
 
   test('should show typing indicator when user types', async () => {
-    test.setTimeout(60000);
+    // Use describe-level timeout (120s) — beforeEach runs 2× loginAndVerify (~90s on webkit)
     expect(conversationId).not.toBeNull();
     await navigateBothToConversation(page1, page2, conversationId!);
 
@@ -304,7 +304,7 @@ test.describe('Typing Indicators (T099)', () => {
   });
 
   test('should hide typing indicator when user stops typing', async () => {
-    test.setTimeout(60000);
+    // Use describe-level timeout (120s) — beforeEach runs 2× loginAndVerify (~90s on webkit)
     expect(conversationId).not.toBeNull();
     await navigateBothToConversation(page1, page2, conversationId!);
 
@@ -323,7 +323,7 @@ test.describe('Typing Indicators (T099)', () => {
   });
 
   test('should remove typing indicator when message is sent', async () => {
-    test.setTimeout(60000);
+    // Use describe-level timeout (120s) — beforeEach runs 2× loginAndVerify (~90s on webkit)
     expect(conversationId).not.toBeNull();
     await navigateBothToConversation(page1, page2, conversationId!);
 
@@ -347,7 +347,7 @@ test.describe('Typing Indicators (T099)', () => {
   });
 
   test('should show multiple typing indicators correctly', async () => {
-    test.setTimeout(60000);
+    // Use describe-level timeout (120s) — beforeEach runs 2× loginAndVerify (~90s on webkit)
     expect(conversationId).not.toBeNull();
     await navigateBothToConversation(page1, page2, conversationId!);
 
@@ -371,7 +371,7 @@ test.describe('Typing Indicators (T099)', () => {
   });
 
   test('should auto-expire typing indicator after 5 seconds', async () => {
-    test.setTimeout(60000);
+    // Use describe-level timeout (120s) — beforeEach runs 2× loginAndVerify (~90s on webkit)
     expect(conversationId).not.toBeNull();
     await navigateBothToConversation(page1, page2, conversationId!);
 
