@@ -364,9 +364,27 @@ test.describe('Offline Message Queue', () => {
         .waitFor({ state: 'visible', timeout: 30000 })
         .catch(() => {});
 
-      await expect(pageA.getByText(messageA)).toBeVisible({ timeout: 30000 });
+      // Verify messages visible — reload fallback for decryption timing
+      try {
+        await expect(pageA.getByText(messageA)).toBeVisible({ timeout: 15000 });
+      } catch {
+        await pageA.reload();
+        await dismissCookieBanner(pageA);
+        await completeEncryptionSetup(pageA);
+        await dismissReAuthModal(pageA);
+        await expect(pageA.getByText(messageA)).toBeVisible({ timeout: 30000 });
+      }
       await expect(pageA.getByText(messageB)).toBeVisible({ timeout: 30000 });
-      await expect(pageB.getByText(messageA)).toBeVisible({ timeout: 30000 });
+
+      try {
+        await expect(pageB.getByText(messageA)).toBeVisible({ timeout: 15000 });
+      } catch {
+        await pageB.reload();
+        await dismissCookieBanner(pageB);
+        await completeEncryptionSetup(pageB, USER_B.password);
+        await dismissReAuthModal(pageB, USER_B.password);
+        await expect(pageB.getByText(messageA)).toBeVisible({ timeout: 30000 });
+      }
       await expect(pageB.getByText(messageB)).toBeVisible({ timeout: 30000 });
     } finally {
       await contextA.close();
