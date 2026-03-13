@@ -30,6 +30,13 @@ export function useTypingIndicator(
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const supabase = createClient();
 
+  // Debug: sync isTyping state to DOM for E2E diagnostics
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.body.setAttribute('data-typing-state', String(isTyping));
+    }
+  }, [isTyping]);
+
   /**
    * Get current user ID
    */
@@ -63,6 +70,14 @@ export function useTypingIndicator(
     if (!currentUserId) return;
 
     const handleTypingEvent = (userId: string, typing: boolean) => {
+      // Debug: record handler invocation for E2E diagnostics
+      if (typeof document !== 'undefined') {
+        document.body.setAttribute(
+          'data-typing-handler-called',
+          JSON.stringify({ userId, typing, currentUserId, ts: Date.now() })
+        );
+      }
+
       // Ignore own typing status
       if (userId === currentUserId) return;
 
@@ -108,6 +123,7 @@ export function useTypingIndicator(
       }
       if (typeof document !== 'undefined') {
         document.body.removeAttribute('data-typing-subscribed');
+        document.body.removeAttribute('data-typing-handler-called');
       }
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);

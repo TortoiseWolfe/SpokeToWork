@@ -90,13 +90,25 @@ async function simulateTypingOnPage(
   userId: string,
   isTyping: boolean
 ): Promise<void> {
-  await page.evaluate(
+  const result = await page.evaluate(
     ({ uid, typing }) => {
       const handler = (window as any).__e2eSimulateTyping;
-      if (handler) handler(uid, typing);
+      if (!handler) {
+        return { success: false, reason: 'handler not found on window' };
+      }
+      try {
+        handler(uid, typing);
+        return { success: true, reason: 'handler called' };
+      } catch (e: any) {
+        return { success: false, reason: `handler threw: ${e.message}` };
+      }
     },
     { uid: userId, typing: isTyping }
   );
+  console.log(`simulateTypingOnPage(${userId}, ${isTyping}):`, result);
+  if (!result.success) {
+    throw new Error(`simulateTypingOnPage failed: ${result.reason}`);
+  }
 }
 
 test.describe('Real-time Message Delivery (T098)', () => {
@@ -334,6 +346,28 @@ test.describe('Typing Indicators (T099)', () => {
     // Simulate broadcast arriving at page 2
     // (Supabase Realtime broadcast delivery is unreliable in CI — see plan)
     await simulateTypingOnPage(page2, user1Id!, true);
+
+    // Diagnostic: check if handler was called and state changed
+    const handlerAttr = await page2.evaluate(() =>
+      document.body.getAttribute('data-typing-handler-called')
+    );
+    console.log('DIAG handler-called:', handlerAttr);
+
+    // Wait for React to flush the state update
+    await page2
+      .waitForSelector('body[data-typing-state="true"]', {
+        timeout: 5000,
+      })
+      .catch(async () => {
+        const stateAttr = await page2.evaluate(() =>
+          document.body.getAttribute('data-typing-state')
+        );
+        console.log('DIAG typing-state after timeout:', stateAttr);
+        const html = await page2.evaluate(() =>
+          document.body.innerHTML.substring(0, 2000)
+        );
+        console.log('DIAG body HTML (first 2000):', html);
+      });
 
     const typingIndicator = page2.locator('[data-testid="typing-indicator"]');
     await expect(typingIndicator).toBeVisible({ timeout: 5000 });
