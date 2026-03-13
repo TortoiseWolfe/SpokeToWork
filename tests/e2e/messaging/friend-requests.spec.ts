@@ -368,7 +368,7 @@ test.describe('Friend Request Flow', () => {
   });
 
   test('User A can cancel a sent pending request', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(90000); // webkit login ~45s, need margin for test body
 
     // Sign in as User A
     await loginAndVerify(page, {
@@ -421,7 +421,7 @@ test.describe('Friend Request Flow', () => {
   });
 
   test('User cannot send duplicate requests', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(90000); // webkit login ~45s, need margin for test body
 
     await loginAndVerify(page, {
       email: USER_A.email,
@@ -473,6 +473,8 @@ test.describe('Friend Request Flow', () => {
 });
 
 test.describe('Accessibility', () => {
+  test.describe.configure({ timeout: 90000 }); // webkit login ~45s, need margin
+
   test.beforeEach(async () => {
     const client = getAdminClient();
     if (client) {

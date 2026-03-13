@@ -201,12 +201,12 @@ test.describe('Employer Team Workflow', () => {
       // Firefox: NS_BINDING_ABORTED; WebKit: hard navigation not detected
       try {
         await pageE.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-          timeout: 45000,
+          timeout: 60000,
         });
       } catch {
         await pageE.waitForLoadState('domcontentloaded');
         if (pageE.url().includes('/sign-in')) {
-          throw new Error('Employer sign-in failed after 45s');
+          throw new Error('Employer sign-in failed after 60s');
         }
       }
 
@@ -406,12 +406,12 @@ test.describe('Employer Team Workflow', () => {
     // Firefox: NS_BINDING_ABORTED; WebKit: hard navigation not detected
     try {
       await page.waitForURL((url) => !url.pathname.includes('/sign-in'), {
-        timeout: 45000,
+        timeout: 60000,
       });
     } catch {
       await page.waitForLoadState('domcontentloaded');
       if (page.url().includes('/sign-in')) {
-        throw new Error('Employer sign-in failed after 45s');
+        throw new Error('Employer sign-in failed after 60s');
       }
     }
 

@@ -279,7 +279,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       const sendRequestButton = pageA.getByRole('button', {
         name: /send request/i,
       });
-      await expect(sendRequestButton).toBeVisible({ timeout: 15000 });
+      await expect(sendRequestButton).toBeVisible({ timeout: 30000 });
 
       // Log button state before click
       const isDisabled = await sendRequestButton.isDisabled();

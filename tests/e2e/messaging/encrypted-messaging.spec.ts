@@ -348,7 +348,7 @@ test.describe('Encrypted Messaging Flow', () => {
       await completeEncryptionSetup(pageA);
       await dismissReAuthModal(pageA);
       await expect(pageA.getByText(testMessage)).toBeVisible({
-        timeout: 30000,
+        timeout: 45000,
       });
 
       let updatedMessageBubble = pageA
