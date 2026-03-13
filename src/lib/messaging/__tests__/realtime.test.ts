@@ -12,7 +12,12 @@ import type { Message } from '@/types/messaging';
 // Mock Supabase client
 const mockChannel = {
   on: vi.fn().mockReturnThis(),
-  subscribe: vi.fn().mockReturnThis(),
+  subscribe: vi
+    .fn()
+    .mockImplementation((callback?: (status: string) => void) => {
+      if (callback) callback('SUBSCRIBED');
+      return mockChannel;
+    }),
   unsubscribe: vi.fn(),
   send: vi.fn().mockResolvedValue('ok'),
 };
@@ -244,6 +249,19 @@ describe('RealtimeService', () => {
       });
 
       expect(callback).toHaveBeenCalledWith('user-2', false);
+    });
+
+    it('should call onSubscribed when channel reaches SUBSCRIBED status', () => {
+      const callback = vi.fn();
+      const onSubscribed = vi.fn();
+
+      service.subscribeToTypingIndicators(
+        conversationId,
+        callback,
+        onSubscribed
+      );
+
+      expect(onSubscribed).toHaveBeenCalledTimes(1);
     });
   });
 

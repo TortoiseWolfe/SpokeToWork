@@ -39,7 +39,8 @@ const TEST_USER_2 = {
 async function navigateBothToConversation(
   page1: Page,
   page2: Page,
-  convId: string
+  convId: string,
+  options?: { waitForTypingSubscription?: boolean }
 ): Promise<void> {
   await page1.goto(`/messages?conversation=${convId}`);
   await dismissCookieBanner(page1);
@@ -59,13 +60,23 @@ async function navigateBothToConversation(
     timeout: 15000,
   });
 
-  // Wait for Realtime subscriptions to establish:
-  // useTypingIndicator: getUser() → setCurrentUserId → subscribeToTypingIndicators → channel.subscribe()
-  // useMessages: similar async subscription setup
-  await Promise.all([
-    page1.waitForTimeout(3000),
-    page2.waitForTimeout(3000),
-  ]);
+  if (options?.waitForTypingSubscription) {
+    // Wait for Realtime typing subscriptions to be fully active on both pages.
+    // useTypingIndicator sets data-typing-subscribed on document.body when the
+    // Supabase Realtime channel reaches 'SUBSCRIBED' status. This ensures
+    // broadcasts won't be lost due to the receiver not being subscribed yet.
+    await Promise.all([
+      page1.waitForSelector(`body[data-typing-subscribed="${convId}"]`, {
+        timeout: 30000,
+      }),
+      page2.waitForSelector(`body[data-typing-subscribed="${convId}"]`, {
+        timeout: 30000,
+      }),
+    ]);
+  } else {
+    // For non-typing tests: wait for Realtime subscriptions to establish
+    await Promise.all([page1.waitForTimeout(3000), page2.waitForTimeout(3000)]);
+  }
 }
 
 test.describe('Real-time Message Delivery (T098)', () => {
@@ -290,14 +301,17 @@ test.describe('Typing Indicators (T099)', () => {
   test('should show typing indicator when user types', async () => {
     // Use describe-level timeout (120s) — beforeEach runs 2× loginAndVerify (~90s on webkit)
     expect(conversationId).not.toBeNull();
-    await navigateBothToConversation(page1, page2, conversationId!);
+    await navigateBothToConversation(page1, page2, conversationId!, {
+      waitForTypingSubscription: true,
+    });
 
     // User 1: Start typing
     await page1.fill('textarea[placeholder*="Type"]', 'Hello');
 
     // User 2: Typing indicator should appear
+    // 15s timeout: 1s debounce in setTypingStatus + broadcast delivery latency
     const typingIndicator = page2.locator('[data-testid="typing-indicator"]');
-    await expect(typingIndicator).toBeVisible({ timeout: 10000 });
+    await expect(typingIndicator).toBeVisible({ timeout: 15000 });
 
     // Verify indicator text
     await expect(typingIndicator).toContainText('is typing');
@@ -306,14 +320,16 @@ test.describe('Typing Indicators (T099)', () => {
   test('should hide typing indicator when user stops typing', async () => {
     // Use describe-level timeout (120s) — beforeEach runs 2× loginAndVerify (~90s on webkit)
     expect(conversationId).not.toBeNull();
-    await navigateBothToConversation(page1, page2, conversationId!);
+    await navigateBothToConversation(page1, page2, conversationId!, {
+      waitForTypingSubscription: true,
+    });
 
     // User 1: Start typing
     await page1.fill('textarea[placeholder*="Type"]', 'Hello');
 
     // User 2: Wait for typing indicator
     const typingIndicator = page2.locator('[data-testid="typing-indicator"]');
-    await expect(typingIndicator).toBeVisible({ timeout: 10000 });
+    await expect(typingIndicator).toBeVisible({ timeout: 15000 });
 
     // User 1: Clear input (stop typing)
     await page1.fill('textarea[placeholder*="Type"]', '');
@@ -325,7 +341,9 @@ test.describe('Typing Indicators (T099)', () => {
   test('should remove typing indicator when message is sent', async () => {
     // Use describe-level timeout (120s) — beforeEach runs 2× loginAndVerify (~90s on webkit)
     expect(conversationId).not.toBeNull();
-    await navigateBothToConversation(page1, page2, conversationId!);
+    await navigateBothToConversation(page1, page2, conversationId!, {
+      waitForTypingSubscription: true,
+    });
 
     // User 1: Start typing
     const testMessage = `Typing test ${Date.now()}`;
@@ -333,13 +351,13 @@ test.describe('Typing Indicators (T099)', () => {
 
     // User 2: Wait for typing indicator
     const typingIndicator = page2.locator('[data-testid="typing-indicator"]');
-    await expect(typingIndicator).toBeVisible({ timeout: 10000 });
+    await expect(typingIndicator).toBeVisible({ timeout: 15000 });
 
     // User 1: Send message
     await page1.click('button[aria-label="Send message"]');
 
     // User 2: Typing indicator should disappear promptly after send
-    // Allows for DB delete + Realtime propagation in Docker
+    // Allows for broadcast propagation in CI
     await expect(typingIndicator).not.toBeVisible({ timeout: 5000 });
 
     // User 2: Message should appear
@@ -349,21 +367,23 @@ test.describe('Typing Indicators (T099)', () => {
   test('should show multiple typing indicators correctly', async () => {
     // Use describe-level timeout (120s) — beforeEach runs 2× loginAndVerify (~90s on webkit)
     expect(conversationId).not.toBeNull();
-    await navigateBothToConversation(page1, page2, conversationId!);
+    await navigateBothToConversation(page1, page2, conversationId!, {
+      waitForTypingSubscription: true,
+    });
 
     // User 1: Start typing
     await page1.fill('textarea[placeholder*="Type"]', 'User 1 typing');
 
     // User 2: Verify User 1's typing indicator
     const typingIndicator2 = page2.locator('[data-testid="typing-indicator"]');
-    await expect(typingIndicator2).toBeVisible({ timeout: 10000 });
+    await expect(typingIndicator2).toBeVisible({ timeout: 15000 });
 
     // User 2: Start typing
     await page2.fill('textarea[placeholder*="Type"]', 'User 2 typing');
 
     // User 1: Verify User 2's typing indicator
     const typingIndicator1 = page1.locator('[data-testid="typing-indicator"]');
-    await expect(typingIndicator1).toBeVisible({ timeout: 10000 });
+    await expect(typingIndicator1).toBeVisible({ timeout: 15000 });
 
     // Both users should see the other's typing indicator
     await expect(typingIndicator1).toBeVisible();
@@ -373,7 +393,9 @@ test.describe('Typing Indicators (T099)', () => {
   test('should auto-expire typing indicator after 5 seconds', async () => {
     // Use describe-level timeout (120s) — beforeEach runs 2× loginAndVerify (~90s on webkit)
     expect(conversationId).not.toBeNull();
-    await navigateBothToConversation(page1, page2, conversationId!);
+    await navigateBothToConversation(page1, page2, conversationId!, {
+      waitForTypingSubscription: true,
+    });
 
     // User 1: Start typing
     await page1.fill('textarea[placeholder*="Type"]', 'Auto-expire test');

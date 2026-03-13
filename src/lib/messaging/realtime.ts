@@ -141,7 +141,8 @@ export class RealtimeService {
    */
   subscribeToTypingIndicators(
     conversation_id: string,
-    callback: (userId: string, isTyping: boolean) => void
+    callback: (userId: string, isTyping: boolean) => void,
+    onSubscribed?: () => void
   ): () => void {
     const supabase = createClient();
     const channelName = `typing:${conversation_id}`;
@@ -162,7 +163,11 @@ export class RealtimeService {
         };
         callback(user_id, is_typing);
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED' && onSubscribed) {
+          onSubscribed();
+        }
+      });
 
     this.channels.set(channelName, channel);
 

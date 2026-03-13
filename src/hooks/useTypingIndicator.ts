@@ -84,12 +84,21 @@ export function useTypingIndicator(
             typingTimeoutRef.current = null;
           }, 5000);
         }
+      },
+      () => {
+        // Signal subscription readiness via DOM attribute (used by E2E tests)
+        if (typeof document !== 'undefined' && conversationId) {
+          document.body.setAttribute('data-typing-subscribed', conversationId);
+        }
       }
     );
 
     // Cleanup on unmount
     return () => {
       unsubscribe();
+      if (typeof document !== 'undefined') {
+        document.body.removeAttribute('data-typing-subscribed');
+      }
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
