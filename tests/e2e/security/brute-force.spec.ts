@@ -57,16 +57,21 @@ test.describe('Brute Force Prevention - REQ-SEC-003', () => {
   ): Promise<string> {
     // Fresh page load avoids stale DOM state and spaces GoTrue requests
     await page.goto('/sign-in');
-    await page.waitForLoadState('domcontentloaded');
+    // networkidle ensures JS hydration complete (webkit is slower than chromium)
+    await page.waitForLoadState('networkidle');
+
+    // Wait for form inputs to be interactive (webkit rendering lag)
+    const emailInput = page.locator('input[type="email"]');
+    await expect(emailInput).toBeVisible({ timeout: 15000 });
 
     await page.fill('input[type="email"]', email);
     await page.fill('input[type="password"]', wrongPassword);
     await page.click('button[type="submit"]');
 
     // Wait for the error alert to appear (proves full submit cycle completed)
-    // 30s timeout accommodates GoTrue internal retry backoff if needed
+    // 45s timeout accommodates GoTrue internal retry backoff + webkit rendering
     const errorEl = page.locator(ERROR_ALERT);
-    await expect(errorEl).toBeVisible({ timeout: 30000 });
+    await expect(errorEl).toBeVisible({ timeout: 45000 });
 
     return (await errorEl.textContent()) || '';
   }

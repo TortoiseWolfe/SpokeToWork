@@ -50,6 +50,22 @@ async function navigateBothToConversation(
   await dismissCookieBanner(page2);
   await completeEncryptionSetup(page2, TEST_USER_2.password);
   await dismissReAuthModal(page2, TEST_USER_2.password);
+
+  // Wait for messaging UI ready on both pages
+  await page1.waitForSelector('textarea[placeholder*="Type"]', {
+    timeout: 15000,
+  });
+  await page2.waitForSelector('textarea[placeholder*="Type"]', {
+    timeout: 15000,
+  });
+
+  // Wait for Realtime subscriptions to establish:
+  // useTypingIndicator: getUser() → setCurrentUserId → subscribeToTypingIndicators → channel.subscribe()
+  // useMessages: similar async subscription setup
+  await Promise.all([
+    page1.waitForTimeout(3000),
+    page2.waitForTimeout(3000),
+  ]);
 }
 
 test.describe('Real-time Message Delivery (T098)', () => {
@@ -116,10 +132,6 @@ test.describe('Real-time Message Delivery (T098)', () => {
     test.setTimeout(60000);
     expect(conversationId).not.toBeNull();
     await navigateBothToConversation(page1, page2, conversationId!);
-
-    // Wait for Realtime subscriptions to establish on both pages
-    await page1.waitForTimeout(3000);
-    await page2.waitForTimeout(3000);
 
     // User 1: Send a message
     const testMessage = `Real-time test message ${Date.now()}`;
