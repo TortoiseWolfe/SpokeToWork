@@ -347,28 +347,6 @@ test.describe('Typing Indicators (T099)', () => {
     // (Supabase Realtime broadcast delivery is unreliable in CI — see plan)
     await simulateTypingOnPage(page2, user1Id!, true);
 
-    // Diagnostic: check if handler was called and state changed
-    const handlerAttr = await page2.evaluate(() =>
-      document.body.getAttribute('data-typing-handler-called')
-    );
-    console.log('DIAG handler-called:', handlerAttr);
-
-    // Wait for React to flush the state update
-    await page2
-      .waitForSelector('body[data-typing-state="true"]', {
-        timeout: 5000,
-      })
-      .catch(async () => {
-        const stateAttr = await page2.evaluate(() =>
-          document.body.getAttribute('data-typing-state')
-        );
-        console.log('DIAG typing-state after timeout:', stateAttr);
-        const html = await page2.evaluate(() =>
-          document.body.innerHTML.substring(0, 2000)
-        );
-        console.log('DIAG body HTML (first 2000):', html);
-      });
-
     const typingIndicator = page2.locator('[data-testid="typing-indicator"]');
     await expect(typingIndicator).toBeVisible({ timeout: 5000 });
     await expect(typingIndicator).toContainText('is typing');

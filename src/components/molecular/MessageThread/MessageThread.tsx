@@ -237,10 +237,13 @@ export default function MessageThread({
   const renderMessages = () => {
     if (messages.length === 0) {
       return (
-        <div className="flex h-full items-center justify-center">
-          <p className="text-base-content text-base-content/80">
-            No messages yet. Send the first one!
-          </p>
+        <div className="flex h-full flex-col">
+          <div className="flex flex-1 items-center justify-center">
+            <p className="text-base-content text-base-content/80">
+              No messages yet. Send the first one!
+            </p>
+          </div>
+          <TypingIndicator show={isTyping} userName={typingUserName} />
         </div>
       );
     }
