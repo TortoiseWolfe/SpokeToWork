@@ -18,6 +18,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { realtimeService } from '@/lib/messaging/realtime';
 import { createClient } from '@/lib/supabase/client';
 import type { UseTypingIndicatorReturn } from '@/types/messaging';
@@ -111,8 +112,18 @@ export function useTypingIndicator(
     );
 
     // Expose test seam for E2E (simulates typing events without Realtime delivery)
+    // Uses flushSync to force immediate React re-render — without this,
+    // state updates from page.evaluate() are batched/deferred and the
+    // TypingIndicator never becomes visible before the test assertion.
     if (typeof window !== 'undefined') {
-      (window as any).__e2eSimulateTyping = handleTypingEvent;
+      (window as any).__e2eSimulateTyping = (
+        userId: string,
+        typing: boolean
+      ) => {
+        flushSync(() => {
+          handleTypingEvent(userId, typing);
+        });
+      };
     }
 
     // Cleanup on unmount
