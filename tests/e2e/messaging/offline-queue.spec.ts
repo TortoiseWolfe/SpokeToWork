@@ -374,7 +374,16 @@ test.describe('Offline Message Queue', () => {
         await dismissReAuthModal(pageA);
         await expect(pageA.getByText(messageA)).toBeVisible({ timeout: 30000 });
       }
-      await expect(pageA.getByText(messageB)).toBeVisible({ timeout: 30000 });
+      // messageB may also need a reload if not yet visible (read replica lag)
+      try {
+        await expect(pageA.getByText(messageB)).toBeVisible({ timeout: 15000 });
+      } catch {
+        await pageA.reload();
+        await dismissCookieBanner(pageA);
+        await completeEncryptionSetup(pageA);
+        await dismissReAuthModal(pageA);
+        await expect(pageA.getByText(messageB)).toBeVisible({ timeout: 30000 });
+      }
 
       try {
         await expect(pageB.getByText(messageA)).toBeVisible({ timeout: 15000 });
@@ -385,7 +394,15 @@ test.describe('Offline Message Queue', () => {
         await dismissReAuthModal(pageB, USER_B.password);
         await expect(pageB.getByText(messageA)).toBeVisible({ timeout: 30000 });
       }
-      await expect(pageB.getByText(messageB)).toBeVisible({ timeout: 30000 });
+      try {
+        await expect(pageB.getByText(messageB)).toBeVisible({ timeout: 15000 });
+      } catch {
+        await pageB.reload();
+        await dismissCookieBanner(pageB);
+        await completeEncryptionSetup(pageB, USER_B.password);
+        await dismissReAuthModal(pageB, USER_B.password);
+        await expect(pageB.getByText(messageB)).toBeVisible({ timeout: 30000 });
+      }
     } finally {
       await contextA.close();
       await contextB.close();

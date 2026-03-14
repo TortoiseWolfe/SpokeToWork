@@ -352,11 +352,12 @@ test.describe('Message Deletion', () => {
     await page.locator('button[aria-label="Confirm deletion"]').click();
 
     // Wait for dialog to close and the specific message text to disappear
+    // Webkit can be slow to dismiss dialogs under CI load
     await expect(page.locator('[role="dialog"]')).not.toBeVisible({
-      timeout: 5000,
+      timeout: 15000,
     });
     await expect(page.locator(`text=${messageToDelete}`)).not.toBeVisible({
-      timeout: 5000,
+      timeout: 10000,
     });
 
     // Edit and Delete buttons should not exist

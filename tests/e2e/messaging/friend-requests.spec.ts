@@ -193,15 +193,21 @@ test.describe('Friend Request Flow', () => {
       );
 
       // ===== STEP 4: User A sends friend request =====
-      // Retry with reload if cleanup hasn't propagated to read replica
+      // Multi-attempt polling: Supabase Cloud read replica lag can persist
+      // 30s+ after admin cleanup. Each retry navigates fresh for a new query.
       let sendRequestButton = pageA.getByRole('button', {
         name: /send request/i,
       });
-      try {
-        await expect(sendRequestButton).toBeVisible({ timeout: 15000 });
-      } catch {
-        // Read replica may still show old connection — reload to force fresh query
-        await pageA.reload();
+      let sendBtnVisible = await sendRequestButton
+        .isVisible({ timeout: 8000 })
+        .catch(() => false);
+
+      for (let attempt = 1; !sendBtnVisible && attempt < 5; attempt++) {
+        console.log(
+          `Send Request not visible (attempt ${attempt + 1}/5), reloading...`
+        );
+        await pageA.waitForTimeout(3000);
+        await pageA.goto('/messages?tab=connections');
         await dismissCookieBanner(pageA);
         await completeEncryptionSetup(pageA);
         await dismissReAuthModal(pageA);
@@ -216,7 +222,14 @@ test.describe('Friend Request Flow', () => {
         sendRequestButton = pageA.getByRole('button', {
           name: /send request/i,
         });
-        await expect(sendRequestButton).toBeVisible({ timeout: 15000 });
+        sendBtnVisible = await sendRequestButton
+          .isVisible({ timeout: 8000 })
+          .catch(() => false);
+      }
+      if (!sendBtnVisible) {
+        throw new Error(
+          '"Send Request" button never appeared after 5 reload attempts'
+        );
       }
       await sendRequestButton.click({ force: true });
 
@@ -328,24 +341,43 @@ test.describe('Friend Request Flow', () => {
         password: USER_B.password,
       });
 
-      await pageB.goto('/messages?tab=connections');
-      await dismissCookieBanner(pageB);
-      await completeEncryptionSetup(pageB, USER_B.password);
-      await dismissReAuthModal(pageB, USER_B.password);
-      const searchInput = pageB.locator('#user-search-input');
-      await expect(searchInput).toBeVisible({ timeout: 5000 });
-      // Search for User A by displayName (derived from email prefix)
+      // Multi-attempt polling for "Send Request" (read replica lag after cleanup)
       const displayNameA = USER_A.email.split('@')[0];
-      await searchInput.fill(displayNameA);
-      await searchInput.press('Enter');
-      await pageB.waitForSelector(
-        '[data-testid="search-results"], .alert-error',
-        { timeout: 15000 }
-      );
-      const sendReqBtn = pageB
+      let sendReqBtn = pageB
         .getByRole('button', { name: /send request/i })
         .first();
-      await expect(sendReqBtn).toBeVisible({ timeout: 30000 });
+      let sendVisible = false;
+
+      for (let attempt = 0; attempt < 5; attempt++) {
+        await pageB.goto('/messages?tab=connections');
+        await dismissCookieBanner(pageB);
+        await completeEncryptionSetup(pageB, USER_B.password);
+        await dismissReAuthModal(pageB, USER_B.password);
+        const searchInput = pageB.locator('#user-search-input');
+        await expect(searchInput).toBeVisible({ timeout: 5000 });
+        await searchInput.fill(displayNameA);
+        await searchInput.press('Enter');
+        await pageB.waitForSelector(
+          '[data-testid="search-results"], .alert-error',
+          { timeout: 15000 }
+        );
+        sendReqBtn = pageB
+          .getByRole('button', { name: /send request/i })
+          .first();
+        sendVisible = await sendReqBtn
+          .isVisible({ timeout: 8000 })
+          .catch(() => false);
+        if (sendVisible) break;
+        console.log(
+          `Send Request not visible (attempt ${attempt + 1}/5), reloading...`
+        );
+        await pageB.waitForTimeout(3000);
+      }
+      if (!sendVisible) {
+        throw new Error(
+          '"Send Request" button never appeared after 5 reload attempts'
+        );
+      }
       await sendReqBtn.click({ force: true });
       await expect(pageB.getByText(/friend request sent/i).first()).toBeVisible(
         {
@@ -359,18 +391,32 @@ test.describe('Friend Request Flow', () => {
         password: USER_A.password,
       });
 
-      await pageA.goto('/messages?tab=connections');
-      await dismissCookieBanner(pageA);
-      await completeEncryptionSetup(pageA);
-      await dismissReAuthModal(pageA);
-      const receivedTab = pageA.getByRole('tab', {
-        name: /pending received|received/i,
-      });
-      await receivedTab.click({ force: true });
-
-      await pageA.waitForSelector('[data-testid="connection-request"]', {
-        timeout: 15000,
-      });
+      // Multi-attempt polling for connection-request visibility (read replica lag)
+      let requestVisible = false;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        await pageA.goto('/messages?tab=connections');
+        await dismissCookieBanner(pageA);
+        await completeEncryptionSetup(pageA);
+        await dismissReAuthModal(pageA);
+        const receivedTab = pageA.getByRole('tab', {
+          name: /pending received|received/i,
+        });
+        await receivedTab.click({ force: true });
+        requestVisible = await pageA
+          .locator('[data-testid="connection-request"]')
+          .isVisible({ timeout: 8000 })
+          .catch(() => false);
+        if (requestVisible) break;
+        console.log(
+          `Connection request not visible (attempt ${attempt + 1}/5), reloading...`
+        );
+        await pageA.waitForTimeout(3000);
+      }
+      if (!requestVisible) {
+        throw new Error(
+          'Connection request never appeared after 5 reload attempts'
+        );
+      }
 
       // Decline the request
       const declineButton = pageA
@@ -397,22 +443,41 @@ test.describe('Friend Request Flow', () => {
       password: USER_A.password,
     });
 
-    // Send friend request to User B
-    await page.goto('/messages?tab=connections');
-    await dismissCookieBanner(page);
-    await completeEncryptionSetup(page);
-    await dismissReAuthModal(page);
-    const searchInput = page.locator('#user-search-input');
-    await expect(searchInput).toBeVisible({ timeout: 5000 });
-    await searchInput.fill(USER_B.displayName);
-    await searchInput.press('Enter');
-    await page.waitForSelector('[data-testid="search-results"], .alert-error', {
-      timeout: 15000,
-    });
-    await page
-      .getByRole('button', { name: /send request/i })
-      .first()
-      .click({ force: true });
+    // Send friend request to User B — multi-attempt for read replica lag
+    let cancelSendVisible = false;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await page.goto('/messages?tab=connections');
+      await dismissCookieBanner(page);
+      await completeEncryptionSetup(page);
+      await dismissReAuthModal(page);
+      const searchInput = page.locator('#user-search-input');
+      await expect(searchInput).toBeVisible({ timeout: 5000 });
+      await searchInput.fill(USER_B.displayName);
+      await searchInput.press('Enter');
+      await page.waitForSelector(
+        '[data-testid="search-results"], .alert-error',
+        { timeout: 15000 }
+      );
+      const sendBtn = page
+        .getByRole('button', { name: /send request/i })
+        .first();
+      cancelSendVisible = await sendBtn
+        .isVisible({ timeout: 8000 })
+        .catch(() => false);
+      if (cancelSendVisible) {
+        await sendBtn.click({ force: true });
+        break;
+      }
+      console.log(
+        `Send Request not visible (attempt ${attempt + 1}/5), reloading...`
+      );
+      await page.waitForTimeout(3000);
+    }
+    if (!cancelSendVisible) {
+      throw new Error(
+        '"Send Request" button never appeared after 5 reload attempts'
+      );
+    }
     await expect(page.getByText(/friend request sent/i).first()).toBeVisible({
       timeout: 5000,
     });

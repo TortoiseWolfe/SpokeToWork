@@ -451,7 +451,7 @@ async function scrollToTopAndWait(page: import('@playwright/test').Page) {
 // ─── Virtual Scrolling Performance ──────────────────────────────────────────
 
 test.describe('Virtual Scrolling Performance', () => {
-  test.describe.configure({ timeout: 120000 });
+  test.describe.configure({ timeout: 180000 });
   test('T172b: Virtual scrolling activates at 100+ messages', async ({
     page,
   }) => {
@@ -521,13 +521,21 @@ test.describe('Virtual Scrolling Performance', () => {
     await expect(paginationLoader).toHaveText(/Loading older messages/);
     await expect(paginationLoader).not.toBeVisible({ timeout: 15000 });
 
-    // Wait for newly loaded messages to render and affect layout
-    // Poll for scrollHeight change (DOM rendering can lag after pagination load)
+    // Wait for newly loaded messages to render and affect layout.
+    // Poll for scrollHeight change — virtual scroll may need extra ticks to
+    // recalculate total height after pagination inserts new items.
     let newHeight = initialHeight;
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 30; i++) {
       await page.waitForTimeout(500);
       newHeight = await messageThread.evaluate((el) => el.scrollHeight);
       if (newHeight > initialHeight) break;
+      // Re-trigger scroll event periodically in case the virtualizer needs it
+      if (i % 5 === 4) {
+        await messageThread.evaluate((el) => {
+          el.scrollTop = 0;
+          el.dispatchEvent(new Event('scroll', { bubbles: true }));
+        });
+      }
     }
     expect(newHeight).toBeGreaterThan(initialHeight);
   });

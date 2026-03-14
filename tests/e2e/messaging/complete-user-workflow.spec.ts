@@ -275,16 +275,22 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       console.log('Step 3: Search completed - User B found');
 
       // STEP 4: Send friend request
+      // Multi-attempt polling: Supabase Cloud read replica lag can persist
+      // 30s+ after admin cleanup. Each retry navigates fresh for a new query.
       console.log('Step 4: Sending friend request...');
       let sendRequestButton = pageA.getByRole('button', {
         name: /send request/i,
       });
-      // Retry with reload if cleanup hasn't propagated to read replica
-      try {
-        await expect(sendRequestButton).toBeVisible({ timeout: 15000 });
-      } catch {
-        console.log('Step 4: Send Request not visible, reloading...');
-        await pageA.reload();
+      let sendBtnVisible = await sendRequestButton
+        .isVisible({ timeout: 8000 })
+        .catch(() => false);
+
+      for (let attempt = 1; !sendBtnVisible && attempt < 5; attempt++) {
+        console.log(
+          `Step 4: Send Request not visible (attempt ${attempt + 1}/5), reloading...`
+        );
+        await pageA.waitForTimeout(3000);
+        await pageA.goto('/messages?tab=connections');
         await dismissCookieBanner(pageA);
         await completeEncryptionSetup(pageA);
         await dismissReAuthModal(pageA);
@@ -299,7 +305,14 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
         sendRequestButton = pageA.getByRole('button', {
           name: /send request/i,
         });
-        await expect(sendRequestButton).toBeVisible({ timeout: 15000 });
+        sendBtnVisible = await sendRequestButton
+          .isVisible({ timeout: 8000 })
+          .catch(() => false);
+      }
+      if (!sendBtnVisible) {
+        throw new Error(
+          'Step 4: "Send Request" button never appeared after 5 reload attempts'
+        );
       }
 
       // Log button state before click
@@ -359,25 +372,37 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       console.log('Step 5: User B signed in');
 
       // STEP 6: User B views pending requests
+      // Multi-attempt polling: Supabase Cloud read replica lag can delay
+      // the friend request from appearing on User B's received tab.
       console.log('Step 6: User B viewing pending requests...');
-      await pageB.goto('/messages?tab=connections');
+      let requestVisible = false;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        await pageB.goto('/messages?tab=connections');
+        await dismissCookieBanner(pageB);
+        await completeEncryptionSetup(pageB, USER_B.password);
+        await dismissReAuthModal(pageB, USER_B.password);
+        await expect(pageB).toHaveURL(/.*\/messages\/?\?.*tab=connections/);
 
-      // Handle encryption setup and ReAuth for User B
-      await dismissCookieBanner(pageB);
-      await completeEncryptionSetup(pageB, USER_B.password);
-      await dismissReAuthModal(pageB, USER_B.password);
-
-      await expect(pageB).toHaveURL(/.*\/messages\/?\?.*tab=connections/);
-
-      const receivedTab = pageB.getByRole('tab', {
-        name: /pending received|received/i,
-      });
-      await receivedTab.click({ force: true });
-      // Wait for tab content to load — can be slow in Docker after 200+ tests
-      await pageB.waitForLoadState('networkidle');
-      await pageB.waitForSelector('[data-testid="connection-request"]', {
-        timeout: 15000,
-      });
+        const receivedTab = pageB.getByRole('tab', {
+          name: /pending received|received/i,
+        });
+        await receivedTab.click({ force: true });
+        await pageB.waitForLoadState('networkidle');
+        requestVisible = await pageB
+          .locator('[data-testid="connection-request"]')
+          .isVisible({ timeout: 8000 })
+          .catch(() => false);
+        if (requestVisible) break;
+        console.log(
+          `Step 6: Connection request not visible (attempt ${attempt + 1}/5), reloading...`
+        );
+        await pageB.waitForTimeout(3000);
+      }
+      if (!requestVisible) {
+        throw new Error(
+          'Step 6: Connection request never appeared after 5 reload attempts'
+        );
+      }
       console.log('Step 6: Pending request visible');
 
       // STEP 7: User B accepts friend request
