@@ -305,19 +305,26 @@ test.describe('Friend Request Flow', () => {
       ).toBeVisible({ timeout: 15000 });
 
       // ===== STEP 10: Verify DB state via admin client (bypass replica lag) =====
-      // Service role key queries the primary DB, not the read replica.
+      // Poll because acceptRequest() optimistic update fires before the async
+      // DB write completes — the API call may still be in-flight.
       const client = getAdminClient();
       if (client) {
         const { userAId, userBId } = await getUserIds(client);
         if (userAId && userBId) {
-          const { data: connection } = await client
-            .from('user_connections')
-            .select('status')
-            .or(
-              `and(requester_id.eq.${userAId},addressee_id.eq.${userBId}),and(requester_id.eq.${userBId},addressee_id.eq.${userAId})`
-            )
-            .single();
-          expect(connection?.status).toBe('accepted');
+          let dbStatus = 'unknown';
+          for (let poll = 0; poll < 5; poll++) {
+            const { data: connection } = await client
+              .from('user_connections')
+              .select('status')
+              .or(
+                `and(requester_id.eq.${userAId},addressee_id.eq.${userBId}),and(requester_id.eq.${userBId},addressee_id.eq.${userAId})`
+              )
+              .single();
+            dbStatus = connection?.status ?? 'not_found';
+            if (dbStatus === 'accepted') break;
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+          }
+          expect(dbStatus).toBe('accepted');
         }
       }
     } finally {
@@ -451,7 +458,8 @@ test.describe('Friend Request Flow', () => {
     for (let attempt = 0; attempt < 5; attempt++) {
       await page.goto('/messages?tab=connections');
       await dismissCookieBanner(page);
-      await completeEncryptionSetup(page);
+      // Only check encryption setup on first iteration (keys persist in DB)
+      if (attempt === 0) await completeEncryptionSetup(page);
       await dismissReAuthModal(page);
       const searchInput = page.locator('#user-search-input');
       await expect(searchInput).toBeVisible({ timeout: 5000 });
@@ -523,9 +531,8 @@ test.describe('Friend Request Flow', () => {
     await dismissReAuthModal(page);
 
     // Send first request — multi-attempt polling for read replica lag
-    // Limit to 3 attempts (webkit argon2id ~40s/iteration, 90s timeout)
     let dupSendVisible = false;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 5; attempt++) {
       await page.goto('/messages?tab=connections');
       await dismissCookieBanner(page);
       // Only check encryption setup on first iteration (keys persist in DB)
@@ -548,13 +555,13 @@ test.describe('Friend Request Flow', () => {
         break;
       }
       console.log(
-        `Duplicate test: Send Request not visible (attempt ${attempt + 1}/3), reloading...`
+        `Duplicate test: Send Request not visible (attempt ${attempt + 1}/5), reloading...`
       );
       await page.waitForTimeout(3000);
     }
     if (!dupSendVisible) {
       throw new Error(
-        '"Send Request" button never appeared after 3 reload attempts (duplicate test)'
+        '"Send Request" button never appeared after 5 reload attempts (duplicate test)'
       );
     }
     await expect(page.getByText(/friend request sent/i)).toBeVisible({
