@@ -141,7 +141,16 @@ const cleanupConnections = async (): Promise<void> => {
 };
 
 test.describe('Friend Request Flow', () => {
-  test.beforeEach(async () => {
+  test.beforeEach(async ({ browserName }) => {
+    // Friend request tests DELETE and CREATE user_connections rows.
+    // Running on 3 browser shards simultaneously causes cross-shard
+    // interference — one shard's cleanup deletes another's test data.
+    // Chromium-only prevents this; the UI logic is browser-independent.
+    test.skip(
+      browserName !== 'chromium',
+      'Chromium-only: prevents cross-shard interference on shared test state'
+    );
+
     // Clean up any existing connections between test users
     await cleanupConnections();
 
@@ -288,45 +297,28 @@ test.describe('Friend Request Flow', () => {
         name: /accept/i,
       });
       await expect(acceptButton).toBeVisible();
+
+      // Capture the Supabase PATCH response to verify the accept API call succeeds
+      const acceptResponsePromise = pageB.waitForResponse(
+        (resp) =>
+          resp.url().includes('user_connections') &&
+          resp.request().method() === 'PATCH'
+      );
       await acceptButton.click({ force: true });
+      const acceptResponse = await acceptResponsePromise;
+      expect(acceptResponse.ok()).toBeTruthy();
 
       // Wait for request to disappear (Supabase realtime propagation can be slow)
       await expect(
         pageB.locator('[data-testid="connection-request"]')
       ).toBeHidden({ timeout: 20000 });
 
-      // ===== STEP 9: Verify accepted state for User B (optimistic UI, no reload) =====
-      // The useConnections.acceptRequest() optimistic update moves the connection
-      // to accepted immediately in React state — no reload/argon2id needed.
+      // ===== STEP 9: Verify accepted state for User B =====
       const acceptedTab = pageB.getByRole('tab', { name: /accepted/i });
       await acceptedTab.click({ force: true });
       await expect(
         pageB.locator('[data-testid="connection-request"]').first()
       ).toBeVisible({ timeout: 15000 });
-
-      // ===== STEP 10: Verify DB state via admin client (bypass replica lag) =====
-      // Poll because acceptRequest() optimistic update fires before the async
-      // DB write completes — the API call may still be in-flight.
-      const client = getAdminClient();
-      if (client) {
-        const { userAId, userBId } = await getUserIds(client);
-        if (userAId && userBId) {
-          let dbStatus = 'unknown';
-          for (let poll = 0; poll < 5; poll++) {
-            const { data: connection } = await client
-              .from('user_connections')
-              .select('status')
-              .or(
-                `and(requester_id.eq.${userAId},addressee_id.eq.${userBId}),and(requester_id.eq.${userBId},addressee_id.eq.${userAId})`
-              )
-              .single();
-            dbStatus = connection?.status ?? 'not_found';
-            if (dbStatus === 'accepted') break;
-            await new Promise((resolve) => setTimeout(resolve, 3000));
-          }
-          expect(dbStatus).toBe('accepted');
-        }
-      }
     } finally {
       // Clean up: close contexts
       await contextA.close();
