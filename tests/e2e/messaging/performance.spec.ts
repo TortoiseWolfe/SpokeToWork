@@ -396,9 +396,20 @@ async function openConversation(page: Page) {
 
   // Wait for the thread container AND at least one rendered message bubble.
   // Reload fallback handles read-replica lag on Supabase Cloud.
-  await page
-    .getByTestId('message-thread')
-    .waitFor({ state: 'visible', timeout: 15000 });
+  try {
+    await page
+      .getByTestId('message-thread')
+      .waitFor({ state: 'visible', timeout: 15000 });
+  } catch {
+    // Thread container not visible — reload and retry (auth/encryption may have blocked)
+    await page.reload();
+    await dismissCookieBanner(page);
+    await completeEncryptionSetup(page);
+    await dismissReAuthModal(page);
+    await page
+      .getByTestId('message-thread')
+      .waitFor({ state: 'visible', timeout: 30000 });
+  }
   try {
     await page
       .locator('[data-testid="message-bubble"]')
