@@ -218,10 +218,10 @@ export async function dismissReAuthModal(
           if (await unlockBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
             await unlockBtn.click();
 
-            // Wait for modal to close (argon2id key derivation takes 10-35s on CI, up to 60s on firefox)
+            // Wait for modal to close (argon2id key derivation takes 10-35s on CI, up to 70s on firefox)
             const closed = await modal
               .first()
-              .waitFor({ state: 'hidden', timeout: 60000 })
+              .waitFor({ state: 'hidden', timeout: 90000 })
               .then(() => true)
               .catch(() => false);
             await page.waitForTimeout(500);
