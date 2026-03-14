@@ -543,9 +543,10 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       await dismissReAuthModal(pageA);
 
       // Reload fallback for Supabase Cloud read replica lag
+      // Wait 30s for Realtime delivery before expensive reload+argon2id path
       try {
         await expect(pageA.getByText(replyMessage)).toBeVisible({
-          timeout: 15000,
+          timeout: 30000,
         });
       } catch {
         await pageA.reload();
