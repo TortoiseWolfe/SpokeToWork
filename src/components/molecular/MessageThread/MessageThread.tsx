@@ -80,6 +80,7 @@ export default function MessageThread({
   const lastMessageRef = useRef<string | null>(null);
   const previousScrollHeight = useRef<number>(0);
   const shouldAutoScroll = useRef<boolean>(true);
+  const scrollingToBottomRef = useRef<boolean>(false);
 
   // Determine whether to use virtual scrolling
   const useVirtualScrolling = messages.length >= VIRTUAL_SCROLL_THRESHOLD;
@@ -193,7 +194,15 @@ export default function MessageThread({
     const { scrollTop, scrollHeight, clientHeight } = parent;
     const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
 
-    // Show scroll button if more than threshold from bottom
+    // Show scroll button if more than threshold from bottom.
+    // Suppress re-showing during programmatic scroll-to-bottom to avoid flicker.
+    if (scrollingToBottomRef.current) {
+      if (distanceFromBottom < 50) {
+        scrollingToBottomRef.current = false;
+        setShowScrollButton(false);
+      }
+      return;
+    }
     const shouldShowButton = distanceFromBottom > SHOW_JUMP_BUTTON_THRESHOLD;
     setShowScrollButton(shouldShowButton);
 
@@ -346,8 +355,9 @@ export default function MessageThread({
           <button
             type="button"
             onClick={() => {
-              scrollToBottom(true);
+              scrollingToBottomRef.current = true;
               setShowScrollButton(false);
+              scrollToBottom(true);
             }}
             className="btn btn-circle btn-primary absolute right-4 bottom-4 z-10 min-h-11 min-w-11 shadow-lg"
             aria-label="Jump to bottom"
