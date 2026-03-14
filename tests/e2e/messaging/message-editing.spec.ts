@@ -63,7 +63,7 @@ async function findMessageBubble(page: Page, text: string) {
   // Optimistic messages use "optimistic-*" as data-message-id which gets
   // swapped on server confirmation, detaching the old DOM node mid-click.
   await expect(byText).toHaveAttribute('data-message-id', /^(?!optimistic-)/, {
-    timeout: 10000,
+    timeout: 30000, // CI Supabase Realtime confirmation can take 10-20s under load
   });
 
   const messageId = await byText.getAttribute('data-message-id');

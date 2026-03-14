@@ -54,6 +54,7 @@ export const ensureConnection = async (
     ensureUserProfile(client, emailB),
   ]);
 
+  // Check both directions — a connection may exist in either direction
   const { data: existing } = await client
     .from('user_connections')
     .select('id')
@@ -63,11 +64,20 @@ export const ensureConnection = async (
     .maybeSingle();
   if (existing) return;
 
-  await client.from('user_connections').insert({
-    requester_id: idA,
-    addressee_id: idB,
-    status: 'accepted',
-  });
+  // Use upsert to handle concurrent calls from parallel browser shards.
+  // Without this, a second shard hitting the UNIQUE(requester_id, addressee_id)
+  // constraint silently fails, leaving the test with no connection.
+  const { error } = await client.from('user_connections').upsert(
+    {
+      requester_id: idA,
+      addressee_id: idB,
+      status: 'accepted',
+    },
+    { onConflict: 'requester_id,addressee_id' }
+  );
+  if (error) {
+    console.error('ensureConnection INSERT failed:', error.message);
+  }
 };
 
 /**
@@ -180,12 +190,24 @@ async function waitForPageReady(page: Page): Promise<void> {
   }
 }
 
-/** Dismiss the ReAuth modal/dialog that appears when encryption keys need unlocking */
+/** Dismiss the ReAuth modal/dialog that appears when encryption keys need unlocking.
+ *  @param quickCheck - Use in retry loops where keys are already derived.
+ *    Reduces wait from 18s to 2s when no modal appears. */
 export async function dismissReAuthModal(
   page: Page,
-  password?: string
+  password?: string,
+  quickCheck = false
 ): Promise<void> {
   const pw = password || process.env.TEST_USER_PRIMARY_PASSWORD!;
+
+  // Quick check path for retry loops — keys already derived, modal won't appear
+  if (quickCheck) {
+    const modal = page.locator('[role="presentation"], [role="dialog"]');
+    if (!(await modal.first().isVisible({ timeout: 2000 }).catch(() => false))) {
+      return; // No modal — done in 2s instead of 18s
+    }
+    // Modal found unexpectedly — fall through to full handling
+  }
 
   // Ensure page is settled before looking for the modal
   await waitForPageReady(page);

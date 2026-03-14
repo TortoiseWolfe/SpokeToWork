@@ -217,15 +217,16 @@ test.describe('Friend Request Flow', () => {
         .isVisible({ timeout: 8000 })
         .catch(() => false);
 
-      for (let attempt = 1; !sendBtnVisible && attempt < 5; attempt++) {
+      for (let attempt = 1; !sendBtnVisible && attempt < 8; attempt++) {
         console.log(
-          `Send Request not visible (attempt ${attempt + 1}/5), reloading...`
+          `Send Request not visible (attempt ${attempt + 1}/8), reloading...`
         );
-        await pageA.waitForTimeout(3000);
+        await pageA.waitForTimeout(5000);
         await pageA.goto('/messages?tab=connections');
         await dismissCookieBanner(pageA);
-        await completeEncryptionSetup(pageA);
-        await dismissReAuthModal(pageA);
+        // Skip encryption setup on retries — keys already derived and stored
+        // Use quickCheck (2s) instead of full dismissReAuthModal (18s)
+        await dismissReAuthModal(pageA, undefined, true);
         const retrySearchInput = pageA.locator('#user-search-input');
         await expect(retrySearchInput).toBeVisible({ timeout: 5000 });
         await retrySearchInput.fill(USER_B.displayName);
@@ -243,7 +244,7 @@ test.describe('Friend Request Flow', () => {
       }
       if (!sendBtnVisible) {
         throw new Error(
-          '"Send Request" button never appeared after 5 reload attempts'
+          '"Send Request" button never appeared after 8 reload attempts'
         );
       }
       await sendRequestButton.click({ force: true });
@@ -350,11 +351,16 @@ test.describe('Friend Request Flow', () => {
         .first();
       let sendVisible = false;
 
-      for (let attempt = 0; attempt < 5; attempt++) {
+      for (let attempt = 0; attempt < 8; attempt++) {
         await pageB.goto('/messages?tab=connections');
         await dismissCookieBanner(pageB);
-        await completeEncryptionSetup(pageB, USER_B.password);
-        await dismissReAuthModal(pageB, USER_B.password);
+        // Only run full encryption setup on first attempt; quickCheck on retries
+        if (attempt === 0) {
+          await completeEncryptionSetup(pageB, USER_B.password);
+          await dismissReAuthModal(pageB, USER_B.password);
+        } else {
+          await dismissReAuthModal(pageB, USER_B.password, true);
+        }
         const searchInput = pageB.locator('#user-search-input');
         await expect(searchInput).toBeVisible({ timeout: 5000 });
         await searchInput.fill(displayNameA);
@@ -371,13 +377,13 @@ test.describe('Friend Request Flow', () => {
           .catch(() => false);
         if (sendVisible) break;
         console.log(
-          `Send Request not visible (attempt ${attempt + 1}/5), reloading...`
+          `Send Request not visible (attempt ${attempt + 1}/8), reloading...`
         );
-        await pageB.waitForTimeout(3000);
+        await pageB.waitForTimeout(5000);
       }
       if (!sendVisible) {
         throw new Error(
-          '"Send Request" button never appeared after 5 reload attempts'
+          '"Send Request" button never appeared after 8 reload attempts'
         );
       }
       await sendReqBtn.click({ force: true });
@@ -395,11 +401,15 @@ test.describe('Friend Request Flow', () => {
 
       // Multi-attempt polling for connection-request visibility (read replica lag)
       let requestVisible = false;
-      for (let attempt = 0; attempt < 5; attempt++) {
+      for (let attempt = 0; attempt < 8; attempt++) {
         await pageA.goto('/messages?tab=connections');
         await dismissCookieBanner(pageA);
-        await completeEncryptionSetup(pageA);
-        await dismissReAuthModal(pageA);
+        if (attempt === 0) {
+          await completeEncryptionSetup(pageA);
+          await dismissReAuthModal(pageA);
+        } else {
+          await dismissReAuthModal(pageA, undefined, true);
+        }
         const receivedTab = pageA.getByRole('tab', {
           name: /pending received|received/i,
         });
@@ -410,13 +420,13 @@ test.describe('Friend Request Flow', () => {
           .catch(() => false);
         if (requestVisible) break;
         console.log(
-          `Connection request not visible (attempt ${attempt + 1}/5), reloading...`
+          `Connection request not visible (attempt ${attempt + 1}/8), reloading...`
         );
-        await pageA.waitForTimeout(3000);
+        await pageA.waitForTimeout(5000);
       }
       if (!requestVisible) {
         throw new Error(
-          'Connection request never appeared after 5 reload attempts'
+          'Connection request never appeared after 8 reload attempts'
         );
       }
 
