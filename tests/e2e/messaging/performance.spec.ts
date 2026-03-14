@@ -418,11 +418,12 @@ async function openConversation(page: Page) {
   } catch {
     await page.reload();
     await dismissCookieBanner(page);
+    await completeEncryptionSetup(page);
     await dismissReAuthModal(page);
     await page
       .locator('[data-testid="message-bubble"]')
       .first()
-      .waitFor({ state: 'visible', timeout: 30000 });
+      .waitFor({ state: 'visible', timeout: 45000 });
   }
 }
 

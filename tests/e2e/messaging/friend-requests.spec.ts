@@ -519,27 +519,48 @@ test.describe('Friend Request Flow', () => {
     await completeEncryptionSetup(page);
     await dismissReAuthModal(page);
 
-    // Send first request
-    const searchInput = page.locator('#user-search-input');
-    await expect(searchInput).toBeVisible({ timeout: 5000 });
-    await searchInput.fill(USER_B.displayName);
-    await searchInput.press('Enter');
-    await page.waitForSelector('[data-testid="search-results"], .alert-error', {
-      timeout: 15000,
-    });
-
-    const sendRequestButton = page.getByRole('button', {
-      name: /send request/i,
-    });
-    await sendRequestButton.click({ force: true });
+    // Send first request — multi-attempt polling for read replica lag
+    let dupSendVisible = false;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await page.goto('/messages?tab=connections');
+      await dismissCookieBanner(page);
+      await completeEncryptionSetup(page);
+      await dismissReAuthModal(page);
+      const searchInput = page.locator('#user-search-input');
+      await expect(searchInput).toBeVisible({ timeout: 5000 });
+      await searchInput.fill(USER_B.displayName);
+      await searchInput.press('Enter');
+      await page.waitForSelector(
+        '[data-testid="search-results"], .alert-error',
+        { timeout: 15000 }
+      );
+      const sendBtn = page.getByRole('button', { name: /send request/i });
+      dupSendVisible = await sendBtn
+        .isVisible({ timeout: 8000 })
+        .catch(() => false);
+      if (dupSendVisible) {
+        await sendBtn.click({ force: true });
+        break;
+      }
+      console.log(
+        `Duplicate test: Send Request not visible (attempt ${attempt + 1}/5), reloading...`
+      );
+      await page.waitForTimeout(3000);
+    }
+    if (!dupSendVisible) {
+      throw new Error(
+        '"Send Request" button never appeared after 5 reload attempts (duplicate test)'
+      );
+    }
     await expect(page.getByText(/friend request sent/i)).toBeVisible({
       timeout: 5000,
     });
 
     // Search again and verify button state changed
-    await searchInput.clear();
-    await searchInput.fill(USER_B.displayName);
-    await searchInput.press('Enter');
+    const searchInputAfter = page.locator('#user-search-input');
+    await searchInputAfter.clear();
+    await searchInputAfter.fill(USER_B.displayName);
+    await searchInputAfter.press('Enter');
     await page.waitForSelector('[data-testid="search-results"], .alert-error', {
       timeout: 15000,
     });
