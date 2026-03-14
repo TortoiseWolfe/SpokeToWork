@@ -41,6 +41,20 @@ export function useConnections() {
 
   const acceptRequest = async (connectionId: string) => {
     setError(null);
+    // Optimistic: move from pending_received to accepted immediately
+    // Avoids read replica lag where fetchConnections() returns stale data
+    setConnections((prev) => {
+      const item = prev.pending_received.find(
+        (i) => i.connection.id === connectionId
+      );
+      return {
+        ...prev,
+        pending_received: prev.pending_received.filter(
+          (i) => i.connection.id !== connectionId
+        ),
+        accepted: item ? [...prev.accepted, item] : prev.accepted,
+      };
+    });
     try {
       await connectionService.respondToRequest({
         connection_id: connectionId,
@@ -48,6 +62,7 @@ export function useConnections() {
       });
       await fetchConnections();
     } catch (err: unknown) {
+      await fetchConnections(); // Revert optimistic update on error
       const message =
         err instanceof Error ? err.message : 'Failed to accept request';
       setError(message);
@@ -57,6 +72,13 @@ export function useConnections() {
 
   const declineRequest = async (connectionId: string) => {
     setError(null);
+    // Optimistic: remove from pending_received immediately
+    setConnections((prev) => ({
+      ...prev,
+      pending_received: prev.pending_received.filter(
+        (item) => item.connection.id !== connectionId
+      ),
+    }));
     try {
       await connectionService.respondToRequest({
         connection_id: connectionId,
@@ -64,6 +86,7 @@ export function useConnections() {
       });
       await fetchConnections();
     } catch (err: unknown) {
+      await fetchConnections(); // Revert optimistic update on error
       const message =
         err instanceof Error ? err.message : 'Failed to decline request';
       setError(message);
@@ -73,6 +96,24 @@ export function useConnections() {
 
   const blockUser = async (connectionId: string) => {
     setError(null);
+    // Optimistic: remove from pending_received/accepted, add to blocked
+    setConnections((prev) => {
+      const item =
+        prev.pending_received.find(
+          (i) => i.connection.id === connectionId
+        ) ||
+        prev.accepted.find((i) => i.connection.id === connectionId);
+      return {
+        ...prev,
+        pending_received: prev.pending_received.filter(
+          (i) => i.connection.id !== connectionId
+        ),
+        accepted: prev.accepted.filter(
+          (i) => i.connection.id !== connectionId
+        ),
+        blocked: item ? [...prev.blocked, item] : prev.blocked,
+      };
+    });
     try {
       await connectionService.respondToRequest({
         connection_id: connectionId,
@@ -80,6 +121,7 @@ export function useConnections() {
       });
       await fetchConnections();
     } catch (err: unknown) {
+      await fetchConnections(); // Revert optimistic update on error
       const message =
         err instanceof Error ? err.message : 'Failed to block user';
       setError(message);
@@ -89,10 +131,18 @@ export function useConnections() {
 
   const removeConnection = async (connectionId: string) => {
     setError(null);
+    // Optimistic: remove from accepted immediately
+    setConnections((prev) => ({
+      ...prev,
+      accepted: prev.accepted.filter(
+        (item) => item.connection.id !== connectionId
+      ),
+    }));
     try {
       await connectionService.removeConnection(connectionId);
       await fetchConnections();
     } catch (err: unknown) {
+      await fetchConnections(); // Revert optimistic update on error
       const message =
         err instanceof Error ? err.message : 'Failed to remove connection';
       setError(message);
