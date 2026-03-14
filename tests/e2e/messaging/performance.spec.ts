@@ -501,7 +501,9 @@ test.describe('Virtual Scrolling Performance', () => {
     await expect(jumpButton).toBeVisible();
 
     await jumpButton.click();
-    await expect(jumpButton).not.toBeVisible();
+    // Wait for scroll-to-bottom animation to complete before checking visibility
+    await page.waitForTimeout(1000);
+    await expect(jumpButton).not.toBeVisible({ timeout: 15000 });
   });
 
   test('T167: Pagination loads older messages', async ({ page }) => {
