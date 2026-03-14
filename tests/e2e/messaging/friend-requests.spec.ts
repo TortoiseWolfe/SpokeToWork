@@ -176,6 +176,12 @@ test.describe('Friend Request Flow', () => {
       await dismissCookieBanner(pageA);
       await completeEncryptionSetup(pageA);
       await dismissReAuthModal(pageA);
+      // Re-navigate if encryption setup redirected away from tab=connections
+      if (!pageA.url().includes('tab=connections')) {
+        await pageA.goto('/messages?tab=connections');
+        await dismissCookieBanner(pageA);
+        await dismissReAuthModal(pageA);
+      }
       await expect(pageA).toHaveURL(/.*\/messages\/?\?.*tab=connections/);
 
       // ===== STEP 3: User A searches for User B by username =====
@@ -290,33 +296,51 @@ test.describe('Friend Request Flow', () => {
       ).toBeHidden({ timeout: 20000 });
 
       // ===== STEP 9: Verify connection appears in "Accepted" tab for User B =====
-      // Reload to get fresh data after accepting
-      await pageB.reload();
-      await completeEncryptionSetup(pageB, USER_B.password);
-      await dismissReAuthModal(pageB, USER_B.password);
-      const acceptedTab = pageB.getByRole('tab', { name: /accepted/i });
-      await acceptedTab.click({ force: true });
-      await pageB.waitForTimeout(1000);
-
-      // Connection should now appear (uses same testid as pending, just different tab)
-      const acceptedConnection = pageB.locator(
-        '[data-testid="connection-request"]'
-      );
-      await expect(acceptedConnection.first()).toBeVisible({ timeout: 15000 });
+      // Retry reload to handle read replica lag after accept
+      let acceptedVisibleB = false;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await pageB.reload();
+        await dismissCookieBanner(pageB);
+        await completeEncryptionSetup(pageB, USER_B.password);
+        await dismissReAuthModal(pageB, USER_B.password);
+        const acceptedTab = pageB.getByRole('tab', { name: /accepted/i });
+        await acceptedTab.click({ force: true });
+        await pageB.waitForTimeout(1000);
+        acceptedVisibleB = await pageB
+          .locator('[data-testid="connection-request"]')
+          .first()
+          .isVisible({ timeout: 10000 })
+          .catch(() => false);
+        if (acceptedVisibleB) break;
+        console.log(
+          `Accepted connection not visible for User B (attempt ${attempt + 1}/3), retrying...`
+        );
+        await pageB.waitForTimeout(3000);
+      }
+      expect(acceptedVisibleB).toBe(true);
 
       // ===== STEP 10: Verify connection appears in User A's "Accepted" tab =====
-      await pageA.reload();
-      await completeEncryptionSetup(pageA);
-      await dismissReAuthModal(pageA);
-
-      const acceptedTabA = pageA.getByRole('tab', { name: /accepted/i });
-      await acceptedTabA.click({ force: true });
-      await pageA.waitForTimeout(1000);
-
-      const acceptedConnectionA = pageA.locator(
-        '[data-testid="connection-request"]'
-      );
-      await expect(acceptedConnectionA.first()).toBeVisible({ timeout: 30000 });
+      let acceptedVisibleA = false;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await pageA.reload();
+        await dismissCookieBanner(pageA);
+        await completeEncryptionSetup(pageA);
+        await dismissReAuthModal(pageA);
+        const acceptedTabA = pageA.getByRole('tab', { name: /accepted/i });
+        await acceptedTabA.click({ force: true });
+        await pageA.waitForTimeout(1000);
+        acceptedVisibleA = await pageA
+          .locator('[data-testid="connection-request"]')
+          .first()
+          .isVisible({ timeout: 10000 })
+          .catch(() => false);
+        if (acceptedVisibleA) break;
+        console.log(
+          `Accepted connection not visible for User A (attempt ${attempt + 1}/3), retrying...`
+        );
+        await pageA.waitForTimeout(3000);
+      }
+      expect(acceptedVisibleA).toBe(true);
     } finally {
       // Clean up: close contexts
       await contextA.close();

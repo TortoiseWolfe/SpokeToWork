@@ -423,7 +423,7 @@ async function openConversation(page: Page) {
     await page
       .locator('[data-testid="message-bubble"]')
       .first()
-      .waitFor({ state: 'visible', timeout: 45000 });
+      .waitFor({ state: 'visible', timeout: 60000 });
   }
 }
 

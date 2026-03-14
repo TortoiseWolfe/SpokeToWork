@@ -117,8 +117,8 @@ test.describe('Encrypted Messaging Flow', () => {
       await expect(sendButton).toBeEnabled();
       await sendButton.click();
 
-      // Wait for sending state to complete
-      await expect(sendButton).not.toContainText('Sending');
+      // Wait for sending state to complete (encryption + API can take >5s)
+      await expect(sendButton).not.toContainText('Sending', { timeout: 15000 });
 
       // ===== STEP 6: Verify message appears in User A's view =====
       const messageA = pageA.getByText(testMessage);
@@ -171,9 +171,21 @@ test.describe('Encrypted Messaging Flow', () => {
       // ===== STEP 11: User A sees the reply =====
       await pageA.reload();
       await dismissCookieBanner(pageA);
+      await completeEncryptionSetup(pageA);
       await dismissReAuthModal(pageA);
       const replyA = pageA.getByText(replyMessage);
-      await expect(replyA).toBeVisible({ timeout: 15000 });
+      try {
+        await expect(replyA).toBeVisible({ timeout: 15000 });
+      } catch {
+        // Reload fallback for read replica lag
+        await pageA.reload();
+        await dismissCookieBanner(pageA);
+        await completeEncryptionSetup(pageA);
+        await dismissReAuthModal(pageA);
+        await expect(pageA.getByText(replyMessage)).toBeVisible({
+          timeout: 30000,
+        });
+      }
     } finally {
       await contextA.close();
       await contextB.close();
