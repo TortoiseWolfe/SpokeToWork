@@ -345,7 +345,10 @@ export default function MessageThread({
         {showScrollButton && (
           <button
             type="button"
-            onClick={() => scrollToBottom(true)}
+            onClick={() => {
+              scrollToBottom(true);
+              setShowScrollButton(false);
+            }}
             className="btn btn-circle btn-primary absolute right-4 bottom-4 z-10 min-h-11 min-w-11 shadow-lg"
             aria-label="Jump to bottom"
             data-testid="jump-to-bottom"

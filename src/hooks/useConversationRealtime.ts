@@ -190,7 +190,22 @@ export function useConversationRealtime(
         };
       } catch (err) {
         logger.error('Failed to decrypt message', { error: err });
-        return null;
+        return {
+          id: msg.id,
+          conversation_id: msg.conversation_id,
+          sender_id: msg.sender_id,
+          content: 'Encrypted with previous keys',
+          sequence_number: msg.sequence_number,
+          deleted: msg.deleted,
+          edited: msg.edited,
+          edited_at: msg.edited_at,
+          delivered_at: msg.delivered_at,
+          read_at: msg.read_at,
+          created_at: msg.created_at,
+          isOwn: false,
+          senderName: 'Unknown',
+          decryptionError: true,
+        };
       }
     },
     [conversationId, supabase]

@@ -313,12 +313,15 @@ export class ConnectionService {
       throw new ConnectionError('Failed to search users: ' + error.message);
     }
 
-    // Get existing connections for current user
+    // Get existing connections for current user (only pending/accepted matter)
     const { data: connections } = await msgClient
       .from('user_connections')
-      .select('requester_id, addressee_id')
+      .select('requester_id, addressee_id, status')
       .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
-      .returns<Pick<UserConnectionRow, 'requester_id' | 'addressee_id'>[]>();
+      .in('status', ['pending', 'accepted'])
+      .returns<
+        Pick<UserConnectionRow, 'requester_id' | 'addressee_id' | 'status'>[]
+      >();
 
     // Build list of already connected user IDs
     const connectedUserIds = new Set<string>();
