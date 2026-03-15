@@ -523,9 +523,10 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
           timeout: 15000,
         });
       } catch {
-        await pageB.reload();
+        // Re-navigate with conversation param (reload may lose it after encryption redirect)
+        await pageB.goto('/messages?conversation=' + conversationId);
+        await pageB.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageB);
-        await completeEncryptionSetup(pageB, USER_B.password);
         await dismissReAuthModal(pageB, USER_B.password, true);
         await expect(pageB.getByText(testMessage)).toBeVisible({
           timeout: 30000,
@@ -548,14 +549,14 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
 
       // STEP 11: User A receives reply
       console.log('Step 11: User A receiving reply...');
-      await pageA.reload();
-      await pageA.waitForLoadState('networkidle');
-      await pageA.waitForTimeout(1000); // Let messaging page mount fully
+      // Navigate with conversation param (reload may lose it after encryption redirect)
+      await pageA.goto('/messages?conversation=' + conversationId);
+      await pageA.waitForLoadState('domcontentloaded');
 
       // Handle encryption setup and ReAuth after reload
       await dismissCookieBanner(pageA);
       await completeEncryptionSetup(pageA);
-      await dismissReAuthModal(pageA);
+      await dismissReAuthModal(pageA, undefined, true);
 
       // Reload fallback for Supabase Cloud read replica lag
       // Wait 30s for Realtime delivery before expensive reload+argon2id path
@@ -564,9 +565,9 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
           timeout: 30000,
         });
       } catch {
-        await pageA.reload();
+        await pageA.goto('/messages?conversation=' + conversationId);
+        await pageA.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageA);
-        await completeEncryptionSetup(pageA);
         await dismissReAuthModal(pageA, undefined, true);
         await expect(pageA.getByText(replyMessage)).toBeVisible({
           timeout: 30000,

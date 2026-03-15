@@ -161,22 +161,37 @@ test.describe('Group Chat E2E', () => {
       const testGroupName = `Test Group ${Date.now()}`;
       await groupNameInput.fill(testGroupName);
 
-      // Wait for connections list to fully load.
-      // The useEffect triggers loadConnections() which can be slow in Docker
-      // after 200+ prior tests. Wait for the spinner to appear then disappear,
-      // or for option buttons to appear directly.
+      // Wait for connections list to fully load with reload retry.
+      // ensureConnection writes to primary DB but the API may lag on webkit.
       const connectionsList = page.locator(
         '[role="listbox"][aria-label="Available connections"]'
       );
       await expect(connectionsList).toBeVisible({ timeout: 10000 });
 
-      // Wait for option buttons OR empty state — the spinner must resolve
       const firstConnection = page.locator('button[role="option"]').first();
       const emptyState = connectionsList.getByText(
         /no connections|all connections selected/i
       );
+
+      // Retry with reload if connections list doesn't populate
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const found = await firstConnection
+          .or(emptyState)
+          .isVisible({ timeout: 20000 })
+          .catch(() => false);
+        if (found) break;
+        if (attempt < 2) {
+          console.log(
+            `Connections list empty (attempt ${attempt + 1}/3), reloading...`
+          );
+          await page.reload();
+          await dismissCookieBanner(page);
+          await page.waitForLoadState('networkidle');
+          await expect(connectionsList).toBeVisible({ timeout: 10000 });
+        }
+      }
       await expect(firstConnection.or(emptyState)).toBeVisible({
-        timeout: 45000,
+        timeout: 15000,
       });
 
       // Select members by clicking on them in the available connections list
