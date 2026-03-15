@@ -285,15 +285,16 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
         .isVisible({ timeout: 8000 })
         .catch(() => false);
 
-      for (let attempt = 1; !sendBtnVisible && attempt < 5; attempt++) {
+      for (let attempt = 1; !sendBtnVisible && attempt < 8; attempt++) {
         console.log(
-          `Step 4: Send Request not visible (attempt ${attempt + 1}/5), reloading...`
+          `Step 4: Send Request not visible (attempt ${attempt + 1}/8), reloading...`
         );
-        await pageA.waitForTimeout(3000);
+        await pageA.waitForTimeout(5000);
         await pageA.goto('/messages?tab=connections');
         await dismissCookieBanner(pageA);
-        await completeEncryptionSetup(pageA);
-        await dismissReAuthModal(pageA);
+        // Skip encryption setup on retries — keys already derived
+        // Use quickCheck (2s) instead of full dismissReAuthModal (18s)
+        await dismissReAuthModal(pageA, undefined, true);
         const retrySearch = pageA.locator('#user-search-input');
         await expect(retrySearch).toBeVisible({ timeout: 5000 });
         await retrySearch.fill(USER_B.displayName);
@@ -311,7 +312,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       }
       if (!sendBtnVisible) {
         throw new Error(
-          'Step 4: "Send Request" button never appeared after 5 reload attempts'
+          'Step 4: "Send Request" button never appeared after 8 reload attempts'
         );
       }
 
@@ -376,11 +377,15 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       // the friend request from appearing on User B's received tab.
       console.log('Step 6: User B viewing pending requests...');
       let requestVisible = false;
-      for (let attempt = 0; attempt < 5; attempt++) {
+      for (let attempt = 0; attempt < 8; attempt++) {
         await pageB.goto('/messages?tab=connections');
         await dismissCookieBanner(pageB);
-        await completeEncryptionSetup(pageB, USER_B.password);
-        await dismissReAuthModal(pageB, USER_B.password);
+        if (attempt === 0) {
+          await completeEncryptionSetup(pageB, USER_B.password);
+          await dismissReAuthModal(pageB, USER_B.password);
+        } else {
+          await dismissReAuthModal(pageB, USER_B.password, true);
+        }
         await expect(pageB).toHaveURL(/.*\/messages\/?\?.*tab=connections/);
 
         const receivedTab = pageB.getByRole('tab', {
@@ -394,7 +399,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
           .catch(() => false);
         if (requestVisible) break;
         console.log(
-          `Step 6: Connection request not visible (attempt ${attempt + 1}/5), reloading...`
+          `Step 6: Connection request not visible (attempt ${attempt + 1}/8), reloading...`
         );
         await pageB.waitForTimeout(3000);
       }
@@ -441,7 +446,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
         await pageB.reload();
         await pageB.waitForLoadState('networkidle');
         await dismissCookieBanner(pageB);
-        await dismissReAuthModal(pageB, USER_B.password);
+        await dismissReAuthModal(pageB, USER_B.password, true);
 
         // Re-select the Accepted tab after reload
         const acceptedTabRetry = pageB.getByRole('tab', {
@@ -511,7 +516,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
         await pageB.reload();
         await dismissCookieBanner(pageB);
         await completeEncryptionSetup(pageB, USER_B.password);
-        await dismissReAuthModal(pageB, USER_B.password);
+        await dismissReAuthModal(pageB, USER_B.password, true);
         await expect(pageB.getByText(testMessage)).toBeVisible({
           timeout: 30000,
         });
@@ -552,7 +557,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
         await pageA.reload();
         await dismissCookieBanner(pageA);
         await completeEncryptionSetup(pageA);
-        await dismissReAuthModal(pageA);
+        await dismissReAuthModal(pageA, undefined, true);
         await expect(pageA.getByText(replyMessage)).toBeVisible({
           timeout: 30000,
         });

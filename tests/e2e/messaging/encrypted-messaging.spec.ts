@@ -129,7 +129,7 @@ test.describe('Encrypted Messaging Flow', () => {
         await pageA.reload();
         await dismissCookieBanner(pageA);
         await completeEncryptionSetup(pageA);
-        await dismissReAuthModal(pageA);
+        await dismissReAuthModal(pageA, undefined, true);
         await expect(pageA.getByText(testMessage)).toBeVisible({
           timeout: 30000,
         });
@@ -150,7 +150,7 @@ test.describe('Encrypted Messaging Flow', () => {
         await pageB.reload();
         await dismissCookieBanner(pageB);
         await completeEncryptionSetup(pageB, USER_B.password);
-        await dismissReAuthModal(pageB, USER_B.password);
+        await dismissReAuthModal(pageB, USER_B.password, true);
         await expect(pageB.getByText(testMessage)).toBeVisible({
           timeout: 30000,
         });
@@ -172,7 +172,7 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageA.reload();
       await dismissCookieBanner(pageA);
       await completeEncryptionSetup(pageA);
-      await dismissReAuthModal(pageA);
+      await dismissReAuthModal(pageA, undefined, true);
       const replyA = pageA.getByText(replyMessage);
       try {
         await expect(replyA).toBeVisible({ timeout: 15000 });
@@ -181,7 +181,7 @@ test.describe('Encrypted Messaging Flow', () => {
         await pageA.reload();
         await dismissCookieBanner(pageA);
         await completeEncryptionSetup(pageA);
-        await dismissReAuthModal(pageA);
+        await dismissReAuthModal(pageA, undefined, true);
         await expect(pageA.getByText(replyMessage)).toBeVisible({
           timeout: 30000,
         });
@@ -347,7 +347,7 @@ test.describe('Encrypted Messaging Flow', () => {
         await pageB.reload();
         await dismissCookieBanner(pageB);
         await completeEncryptionSetup(pageB, USER_B.password);
-        await dismissReAuthModal(pageB, USER_B.password);
+        await dismissReAuthModal(pageB, USER_B.password, true);
         await expect(pageB.getByText(testMessage)).toBeVisible({
           timeout: 30000,
         });
@@ -358,7 +358,7 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageA.reload();
       await dismissCookieBanner(pageA);
       await completeEncryptionSetup(pageA);
-      await dismissReAuthModal(pageA);
+      await dismissReAuthModal(pageA, undefined, true);
       await expect(pageA.getByText(testMessage)).toBeVisible({
         timeout: 45000,
       });
@@ -381,7 +381,7 @@ test.describe('Encrypted Messaging Flow', () => {
         await pageA.reload();
         await dismissCookieBanner(pageA);
         await completeEncryptionSetup(pageA);
-        await dismissReAuthModal(pageA);
+        await dismissReAuthModal(pageA, undefined, true);
         await expect(pageA.getByText(testMessage)).toBeVisible({
           timeout: 30000,
         });
