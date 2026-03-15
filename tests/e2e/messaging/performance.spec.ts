@@ -405,7 +405,7 @@ async function openConversation(page: Page) {
     await page.reload();
     await dismissCookieBanner(page);
     await completeEncryptionSetup(page);
-    await dismissReAuthModal(page);
+    await dismissReAuthModal(page, undefined, true); // quickCheck — keys already derived
     await page
       .getByTestId('message-thread')
       .waitFor({ state: 'visible', timeout: 30000 });
@@ -419,7 +419,7 @@ async function openConversation(page: Page) {
     await page.reload();
     await dismissCookieBanner(page);
     await completeEncryptionSetup(page);
-    await dismissReAuthModal(page);
+    await dismissReAuthModal(page, undefined, true); // quickCheck — keys already derived
     await page
       .locator('[data-testid="message-bubble"]')
       .first()
@@ -630,6 +630,7 @@ test.describe('Virtual Scrolling Performance', () => {
 
 test.describe('Keyboard Navigation', () => {
   test('T169: Keyboard navigation through messages', async ({ page }) => {
+    test.setTimeout(90000); // openConversation needs 45-60s on CI reload path
     await openConversation(page);
 
     const messageThread = page.getByTestId('message-thread');
@@ -649,6 +650,7 @@ test.describe('Keyboard Navigation', () => {
   });
 
   test('Tab navigation to jump to bottom button', async ({ page }) => {
+    test.setTimeout(90000);
     await openConversation(page);
 
     const messageThread = page.getByTestId('message-thread');
@@ -692,6 +694,7 @@ test.describe('Keyboard Navigation', () => {
 
 test.describe('Scroll Restoration', () => {
   test('Scroll position maintained during pagination', async ({ page }) => {
+    test.setTimeout(90000);
     await openConversation(page);
 
     const messageThread = page.getByTestId('message-thread');
