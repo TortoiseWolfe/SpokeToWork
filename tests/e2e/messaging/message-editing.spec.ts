@@ -55,16 +55,35 @@ async function navigateToConversation(page: Page) {
  * via Realtime during parallel test execution.
  */
 async function findMessageBubble(page: Page, text: string) {
-  const byText = page
+  let byText = page
     .locator('[data-testid="message-bubble"]')
     .filter({ hasText: text });
 
   // Wait for the optimistic ID to be replaced with a stable server UUID.
   // Optimistic messages use "optimistic-*" as data-message-id which gets
   // swapped on server confirmation, detaching the old DOM node mid-click.
-  await expect(byText).toHaveAttribute('data-message-id', /^(?!optimistic-)/, {
-    timeout: 30000, // CI Supabase Realtime confirmation can take 10-20s under load
-  });
+  try {
+    await expect(byText).toHaveAttribute(
+      'data-message-id',
+      /^(?!optimistic-)/,
+      { timeout: 30000 }
+    );
+  } catch {
+    // Realtime confirmation lost — common on webkit where argon2id blocks
+    // for 60-70s and the WebSocket connection drops. Reload to fetch the
+    // message from DB with its real server UUID.
+    await page.reload();
+    await dismissCookieBanner(page);
+    await dismissReAuthModal(page, undefined, true);
+    byText = page
+      .locator('[data-testid="message-bubble"]')
+      .filter({ hasText: text });
+    await expect(byText).toHaveAttribute(
+      'data-message-id',
+      /^(?!optimistic-)/,
+      { timeout: 30000 }
+    );
+  }
 
   const messageId = await byText.getAttribute('data-message-id');
   return page.locator(`[data-message-id="${messageId}"]`);
