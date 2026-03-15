@@ -187,7 +187,15 @@ const createConversation = async (
 };
 
 test.describe('Complete User Messaging Workflow (Feature 024)', () => {
-  test.beforeEach(async () => {
+  test.beforeEach(async ({ browserName }) => {
+    // This test DELETEs user_connections rows. Running on 3 browser shards
+    // simultaneously causes cross-shard interference — one shard's cleanup
+    // deletes another's test data. Chromium-only prevents this.
+    test.skip(
+      browserName !== 'chromium',
+      'Chromium-only: prevents cross-shard interference on shared test state'
+    );
+
     const client = getAdminClient();
     if (client) {
       await ensureUserProfiles(client);
