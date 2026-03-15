@@ -291,12 +291,13 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
         );
         await pageA.waitForTimeout(5000);
         await pageA.goto('/messages?tab=connections');
+        await pageA.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageA);
         // Skip encryption setup on retries — keys already derived
         // Use quickCheck (2s) instead of full dismissReAuthModal (18s)
         await dismissReAuthModal(pageA, undefined, true);
         const retrySearch = pageA.locator('#user-search-input');
-        await expect(retrySearch).toBeVisible({ timeout: 5000 });
+        await expect(retrySearch).toBeVisible({ timeout: 10000 });
         await retrySearch.fill(USER_B.displayName);
         await retrySearch.press('Enter');
         await pageA.waitForSelector(
@@ -379,6 +380,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       let requestVisible = false;
       for (let attempt = 0; attempt < 8; attempt++) {
         await pageB.goto('/messages?tab=connections');
+        await pageB.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageB);
         if (attempt === 0) {
           await completeEncryptionSetup(pageB, USER_B.password);

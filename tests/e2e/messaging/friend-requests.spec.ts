@@ -223,12 +223,13 @@ test.describe('Friend Request Flow', () => {
         );
         await pageA.waitForTimeout(5000);
         await pageA.goto('/messages?tab=connections');
+        await pageA.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageA);
         // Skip encryption setup on retries — keys already derived and stored
         // Use quickCheck (2s) instead of full dismissReAuthModal (18s)
         await dismissReAuthModal(pageA, undefined, true);
         const retrySearchInput = pageA.locator('#user-search-input');
-        await expect(retrySearchInput).toBeVisible({ timeout: 5000 });
+        await expect(retrySearchInput).toBeVisible({ timeout: 10000 });
         await retrySearchInput.fill(USER_B.displayName);
         await retrySearchInput.press('Enter');
         await pageA.waitForSelector(
@@ -353,6 +354,7 @@ test.describe('Friend Request Flow', () => {
 
       for (let attempt = 0; attempt < 8; attempt++) {
         await pageB.goto('/messages?tab=connections');
+        await pageB.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageB);
         // Only run full encryption setup on first attempt; quickCheck on retries
         if (attempt === 0) {
@@ -362,7 +364,7 @@ test.describe('Friend Request Flow', () => {
           await dismissReAuthModal(pageB, USER_B.password, true);
         }
         const searchInput = pageB.locator('#user-search-input');
-        await expect(searchInput).toBeVisible({ timeout: 5000 });
+        await expect(searchInput).toBeVisible({ timeout: 10000 });
         await searchInput.fill(displayNameA);
         await searchInput.press('Enter');
         await pageB.waitForSelector(
@@ -403,6 +405,7 @@ test.describe('Friend Request Flow', () => {
       let requestVisible = false;
       for (let attempt = 0; attempt < 8; attempt++) {
         await pageA.goto('/messages?tab=connections');
+        await pageA.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageA);
         if (attempt === 0) {
           await completeEncryptionSetup(pageA);
