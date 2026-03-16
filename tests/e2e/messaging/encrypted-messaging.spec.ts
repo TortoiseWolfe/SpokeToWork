@@ -125,14 +125,10 @@ test.describe('Encrypted Messaging Flow', () => {
       try {
         await expect(messageA).toBeVisible({ timeout: 15000 });
       } catch {
-        // Re-navigate with encryption setup + conversation URL preservation
+        // Re-navigate — skip completeEncryptionSetup (already done, keys cached)
         await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
+        await pageA.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageA);
-        await completeEncryptionSetup(pageA);
-        if (!pageA.url().includes('conversation=')) {
-          await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
-          await dismissCookieBanner(pageA);
-        }
         await dismissReAuthModal(pageA, undefined, true);
         await expect(pageA.getByText(testMessage)).toBeVisible({
           timeout: 30000,
@@ -155,13 +151,11 @@ test.describe('Encrypted Messaging Flow', () => {
       try {
         await expect(messageB).toBeVisible({ timeout: 15000 });
       } catch {
+        // Re-navigate — skip completeEncryptionSetup (already done above,
+        // keys are in localStorage). Only quickCheck for ReAuth modal.
         await pageB.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
+        await pageB.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageB);
-        await completeEncryptionSetup(pageB, USER_B.password);
-        if (!pageB.url().includes('conversation=')) {
-          await pageB.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
-          await dismissCookieBanner(pageB);
-        }
         await dismissReAuthModal(pageB, USER_B.password, true);
         await expect(pageB.getByText(testMessage)).toBeVisible({
           timeout: 30000,
@@ -193,13 +187,10 @@ test.describe('Encrypted Messaging Flow', () => {
       try {
         await expect(replyA).toBeVisible({ timeout: 15000 });
       } catch {
+        // Re-navigate — skip completeEncryptionSetup (already done, keys cached)
         await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
+        await pageA.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageA);
-        await completeEncryptionSetup(pageA);
-        if (!pageA.url().includes('conversation=')) {
-          await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
-          await dismissCookieBanner(pageA);
-        }
         await dismissReAuthModal(pageA, undefined, true);
         await expect(pageA.getByText(replyMessage)).toBeVisible({
           timeout: 30000,
@@ -367,13 +358,10 @@ test.describe('Encrypted Messaging Flow', () => {
           timeout: 30000,
         });
       } catch {
+        // Re-navigate — skip completeEncryptionSetup (already done, keys cached)
         await pageB.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
+        await pageB.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageB);
-        await completeEncryptionSetup(pageB, USER_B.password);
-        if (!pageB.url().includes('conversation=')) {
-          await pageB.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
-          await dismissCookieBanner(pageB);
-        }
         await dismissReAuthModal(pageB, USER_B.password, true);
         await expect(pageB.getByText(testMessage)).toBeVisible({
           timeout: 30000,
@@ -409,13 +397,10 @@ test.describe('Encrypted Messaging Flow', () => {
           { timeout: 15000 }
         );
       } catch {
+        // Re-navigate — skip completeEncryptionSetup (already done, keys cached)
         await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
+        await pageA.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageA);
-        await completeEncryptionSetup(pageA);
-        if (!pageA.url().includes('conversation=')) {
-          await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
-          await dismissCookieBanner(pageA);
-        }
         await dismissReAuthModal(pageA, undefined, true);
         await expect(pageA.getByText(testMessage)).toBeVisible({
           timeout: 30000,
