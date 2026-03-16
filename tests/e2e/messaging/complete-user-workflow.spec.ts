@@ -523,10 +523,14 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
           timeout: 15000,
         });
       } catch {
-        // Re-navigate with conversation param (reload may lose it after encryption redirect)
+        // Re-navigate with encryption setup + conversation URL preservation
         await pageB.goto('/messages?conversation=' + conversationId);
-        await pageB.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageB);
+        await completeEncryptionSetup(pageB, USER_B.password);
+        if (!pageB.url().includes('conversation=')) {
+          await pageB.goto('/messages?conversation=' + conversationId);
+          await dismissCookieBanner(pageB);
+        }
         await dismissReAuthModal(pageB, USER_B.password, true);
         await expect(pageB.getByText(testMessage)).toBeVisible({
           timeout: 30000,
@@ -549,25 +553,29 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
 
       // STEP 11: User A receives reply
       console.log('Step 11: User A receiving reply...');
-      // Navigate with conversation param (reload may lose it after encryption redirect)
+      // Navigate with conversation param + encryption setup + URL preservation
       await pageA.goto('/messages?conversation=' + conversationId);
-      await pageA.waitForLoadState('domcontentloaded');
-
-      // Handle encryption setup and ReAuth after reload
       await dismissCookieBanner(pageA);
       await completeEncryptionSetup(pageA);
+      if (!pageA.url().includes('conversation=')) {
+        await pageA.goto('/messages?conversation=' + conversationId);
+        await dismissCookieBanner(pageA);
+      }
       await dismissReAuthModal(pageA, undefined, true);
 
       // Reload fallback for Supabase Cloud read replica lag
-      // Wait 30s for Realtime delivery before expensive reload+argon2id path
       try {
         await expect(pageA.getByText(replyMessage)).toBeVisible({
           timeout: 30000,
         });
       } catch {
         await pageA.goto('/messages?conversation=' + conversationId);
-        await pageA.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageA);
+        await completeEncryptionSetup(pageA);
+        if (!pageA.url().includes('conversation=')) {
+          await pageA.goto('/messages?conversation=' + conversationId);
+          await dismissCookieBanner(pageA);
+        }
         await dismissReAuthModal(pageA, undefined, true);
         await expect(pageA.getByText(replyMessage)).toBeVisible({
           timeout: 30000,
