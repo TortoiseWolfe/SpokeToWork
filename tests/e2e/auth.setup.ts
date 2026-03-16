@@ -109,8 +109,8 @@ function isAuthStateValid(): boolean {
   }
 }
 
-// Increase timeout for auth setup (default 30s may not be enough for slow hydration)
-setup.setTimeout(60000);
+// Increase timeout for auth setup — includes argon2id key derivation (up to 120s on firefox)
+setup.setTimeout(180000);
 
 setup('authenticate shared test user', async ({ page }) => {
   // Skip login if we already have a valid auth state
@@ -306,7 +306,47 @@ setup('authenticate shared test user', async ({ page }) => {
     );
   }
 
-  // Save authenticated state
+  // Pre-derive encryption keys so all tests start with cached keys in localStorage.
+  // Without this, every messaging test triggers a ReAuth modal + argon2id
+  // (90s on firefox, causing shard 2/4 timeout).
+  console.log('Pre-deriving encryption keys for messaging tests...');
+  await page.goto('/messages');
+  await page.waitForLoadState('domcontentloaded');
+  await page.waitForTimeout(3000); // Let React hydrate
+
+  // Handle encryption setup page if keys haven't been initialized
+  const setupBtn = page.locator(
+    'button:has-text("Set Up Encrypted Messaging")'
+  );
+  if (await setupBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+    const pwd = process.env.TEST_USER_PRIMARY_PASSWORD || password;
+    await page.locator('#setup-password').fill(pwd);
+    await page.locator('#setup-confirm').fill(pwd);
+    await setupBtn.click();
+    await page.waitForURL(/\/messages(?!\/setup)/, { timeout: 120000 });
+    console.log('✓ Encryption keys initialized');
+  }
+
+  // Handle ReAuth modal (derives keys via argon2id, caches to localStorage)
+  const reAuthInput = page.locator('#reauth-password');
+  if (await reAuthInput.isVisible({ timeout: 15000 }).catch(() => false)) {
+    const pwd = process.env.TEST_USER_PRIMARY_PASSWORD || password;
+    await reAuthInput.fill(pwd);
+    const unlockBtn = page.getByRole('button', { name: /unlock/i });
+    if (await unlockBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await unlockBtn.click();
+      // Wait for argon2id to complete (up to 120s on firefox)
+      await page
+        .locator('[role="presentation"], [role="dialog"]')
+        .first()
+        .waitFor({ state: 'hidden', timeout: 120000 });
+      console.log('✓ Encryption keys derived and cached to localStorage');
+    }
+  } else {
+    console.log('✓ No ReAuth modal (keys already available)');
+  }
+
+  // Save authenticated state WITH encryption key cache in localStorage
   await page.context().storageState({ path: AUTH_FILE });
 
   // Ensure test user has routes for route E2E tests
