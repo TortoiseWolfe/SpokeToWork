@@ -36,10 +36,10 @@ export class KeyManagementService {
   /** In-memory storage for derived keys (cleared on logout) */
   private derivedKeys: DerivedKeyPair | null = null;
 
-  /** localStorage key for caching derived keys across page navigations and browser contexts.
-   *  localStorage (not sessionStorage) because: Playwright shares localStorage via storageState,
-   *  and firefox clears sessionStorage on full navigations. Keys cleared on logout. */
-  private static readonly STORAGE_KEY = 'stw_derived_keys_v2';
+  /** localStorage key prefix for per-user key caching.
+   *  Each user gets their own cache entry: `stw_keys_<userId>`.
+   *  Prevents cross-user key contamination when tests share storageState. */
+  private static readonly STORAGE_PREFIX = 'stw_keys_';
 
   /** Key derivation service (Argon2id) */
   private keyDerivationService = new KeyDerivationService();
@@ -122,9 +122,9 @@ export class KeyManagementService {
         );
       }
 
-      // Step 4: Store in memory + localStorage cache
+      // Step 4: Store in memory + localStorage cache (per-user)
       this.derivedKeys = keyPair;
-      await this.cacheKeysToSession(keyPair);
+      await this.cacheKeysToStorage(keyPair, user.id);
 
       logger.info('Keys initialized for user', { userId: user.id });
       return keyPair;
@@ -221,9 +221,9 @@ export class KeyManagementService {
         throw new KeyMismatchError();
       }
 
-      // Step 4: Store in memory + localStorage cache
+      // Step 4: Store in memory + localStorage cache (per-user)
       this.derivedKeys = keyPair;
-      await this.cacheKeysToSession(keyPair);
+      await this.cacheKeysToStorage(keyPair, user.id);
 
       logger.info('Keys derived for user', { userId: user.id });
       return keyPair;
@@ -254,7 +254,12 @@ export class KeyManagementService {
   clearKeys(): void {
     this.derivedKeys = null;
     try {
-      localStorage.removeItem(KeyManagementService.STORAGE_KEY);
+      // Clear all per-user key caches
+      const prefix = KeyManagementService.STORAGE_PREFIX;
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key?.startsWith(prefix)) localStorage.removeItem(key);
+      }
     } catch {
       // SSR or restricted context — ignore
     }
@@ -268,14 +273,18 @@ export class KeyManagementService {
    *
    * @returns true if keys were restored, false if ReAuth is needed
    */
-  async restoreKeysFromSession(): Promise<boolean> {
+  async restoreKeysFromSession(userId?: string): Promise<boolean> {
     if (this.derivedKeys) return true;
     try {
-      const cached = localStorage.getItem(
-        KeyManagementService.STORAGE_KEY
-      );
+      // Try per-user cache first, fall back to legacy key
+      const storageKey = userId
+        ? `${KeyManagementService.STORAGE_PREFIX}${userId}`
+        : null;
+      const cached = storageKey
+        ? localStorage.getItem(storageKey)
+        : null;
       if (!cached) {
-        console.log('[key-cache] No cached keys in localStorage');
+        console.log('[key-cache] No cached keys for user', userId || 'unknown');
         return false;
       }
       console.log('[key-cache] Found cached keys, restoring...');
@@ -300,42 +309,36 @@ export class KeyManagementService {
       return true;
     } catch (e) {
       console.log('[key-cache] Restore failed:', e);
-      // Corrupted cache or crypto error — clear and require re-auth
-      try {
-        localStorage.removeItem(KeyManagementService.STORAGE_KEY);
-      } catch {
-        // ignore
-      }
+      // Corrupted cache or crypto error — require re-auth
       return false;
     }
   }
 
   /**
    * Cache derived keys to localStorage for cross-navigation persistence.
-   * Keys clear on logout (clearKeys). For PWA users, this means keys
-   * persist until explicit logout — better UX than session-only storage.
+   * Per-user: `stw_keys_<userId>` prevents cross-user key contamination.
    */
-  private async cacheKeysToSession(keyPair: DerivedKeyPair): Promise<void> {
+  private async cacheKeysToStorage(
+    keyPair: DerivedKeyPair,
+    userId: string
+  ): Promise<void> {
     try {
       const privateKeyJwk = await crypto.subtle.exportKey(
         'jwk',
         keyPair.privateKey
       );
-      if (typeof localStorage === 'undefined') {
-        console.log('[key-cache] localStorage not available (SSR)');
-        return;
-      }
+      if (typeof localStorage === 'undefined') return;
+      const storageKey = `${KeyManagementService.STORAGE_PREFIX}${userId}`;
       localStorage.setItem(
-        KeyManagementService.STORAGE_KEY,
+        storageKey,
         JSON.stringify({
           privateKeyJwk,
           publicKeyJwk: keyPair.publicKeyJwk,
           salt: keyPair.salt,
         })
       );
-      console.log('[key-cache] Keys cached to localStorage');
+      console.log('[key-cache] Keys cached for user', userId);
     } catch (e) {
-      // SSR or restricted context — in-memory only fallback
       console.log('[key-cache] Failed to cache:', e);
       logger.debug('Could not cache keys to localStorage');
     }

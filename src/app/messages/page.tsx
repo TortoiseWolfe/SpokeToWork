@@ -134,9 +134,16 @@ function MessagesContent() {
         return;
       }
 
-      // User has keys in database — try restoring from sessionStorage cache
-      // (avoids re-running argon2id on every page navigation)
-      const restored = await keyManagementService.restoreKeysFromSession();
+      // Get current user ID for per-user key cache lookup
+      const supabase = (await import('@/lib/supabase/client')).createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      // Try restoring from localStorage cache (per-user, avoids argon2id)
+      const restored = await keyManagementService.restoreKeysFromSession(
+        user?.id
+      );
       if (!restored) {
         // Keys not in memory or cache — need to unlock via password
         setNeedsReAuth(true);
