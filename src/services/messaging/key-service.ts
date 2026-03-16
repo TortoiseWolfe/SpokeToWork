@@ -272,7 +272,11 @@ export class KeyManagementService {
       const cached = sessionStorage.getItem(
         KeyManagementService.SESSION_KEY
       );
-      if (!cached) return false;
+      if (!cached) {
+        console.log('[key-cache] No cached keys in sessionStorage');
+        return false;
+      }
+      console.log('[key-cache] Found cached keys, restoring...');
       const { privateKeyJwk, publicKeyJwk, salt } = JSON.parse(cached);
       const privateKey = await crypto.subtle.importKey(
         'jwk',
@@ -289,9 +293,11 @@ export class KeyManagementService {
         []
       );
       this.derivedKeys = { privateKey, publicKey, publicKeyJwk, salt };
+      console.log('[key-cache] Keys restored from sessionStorage');
       logger.debug('Keys restored from sessionStorage cache');
       return true;
-    } catch {
+    } catch (e) {
+      console.log('[key-cache] Restore failed:', e);
       // Corrupted cache or crypto error — clear and require re-auth
       try {
         sessionStorage.removeItem(KeyManagementService.SESSION_KEY);
@@ -313,6 +319,10 @@ export class KeyManagementService {
         'jwk',
         keyPair.privateKey
       );
+      if (typeof sessionStorage === 'undefined') {
+        console.log('[key-cache] sessionStorage not available (SSR)');
+        return;
+      }
       sessionStorage.setItem(
         KeyManagementService.SESSION_KEY,
         JSON.stringify({
@@ -321,8 +331,10 @@ export class KeyManagementService {
           salt: keyPair.salt,
         })
       );
-    } catch {
+      console.log('[key-cache] Keys cached to sessionStorage');
+    } catch (e) {
       // SSR or restricted context — in-memory only fallback
+      console.log('[key-cache] Failed to cache:', e);
       logger.debug('Could not cache keys to sessionStorage');
     }
   }
