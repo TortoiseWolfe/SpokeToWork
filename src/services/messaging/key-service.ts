@@ -36,6 +36,9 @@ export class KeyManagementService {
   /** In-memory storage for derived keys (cleared on logout) */
   private derivedKeys: DerivedKeyPair | null = null;
 
+  /** sessionStorage key for caching derived keys across page navigations */
+  private static readonly SESSION_KEY = 'stw_derived_keys';
+
   /** Key derivation service (Argon2id) */
   private keyDerivationService = new KeyDerivationService();
 
@@ -117,8 +120,9 @@ export class KeyManagementService {
         );
       }
 
-      // Step 4: Store in memory
+      // Step 4: Store in memory + sessionStorage cache
       this.derivedKeys = keyPair;
+      await this.cacheKeysToSession(keyPair);
 
       logger.info('Keys initialized for user', { userId: user.id });
       return keyPair;
@@ -215,8 +219,9 @@ export class KeyManagementService {
         throw new KeyMismatchError();
       }
 
-      // Step 4: Store in memory
+      // Step 4: Store in memory + sessionStorage cache
       this.derivedKeys = keyPair;
+      await this.cacheKeysToSession(keyPair);
 
       logger.info('Keys derived for user', { userId: user.id });
       return keyPair;
@@ -242,11 +247,84 @@ export class KeyManagementService {
   }
 
   /**
-   * Clear keys from memory (call on logout)
+   * Clear keys from memory and sessionStorage (call on logout)
    */
   clearKeys(): void {
     this.derivedKeys = null;
+    try {
+      sessionStorage.removeItem(KeyManagementService.SESSION_KEY);
+    } catch {
+      // SSR or restricted context — ignore
+    }
     logger.debug('Keys cleared from memory');
+  }
+
+  /**
+   * Restore derived keys from sessionStorage cache.
+   * Called on page mount BEFORE showing ReAuth modal.
+   * Avoids re-running argon2id on every page navigation.
+   *
+   * @returns true if keys were restored, false if ReAuth is needed
+   */
+  async restoreKeysFromSession(): Promise<boolean> {
+    if (this.derivedKeys) return true;
+    try {
+      const cached = sessionStorage.getItem(
+        KeyManagementService.SESSION_KEY
+      );
+      if (!cached) return false;
+      const { privateKeyJwk, publicKeyJwk, salt } = JSON.parse(cached);
+      const privateKey = await crypto.subtle.importKey(
+        'jwk',
+        privateKeyJwk,
+        { name: 'ECDH', namedCurve: 'P-256' },
+        true,
+        ['deriveKey', 'deriveBits']
+      );
+      const publicKey = await crypto.subtle.importKey(
+        'jwk',
+        publicKeyJwk,
+        { name: 'ECDH', namedCurve: 'P-256' },
+        true,
+        []
+      );
+      this.derivedKeys = { privateKey, publicKey, publicKeyJwk, salt };
+      logger.debug('Keys restored from sessionStorage cache');
+      return true;
+    } catch {
+      // Corrupted cache or crypto error — clear and require re-auth
+      try {
+        sessionStorage.removeItem(KeyManagementService.SESSION_KEY);
+      } catch {
+        // ignore
+      }
+      return false;
+    }
+  }
+
+  /**
+   * Cache derived keys to sessionStorage for cross-navigation persistence.
+   * sessionStorage is tab-scoped and clears on tab close — matches the
+   * existing security model of ephemeral in-session keys.
+   */
+  private async cacheKeysToSession(keyPair: DerivedKeyPair): Promise<void> {
+    try {
+      const privateKeyJwk = await crypto.subtle.exportKey(
+        'jwk',
+        keyPair.privateKey
+      );
+      sessionStorage.setItem(
+        KeyManagementService.SESSION_KEY,
+        JSON.stringify({
+          privateKeyJwk,
+          publicKeyJwk: keyPair.publicKeyJwk,
+          salt: keyPair.salt,
+        })
+      );
+    } catch {
+      // SSR or restricted context — in-memory only fallback
+      logger.debug('Could not cache keys to sessionStorage');
+    }
   }
 
   /**

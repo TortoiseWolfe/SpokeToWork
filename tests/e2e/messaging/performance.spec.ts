@@ -453,10 +453,6 @@ async function scrollToTopAndWait(page: import('@playwright/test').Page) {
 
 test.describe('Virtual Scrolling Performance', () => {
   test.describe.configure({ timeout: 180000 });
-  // Firefox argon2id takes ~90s per ReAuth modal — these tests exceed CI timeout
-  test.beforeEach(async ({ browserName }) => {
-    test.skip(browserName === 'firefox', 'Skip on firefox: argon2id 90s/modal exceeds CI timeout');
-  });
   test('T172b: Virtual scrolling activates at 100+ messages', async ({
     page,
   }) => {

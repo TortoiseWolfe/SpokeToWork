@@ -134,10 +134,11 @@ function MessagesContent() {
         return;
       }
 
-      // User has keys in database, check if they're in memory
-      const keys = keyManagementService.getCurrentKeys();
-      if (!keys) {
-        // Keys exist but not in memory - need to unlock
+      // User has keys in database — try restoring from sessionStorage cache
+      // (avoids re-running argon2id on every page navigation)
+      const restored = await keyManagementService.restoreKeysFromSession();
+      if (!restored) {
+        // Keys not in memory or cache — need to unlock via password
         setNeedsReAuth(true);
       }
       setCheckingKeys(false);
