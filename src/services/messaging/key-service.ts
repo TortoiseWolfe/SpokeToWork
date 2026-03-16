@@ -36,8 +36,10 @@ export class KeyManagementService {
   /** In-memory storage for derived keys (cleared on logout) */
   private derivedKeys: DerivedKeyPair | null = null;
 
-  /** sessionStorage key for caching derived keys across page navigations */
-  private static readonly SESSION_KEY = 'stw_derived_keys';
+  /** localStorage key for caching derived keys across page navigations and browser contexts.
+   *  localStorage (not sessionStorage) because: Playwright shares localStorage via storageState,
+   *  and firefox clears sessionStorage on full navigations. Keys cleared on logout. */
+  private static readonly STORAGE_KEY = 'stw_derived_keys_v2';
 
   /** Key derivation service (Argon2id) */
   private keyDerivationService = new KeyDerivationService();
@@ -120,7 +122,7 @@ export class KeyManagementService {
         );
       }
 
-      // Step 4: Store in memory + sessionStorage cache
+      // Step 4: Store in memory + localStorage cache
       this.derivedKeys = keyPair;
       await this.cacheKeysToSession(keyPair);
 
@@ -219,7 +221,7 @@ export class KeyManagementService {
         throw new KeyMismatchError();
       }
 
-      // Step 4: Store in memory + sessionStorage cache
+      // Step 4: Store in memory + localStorage cache
       this.derivedKeys = keyPair;
       await this.cacheKeysToSession(keyPair);
 
@@ -252,7 +254,7 @@ export class KeyManagementService {
   clearKeys(): void {
     this.derivedKeys = null;
     try {
-      sessionStorage.removeItem(KeyManagementService.SESSION_KEY);
+      localStorage.removeItem(KeyManagementService.STORAGE_KEY);
     } catch {
       // SSR or restricted context — ignore
     }
@@ -260,7 +262,7 @@ export class KeyManagementService {
   }
 
   /**
-   * Restore derived keys from sessionStorage cache.
+   * Restore derived keys from localStorage cache.
    * Called on page mount BEFORE showing ReAuth modal.
    * Avoids re-running argon2id on every page navigation.
    *
@@ -269,11 +271,11 @@ export class KeyManagementService {
   async restoreKeysFromSession(): Promise<boolean> {
     if (this.derivedKeys) return true;
     try {
-      const cached = sessionStorage.getItem(
-        KeyManagementService.SESSION_KEY
+      const cached = localStorage.getItem(
+        KeyManagementService.STORAGE_KEY
       );
       if (!cached) {
-        console.log('[key-cache] No cached keys in sessionStorage');
+        console.log('[key-cache] No cached keys in localStorage');
         return false;
       }
       console.log('[key-cache] Found cached keys, restoring...');
@@ -293,14 +295,14 @@ export class KeyManagementService {
         []
       );
       this.derivedKeys = { privateKey, publicKey, publicKeyJwk, salt };
-      console.log('[key-cache] Keys restored from sessionStorage');
-      logger.debug('Keys restored from sessionStorage cache');
+      console.log('[key-cache] Keys restored from localStorage');
+      logger.debug('Keys restored from localStorage cache');
       return true;
     } catch (e) {
       console.log('[key-cache] Restore failed:', e);
       // Corrupted cache or crypto error — clear and require re-auth
       try {
-        sessionStorage.removeItem(KeyManagementService.SESSION_KEY);
+        localStorage.removeItem(KeyManagementService.STORAGE_KEY);
       } catch {
         // ignore
       }
@@ -309,9 +311,9 @@ export class KeyManagementService {
   }
 
   /**
-   * Cache derived keys to sessionStorage for cross-navigation persistence.
-   * sessionStorage is tab-scoped and clears on tab close — matches the
-   * existing security model of ephemeral in-session keys.
+   * Cache derived keys to localStorage for cross-navigation persistence.
+   * Keys clear on logout (clearKeys). For PWA users, this means keys
+   * persist until explicit logout — better UX than session-only storage.
    */
   private async cacheKeysToSession(keyPair: DerivedKeyPair): Promise<void> {
     try {
@@ -319,23 +321,23 @@ export class KeyManagementService {
         'jwk',
         keyPair.privateKey
       );
-      if (typeof sessionStorage === 'undefined') {
-        console.log('[key-cache] sessionStorage not available (SSR)');
+      if (typeof localStorage === 'undefined') {
+        console.log('[key-cache] localStorage not available (SSR)');
         return;
       }
-      sessionStorage.setItem(
-        KeyManagementService.SESSION_KEY,
+      localStorage.setItem(
+        KeyManagementService.STORAGE_KEY,
         JSON.stringify({
           privateKeyJwk,
           publicKeyJwk: keyPair.publicKeyJwk,
           salt: keyPair.salt,
         })
       );
-      console.log('[key-cache] Keys cached to sessionStorage');
+      console.log('[key-cache] Keys cached to localStorage');
     } catch (e) {
       // SSR or restricted context — in-memory only fallback
       console.log('[key-cache] Failed to cache:', e);
-      logger.debug('Could not cache keys to sessionStorage');
+      logger.debug('Could not cache keys to localStorage');
     }
   }
 
