@@ -135,6 +135,29 @@ test.describe('Encrypted Messaging Flow', () => {
         });
       }
 
+      // Verify message actually reached the DB (not just optimistic)
+      if (adminClient && conversationId) {
+        let dbMessageFound = false;
+        for (let poll = 0; poll < 5; poll++) {
+          const { data: msgs } = await adminClient
+            .from('messages')
+            .select('id')
+            .eq('conversation_id', conversationId)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          if (msgs && msgs.length > 0) {
+            dbMessageFound = true;
+            break;
+          }
+          await new Promise((r) => setTimeout(r, 2000));
+        }
+        if (!dbMessageFound) {
+          throw new Error(
+            'Message not found in DB after send — encryption/send may have failed silently'
+          );
+        }
+      }
+
       // ===== STEP 6: User B navigates directly to conversation =====
       await pageB.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
       await dismissCookieBanner(pageB);
