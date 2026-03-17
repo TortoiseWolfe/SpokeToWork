@@ -310,6 +310,13 @@ async function ensureTestUserKeys(): Promise<void> {
       await executeSQL(
         `DELETE FROM user_encryption_keys WHERE user_id = '${userId}'`
       );
+      // Fallback: admin client delete if executeSQL silently failed (no access token)
+      if (adminClient) {
+        await adminClient
+          .from('user_encryption_keys')
+          .delete()
+          .eq('user_id', userId);
+      }
 
       // 3. Generate random salt (16 bytes, matching ARGON2_CONFIG.SALT_LENGTH)
       const salt = crypto.randomBytes(16);
