@@ -318,17 +318,30 @@ async function ensureTestUserKeys(): Promise<void> {
           .eq('user_id', userId);
       }
 
-      // 2b. Delete messages encrypted with old keys — they're now undecryptable.
-      //     Without this, the page shows "Encrypted with previous keys" for old
-      //     messages from previous CI runs, hiding the actual test message.
-      await executeSQL(
-        `DELETE FROM messages WHERE sender_id = '${userId}'`
-      );
+      // 2b. Delete ALL messages in conversations involving this user.
+      //     When keys are regenerated, ALL old messages become undecryptable
+      //     (both sent AND received). The page shows "Encrypted with previous
+      //     keys" for dozens of old messages, hiding the actual test message.
+      await executeSQL(`
+        DELETE FROM messages WHERE conversation_id IN (
+          SELECT id FROM conversations
+          WHERE participant_1_id = '${userId}' OR participant_2_id = '${userId}'
+        )
+      `);
       if (adminClient) {
-        await adminClient
-          .from('messages')
-          .delete()
-          .eq('sender_id', userId);
+        // Get all conversations involving this user
+        const { data: convos } = await adminClient
+          .from('conversations')
+          .select('id')
+          .or(`participant_1_id.eq.${userId},participant_2_id.eq.${userId}`);
+        if (convos) {
+          for (const c of convos) {
+            await adminClient
+              .from('messages')
+              .delete()
+              .eq('conversation_id', c.id);
+          }
+        }
       }
 
       // 3. Generate random salt (16 bytes, matching ARGON2_CONFIG.SALT_LENGTH)
