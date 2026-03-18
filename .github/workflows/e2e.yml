@@ -254,6 +254,14 @@ jobs:
           npx serve out -l 3000 &
           npx wait-on http://localhost:3000 --timeout 60000
 
+      - name: Stagger browser start to reduce Supabase Cloud contention
+        run: |
+          case "${{ matrix.browser }}" in
+            firefox) echo "Delaying firefox 30s..." && sleep 30 ;;
+            webkit)  echo "Delaying webkit 60s..." && sleep 60 ;;
+            *)       echo "Chromium starts immediately" ;;
+          esac
+
       - name: Run E2E tests (shard ${{ matrix.shard }})
         run: |
           pnpm exec playwright test \
