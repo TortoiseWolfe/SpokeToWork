@@ -328,18 +328,36 @@ async function ensureTestUserKeys(): Promise<void> {
         )
       `);
       if (adminClient) {
-        // Get all conversations involving this user
+        // First pass: delete all messages sent BY this user
+        const { error: senderErr } = await adminClient
+          .from('messages')
+          .delete()
+          .eq('sender_id', userId);
+        if (senderErr) {
+          console.warn(`  ⚠ sender_id delete failed: ${senderErr.message}`);
+        }
+
+        // Second pass: delete all messages in conversations involving this user
+        // (catches messages sent TO this user by other users/admin)
         const { data: convos } = await adminClient
           .from('conversations')
           .select('id')
           .or(`participant_1_id.eq.${userId},participant_2_id.eq.${userId}`);
         if (convos) {
           for (const c of convos) {
-            await adminClient
+            const { error: convErr } = await adminClient
               .from('messages')
               .delete()
               .eq('conversation_id', c.id);
+            if (convErr) {
+              console.warn(
+                `  ⚠ conversation ${c.id} message delete failed: ${convErr.message}`
+              );
+            }
           }
+          console.log(
+            `  ✓ Deleted messages from ${convos.length} conversations for ${email}`
+          );
         }
       }
 
