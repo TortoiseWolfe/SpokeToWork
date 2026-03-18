@@ -304,35 +304,6 @@ export class KeyManagementService {
         []
       );
       this.derivedKeys = { privateKey, publicKey, publicKeyJwk, salt };
-
-      // Verify cached public key matches what's in the DB.
-      // Node.js @noble/curves and firefox WebCrypto can produce
-      // incompatible ECDH results from the same key material.
-      if (userId) try {
-        const supabase = (await import('@/lib/supabase/client')).createClient();
-        const msgClient = (
-          await import('@/lib/supabase/messaging-client')
-        ).createMessagingClient(supabase);
-        const { data: stored } = await msgClient
-          .from('user_encryption_keys')
-          .select('public_key')
-          .eq('user_id', userId as string)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-        if (stored?.public_key) {
-          const dbKey = stored.public_key as unknown as JsonWebKey;
-          if (dbKey.x !== publicKeyJwk.x || dbKey.y !== publicKeyJwk.y) {
-            console.log('[key-cache] Cached key mismatch — clearing cache');
-            this.derivedKeys = null;
-            if (storageKey) localStorage.removeItem(storageKey);
-            return false;
-          }
-        }
-      } catch {
-        // DB check failed — accept cached keys (better than nothing)
-      }
-
       console.log('[key-cache] Keys restored from localStorage');
       logger.debug('Keys restored from localStorage cache');
       return true;

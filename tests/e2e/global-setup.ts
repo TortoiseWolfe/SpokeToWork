@@ -11,7 +11,6 @@
 
 import { FullConfig } from '@playwright/test';
 import * as crypto from 'crypto';
-import * as fs from 'fs';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { executeSQL } from './utils/supabase-admin';
 import { createTestUser } from './utils/test-user-factory';
@@ -409,41 +408,11 @@ async function ensureTestUserKeys(): Promise<void> {
       }
 
       console.log(`  ✓ Encryption keys seeded for ${email}`);
-
-      // 8. Cache derived keys in storage state so tests skip argon2id.
-      //    The app's key-service.ts restores from localStorage on mount,
-      //    eliminating the 90s ReAuth modal on firefox.
-      const d = Buffer.from(privKeyBytes).toString('base64url');
-      const privateKeyJwk = { kty: 'EC', crv: 'P-256', x, y, d };
-      const publicKeyJwk = { kty: 'EC', crv: 'P-256', x, y };
-      const cacheKey = `stw_keys_${userId}`;
-      const cacheValue = JSON.stringify({
-        privateKeyJwk,
-        publicKeyJwk,
-        salt: saltBase64,
-      });
-
-      // Write to storage state file's localStorage
-      try {
-        const authFile = 'tests/e2e/fixtures/storage-state-auth.json';
-        if (fs.existsSync(authFile)) {
-          const state = JSON.parse(fs.readFileSync(authFile, 'utf-8'));
-          if (state.origins?.[0]?.localStorage) {
-            // Remove any existing entry for this user
-            state.origins[0].localStorage = state.origins[0].localStorage.filter(
-              (item: { name: string }) => item.name !== cacheKey
-            );
-            state.origins[0].localStorage.push({
-              name: cacheKey,
-              value: cacheValue,
-            });
-            fs.writeFileSync(authFile, JSON.stringify(state, null, 2));
-            console.log(`  ✓ Key cache written to storage state for ${email}`);
-          }
-        }
-      } catch (cacheErr) {
-        console.warn(`  ⚠ Could not cache keys for ${email}:`, cacheErr);
-      }
+      // NOTE: Do NOT cache Node.js-generated JWKs in localStorage.
+      // Node.js @noble/curves produces keys incompatible with firefox
+      // WebCrypto ECDH. Let the browser derive its own keys via ReAuth
+      // modal (~1s with E2E test params). The browser-derived keys
+      // will be cached by key-service.ts for subsequent navigations.
     } catch (error) {
       console.warn(`  ⚠ Key seeding failed for ${email}:`, error);
       // Don't fail other users if one fails
