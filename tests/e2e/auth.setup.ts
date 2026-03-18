@@ -109,8 +109,8 @@ function isAuthStateValid(): boolean {
   }
 }
 
-// Increase timeout for auth setup — includes argon2id key derivation (up to 120s on firefox)
-setup.setTimeout(180000);
+// Increase timeout — derives encryption keys for 3 users (up to 40s each on firefox)
+setup.setTimeout(360000);
 
 setup('authenticate shared test user', async ({ page }) => {
   // Skip login if we already have a valid auth state
@@ -348,6 +348,109 @@ setup('authenticate shared test user', async ({ page }) => {
 
   // Save authenticated state WITH encryption key cache in localStorage
   await page.context().storageState({ path: AUTH_FILE });
+
+  // Pre-derive encryption keys for SECONDARY and TERTIARY test users.
+  // Each needs its own browser context (different auth session).
+  // The browser-derived keys are compatible with all browser engines
+  // (Node.js @noble/curves keys are NOT compatible with firefox WebCrypto).
+  const additionalUsers = [
+    { email: secondaryEmail, password: secondaryPassword },
+    { email: tertiaryEmail, password: tertiaryPassword },
+  ].filter(
+    (u): u is { email: string; password: string } => !!u.email && !!u.password
+  );
+
+  for (const { email: userEmail, password: userPwd } of additionalUsers) {
+    console.log(`Pre-deriving encryption keys for ${userEmail}...`);
+    const browser = page.context().browser();
+    if (!browser) continue;
+
+    const ctx = await browser.newContext();
+    const p = await ctx.newPage();
+
+    try {
+      // Log in as this user
+      await p.goto('/sign-in');
+      await p.waitForLoadState('domcontentloaded');
+      const emailInput = p.locator(
+        'input[type="email"], input[name="email"]'
+      );
+      await emailInput.waitFor({ state: 'visible', timeout: 10000 });
+      await emailInput.fill(userEmail);
+      await p.fill(
+        'input[type="password"], input[name="password"]',
+        userPwd
+      );
+      await p.click('button[type="submit"]');
+      await p
+        .waitForURL((url) => !url.pathname.includes('/sign-in'), {
+          timeout: 15000,
+        })
+        .catch(() => {});
+
+      // Navigate to /messages and handle encryption setup + ReAuth
+      await p.goto('/messages');
+      await p.waitForLoadState('domcontentloaded');
+      await p.waitForTimeout(3000);
+
+      // Handle encryption setup page
+      const setupBtn2 = p.locator(
+        'button:has-text("Set Up Encrypted Messaging")'
+      );
+      if (await setupBtn2.isVisible({ timeout: 5000 }).catch(() => false)) {
+        await p.locator('#setup-password').fill(userPwd);
+        await p.locator('#setup-confirm').fill(userPwd);
+        await setupBtn2.click();
+        await p.waitForURL(/\/messages(?!\/setup)/, { timeout: 120000 });
+      }
+
+      // Handle ReAuth modal
+      const reAuth2 = p.locator('#reauth-password');
+      if (await reAuth2.isVisible({ timeout: 15000 }).catch(() => false)) {
+        await reAuth2.fill(userPwd);
+        const unlock2 = p.getByRole('button', { name: /unlock/i });
+        if (await unlock2.isVisible({ timeout: 3000 }).catch(() => false)) {
+          await unlock2.click();
+          await p
+            .locator('[role="presentation"], [role="dialog"]')
+            .first()
+            .waitFor({ state: 'hidden', timeout: 120000 });
+        }
+      }
+
+      // Extract stw_keys_* entries from this context's localStorage
+      const keys = await p.evaluate(() => {
+        const entries: { name: string; value: string }[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k?.startsWith('stw_keys_')) {
+            entries.push({ name: k, value: localStorage.getItem(k)! });
+          }
+        }
+        return entries;
+      });
+
+      // Merge into the saved storageState file
+      if (keys.length > 0) {
+        const state = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
+        if (state.origins?.[0]?.localStorage) {
+          for (const entry of keys) {
+            state.origins[0].localStorage =
+              state.origins[0].localStorage.filter(
+                (item: { name: string }) => item.name !== entry.name
+              );
+            state.origins[0].localStorage.push(entry);
+          }
+          fs.writeFileSync(AUTH_FILE, JSON.stringify(state, null, 2));
+          console.log(`✓ Keys derived and cached for ${userEmail}`);
+        }
+      }
+    } catch (err) {
+      console.warn(`⚠ Key derivation failed for ${userEmail}:`, err);
+    } finally {
+      await ctx.close();
+    }
+  }
 
   // Ensure test user has routes for route E2E tests
   await ensureTestRoutes(email);
