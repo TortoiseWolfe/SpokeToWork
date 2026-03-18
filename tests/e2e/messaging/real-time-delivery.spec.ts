@@ -112,8 +112,9 @@ async function simulateTypingOnPage(
 }
 
 test.describe('Real-time Message Delivery (T098)', () => {
-  // beforeEach runs 2× loginAndVerify + navigation — needs 90s+ on webkit
-  test.describe.configure({ timeout: 120000 });
+  // beforeEach runs 2× loginAndVerify + navigation — needs 90s+ on firefox/webkit
+  // 180s gives 60s+ buffer for actual test execution after setup
+  test.describe.configure({ timeout: 180000 });
 
   let context1: BrowserContext;
   let context2: BrowserContext;
@@ -284,7 +285,8 @@ test.describe('Real-time Message Delivery (T098)', () => {
 
 test.describe('Typing Indicators (T099)', () => {
   // Dual-user beforeEach: 2 sign-ins (45s each) + encryption setup > 30s default
-  test.describe.configure({ timeout: 120000 });
+  // 180s gives buffer for firefox/webkit where setup takes 90s+
+  test.describe.configure({ timeout: 180000 });
 
   let context1: BrowserContext;
   let context2: BrowserContext;

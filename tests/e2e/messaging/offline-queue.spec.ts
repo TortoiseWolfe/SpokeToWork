@@ -245,7 +245,7 @@ test.describe('Offline Message Queue', () => {
   test('T149: should handle conflict resolution with server timestamp', async ({
     browser,
   }) => {
-    test.setTimeout(120000);
+    test.setTimeout(180000);
     const adminClient = getAdminClient();
 
     if (!adminClient) {
@@ -410,7 +410,7 @@ test.describe('Offline Message Queue', () => {
   });
 
   test('should show failed status after max retries', async ({ browser }) => {
-    test.setTimeout(120000);
+    test.setTimeout(180000);
     const context = await browser.newContext();
     const page = await context.newPage();
 

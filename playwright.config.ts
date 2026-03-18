@@ -113,8 +113,11 @@ export default defineConfig({
 
     {
       name: 'firefox',
-      testIgnore: /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts/,
-      // 1 retry (vs chromium's 2) — firefox is 2-3x slower, shard 2/4 hits 75min timeout
+      testIgnore:
+        /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts|map\.spec\.ts|mobile-check\.spec\.ts/,
+      // map.spec.ts: MapLibre GL requires WebGL — headless firefox returns null for canvas.getContext('webgl')
+      // mobile-check.spec.ts: Playwright firefox rejects isMobile context option
+      // 1 retry (vs chromium's 2) — firefox is 2-3x slower
       retries: process.env.CI ? 1 : 0,
       use: {
         ...devices['Desktop Firefox'],
