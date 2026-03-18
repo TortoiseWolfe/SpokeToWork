@@ -113,10 +113,37 @@ function isAuthStateValid(): boolean {
 setup.setTimeout(360000);
 
 setup('authenticate shared test user', async ({ page }) => {
-  // Skip login if we already have a valid auth state
+  // Skip login if we already have a valid auth state AND all users' keys are cached
   if (isAuthStateValid()) {
-    console.log('✓ Auth setup skipped: using existing valid session');
-    return;
+    // Check if SECONDARY and TERTIARY keys are in the storageState
+    const secondaryEmail2 = process.env.TEST_USER_SECONDARY_EMAIL;
+    const tertiaryEmail2 = process.env.TEST_USER_TERTIARY_EMAIL;
+    let allKeysCached = true;
+
+    try {
+      const state = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
+      const localStorage = state.origins?.[0]?.localStorage || [];
+      const cachedKeys = localStorage
+        .filter((item: { name: string }) => item.name.startsWith('stw_keys_'))
+        .map((item: { name: string }) => item.name);
+
+      // We need at least keys for all configured test users
+      if (cachedKeys.length < 2) {
+        allKeysCached = false;
+        console.log(
+          `Auth state valid but only ${cachedKeys.length} user key(s) cached — need to derive more`
+        );
+      }
+    } catch {
+      allKeysCached = false;
+    }
+
+    if (allKeysCached) {
+      console.log('✓ Auth setup skipped: valid session + all keys cached');
+      return;
+    }
+    // Fall through to derive missing keys
+    console.log('Auth state valid but missing user keys — deriving...');
   }
 
   // Use primary test user from env, or create a shared one
