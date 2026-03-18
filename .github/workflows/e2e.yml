@@ -207,8 +207,9 @@ jobs:
       matrix:
         # Only run chromium on PRs, all browsers on main/develop
         browser: ${{ github.event_name == 'pull_request' && fromJSON('["chromium"]') || fromJSON('["chromium", "firefox", "webkit"]') }}
-        # 4 shards per browser for parallel execution
-        shard: [1/4, 2/4, 3/4, 4/4]
+        # 2 shards per browser — reduces concurrent Supabase connections from 12 to 6
+        # (4 shards caused intermittent messaging timeouts from Supabase Cloud contention)
+        shard: [1/2, 2/2]
 
     steps:
       - name: Checkout code
