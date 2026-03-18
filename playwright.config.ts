@@ -114,9 +114,8 @@ export default defineConfig({
     {
       name: 'firefox',
       testIgnore:
-        /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts|map\.spec\.ts|mobile-check\.spec\.ts/,
-      // map.spec.ts: MapLibre GL requires WebGL — headless firefox returns null for canvas.getContext('webgl')
-      // mobile-check.spec.ts: Playwright firefox rejects isMobile context option
+        /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts|mobile-check\.spec\.ts/,
+      // mobile-check.spec.ts: Playwright firefox rejects isMobile context option (driver limitation)
       // 1 retry (vs chromium's 2) — firefox is 2-3x slower
       retries: process.env.CI ? 1 : 0,
       use: {
@@ -124,6 +123,15 @@ export default defineConfig({
         storageState: './tests/e2e/fixtures/storage-state-auth.json',
         // Firefox needs longer action timeout for navigation tracking
         actionTimeout: 15000,
+        // Force-enable WebGL in headless firefox for MapLibre GL map tests
+        launchOptions: {
+          firefoxUserPrefs: {
+            'webgl.disabled': false,
+            'webgl.force-enabled': true,
+            'layers.acceleration.force-enabled': true,
+            'gfx.canvas.accelerated': true,
+          },
+        },
       },
       dependencies: ['setup'],
     },
