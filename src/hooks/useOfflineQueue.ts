@@ -18,6 +18,9 @@ import type { QueuedMessage } from '@/types/messaging';
 
 const logger = createLogger('hooks:offlineQueue');
 
+/** Delay before retrying sync when pending items remain (ms) */
+const RETRY_SCHEDULE_DELAY = 3000;
+
 export interface UseOfflineQueueReturn {
   /** Queued messages (unsynced) */
   queue: QueuedMessage[];
@@ -75,6 +78,9 @@ export function useOfflineQueue(): UseOfflineQueueReturn {
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
   const hasInitialSyncRef = useRef(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
 
   // Load queue data
   const loadQueue = useCallback(async () => {
@@ -205,7 +211,43 @@ export function useOfflineQueue(): UseOfflineQueueReturn {
     // - retryFailed() calls loadQueue() after retry
     // - clearSynced() calls loadQueue() after clear
     // - online event triggers syncQueue()
+    // - 'offline-queue-updated' event triggers loadQueue() (below)
+    // - retry timer re-triggers syncQueue() when items remain pending
   }, [loadQueue, syncQueue]);
+
+  // Listen for queue updates from message-service (e.g. after sendMessage queues on failure)
+  useEffect(() => {
+    const handleQueueUpdate = () => {
+      loadQueue();
+    };
+
+    window.addEventListener('offline-queue-updated', handleQueueUpdate);
+    return () =>
+      window.removeEventListener('offline-queue-updated', handleQueueUpdate);
+  }, [loadQueue]);
+
+  // Retry scheduling: when queue has pending items while online and not currently
+  // syncing, schedule a sync attempt. The adapter handles per-message exponential
+  // backoff internally; this effect just ensures syncQueue is called again.
+  useEffect(() => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = undefined;
+    }
+
+    if (queueCount > 0 && isOnline && !isSyncing) {
+      retryTimerRef.current = setTimeout(() => {
+        syncQueue();
+      }, RETRY_SCHEDULE_DELAY);
+    }
+
+    return () => {
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- syncQueue excluded to prevent timer churn from callback identity changes
+  }, [queueCount, isOnline, isSyncing]);
 
   return {
     queue,

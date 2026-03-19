@@ -291,25 +291,35 @@ export function useEmployerApplications(): UseEmployerApplicationsReturn {
     setNewApplicationAlert(null);
   }, []);
 
+  // Stable key for the effect dep array. Re-subscribe only when the set of
+  // managed companies changes — NOT when applications.length flips, otherwise
+  // an employer with a brand-new company (zero apps) never binds the channel.
+  const companyIdsKey = companyIds.join(',');
+
   // Subscribe to realtime new applications
   useEffect(() => {
     if (companyIdsRef.current.length === 0) return;
 
+    const ids = companyIdsRef.current;
     const supabase = getClient();
     const channel = supabase
-      .channel('employer-new-applications')
+      .channel(`employer-new-applications:${companyIdsKey}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'job_applications',
+          // Server-side filter — only receive rows for companies this
+          // employer manages, rather than every INSERT in the system.
+          filter: `shared_company_id=in.(${ids.join(',')})`,
         },
         async (payload) => {
           const newApp = payload.new as Record<string, unknown>;
           const companyId = newApp.shared_company_id as string | null;
 
-          // Only process if the application is for one of our companies
+          // Belt-and-braces: server filter should already scope this,
+          // but re-check in case the company list changed mid-session.
           if (!companyId || !companyIdsRef.current.includes(companyId)) return;
 
           // Fetch applicant info
@@ -362,12 +372,13 @@ export function useEmployerApplications(): UseEmployerApplicationsReturn {
     channelRef.current = channel;
 
     return () => {
-      channel.unsubscribe();
+      // Cleanup on unmount / company-set change. removeChannel() both
+      // unsubscribes and releases the channel — no separate unsubscribe
+      // call needed.
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Re-subscribe when we first get company data
-  }, [applications.length > 0]);
+  }, [companyIdsKey]);
 
   const hireApplicant = useCallback(async (applicationId: string) => {
     const supabase = getClient();

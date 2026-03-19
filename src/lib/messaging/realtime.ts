@@ -37,7 +37,8 @@ export class RealtimeService {
    */
   subscribeToMessages(
     conversation_id: string,
-    callback: (message: Message) => void
+    callback: (message: Message) => void,
+    onReconnect?: () => void
   ): () => void {
     const supabase = createClient();
     const channelName = `messages:${conversation_id}`;
@@ -47,6 +48,9 @@ export class RealtimeService {
       this.channels.get(channelName)?.unsubscribe();
       this.channels.delete(channelName);
     }
+
+    // Track whether we've been subscribed before (to distinguish initial connect from reconnect)
+    let wasSubscribed = false;
 
     // Create new channel
     const channel = supabase
@@ -63,7 +67,16 @@ export class RealtimeService {
           callback(payload.new as Message);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          if (wasSubscribed && onReconnect) {
+            // This is a reconnection — refetch messages to catch any missed during the gap
+            logger.debug('Channel reconnected, triggering catch-up', { conversation_id });
+            onReconnect();
+          }
+          wasSubscribed = true;
+        }
+      });
 
     this.channels.set(channelName, channel);
 

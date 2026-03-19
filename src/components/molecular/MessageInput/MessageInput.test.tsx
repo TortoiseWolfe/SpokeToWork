@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import MessageInput from './MessageInput';
 
@@ -44,6 +44,76 @@ describe('MessageInput', () => {
       fireEvent.change(input, { target: { value: 'Hello' } });
       fireEvent.change(input, { target: { value: '' } });
       expect(screen.getByText(/0 \/ 10000 characters/)).toBeInTheDocument();
+    });
+  });
+
+  /**
+   * Regression tests for stuck typing indicator (Bug: "typing indicator shows
+   * someone as typing long after they've closed the tab").
+   *
+   * MessageInput debounces onTypingChange: fires `true` on keystroke, schedules
+   * `false` after 3s of inactivity. If the user closes the tab or navigates
+   * away inside that 3s window, the cleanup previously only cleared the
+   * timeout — it never fired the pending `false`. The peer's only recovery was
+   * the 5s auto-expire on useTypingIndicator, which may not fire if Realtime
+   * disconnects before the last `true` heartbeat decays.
+   */
+  describe('typing status on unmount', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('calls onTypingChange(false) on unmount if user was mid-typing', () => {
+      vi.useFakeTimers();
+      const mockOnSend = vi.fn();
+      const mockOnTypingChange = vi.fn();
+      const { unmount } = render(
+        <MessageInput onSend={mockOnSend} onTypingChange={mockOnTypingChange} />
+      );
+      const input = screen.getByRole('textbox');
+
+      // User types — fires true, arms 3s stop-typing timer
+      fireEvent.change(input, { target: { value: 'Hello' } });
+      expect(mockOnTypingChange).toHaveBeenLastCalledWith(true);
+
+      mockOnTypingChange.mockClear();
+
+      // User closes tab BEFORE the 3s timer fires
+      unmount();
+
+      // Cleanup MUST broadcast stop-typing so peer doesn't see stuck indicator
+      expect(mockOnTypingChange).toHaveBeenCalledWith(false);
+    });
+
+    it('does NOT call onTypingChange(false) on unmount if user never typed', () => {
+      const mockOnSend = vi.fn();
+      const mockOnTypingChange = vi.fn();
+      const { unmount } = render(
+        <MessageInput onSend={mockOnSend} onTypingChange={mockOnTypingChange} />
+      );
+
+      unmount();
+
+      expect(mockOnTypingChange).not.toHaveBeenCalled();
+    });
+
+    it('does NOT call onTypingChange(false) on unmount if already stopped (sent or cleared)', () => {
+      const mockOnSend = vi.fn();
+      const mockOnTypingChange = vi.fn();
+      const { unmount } = render(
+        <MessageInput onSend={mockOnSend} onTypingChange={mockOnTypingChange} />
+      );
+      const input = screen.getByRole('textbox');
+
+      fireEvent.change(input, { target: { value: 'Hello' } });
+      fireEvent.change(input, { target: { value: '' } }); // cleared → already fired false
+
+      mockOnTypingChange.mockClear();
+
+      unmount();
+
+      // Already sent false — no double broadcast
+      expect(mockOnTypingChange).not.toHaveBeenCalled();
     });
   });
 });

@@ -101,6 +101,11 @@ export class MessageService {
         plaintext_content: content,
       });
 
+      // Notify the useOfflineQueue hook so it can refresh state and trigger sync
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('offline-queue-updated'));
+      }
+
       const queuedMessage: Message = {
         id: messageId,
         conversation_id: input.conversation_id,
@@ -134,7 +139,14 @@ export class MessageService {
 
     try {
       // Get sender's derived keys from memory (derived on login)
-      const senderKeys = keyManagementService.getCurrentKeys();
+      // If not in memory, attempt to restore from localStorage cache before failing
+      let senderKeys = keyManagementService.getCurrentKeys();
+      if (!senderKeys) {
+        const restored = await keyManagementService.restoreKeysFromSession(user.id);
+        if (restored) {
+          senderKeys = keyManagementService.getCurrentKeys();
+        }
+      }
       if (!senderKeys) {
         throw new EncryptionLockedError(
           'Your encryption keys are not available. Please sign in again to send messages.'
@@ -210,40 +222,71 @@ export class MessageService {
 
       // Online - attempt to send to database
       // (Offline case is handled at the top of sendMessage, before any network calls)
+      //
+      // Retry loop: two concurrent senders can read the same max sequence_number
+      // and race to INSERT. The loser hits a unique-constraint violation (23505).
+      // Re-read the max and retry instead of dropping the message.
       try {
-        // Get next sequence number for this conversation
-        const { data: lastMessage } = await msgClient
-          .from('messages')
-          .select('sequence_number')
-          .eq('conversation_id', input.conversation_id)
-          .order('sequence_number', { ascending: false })
-          .limit(1)
-          .single();
+        const MAX_SEQUENCE_RETRIES = 3;
+        let message: Message | undefined;
 
-        const nextSequenceNumber = lastMessage
-          ? lastMessage.sequence_number + 1
-          : 1;
+        for (let attempt = 0; attempt < MAX_SEQUENCE_RETRIES; attempt++) {
+          // Get next sequence number for this conversation
+          const { data: lastMessage } = await msgClient
+            .from('messages')
+            .select('sequence_number')
+            .eq('conversation_id', input.conversation_id)
+            .order('sequence_number', { ascending: false })
+            .limit(1)
+            .single();
 
-        // Insert encrypted message
-        const { data: message, error: insertError } = await msgClient
-          .from('messages')
-          .insert({
-            conversation_id: input.conversation_id,
-            sender_id: user.id,
-            encrypted_content: encrypted.ciphertext,
-            initialization_vector: encrypted.iv,
-            sequence_number: nextSequenceNumber,
-            deleted: false,
-            edited: false,
-            // delivered_at left null — recipient marks as delivered when they receive it
-          })
-          .select()
-          .single();
+          const nextSequenceNumber = lastMessage
+            ? lastMessage.sequence_number + 1
+            : 1;
 
-        if (insertError) {
-          // Send failed - queue for retry
+          // Insert encrypted message
+          const { data, error: insertError } = await msgClient
+            .from('messages')
+            .insert({
+              conversation_id: input.conversation_id,
+              sender_id: user.id,
+              encrypted_content: encrypted.ciphertext,
+              initialization_vector: encrypted.iv,
+              sequence_number: nextSequenceNumber,
+              deleted: false,
+              edited: false,
+              // delivered_at left null — recipient marks as delivered when they receive it
+            })
+            .select()
+            .single();
+
+          if (!insertError) {
+            message = data;
+            break;
+          }
+
+          // PostgreSQL 23505 = unique_violation (sequence number conflict)
+          if (
+            insertError.code === '23505' &&
+            attempt < MAX_SEQUENCE_RETRIES - 1
+          ) {
+            logger.warn('Sequence number conflict, retrying', {
+              attempt: attempt + 1,
+              conversation_id: input.conversation_id,
+            });
+            await new Promise((r) => setTimeout(r, 50 * (attempt + 1)));
+            continue;
+          }
+
+          // Non-retryable error or retries exhausted
           throw new ConnectionError(
             'Failed to send message: ' + insertError.message
+          );
+        }
+
+        if (!message) {
+          throw new ConnectionError(
+            'Failed to send message after sequence retries'
           );
         }
 
@@ -267,6 +310,11 @@ export class MessageService {
           encrypted_content: encrypted.ciphertext,
           initialization_vector: encrypted.iv,
         });
+
+        // Notify the useOfflineQueue hook so it can refresh state and trigger sync
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('offline-queue-updated'));
+        }
 
         // Return a placeholder message object
         const queuedMessage: Message = {
@@ -492,8 +540,16 @@ export class MessageService {
       }
 
       // Get private key for decryption from memory (derived on login)
+      // If not in memory, attempt to restore from localStorage cache before failing
       logger.debug('Starting decryption', { conversationId });
-      const currentKeys = keyManagementService.getCurrentKeys();
+      let currentKeys = keyManagementService.getCurrentKeys();
+
+      if (!currentKeys) {
+        const restored = await keyManagementService.restoreKeysFromSession(user.id);
+        if (restored) {
+          currentKeys = keyManagementService.getCurrentKeys();
+        }
+      }
 
       if (!currentKeys) {
         logger.error(

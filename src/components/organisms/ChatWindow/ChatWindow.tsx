@@ -4,6 +4,7 @@ import React, { useRef, useEffect } from 'react';
 import MessageThread from '@/components/molecular/MessageThread';
 import MessageInput from '@/components/molecular/MessageInput';
 import type { DecryptedMessage } from '@/types/messaging';
+import QueueStatusIndicator from '@/components/atomic/QueueStatusIndicator';
 import { cn } from '@/lib/utils';
 import { useKeyboardShortcuts, shortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useReadReceipts } from '@/hooks/useReadReceipts';
@@ -173,6 +174,9 @@ export default function ChatWindow({
             </span>
           </div>
         )}
+
+        {/* Offline Queue Status (Feature 050) */}
+        <QueueStatusIndicator className="mx-2 mt-1" />
       </div>
 
       {/* Row 2: Message Thread (1fr - fills remaining space) */}

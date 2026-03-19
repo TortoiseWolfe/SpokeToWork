@@ -29,6 +29,11 @@ export function useTypingIndicator(
   const [isTyping, setIsTyping] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Tracks whether the local user has broadcast is_typing=true without a
+  // matching is_typing=false yet. If the hook unmounts (tab close, route
+  // change, conversation switch) while this is true, cleanup must send the
+  // final stop-typing broadcast so the peer isn't left with a stuck indicator.
+  const localTypingRef = useRef(false);
   const supabase = createClient();
 
   /**
@@ -52,6 +57,7 @@ export function useTypingIndicator(
    */
   const setTyping = useCallback(
     (typing: boolean) => {
+      localTypingRef.current = typing;
       realtimeService.setTypingStatus(conversationId, typing);
     },
     [conversationId]
@@ -111,7 +117,7 @@ export function useTypingIndicator(
       };
     }
 
-    // Cleanup on unmount
+    // Cleanup on unmount or conversation switch
     return () => {
       unsubscribe();
       if (typeof window !== 'undefined') {
@@ -122,6 +128,22 @@ export function useTypingIndicator(
       }
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      // Reset the peer's-typing flag. If conversationId changed while the
+      // indicator was active, the cleared timeout above means the 5s
+      // auto-expire will never fire, so without this reset isTyping stays
+      // true forever on the new conversation.
+      setIsTyping(false);
+      // If the local user was mid-type when this effect tore down (tab close,
+      // nav away, conversation switch), send the final stop-typing broadcast
+      // so the peer isn't stuck. The peer's 5s auto-expire is not reliable
+      // here: if Realtime disconnects concurrently, the last `true` may have
+      // been delivered but the expire timer runs in the peer's tab only after
+      // the NEXT event, which will never arrive.
+      if (localTypingRef.current) {
+        localTypingRef.current = false;
+        realtimeService.setTypingStatus(conversationId, false);
       }
     };
   }, [conversationId, currentUserId]);

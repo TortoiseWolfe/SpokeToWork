@@ -85,7 +85,7 @@ export function useGroupMembers(
         return [];
       }
 
-      // Get all accepted connections
+      // Get current user's accepted connections
       const { data: connections, error: connError } = await supabase
         .from('user_connections')
         .select(
@@ -97,7 +97,8 @@ export function useGroupMembers(
           addressee:user_profiles!user_connections_addressee_id_fkey(id, display_name, avatar_url)
         `
         )
-        .eq('status', 'accepted' as ConnectionStatus);
+        .eq('status', 'accepted' as ConnectionStatus)
+        .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
 
       if (connError) {
         setError('Failed to load connections');

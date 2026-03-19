@@ -11,9 +11,17 @@ import { useTypingIndicator } from '../useTypingIndicator';
 import { realtimeService } from '@/lib/messaging/realtime';
 import { createClient } from '@/lib/supabase/client';
 
-// Mock dependencies
-vi.mock('@/lib/supabase/client');
-vi.mock('@/lib/messaging/realtime');
+// Mock dependencies (explicit factories — bare vi.mock() does not prevent
+// module body execution, and supabase/client throws if env vars are unset)
+vi.mock('@/lib/supabase/client', () => ({
+  createClient: vi.fn(),
+}));
+vi.mock('@/lib/messaging/realtime', () => ({
+  realtimeService: {
+    subscribeToTypingIndicators: vi.fn(),
+    setTypingStatus: vi.fn(),
+  },
+}));
 
 describe('useTypingIndicator', () => {
   const mockConversationId = 'test-conversation-id';
@@ -38,10 +46,11 @@ describe('useTypingIndicator', () => {
 
     // Mock realtime service
     mockUnsubscribe = vi.fn();
+    (realtimeService.subscribeToTypingIndicators as any).mockReset();
     (realtimeService.subscribeToTypingIndicators as any).mockReturnValue(
       mockUnsubscribe
     );
-    (realtimeService.setTypingStatus as any) = vi.fn();
+    (realtimeService.setTypingStatus as any).mockReset();
   });
 
   afterEach(() => {
@@ -61,7 +70,8 @@ describe('useTypingIndicator', () => {
     await waitFor(() => {
       expect(realtimeService.subscribeToTypingIndicators).toHaveBeenCalledWith(
         mockConversationId,
-        expect.any(Function)
+        expect.any(Function),
+        expect.any(Function) // onSubscribed callback (E2E readiness seam)
       );
     });
   });
@@ -359,5 +369,110 @@ describe('useTypingIndicator', () => {
     });
 
     vi.useRealTimers();
+  });
+
+  /**
+   * Regression test for stuck typing indicator after conversation switch.
+   *
+   * Scenario:
+   * 1. User A is viewing conversation 1
+   * 2. User B (in conv 1) starts typing → isTyping=true, 5s expiry armed
+   * 3. User A switches to conversation 2 (conversationId prop changes)
+   * 4. Cleanup runs → clears timeout BUT did not reset isTyping
+   * 5. isTyping stays true forever on conversation 2 until a new event arrives
+   *
+   * This is the root cause of "typing indicator shows someone as typing long
+   * after they've stopped".
+   */
+  it('resets isTyping to false when conversationId changes while indicator is active', async () => {
+    let typingCallback:
+      | ((userId: string, isTyping: boolean) => void)
+      | undefined;
+
+    (realtimeService.subscribeToTypingIndicators as any).mockImplementation(
+      (_id: string, callback: (userId: string, isTyping: boolean) => void) => {
+        typingCallback = callback;
+        return mockUnsubscribe;
+      }
+    );
+
+    const { result, rerender } = renderHook(
+      ({ id }) => useTypingIndicator(id),
+      { initialProps: { id: mockConversationId } }
+    );
+
+    await waitFor(() => {
+      expect(typingCallback).toBeDefined();
+    });
+
+    // Other user starts typing in conversation 1
+    act(() => {
+      typingCallback!(mockOtherUserId, true);
+    });
+    expect(result.current.isTyping).toBe(true);
+
+    // User switches to conversation 2 (new conversationId)
+    rerender({ id: 'different-conversation-id' });
+
+    // isTyping MUST reset — nobody is typing in the new conversation
+    expect(result.current.isTyping).toBe(false);
+  });
+
+  /**
+   * Regression test for stuck typing indicator when sender closes tab/navigates away.
+   *
+   * The hook's setTyping broadcasts {is_typing:true} on keystrokes. If the user
+   * closes the tab or navigates away while typing, the cleanup must broadcast
+   * {is_typing:false} so the peer's 5-second auto-expire is not the only escape
+   * hatch (it may never arrive if Realtime disconnects first).
+   *
+   * This is the root cause of "typing indicator shows someone as typing long
+   * after they've closed the tab".
+   */
+  it('broadcasts stop-typing on unmount if setTyping(true) was called', async () => {
+    const { result, unmount } = renderHook(() =>
+      useTypingIndicator(mockConversationId)
+    );
+
+    await waitFor(() => {
+      expect(realtimeService.subscribeToTypingIndicators).toHaveBeenCalled();
+    });
+
+    // User starts typing (calls setTyping from MessageInput onTypingChange)
+    act(() => {
+      result.current.setTyping(true);
+    });
+    expect(realtimeService.setTypingStatus).toHaveBeenCalledWith(
+      mockConversationId,
+      true
+    );
+
+    (realtimeService.setTypingStatus as any).mockClear();
+
+    // Tab closes / user navigates away → unmount
+    unmount();
+
+    // Cleanup MUST broadcast stop-typing so peer doesn't see stuck indicator
+    expect(realtimeService.setTypingStatus).toHaveBeenCalledWith(
+      mockConversationId,
+      false
+    );
+  });
+
+  it('does NOT broadcast stop-typing on unmount if never typed', async () => {
+    const { unmount } = renderHook(() =>
+      useTypingIndicator(mockConversationId)
+    );
+
+    await waitFor(() => {
+      expect(realtimeService.subscribeToTypingIndicators).toHaveBeenCalled();
+    });
+
+    (realtimeService.setTypingStatus as any).mockClear();
+
+    unmount();
+
+    // No spurious broadcast when user never typed
+    expect(realtimeService.setTypingStatus).not.toHaveBeenCalled();
   });
 });
