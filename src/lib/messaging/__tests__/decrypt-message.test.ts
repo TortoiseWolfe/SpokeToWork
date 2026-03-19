@@ -24,14 +24,12 @@ vi.mock('@/lib/messaging/encryption', () => ({
   },
 }));
 
-const mockGetCurrentKeys = vi.fn();
-const mockRestoreKeysFromSession = vi.fn();
+const mockEnsureKeys = vi.fn();
 const mockGetUserPublicKey = vi.fn();
 
 vi.mock('@/services/messaging/key-service', () => ({
   keyManagementService: {
-    getCurrentKeys: () => mockGetCurrentKeys(),
-    restoreKeysFromSession: (...args: unknown[]) => mockRestoreKeysFromSession(...args),
+    ensureKeys: (...args: unknown[]) => mockEnsureKeys(...args),
     getUserPublicKey: (...args: unknown[]) => mockGetUserPublicKey(...args),
   },
 }));
@@ -145,8 +143,7 @@ describe('decryptMessage', () => {
   });
 
   it('returns placeholder with correct isOwn when keys are unavailable', async () => {
-    mockGetCurrentKeys.mockReturnValue(null);
-    mockRestoreKeysFromSession.mockResolvedValue(false);
+    mockEnsureKeys.mockResolvedValue(null);
 
     const ownMessage = makeMessage({ sender_id: CURRENT_USER_ID });
     const supabase = makeSupabase();
@@ -161,8 +158,7 @@ describe('decryptMessage', () => {
   });
 
   it('returns placeholder with isOwn=false for other user when keys unavailable', async () => {
-    mockGetCurrentKeys.mockReturnValue(null);
-    mockRestoreKeysFromSession.mockResolvedValue(false);
+    mockEnsureKeys.mockResolvedValue(null);
 
     const otherMessage = makeMessage({ sender_id: OTHER_USER_ID });
     const supabase = makeSupabase();
@@ -179,7 +175,7 @@ describe('decryptMessage', () => {
   it('preserves isOwn=true in catch block when own message fails decryption (key rotation)', async () => {
     // Simulate: keys are available but decryption fails (old message, new keys)
     const mockPrivateKey = {} as CryptoKey;
-    mockGetCurrentKeys.mockReturnValue({ privateKey: mockPrivateKey });
+    mockEnsureKeys.mockResolvedValue({ privateKey: mockPrivateKey });
     mockGetUserPublicKey.mockResolvedValue({ kty: 'EC', crv: 'P-256' });
 
     // crypto.subtle.importKey for the other user's public key
@@ -209,7 +205,7 @@ describe('decryptMessage', () => {
 
   it('preserves isOwn=false in catch block for other user message after key rotation', async () => {
     const mockPrivateKey = {} as CryptoKey;
-    mockGetCurrentKeys.mockReturnValue({ privateKey: mockPrivateKey });
+    mockEnsureKeys.mockResolvedValue({ privateKey: mockPrivateKey });
     mockGetUserPublicKey.mockResolvedValue({ kty: 'EC', crv: 'P-256' });
 
     const mockImportedKey = {} as CryptoKey;
@@ -236,7 +232,7 @@ describe('decryptMessage', () => {
 
   it('decrypts successfully and returns correct isOwn for own message', async () => {
     const mockPrivateKey = {} as CryptoKey;
-    mockGetCurrentKeys.mockReturnValue({ privateKey: mockPrivateKey });
+    mockEnsureKeys.mockResolvedValue({ privateKey: mockPrivateKey });
     mockGetUserPublicKey.mockResolvedValue({ kty: 'EC', crv: 'P-256' });
 
     const mockImportedKey = {} as CryptoKey;
@@ -260,7 +256,7 @@ describe('decryptMessage', () => {
 
   it('returns placeholder with correct isOwn when other user has no public key', async () => {
     const mockPrivateKey = {} as CryptoKey;
-    mockGetCurrentKeys.mockReturnValue({ privateKey: mockPrivateKey });
+    mockEnsureKeys.mockResolvedValue({ privateKey: mockPrivateKey });
     mockGetUserPublicKey.mockResolvedValue(null); // No public key
 
     const ownMessage = makeMessage({ sender_id: CURRENT_USER_ID });

@@ -100,15 +100,7 @@ export async function decryptMessage(
       // Get private key from memory (derived during sign-in)
       let privateKey = privateKeyCache.get(user.id);
       if (!privateKey) {
-        let derivedKeys = keyManagementService.getCurrentKeys();
-        if (!derivedKeys) {
-          const restored = await keyManagementService.restoreKeysFromSession(
-            user.id
-          );
-          if (restored) {
-            derivedKeys = keyManagementService.getCurrentKeys();
-          }
-        }
+        const derivedKeys = await keyManagementService.ensureKeys(user.id);
         if (!derivedKeys) {
           logger.warn(
             'No derived keys available - user may need to re-authenticate'
@@ -211,4 +203,47 @@ export async function decryptMessage(
       decryptionError: true,
     };
   }
+}
+
+/**
+ * Upsert a decrypted message into the list: replace if the ID already
+ * exists, otherwise insert; then sort by sequence_number (falling back to
+ * created_at for seq=0 offline-queued placeholders).
+ *
+ * Idempotent by design — Realtime can redeliver on reconnect and we must
+ * not duplicate. Also refuses to regress a plaintext message back to an
+ * error placeholder if a later redelivery fails to decrypt.
+ */
+export function upsertMessage(
+  prev: DecryptedMessage[],
+  incoming: DecryptedMessage
+): DecryptedMessage[] {
+  const idx = prev.findIndex((m) => m.id === incoming.id);
+  let next: DecryptedMessage[];
+
+  if (idx >= 0) {
+    const existing = prev[idx];
+    // Don't downgrade plaintext → "could not decrypt" placeholder.
+    const merged =
+      incoming.decryptionError && !existing.decryptionError
+        ? {
+            ...incoming,
+            content: existing.content,
+            isOwn: existing.isOwn,
+            senderName: existing.senderName,
+            decryptionError: false,
+          }
+        : incoming;
+    next = [...prev];
+    next[idx] = merged;
+  } else {
+    next = [...prev, incoming];
+  }
+
+  return next.sort((a, b) => {
+    if (a.sequence_number !== b.sequence_number) {
+      return a.sequence_number - b.sequence_number;
+    }
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
 }

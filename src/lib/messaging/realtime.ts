@@ -209,18 +209,21 @@ export class RealtimeService {
   ): Promise<void> {
     const supabase = createClient();
 
-    // Get authenticated user
+    // Use getSession() (reads local storage, no network) instead of getUser()
+    // (validates JWT with server). This is called on every keystroke — a
+    // network round-trip per keystroke introduces an async gap that causes
+    // out-of-order debounce races with the typing indicator.
     const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    if (authError || !user) {
+    if (!session?.user) {
       // Silent failure - don't disrupt typing UX
       logger.warn('Cannot set typing status: not authenticated');
       return;
     }
 
+    const user = session.user;
     const timerKey = `${conversation_id}:${user.id}`;
 
     // Clear existing timer

@@ -138,15 +138,9 @@ export class MessageService {
     }
 
     try {
-      // Get sender's derived keys from memory (derived on login)
-      // If not in memory, attempt to restore from localStorage cache before failing
-      let senderKeys = keyManagementService.getCurrentKeys();
-      if (!senderKeys) {
-        const restored = await keyManagementService.restoreKeysFromSession(user.id);
-        if (restored) {
-          senderKeys = keyManagementService.getCurrentKeys();
-        }
-      }
+      // Get sender's derived keys. ensureKeys() restores from localStorage
+      // if memory is empty (races with page-mount restore effect).
+      const senderKeys = await keyManagementService.ensureKeys(user.id);
       if (!senderKeys) {
         throw new EncryptionLockedError(
           'Your encryption keys are not available. Please sign in again to send messages.'
@@ -539,17 +533,10 @@ export class MessageService {
         };
       }
 
-      // Get private key for decryption from memory (derived on login)
-      // If not in memory, attempt to restore from localStorage cache before failing
+      // Get private key for decryption. ensureKeys() restores from
+      // localStorage if memory is empty (races with page-mount restore effect).
       logger.debug('Starting decryption', { conversationId });
-      let currentKeys = keyManagementService.getCurrentKeys();
-
-      if (!currentKeys) {
-        const restored = await keyManagementService.restoreKeysFromSession(user.id);
-        if (restored) {
-          currentKeys = keyManagementService.getCurrentKeys();
-        }
-      }
+      const currentKeys = await keyManagementService.ensureKeys(user.id);
 
       if (!currentKeys) {
         logger.error(

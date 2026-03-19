@@ -600,9 +600,8 @@ describe('useConversationRealtime', () => {
     };
     (createClient as any).mockReturnValue(mockSupabaseWithConv);
 
-    // Keys unavailable AND restoration fails — this triggers the placeholder path
-    (keyManagementService.getCurrentKeys as any).mockReturnValue(null);
-    (keyManagementService.restoreKeysFromSession as any).mockResolvedValue(false);
+    // Keys unavailable — ensureKeys returns null, triggering the placeholder path
+    (keyManagementService.ensureKeys as any).mockResolvedValue(null);
 
     const { result } = renderHook(() =>
       useConversationRealtime(mockConversationId)

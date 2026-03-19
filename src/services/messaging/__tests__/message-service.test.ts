@@ -327,9 +327,8 @@ describe('MessageService', () => {
       ).rejects.toThrow(AuthenticationError);
     });
 
-    it('should throw EncryptionLockedError when keys not available and restoration fails', async () => {
-      vi.mocked(keyManagementService.getCurrentKeys).mockReturnValue(null);
-      vi.mocked(keyManagementService.restoreKeysFromSession).mockResolvedValue(false);
+    it('should throw EncryptionLockedError when ensureKeys returns null', async () => {
+      vi.mocked(keyManagementService.ensureKeys).mockResolvedValue(null);
 
       await expect(
         messageService.sendMessage({
@@ -339,24 +338,20 @@ describe('MessageService', () => {
       ).rejects.toThrow(EncryptionLockedError);
     });
 
-    it('Bug fix: should restore keys from session before failing on sendMessage', async () => {
-      // First call returns null (keys not in memory), second call after restoration succeeds
-      vi.mocked(keyManagementService.getCurrentKeys)
-        .mockReturnValueOnce(null) // Before restore attempt
-        .mockReturnValueOnce({     // After successful restore
-          publicKey: realKeyPair.publicKey,
-          privateKey: realKeyPair.privateKey,
-          publicKeyJwk: realPublicKeyJwk,
-          salt: 'mock-salt-base64',
-        });
-      vi.mocked(keyManagementService.restoreKeysFromSession).mockResolvedValue(true);
+    it('Bug fix: ensureKeys restores keys from session before failing on sendMessage', async () => {
+      vi.mocked(keyManagementService.ensureKeys).mockResolvedValue({
+        publicKey: realKeyPair.publicKey,
+        privateKey: realKeyPair.privateKey,
+        publicKeyJwk: realPublicKeyJwk,
+        salt: 'mock-salt-base64',
+      });
 
       const result = await messageService.sendMessage({
         conversation_id: mockConversationId,
         content: 'Hello after key restore',
       });
 
-      expect(keyManagementService.restoreKeysFromSession).toHaveBeenCalledWith(mockUserId);
+      expect(keyManagementService.ensureKeys).toHaveBeenCalledWith(mockUserId);
       expect(result.message).toBeDefined();
       expect(result.queued).toBe(false);
     });
@@ -704,27 +699,22 @@ describe('MessageService', () => {
       expect(result.messages).toHaveLength(1);
     });
 
-    it('Bug fix: should restore keys from session before failing on getMessageHistory', async () => {
-      // First call returns null, second call after restoration succeeds
-      vi.mocked(keyManagementService.getCurrentKeys)
-        .mockReturnValueOnce(null) // Before restore attempt
-        .mockReturnValueOnce({     // After successful restore
-          publicKey: realKeyPair.publicKey,
-          privateKey: realKeyPair.privateKey,
-          publicKeyJwk: realPublicKeyJwk,
-          salt: 'test-salt',
-        });
-      vi.mocked(keyManagementService.restoreKeysFromSession).mockResolvedValue(true);
+    it('Bug fix: ensureKeys restores keys before failing on getMessageHistory', async () => {
+      vi.mocked(keyManagementService.ensureKeys).mockResolvedValue({
+        publicKey: realKeyPair.publicKey,
+        privateKey: realKeyPair.privateKey,
+        publicKeyJwk: realPublicKeyJwk,
+        salt: 'test-salt',
+      });
 
       const result = await messageService.getMessageHistory(mockConversationId);
 
-      expect(keyManagementService.restoreKeysFromSession).toHaveBeenCalledWith(mockUserId);
+      expect(keyManagementService.ensureKeys).toHaveBeenCalledWith(mockUserId);
       expect(result.messages).toHaveLength(2);
     });
 
-    it('should throw EncryptionLockedError when keys unavailable and restoration fails for getMessageHistory', async () => {
-      vi.mocked(keyManagementService.getCurrentKeys).mockReturnValue(null);
-      vi.mocked(keyManagementService.restoreKeysFromSession).mockResolvedValue(false);
+    it('should throw EncryptionLockedError when ensureKeys returns null for getMessageHistory', async () => {
+      vi.mocked(keyManagementService.ensureKeys).mockResolvedValue(null);
 
       await expect(
         messageService.getMessageHistory(mockConversationId)

@@ -14,6 +14,7 @@ import { realtimeService } from '@/lib/messaging/realtime';
 import type { Message, DecryptedMessage } from '@/types/messaging';
 import {
   decryptMessage,
+  upsertMessage,
   type ConversationDataRef,
 } from '@/lib/messaging/decrypt-message';
 
@@ -60,12 +61,7 @@ export function useConversationRealtimeSync({
       async (message) => {
         const decrypted = await decryptSingle(message);
         if (decrypted && isMountedRef.current) {
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === decrypted.id)) return prev;
-            return [...prev, decrypted].sort(
-              (a, b) => a.sequence_number - b.sequence_number
-            );
-          });
+          setMessages((prev) => upsertMessage(prev, decrypted));
         }
       },
       () => {
@@ -82,9 +78,7 @@ export function useConversationRealtimeSync({
       async (newMessage) => {
         const decrypted = await decryptSingle(newMessage);
         if (decrypted && isMountedRef.current) {
-          setMessages((prev) =>
-            prev.map((msg) => (msg.id === decrypted.id ? decrypted : msg))
-          );
+          setMessages((prev) => upsertMessage(prev, decrypted));
         }
       }
     );
