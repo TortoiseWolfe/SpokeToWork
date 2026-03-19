@@ -141,12 +141,14 @@ describe('MessageService', () => {
     vi.mocked(createMessagingClient).mockReturnValue(mockMsgClient);
 
     // Mock key management service - return REAL keys with full DerivedKeyPair
-    vi.mocked(keyManagementService.getCurrentKeys).mockReturnValue({
+    const mockKeys = {
       publicKey: realKeyPair.publicKey,
       privateKey: realKeyPair.privateKey,
       publicKeyJwk: realPublicKeyJwk,
       salt: 'mock-salt-base64',
-    });
+    };
+    vi.mocked(keyManagementService.getCurrentKeys).mockReturnValue(mockKeys);
+    vi.mocked(keyManagementService.ensureKeys).mockResolvedValue(mockKeys);
 
     // Mock encryption service with real implementations
     vi.mocked(encryptionService.encryptMessage).mockResolvedValue({

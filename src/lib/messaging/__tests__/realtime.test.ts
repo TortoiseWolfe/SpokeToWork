@@ -31,6 +31,16 @@ const mockSupabase = {
         error: null,
       })
     ),
+    getSession: vi.fn(() =>
+      Promise.resolve({
+        data: {
+          session: {
+            user: { id: 'test-user-id', email: 'test@example.com' },
+          },
+        },
+        error: null,
+      })
+    ),
   },
   from: vi.fn(() => ({
     upsert: vi.fn(() => Promise.resolve({ data: {}, error: null })),
@@ -351,8 +361,8 @@ describe('RealtimeService', () => {
     });
 
     it('should handle authentication errors silently', async () => {
-      mockSupabase.auth.getUser.mockResolvedValueOnce({
-        data: { user: null } as any,
+      mockSupabase.auth.getSession.mockResolvedValueOnce({
+        data: { session: null } as any,
         error: null as any, // Type override for test
       });
 

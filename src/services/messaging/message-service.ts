@@ -937,8 +937,9 @@ export class MessageService {
         );
       }
 
-      // Get sender's derived keys from memory
-      const senderKeys = keyManagementService.getCurrentKeys();
+      // Get sender's derived keys. ensureKeys() restores from localStorage
+      // if memory is empty (races with page-mount restore effect).
+      const senderKeys = await keyManagementService.ensureKeys(user.id);
       if (!senderKeys) {
         throw new EncryptionLockedError(
           'Your encryption keys are not available. Please sign in again to edit messages.'
