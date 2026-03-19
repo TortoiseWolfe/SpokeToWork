@@ -207,9 +207,8 @@ jobs:
       matrix:
         # Only run chromium on PRs, all browsers on main/develop
         browser: ${{ github.event_name == 'pull_request' && fromJSON('["chromium"]') || fromJSON('["chromium", "firefox", "webkit"]') }}
-        # 2 shards per browser — reduces concurrent Supabase connections from 12 to 6
-        # (4 shards caused intermittent messaging timeouts from Supabase Cloud contention)
-        shard: [1/2, 2/2]
+        # 4 shards per browser for parallel execution
+        shard: [1/4, 2/4, 3/4, 4/4]
 
     steps:
       - name: Checkout code
@@ -254,14 +253,6 @@ jobs:
         run: |
           npx serve out -l 3000 &
           npx wait-on http://localhost:3000 --timeout 60000
-
-      - name: Stagger browser start to reduce Supabase Cloud contention
-        run: |
-          case "${{ matrix.browser }}" in
-            firefox) echo "Delaying firefox 30s..." && sleep 30 ;;
-            webkit)  echo "Delaying webkit 60s..." && sleep 60 ;;
-            *)       echo "Chromium starts immediately" ;;
-          esac
 
       - name: Run E2E tests (shard ${{ matrix.shard }})
         run: |
