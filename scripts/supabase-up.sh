@@ -1,10 +1,9 @@
 #!/bin/bash
-# Two-phase Supabase startup: start services, then fix dynamic port references.
+# Docker-first Supabase startup for local development.
 #
-# Dynamic ports mean neither GoTrue nor the browser-facing app can know
-# their URLs at startup. Phase 1 starts everything, Phase 2 recreates
-# the app (to pick up Supabase env), discovers its final port, then
-# restarts GoTrue with correct browser-facing URLs.
+# All URLs use Docker-internal hostnames (supabase-kong:8000, spoketowork:3000)
+# because the app, dev server, and Playwright all run inside containers.
+# Host-mapped ports are printed for reference (Studio UI, psql from host).
 #
 # Usage:
 #   ./scripts/supabase-up.sh                                 # default project
@@ -14,11 +13,21 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 ANON_KEY="${SUPABASE_LOCAL_ANON_KEY:?Set SUPABASE_LOCAL_ANON_KEY in .env}"
+SERVICE_KEY="${SUPABASE_LOCAL_SERVICE_KEY:?Set SUPABASE_LOCAL_SERVICE_KEY in .env}"
+
+# Template Kong config with actual API keys.
+# Kong's declarative config doesn't support env var substitution,
+# so we generate it from the committed template before starting.
+echo "Generating Kong config with API keys..."
+sed \
+  -e "s|set-anon-key-in-env-file|$ANON_KEY|g" \
+  -e "s|set-service-key-in-env-file|$SERVICE_KEY|g" \
+  docker/kong/kong.yml > docker/kong/kong.generated.yml
 
 echo "Phase 1: Starting all services..."
 docker compose --profile supabase up -d
 
-echo "Waiting for port assignments..."
+echo "Waiting for services to be ready..."
 sleep 3
 
 # Apply database migrations (idempotent — safe to re-run).
@@ -26,74 +35,62 @@ sleep 3
 # so running it on an already-migrated DB is a no-op.
 echo "Applying database migrations..."
 DB_PASSWORD="${SUPABASE_LOCAL_DB_PASSWORD:-your-super-secret-and-long-postgres-password}"
-for f in supabase/migrations/*.sql; do
+# Only run timestamped migrations (YYYYMMDD_*). Excludes utility scripts like
+# 999_drop_all_tables.sql and misplaced seed files.
+for f in supabase/migrations/[0-9][0-9][0-9][0-9]*_*.sql; do
   [ -f "$f" ] || continue
   echo "  Applying $(basename "$f")..."
   PGPASSWORD="$DB_PASSWORD" docker compose exec -T supabase-db \
     psql -U supabase_admin -d postgres -v ON_ERROR_STOP=0 -f - < "$f" > /dev/null 2>&1
 done
 
-# Apply seed data
-if [ -f supabase/seed-test-user.sql ]; then
-  echo "  Applying seed-test-user.sql..."
+# Apply all seed data (test users A, B, C, admin, etc.)
+for f in supabase/seed*.sql; do
+  [ -f "$f" ] || continue
+  echo "  Applying $(basename "$f")..."
   PGPASSWORD="$DB_PASSWORD" docker compose exec -T supabase-db \
-    psql -U supabase_admin -d postgres -v ON_ERROR_STOP=0 -f - < supabase/seed-test-user.sql > /dev/null 2>&1
-fi
+    psql -U supabase_admin -d postgres -v ON_ERROR_STOP=0 -f - < "$f" > /dev/null 2>&1
+done
 
 # Reload PostgREST schema cache so new tables/functions are visible
 docker compose exec -T supabase-db \
   psql -U supabase_admin -d postgres -c "NOTIFY pgrst, 'reload schema';" > /dev/null 2>&1
 echo "Migrations applied."
 
-# Discover Kong port (pinned via SUPABASE_API_PORT in .env)
-KONG_PORT=$(docker compose port supabase-kong 8000 2>/dev/null | cut -d: -f2)
-
-if [ -z "$KONG_PORT" ]; then
-  echo "ERROR: Could not discover Kong port. Are containers running?"
-  docker compose ps
-  exit 1
-fi
-
 # Write Supabase config for the app container.
-# Use the host-mapped Kong port so the browser can reach Supabase directly.
-# NEXT_PUBLIC_ vars are embedded in client-side JS, so the URL must be
-# resolvable by the user's browser (not a Docker-internal hostname).
-# For Playwright inside Docker, swap back to supabase-kong:8000 before running.
+# Docker-internal hostname — resolves from app, Playwright, and headless Chrome.
 cat > .env.supabase.local <<EOF
-NEXT_PUBLIC_SUPABASE_URL=http://localhost:$KONG_PORT
+NEXT_PUBLIC_SUPABASE_URL=http://supabase-kong:8000
 NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY
 EOF
 
 echo "Phase 2: Restarting app with Supabase config..."
-
-# Recreate app first so it gets its final port assignment
 docker compose up -d --force-recreate spoketowork
 sleep 2
 
-# Now discover the app's final port
-APP_PORT=$(docker compose port spoketowork 3000 2>/dev/null | cut -d: -f2)
+echo "Phase 3: Restarting auth with Docker-internal URLs..."
+echo "  API_EXTERNAL_URL:  http://supabase-kong:8000"
+echo "  GOTRUE_SITE_URL:   http://spoketowork:3000"
 
-if [ -z "$APP_PORT" ]; then
-  echo "ERROR: Could not discover app port."
-  docker compose ps
-  exit 1
-fi
-
-echo "Phase 3: Restarting auth with discovered ports..."
-echo "  API_EXTERNAL_URL:  http://localhost:$KONG_PORT"
-echo "  GOTRUE_SITE_URL:   http://localhost:$APP_PORT"
-
-# Restart GoTrue with the app's final port as the redirect target
-API_EXTERNAL_URL="http://localhost:$KONG_PORT" \
-GOTRUE_SITE_URL="http://localhost:$APP_PORT" \
+# GoTrue needs to know the API and app URLs for auth redirects.
+# Both use Docker-internal hostnames since all clients are in-network.
+API_EXTERNAL_URL="http://supabase-kong:8000" \
+GOTRUE_SITE_URL="http://spoketowork:3000" \
   docker compose up -d --force-recreate supabase-auth
 
-echo ""
-echo "Supabase ready:"
-echo "  App:    http://localhost:$APP_PORT"
-echo "  API:    http://localhost:$KONG_PORT"
-
+# Discover host-mapped ports for reference output
+KONG_PORT=$(docker compose port supabase-kong 8000 2>/dev/null | cut -d: -f2)
 DB_PORT=$(docker compose port supabase-db 5432 2>/dev/null | cut -d: -f2)
 STUDIO_PORT=$(docker compose port supabase-studio 3000 2>/dev/null | cut -d: -f2)
+
+echo ""
+echo "Supabase ready (Docker-internal):"
+echo "  App:    http://spoketowork:3000"
+echo "  API:    http://supabase-kong:8000"
+echo "  DB:     supabase-db:5432"
+echo "  Studio: http://supabase-studio:3000"
+echo ""
+echo "Host-mapped ports (Studio web UI, psql from host):"
+[ -n "$KONG_PORT" ] && echo "  API:    http://localhost:$KONG_PORT"
 [ -n "$DB_PORT" ] && echo "  DB:     localhost:$DB_PORT"
 [ -n "$STUDIO_PORT" ] && echo "  Studio: http://localhost:$STUDIO_PORT"
