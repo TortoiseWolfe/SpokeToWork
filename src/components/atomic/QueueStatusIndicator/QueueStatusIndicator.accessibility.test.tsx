@@ -47,6 +47,18 @@ describe('QueueStatusIndicator Accessibility', () => {
   });
 
   it('should have proper semantic HTML', () => {
+    // Ensure mock is set immediately before render (vmThreads can reset between beforeEach and test)
+    mockUseOfflineQueue.mockReturnValue({
+      queue: [],
+      queueCount: 1,
+      failedCount: 0,
+      isSyncing: false,
+      isOnline: true,
+      syncQueue: vi.fn(),
+      retryFailed: vi.fn(),
+      clearSynced: vi.fn(),
+      getFailedMessages: vi.fn().mockResolvedValue([]),
+    });
     const { container } = render(<QueueStatusIndicator />);
 
     // Verify component renders with proper HTML structure
