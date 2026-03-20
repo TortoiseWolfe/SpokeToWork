@@ -31,6 +31,7 @@ import {
   KeyMismatchError,
   ConnectionError,
 } from '@/types/messaging';
+// decryption-cache clearing is handled via onKeysChanged listener in decrypt-message.ts
 
 // Use vi.hoisted to create mock that can be referenced in vi.mock (vitest 4.0 pattern)
 const { mockKeyDerivationInstance } = vi.hoisted(() => ({
@@ -45,6 +46,7 @@ const { mockKeyDerivationInstance } = vi.hoisted(() => ({
 vi.mock('@/lib/supabase/client');
 vi.mock('@/lib/supabase/messaging-client');
 vi.mock('@/lib/messaging/encryption');
+// decryption-cache no longer imported by key-service (uses onKeysChanged pattern)
 vi.mock('@/lib/messaging/key-derivation', () => ({
   KeyDerivationService: class MockKeyDerivationService {
     generateSalt = mockKeyDerivationInstance.generateSalt;
@@ -462,6 +464,15 @@ describe('KeyManagementService', () => {
       // Clear keys
       keyService.clearKeys();
       expect(keyService.getCurrentKeys()).toBeNull();
+    });
+
+    it('should notify key-change listeners on clearKeys so caches can be flushed', async () => {
+      const listener = vi.fn();
+      keyService.onKeysChanged(listener);
+
+      keyService.clearKeys();
+
+      expect(listener).toHaveBeenCalledTimes(1);
     });
   });
 

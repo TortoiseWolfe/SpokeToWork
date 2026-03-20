@@ -117,6 +117,17 @@ describe('MessageService', () => {
           },
           error: null,
         }),
+        getSession: vi.fn().mockResolvedValue({
+          data: {
+            session: {
+              user: {
+                id: mockUserId,
+                email: 'test@example.com',
+              },
+            },
+          },
+          error: null,
+        }),
       },
       from: vi.fn(),
     };
@@ -130,12 +141,14 @@ describe('MessageService', () => {
     vi.mocked(createMessagingClient).mockReturnValue(mockMsgClient);
 
     // Mock key management service - return REAL keys with full DerivedKeyPair
-    vi.mocked(keyManagementService.getCurrentKeys).mockReturnValue({
+    const mockKeys = {
       publicKey: realKeyPair.publicKey,
       privateKey: realKeyPair.privateKey,
       publicKeyJwk: realPublicKeyJwk,
       salt: 'mock-salt-base64',
-    });
+    };
+    vi.mocked(keyManagementService.getCurrentKeys).mockReturnValue(mockKeys);
+    vi.mocked(keyManagementService.ensureKeys).mockResolvedValue(mockKeys);
 
     // Mock encryption service with real implementations
     vi.mocked(encryptionService.encryptMessage).mockResolvedValue({
@@ -316,8 +329,8 @@ describe('MessageService', () => {
       ).rejects.toThrow(AuthenticationError);
     });
 
-    it('should throw EncryptionLockedError when keys not available', async () => {
-      vi.mocked(keyManagementService.getCurrentKeys).mockReturnValue(null);
+    it('should throw EncryptionLockedError when ensureKeys returns null', async () => {
+      vi.mocked(keyManagementService.ensureKeys).mockResolvedValue(null);
 
       await expect(
         messageService.sendMessage({
@@ -325,6 +338,24 @@ describe('MessageService', () => {
           content: 'Hello',
         })
       ).rejects.toThrow(EncryptionLockedError);
+    });
+
+    it('Bug fix: ensureKeys restores keys from session before failing on sendMessage', async () => {
+      vi.mocked(keyManagementService.ensureKeys).mockResolvedValue({
+        publicKey: realKeyPair.publicKey,
+        privateKey: realKeyPair.privateKey,
+        publicKeyJwk: realPublicKeyJwk,
+        salt: 'mock-salt-base64',
+      });
+
+      const result = await messageService.sendMessage({
+        conversation_id: mockConversationId,
+        content: 'Hello after key restore',
+      });
+
+      expect(keyManagementService.ensureKeys).toHaveBeenCalledWith(mockUserId);
+      expect(result.message).toBeDefined();
+      expect(result.queued).toBe(false);
     });
 
     it('should throw ValidationError for non-existent conversation', async () => {
@@ -384,6 +415,98 @@ describe('MessageService', () => {
           content: 'Hello',
         })
       ).rejects.toThrow(ValidationError);
+    });
+
+    it('should retry on sequence number conflict (23505 unique_violation)', async () => {
+      let insertCallCount = 0;
+
+      mockMsgClient.from.mockImplementation((table: string) => {
+        if (table === 'conversations') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    participant_1_id: mockUserId,
+                    participant_2_id: mockOtherUserId,
+                    is_group: false,
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+            update: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ error: null }),
+            }),
+          };
+        }
+        if (table === 'user_encryption_keys') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { public_key: otherPublicKeyJwk },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'messages') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockReturnValue({
+                    single: vi.fn().mockResolvedValue({
+                      data: { sequence_number: 5 },
+                      error: null,
+                    }),
+                  }),
+                }),
+              }),
+            }),
+            insert: vi.fn().mockReturnValue({
+              select: vi.fn().mockReturnValue({
+                single: vi.fn().mockImplementation(() => {
+                  insertCallCount++;
+                  if (insertCallCount === 1) {
+                    // First attempt: unique constraint violation
+                    return Promise.resolve({
+                      data: null,
+                      error: { code: '23505', message: 'duplicate key' },
+                    });
+                  }
+                  // Second attempt: success
+                  return Promise.resolve({
+                    data: {
+                      id: crypto.randomUUID(),
+                      conversation_id: mockConversationId,
+                      sender_id: mockUserId,
+                      encrypted_content: 'encrypted-content',
+                      initialization_vector: 'mock-iv',
+                      sequence_number: 7,
+                      created_at: new Date().toISOString(),
+                    },
+                    error: null,
+                  });
+                }),
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      const result = await messageService.sendMessage({
+        conversation_id: mockConversationId,
+        content: 'Hello after conflict',
+      });
+
+      expect(result.message).toBeDefined();
+      expect(result.queued).toBe(false);
+      // Verify it retried (2 insert calls: first fails, second succeeds)
+      expect(insertCallCount).toBe(2);
     });
   });
 
@@ -576,6 +699,28 @@ describe('MessageService', () => {
       );
 
       expect(result.messages).toHaveLength(1);
+    });
+
+    it('Bug fix: ensureKeys restores keys before failing on getMessageHistory', async () => {
+      vi.mocked(keyManagementService.ensureKeys).mockResolvedValue({
+        publicKey: realKeyPair.publicKey,
+        privateKey: realKeyPair.privateKey,
+        publicKeyJwk: realPublicKeyJwk,
+        salt: 'test-salt',
+      });
+
+      const result = await messageService.getMessageHistory(mockConversationId);
+
+      expect(keyManagementService.ensureKeys).toHaveBeenCalledWith(mockUserId);
+      expect(result.messages).toHaveLength(2);
+    });
+
+    it('should throw EncryptionLockedError when ensureKeys returns null for getMessageHistory', async () => {
+      vi.mocked(keyManagementService.ensureKeys).mockResolvedValue(null);
+
+      await expect(
+        messageService.getMessageHistory(mockConversationId)
+      ).rejects.toThrow(EncryptionLockedError);
     });
 
     it('should handle decryption errors gracefully', async () => {

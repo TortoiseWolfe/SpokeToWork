@@ -69,8 +69,6 @@ const sharedTestConfig = {
     'tests/integration/auth/rate-limiting.integration.test.ts',
     'tests/integration/messaging/connections.test.ts',
     'src/tests/integration/payment-isolation.test.ts',
-    'src/hooks/__tests__/useConversationRealtime.test.ts',
-    'src/hooks/__tests__/useTypingIndicator.test.ts',
     'src/services/messaging/__tests__/gdpr-service.test.ts',
     'src/lib/avatar/__tests__/image-processing.test.ts',
     'src/lib/avatar/__tests__/validation.test.ts',

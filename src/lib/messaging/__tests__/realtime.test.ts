@@ -31,6 +31,16 @@ const mockSupabase = {
         error: null,
       })
     ),
+    getSession: vi.fn(() =>
+      Promise.resolve({
+        data: {
+          session: {
+            user: { id: 'test-user-id', email: 'test@example.com' },
+          },
+        },
+        error: null,
+      })
+    ),
   },
   from: vi.fn(() => ({
     upsert: vi.fn(() => Promise.resolve({ data: {}, error: null })),
@@ -53,6 +63,14 @@ describe('RealtimeService', () => {
   beforeEach(() => {
     service = new RealtimeService();
     vi.clearAllMocks();
+    // Restore default subscribe behavior (clearAllMocks wipes mockImplementation)
+    mockChannel.subscribe.mockImplementation(
+      (callback?: (status: string) => void) => {
+        if (callback) callback('SUBSCRIBED');
+        return mockChannel;
+      }
+    );
+    mockChannel.on.mockReturnThis();
   });
 
   afterEach(() => {
@@ -127,6 +145,46 @@ describe('RealtimeService', () => {
       unsubscribe();
 
       expect(mockChannel.unsubscribe).toHaveBeenCalled();
+    });
+
+    it('should call onReconnect callback on second SUBSCRIBED event (not first)', () => {
+      let subscribeCallback: ((status: string) => void) | undefined;
+
+      mockChannel.subscribe.mockImplementation(
+        (callback?: (status: string) => void) => {
+          subscribeCallback = callback;
+          return mockChannel;
+        }
+      );
+
+      const onReconnect = vi.fn();
+      service.subscribeToMessages(conversationId, vi.fn(), onReconnect);
+
+      // First SUBSCRIBED — initial connection, should NOT trigger onReconnect
+      subscribeCallback!('SUBSCRIBED');
+      expect(onReconnect).not.toHaveBeenCalled();
+
+      // Second SUBSCRIBED — reconnection, should trigger onReconnect
+      subscribeCallback!('SUBSCRIBED');
+      expect(onReconnect).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not call onReconnect if not provided', () => {
+      let subscribeCallback: ((status: string) => void) | undefined;
+
+      mockChannel.subscribe.mockImplementation(
+        (callback?: (status: string) => void) => {
+          subscribeCallback = callback;
+          return mockChannel;
+        }
+      );
+
+      // No onReconnect callback
+      service.subscribeToMessages(conversationId, vi.fn());
+
+      // Should not throw
+      subscribeCallback!('SUBSCRIBED');
+      subscribeCallback!('SUBSCRIBED');
     });
   });
 
@@ -303,8 +361,8 @@ describe('RealtimeService', () => {
     });
 
     it('should handle authentication errors silently', async () => {
-      mockSupabase.auth.getUser.mockResolvedValueOnce({
-        data: { user: null } as any,
+      mockSupabase.auth.getSession.mockResolvedValueOnce({
+        data: { session: null } as any,
         error: null as any, // Type override for test
       });
 

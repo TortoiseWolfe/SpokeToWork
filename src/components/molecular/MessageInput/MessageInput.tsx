@@ -50,6 +50,14 @@ export default function MessageInput({
   const internalRef = useRef<HTMLTextAreaElement>(null);
   const textareaRef = inputRef || internalRef; // Use forwarded ref if provided
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Tracks whether onTypingChange(true) was emitted without a matching (false).
+  // If the component unmounts while true (tab close, nav away), cleanup must
+  // emit the final (false) so the peer isn't left with a stuck indicator.
+  const isTypingRef = useRef(false);
+  // Stable ref to latest onTypingChange for unmount cleanup (avoids stale
+  // closure over the initial prop value)
+  const onTypingChangeRef = useRef(onTypingChange);
+  onTypingChangeRef.current = onTypingChange;
 
   const charCount = message.length;
   const charLimit = MESSAGE_CONSTRAINTS.MAX_LENGTH;
@@ -62,6 +70,7 @@ export default function MessageInput({
     if (onTypingChange) {
       // User is typing if there's content
       if (value.length > 0) {
+        isTypingRef.current = true;
         onTypingChange(true);
 
         // Clear existing timeout
@@ -71,10 +80,12 @@ export default function MessageInput({
 
         // Set timeout to stop typing after 3 seconds of inactivity
         typingTimeoutRef.current = setTimeout(() => {
-          onTypingChange(false);
+          isTypingRef.current = false;
+          onTypingChangeRef.current?.(false);
         }, 3000);
       } else {
         // Clear typing status if input is empty
+        isTypingRef.current = false;
         onTypingChange(false);
         if (typingTimeoutRef.current) {
           clearTimeout(typingTimeoutRef.current);
@@ -88,6 +99,13 @@ export default function MessageInput({
     return () => {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
+      }
+      // If unmounting mid-type (tab close, nav away, conversation switch),
+      // emit the pending stop-typing so the peer isn't stuck. Use the ref to
+      // avoid stale closure over onTypingChange.
+      if (isTypingRef.current) {
+        isTypingRef.current = false;
+        onTypingChangeRef.current?.(false);
       }
     };
   }, []);
@@ -123,6 +141,7 @@ export default function MessageInput({
     setError(null);
 
     // Clear typing status after sending
+    isTypingRef.current = false;
     if (onTypingChange) {
       onTypingChange(false);
     }
