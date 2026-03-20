@@ -118,7 +118,7 @@ RESULT=$(docker compose exec -T spoketowork curl -s -w '\n%{http_code}' -X POST 
   http://supabase-realtime:4000/api/tenants \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $SERVICE_KEY" \
-  -d "{\"tenant\":{\"name\":\"Local Development\",\"external_id\":\"supabase-realtime\",\"jwt_secret\":\"$JWT_SECRET\",\"extensions\":[{\"type\":\"postgres_cdc_rls\",\"settings\":{\"db_host\":\"supabase-db\",\"db_port\":\"5432\",\"db_name\":\"postgres\",\"db_user\":\"supabase_admin\",\"db_password\":\"$DB_PASSWORD\",\"region\":\"us-east-1\",\"poll_interval_ms\":100,\"poll_max_record_bytes\":1048576,\"slot_name\":\"supabase_realtime_rls\"}}]}}" 2>&1)
+  -d "{\"tenant\":{\"name\":\"Local Development\",\"external_id\":\"supabase-realtime\",\"jwt_secret\":\"$JWT_SECRET\",\"extensions\":[{\"type\":\"postgres_cdc_rls\",\"settings\":{\"db_host\":\"supabase-db\",\"db_port\":\"5432\",\"db_name\":\"postgres\",\"db_user\":\"supabase_admin\",\"db_password\":\"$DB_PASSWORD\",\"region\":\"us-east-1\",\"poll_interval_ms\":100,\"poll_max_record_bytes\":1048576,\"slot_name\":\"supabase_realtime_rls\",\"ssl_enforced\":false}}]}}" 2>&1)
 HTTP_CODE=$(echo "$RESULT" | tail -1)
 if [ "$HTTP_CODE" = "201" ]; then
   echo "  Realtime tenant created."
