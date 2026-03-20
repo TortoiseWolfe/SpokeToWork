@@ -1,207 +1,60 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+/**
+ * Admin moderation — split workspace. ModerationMap + AdminModerationQueue
+ * in SplitWorkspaceLayout. Clicking a pending marker opens
+ * ModerationDetailPanel. Mutations go through useModerationQueue, which
+ * drops items from local state so markers vanish without a refetch.
+ */
+
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { useModerationQueue } from '@/hooks/useModerationQueue';
+import { usePendingMarkers } from '@/hooks/usePendingMarkers';
+import { useApprovedMarkers } from '@/hooks/useApprovedMarkers';
+import { useFullscreenWorkspace } from '@/hooks/useFullscreenWorkspace';
+import { SplitWorkspaceLayout } from '@/components/templates/SplitWorkspaceLayout';
+import { ModerationMap } from '@/components/organisms/ModerationMap';
+import { ModerationDetailPanel } from '@/components/organisms/ModerationDetailPanel';
 import AdminModerationQueue from '@/components/organisms/AdminModerationQueue';
-import { AdminModerationService } from '@/lib/companies/admin-moderation-service';
-import type { ModerationQueueItem } from '@/lib/companies/admin-moderation-service';
-import { supabase } from '@/lib/supabase/client';
+import { BottomSheet } from '@/components/molecular/BottomSheet';
 
 export default function AdminModerationPage() {
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // State
-  const [queueItems, setQueueItems] = useState<ModerationQueueItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const q = useModerationQueue(user);
+  const pendingMarkers = usePendingMarkers(q.items);
+  const approvedMarkers = useApprovedMarkers(q.nearbyLocations);
 
-  // Check admin status and load queue
+  const selected = useMemo(
+    () =>
+      q.items.find((i) => i.id === selectedId && i.type === 'contribution') ??
+      null,
+    [q.items, selectedId]
+  );
+
+  const ready = !authLoading && !q.isLoading && q.isAdmin;
+  useFullscreenWorkspace(containerRef, ready);
   useEffect(() => {
-    async function checkAdminAndLoad() {
-      if (!user) return;
-
-      try {
-        // Check if user is admin
-        // Note: is_admin column added in Feature 012 migration
-        const { data: profile, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (profileError && profileError.code !== 'PGRST116') {
-          throw profileError;
-        }
-
-        // Cast to access is_admin field (added in Feature 012 migration)
-        const isAdminUser =
-          (profile as { is_admin?: boolean } | null)?.is_admin ?? false;
-        if (!isAdminUser) {
-          setIsAdmin(false);
-          setIsLoading(false);
-          return;
-        }
-
-        setIsAdmin(true);
-
-        // Initialize service and load queue
-        const service = new AdminModerationService(supabase);
-        await service.initialize(user.id);
-        const items = await service.getPendingQueue();
-        setQueueItems(items);
-      } catch (err) {
-        console.error('Error loading moderation queue:', err);
-        setError('Failed to load moderation queue');
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    if (!authLoading) {
-      if (!user) {
-        router.push('/sign-in');
-      } else {
-        checkAdminAndLoad();
-      }
-    }
+    if (!authLoading && !user) router.push('/sign-in');
   }, [user, authLoading, router]);
+  useEffect(() => {
+    // Auto-close panel when the item leaves the queue (optimistic drop).
+    if (selectedId && !selected) setSelectedId(null);
+  }, [selectedId, selected]);
 
-  // Refresh queue
-  const refreshQueue = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      const service = new AdminModerationService(supabase);
-      await service.initialize(user.id);
-      const items = await service.getPendingQueue();
-      setQueueItems(items);
-    } catch (err) {
-      console.error('Error refreshing queue:', err);
-    }
-  }, [user]);
-
-  // Handle approve contribution
-  const handleApproveContribution = useCallback(
-    async (contributionId: string, notes?: string) => {
-      if (!user) return;
-
-      try {
-        setError(null);
-        const service = new AdminModerationService(supabase);
-        await service.initialize(user.id);
-        await service.approveContribution(contributionId, notes);
-        setSuccessMessage('Contribution approved successfully');
-        await refreshQueue();
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } catch (err) {
-        console.error('Error approving contribution:', err);
-        setError('Failed to approve contribution');
-      }
-    },
-    [user, refreshQueue]
-  );
-
-  // Handle reject contribution
-  const handleRejectContribution = useCallback(
-    async (contributionId: string, notes: string) => {
-      if (!user) return;
-
-      try {
-        setError(null);
-        const service = new AdminModerationService(supabase);
-        await service.initialize(user.id);
-        await service.rejectContribution(contributionId, notes);
-        setSuccessMessage('Contribution rejected');
-        await refreshQueue();
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } catch (err) {
-        console.error('Error rejecting contribution:', err);
-        setError('Failed to reject contribution');
-      }
-    },
-    [user, refreshQueue]
-  );
-
-  // Handle merge contribution
-  const handleMergeContribution = useCallback(
-    async (contributionId: string, existingCompanyId: string) => {
-      if (!user) return;
-
-      try {
-        setError(null);
-        const service = new AdminModerationService(supabase);
-        await service.initialize(user.id);
-        await service.mergeContribution(contributionId, existingCompanyId);
-        setSuccessMessage('Contribution merged successfully');
-        await refreshQueue();
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } catch (err) {
-        console.error('Error merging contribution:', err);
-        setError('Failed to merge contribution');
-      }
-    },
-    [user, refreshQueue]
-  );
-
-  // Handle approve edit suggestion
-  const handleApproveEdit = useCallback(
-    async (suggestionId: string, notes?: string) => {
-      if (!user) return;
-
-      try {
-        setError(null);
-        const service = new AdminModerationService(supabase);
-        await service.initialize(user.id);
-        await service.approveEditSuggestion(suggestionId, notes);
-        setSuccessMessage('Edit approved and applied');
-        await refreshQueue();
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } catch (err) {
-        console.error('Error approving edit:', err);
-        setError('Failed to approve edit');
-      }
-    },
-    [user, refreshQueue]
-  );
-
-  // Handle reject edit suggestion
-  const handleRejectEdit = useCallback(
-    async (suggestionId: string, notes: string) => {
-      if (!user) return;
-
-      try {
-        setError(null);
-        const service = new AdminModerationService(supabase);
-        await service.initialize(user.id);
-        await service.rejectEditSuggestion(suggestionId, notes);
-        setSuccessMessage('Edit suggestion rejected');
-        await refreshQueue();
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } catch (err) {
-        console.error('Error rejecting edit:', err);
-        setError('Failed to reject edit');
-      }
-    },
-    [user, refreshQueue]
-  );
-
-  // Loading state
-  if (authLoading || isLoading) {
+  if (authLoading || q.isLoading)
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex min-h-[50vh] items-center justify-center">
-          <span className="loading loading-spinner loading-lg" />
-        </div>
+      <div className="flex min-h-screen items-center justify-center">
+        <span className="loading loading-spinner loading-lg" />
       </div>
     );
-  }
-
-  // Not admin
-  if (!isAdmin) {
+  if (!user) return null;
+  if (!q.isAdmin)
     return (
       <div className="container mx-auto p-6">
         <div className="alert alert-error">
@@ -209,71 +62,88 @@ export default function AdminModerationPage() {
         </div>
       </div>
     );
-  }
 
-  return (
-    <div className="container mx-auto p-6">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold">Moderation Queue</h1>
-        <p className="text-base-content/85 mt-2">
-          Review and approve company contributions and edit suggestions.
+  const edits = q.items.filter((i) => i.type === 'edit_suggestion').length;
+  const contribs = q.items.length - edits;
+
+  const queue = (
+    <div className="container mx-auto space-y-4 px-4 py-6">
+      <header>
+        <h1 className="text-2xl font-bold">Moderation Queue</h1>
+        <p className="text-base-content/85 text-sm">
+          Review company contributions and edit suggestions.
         </p>
       </header>
-
-      {/* Success message */}
-      {successMessage && (
-        <div className="alert alert-success mb-4">
-          <span>{successMessage}</span>
+      {q.success && (
+        <div className="alert alert-success">
+          <span>{q.success}</span>
         </div>
       )}
-
-      {/* Error message */}
-      {error && (
-        <div className="alert alert-error mb-4">
-          <span>{error}</span>
+      {q.error && (
+        <div className="alert alert-error">
+          <span>{q.error}</span>
           <button
             type="button"
             className="btn btn-ghost btn-sm"
-            onClick={() => setError(null)}
+            onClick={q.clearError}
           >
             Dismiss
           </button>
         </div>
       )}
-
-      {/* Queue stats */}
-      <div className="stats mb-6 shadow">
+      <div className="stats w-full shadow">
         <div className="stat">
-          <div className="stat-title">Pending Items</div>
-          <div className="stat-value">{queueItems.length}</div>
+          <div className="stat-title">Pending</div>
+          <div className="stat-value">{q.items.length}</div>
         </div>
         <div className="stat">
           <div className="stat-title">Contributions</div>
-          <div className="stat-value text-primary">
-            {queueItems.filter((item) => item.type === 'contribution').length}
-          </div>
+          <div className="stat-value text-primary">{contribs}</div>
         </div>
         <div className="stat">
-          <div className="stat-title">Edit Suggestions</div>
-          <div className="stat-value text-secondary">
-            {
-              queueItems.filter((item) => item.type === 'edit_suggestion')
-                .length
-            }
-          </div>
+          <div className="stat-title">Edits</div>
+          <div className="stat-value text-secondary">{edits}</div>
         </div>
       </div>
-
-      {/* Moderation queue */}
       <AdminModerationQueue
-        items={queueItems}
-        isLoading={isLoading}
-        onApproveContribution={handleApproveContribution}
-        onRejectContribution={handleRejectContribution}
-        onMergeContribution={handleMergeContribution}
-        onApproveEdit={handleApproveEdit}
-        onRejectEdit={handleRejectEdit}
+        items={q.items}
+        onApproveContribution={q.approveContribution}
+        onRejectContribution={q.rejectContribution}
+        onMergeContribution={q.mergeContribution}
+        onApproveEdit={q.approveEdit}
+        onRejectEdit={q.rejectEdit}
       />
+    </div>
+  );
+
+  return (
+    <div ref={containerRef} className="relative overflow-hidden">
+      <SplitWorkspaceLayout
+        table={queue}
+        map={
+          <ModerationMap
+            pendingMarkers={pendingMarkers}
+            approvedMarkers={approvedMarkers}
+            selectedContributionId={selectedId}
+            onSelectPending={setSelectedId}
+          />
+        }
+        mobileSheet={
+          <BottomSheet initialSnap="half" ariaLabel="Moderation queue">
+            {queue}
+          </BottomSheet>
+        }
+      />
+      {selected && (
+        <ModerationDetailPanel
+          contribution={selected}
+          nearbyLocations={q.nearbyLocations}
+          onApprove={q.approveContribution}
+          onReject={q.rejectContribution}
+          onMerge={q.mergeContribution}
+          onClose={() => setSelectedId(null)}
+        />
+      )}
     </div>
   );
 }

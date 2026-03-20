@@ -27,6 +27,10 @@ export interface SplitWorkspaceLayoutProps {
   onToggleRoutes?: () => void;
   /** Whether the routes drawer is currently open. Hides the Routes button when true. */
   routesOpen?: boolean;
+  /** aria-label for the map region landmark. */
+  mapLabel?: string;
+  /** aria-label for the list/table region landmark. */
+  tableLabel?: string;
   className?: string;
 }
 
@@ -36,6 +40,8 @@ export function SplitWorkspaceLayout({
   mobileSheet,
   onToggleRoutes,
   routesOpen = false,
+  mapLabel = 'Map',
+  tableLabel = 'List',
   className = '',
 }: SplitWorkspaceLayoutProps) {
   const { category } = useDeviceType();
@@ -63,7 +69,12 @@ export function SplitWorkspaceLayout({
         data-testid="split-workspace-mobile"
         className={`relative h-full w-full ${className}`}
       >
-        <div data-testid="split-workspace-mobile-map" className="fixed inset-0">
+        <div
+          data-testid="split-workspace-mobile-map"
+          role="region"
+          aria-label={mapLabel}
+          className="fixed inset-0"
+        >
           {map}
         </div>
         {mobileSheet}
@@ -79,13 +90,15 @@ export function SplitWorkspaceLayout({
     >
       <div
         data-testid="split-workspace-map-panel"
+        role="region"
+        aria-label={mapLabel}
         className="relative min-w-0 flex-1 overflow-hidden"
       >
         {/* Map fills panel via absolute positioning — percentage heights
             can fail inside flex layouts, so we pin to edges instead */}
         <div className="absolute inset-0">{map}</div>
         {/* Panel toggles — same row, routes on left, list on right (left of map controls) */}
-        <div className="absolute left-3 right-14 top-3 z-[1000] flex justify-between">
+        <div className="absolute top-3 right-14 left-3 z-[1000] flex justify-between">
           {onToggleRoutes && !routesOpen ? (
             <button
               type="button"
@@ -95,7 +108,9 @@ export function SplitWorkspaceLayout({
             >
               Routes
             </button>
-          ) : <div />}
+          ) : (
+            <div />
+          )}
           <button
             type="button"
             className="btn btn-sm btn-neutral shadow-lg"
@@ -108,6 +123,8 @@ export function SplitWorkspaceLayout({
       </div>
       <div
         data-testid="split-workspace-table-panel"
+        role="region"
+        aria-label={tableLabel}
         className={`border-base-300 h-full min-h-0 overflow-y-auto border-l transition-[width] duration-300 ${
           showTable ? 'w-1/2' : 'w-0 overflow-hidden border-0'
         }`}

@@ -1907,8 +1907,10 @@ CREATE TABLE IF NOT EXISTS company_contributions (
   user_id UUID NOT NULL REFERENCES auth.users(id),
   private_company_id UUID NOT NULL REFERENCES private_companies(id),
   status contribution_status NOT NULL DEFAULT 'pending',
-  admin_notes TEXT,
-  reviewed_by UUID REFERENCES auth.users(id),
+  reviewer_id UUID,
+  reviewer_notes TEXT,
+  created_shared_company_id UUID,
+  merged_with_company_id UUID,
   reviewed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -1948,9 +1950,10 @@ CREATE TABLE IF NOT EXISTS company_edit_suggestions (
   field_name VARCHAR(50) NOT NULL,
   old_value TEXT,
   new_value TEXT NOT NULL,
+  reason TEXT,
   status contribution_status NOT NULL DEFAULT 'pending',
-  admin_notes TEXT,
-  reviewed_by UUID REFERENCES auth.users(id),
+  reviewer_id UUID,
+  reviewer_notes TEXT,
   reviewed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -3464,6 +3467,59 @@ GRANT EXECUTE ON FUNCTION batch_create_shifts(UUID, UUID, JSONB) TO authenticate
 
 -- ============================================================================
 -- END FEATURE 066: Workforce Scheduling (team_shifts)
+-- ============================================================================
+
+-- ============================================================================
+-- FEATURE: Admin User List (SECURITY DEFINER function)
+-- ============================================================================
+
+-- Admin-only function that joins user_profiles with auth.users.
+-- SECURITY DEFINER runs as the function creator (postgres), which CAN read
+-- auth.users. The admin check inside the function is the access policy —
+-- non-admins get a raised exception, never the data.
+-- This does NOT modify any existing RLS policies on user_profiles.
+CREATE OR REPLACE FUNCTION admin_list_users()
+RETURNS TABLE (
+  id UUID,
+  email TEXT,
+  display_name TEXT,
+  username TEXT,
+  role TEXT,
+  is_admin BOOLEAN,
+  created_at TIMESTAMPTZ,
+  last_sign_in_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM user_profiles up WHERE up.id = auth.uid() AND up.is_admin = true
+  ) THEN
+    RAISE EXCEPTION 'Admin access required';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    up.id,
+    au.email::TEXT,
+    up.display_name,
+    up.username,
+    up.role,
+    up.is_admin,
+    up.created_at,
+    au.last_sign_in_at
+  FROM user_profiles up
+  JOIN auth.users au ON au.id = up.id
+  ORDER BY up.created_at DESC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION admin_list_users() TO authenticated;
+
+-- ============================================================================
+-- END FEATURE: Admin User List
 -- ============================================================================
 
 -- Commit the transaction - everything succeeded

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import RoutePolyline, { RoutePolylines } from './RoutePolyline';
+import RoutePolyline from './RoutePolyline';
+import { RoutePolylines } from './RoutePolylines';
 import type { BicycleRoute, RouteGeometry } from '@/types/route';
 
 /**

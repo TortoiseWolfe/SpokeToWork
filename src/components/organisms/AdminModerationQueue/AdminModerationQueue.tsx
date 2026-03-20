@@ -1,79 +1,68 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { ModerationQueueItem } from '@/lib/companies/admin-moderation-service';
+import { ModerationCard } from './ModerationCard';
 
 export interface AdminModerationQueueProps {
-  /** Pending moderation queue items */
   items: ModerationQueueItem[];
-  /** Loading state */
   isLoading?: boolean;
-  /** Callback when contribution is approved */
   onApproveContribution?: (id: string, notes?: string) => Promise<void>;
-  /** Callback when contribution is rejected */
   onRejectContribution?: (id: string, notes: string) => Promise<void>;
-  /** Callback when contribution is merged with existing */
   onMergeContribution?: (
     id: string,
     existingCompanyId: string
   ) => Promise<void>;
-  /** Callback when edit suggestion is approved */
   onApproveEdit?: (id: string, notes?: string) => Promise<void>;
-  /** Callback when edit suggestion is rejected */
   onRejectEdit?: (id: string, notes: string) => Promise<void>;
-  /** Additional CSS classes */
+  selectedItemId?: string | null;
+  onItemClick?: (item: ModerationQueueItem) => void;
   className?: string;
-  /** Test ID for testing */
   testId?: string;
 }
 
-/**
- * AdminModerationQueue component
- *
- * Displays pending company contributions and edit suggestions for admin review.
- * Admins can approve, reject, or merge contributions with existing companies.
- *
- * @category organisms
- */
 export default function AdminModerationQueue({
   items,
   isLoading = false,
   onApproveContribution,
   onRejectContribution,
-  onMergeContribution,
   onApproveEdit,
   onRejectEdit,
+  selectedItemId,
+  onItemClick,
   className = '',
   testId = 'admin-moderation-queue',
 }: AdminModerationQueueProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [rejectNotes, setRejectNotes] = useState<string>('');
+  const [rejectNotes, setRejectNotes] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!selectedItemId) return;
+    const el = containerRef.current?.querySelector(
+      `[data-item-id="${selectedItemId}"]`
+    );
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [selectedItemId]);
 
   const handleApprove = async (item: ModerationQueueItem) => {
     setProcessingId(item.id);
     try {
-      if (item.type === 'contribution') {
-        await onApproveContribution?.(item.id);
-      } else {
-        await onApproveEdit?.(item.id);
-      }
+      if (item.type === 'contribution') await onApproveContribution?.(item.id);
+      else await onApproveEdit?.(item.id);
     } finally {
       setProcessingId(null);
     }
   };
 
   const handleReject = async (item: ModerationQueueItem) => {
-    if (!rejectNotes.trim()) {
-      return;
-    }
+    if (!rejectNotes.trim()) return;
     setProcessingId(item.id);
     try {
-      if (item.type === 'contribution') {
+      if (item.type === 'contribution')
         await onRejectContribution?.(item.id, rejectNotes);
-      } else {
-        await onRejectEdit?.(item.id, rejectNotes);
-      }
+      else await onRejectEdit?.(item.id, rejectNotes);
       setRejectNotes('');
       setExpandedId(null);
     } finally {
@@ -81,10 +70,8 @@ export default function AdminModerationQueue({
     }
   };
 
-  const contributions = items.filter((item) => item.type === 'contribution');
-  const editSuggestions = items.filter(
-    (item) => item.type === 'edit_suggestion'
-  );
+  const contributions = items.filter((i) => i.type === 'contribution');
+  const editSuggestions = items.filter((i) => i.type === 'edit_suggestion');
 
   if (isLoading) {
     return (
@@ -112,203 +99,55 @@ export default function AdminModerationQueue({
     );
   }
 
-  return (
-    <div className={`space-y-6 ${className}`} data-testid={testId}>
-      {/* Contributions Section */}
-      {contributions.length > 0 && (
-        <section aria-labelledby="contributions-heading">
-          <h2 id="contributions-heading" className="mb-4 text-xl font-bold">
-            Company Contributions ({contributions.length})
-          </h2>
-          <div className="space-y-3">
-            {contributions.map((item) => (
-              <div
-                key={item.id}
-                className="card bg-base-100 border-base-300 border shadow-sm"
-                data-testid={`contribution-${item.id}`}
-              >
-                <div className="card-body p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold">
-                        {item.private_company_name}
-                      </h3>
-                      <p className="text-base-content/85 text-sm">
-                        Submitted{' '}
-                        {new Date(item.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        className="btn btn-success btn-sm"
-                        onClick={() => handleApprove(item)}
-                        disabled={processingId === item.id}
-                        aria-label={`Approve ${item.private_company_name}`}
-                      >
-                        {processingId === item.id ? (
-                          <span className="loading loading-spinner loading-xs" />
-                        ) : (
-                          'Approve'
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-error btn-sm"
-                        onClick={() =>
-                          setExpandedId(expandedId === item.id ? null : item.id)
-                        }
-                        disabled={processingId === item.id}
-                        aria-label={`Reject ${item.private_company_name}`}
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                  {expandedId === item.id && (
-                    <div className="mt-4 space-y-2">
-                      <textarea
-                        className="textarea textarea-bordered w-full"
-                        placeholder="Reason for rejection (required)"
-                        value={rejectNotes}
-                        onChange={(e) => setRejectNotes(e.target.value)}
-                        rows={2}
-                        aria-label="Rejection reason"
-                      />
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => {
-                            setExpandedId(null);
-                            setRejectNotes('');
-                          }}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-error btn-sm"
-                          onClick={() => handleReject(item)}
-                          disabled={
-                            !rejectNotes.trim() || processingId === item.id
-                          }
-                        >
-                          Confirm Rejection
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+  const renderSection = (
+    heading: string,
+    headingId: string,
+    sectionItems: ModerationQueueItem[]
+  ) =>
+    sectionItems.length > 0 && (
+      <section aria-labelledby={headingId}>
+        <h2 id={headingId} className="mb-4 text-xl font-bold">
+          {heading} ({sectionItems.length})
+        </h2>
+        <div className="space-y-3">
+          {sectionItems.map((item) => (
+            <ModerationCard
+              key={item.id}
+              item={item}
+              isSelected={selectedItemId === item.id}
+              isExpanded={expandedId === item.id}
+              isProcessing={processingId === item.id}
+              isClickable={!!onItemClick}
+              rejectNotes={expandedId === item.id ? rejectNotes : ''}
+              onItemClick={() => onItemClick?.(item)}
+              onApprove={() => handleApprove(item)}
+              onToggleExpand={() =>
+                setExpandedId(expandedId === item.id ? null : item.id)
+              }
+              onRejectNotesChange={setRejectNotes}
+              onConfirmReject={() => handleReject(item)}
+              onCancelReject={() => {
+                setExpandedId(null);
+                setRejectNotes('');
+              }}
+            />
+          ))}
+        </div>
+      </section>
+    );
 
-      {/* Edit Suggestions Section */}
-      {editSuggestions.length > 0 && (
-        <section aria-labelledby="edits-heading">
-          <h2 id="edits-heading" className="mb-4 text-xl font-bold">
-            Edit Suggestions ({editSuggestions.length})
-          </h2>
-          <div className="space-y-3">
-            {editSuggestions.map((item) => (
-              <div
-                key={item.id}
-                className="card bg-base-100 border-base-300 border shadow-sm"
-                data-testid={`edit-${item.id}`}
-              >
-                <div className="card-body p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold">
-                        {item.shared_company_name}
-                      </h3>
-                      <p className="text-base-content/85 text-sm">
-                        Field:{' '}
-                        <span className="font-medium">{item.field_name}</span>
-                      </p>
-                      <div className="mt-1 text-sm">
-                        <span className="text-error line-through">
-                          {item.old_value || '(empty)'}
-                        </span>
-                        {' → '}
-                        <span className="text-success">{item.new_value}</span>
-                      </div>
-                      {item.reason && (
-                        <p className="text-base-content/85 mt-1 text-sm">
-                          Reason: {item.reason}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        className="btn btn-success btn-sm"
-                        onClick={() => handleApprove(item)}
-                        disabled={processingId === item.id}
-                        aria-label={`Approve edit for ${item.shared_company_name}`}
-                      >
-                        {processingId === item.id ? (
-                          <span className="loading loading-spinner loading-xs" />
-                        ) : (
-                          'Approve'
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-error btn-sm"
-                        onClick={() =>
-                          setExpandedId(expandedId === item.id ? null : item.id)
-                        }
-                        disabled={processingId === item.id}
-                        aria-label={`Reject edit for ${item.shared_company_name}`}
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                  {expandedId === item.id && (
-                    <div className="mt-4 space-y-2">
-                      <textarea
-                        className="textarea textarea-bordered w-full"
-                        placeholder="Reason for rejection (required)"
-                        value={rejectNotes}
-                        onChange={(e) => setRejectNotes(e.target.value)}
-                        rows={2}
-                        aria-label="Rejection reason"
-                      />
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => {
-                            setExpandedId(null);
-                            setRejectNotes('');
-                          }}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-error btn-sm"
-                          onClick={() => handleReject(item)}
-                          disabled={
-                            !rejectNotes.trim() || processingId === item.id
-                          }
-                        >
-                          Confirm Rejection
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+  return (
+    <div
+      ref={containerRef}
+      className={`space-y-6 ${className}`}
+      data-testid={testId}
+    >
+      {renderSection(
+        'Company Contributions',
+        'contributions-heading',
+        contributions
       )}
+      {renderSection('Edit Suggestions', 'edits-heading', editSuggestions)}
     </div>
   );
 }

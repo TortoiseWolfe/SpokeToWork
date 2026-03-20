@@ -438,8 +438,128 @@ async function ensureTestUserKeys(): Promise<void> {
   }
 }
 
+/**
+ * Well-known IDs for test moderation contributions.
+ * These are reset to 'pending' before each moderation spec run
+ * (see moderation-flow.spec.ts resetTestContributions).
+ */
+const MODERATION_CONTRIB_IDS = [
+  'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+  'aaaaaaaa-bbbb-cccc-dddd-ffffffffffff',
+];
+const MODERATION_COMPANY_IDS = [
+  'b6b1b671-6798-4161-a621-9ecf1abe39e0',
+  '1cb302ab-6878-4f82-8fe6-a64b98ec42a6',
+];
+
+/**
+ * Seed two pending company_contributions so admin moderation E2E specs
+ * have data to approve/reject. Uses the service-role admin client
+ * (works with local Supabase; executeSQL only works with cloud).
+ */
+async function ensureModerationTestData(): Promise<void> {
+  const adminClient = getAdminClient();
+  if (!adminClient) {
+    console.log('⚠ No admin client — skipping moderation test data seeding');
+    return;
+  }
+  console.log('🗂️  Ensuring moderation test contributions exist...');
+
+  try {
+    // 1. Resolve primary test user ID
+    const testEmail = process.env.TEST_USER_PRIMARY_EMAIL;
+    if (!testEmail) {
+      console.log('  ⚠ TEST_USER_PRIMARY_EMAIL not set');
+      return;
+    }
+    const { data: users } = await adminClient.auth.admin.listUsers({
+      perPage: 1000,
+    });
+    const testUser = users?.users?.find((u) => u.email === testEmail);
+    if (!testUser) {
+      console.log(`  ⚠ User ${testEmail} not found`);
+      return;
+    }
+
+    // 2. Ensure a metro area exists (needed by approve → insert shared_company)
+    const { data: metros } = await adminClient
+      .from('metro_areas')
+      .select('id')
+      .limit(1);
+    let metroId = metros?.[0]?.id;
+    if (!metroId) {
+      const { data: newMetro } = await adminClient
+        .from('metro_areas')
+        .insert({
+          name: 'Portland',
+          state: 'OR',
+          center_lat: 45.52,
+          center_lng: -122.68,
+          radius_miles: 25,
+        })
+        .select('id')
+        .single();
+      metroId = newMetro?.id;
+    }
+
+    // 3. Ensure two private companies exist for the test user
+    const companies = [
+      {
+        id: MODERATION_COMPANY_IDS[0],
+        name: 'E2E Test Corp Alpha',
+        address: '123 Main St, Portland, OR',
+        lat: 45.5152,
+        lng: -122.6784,
+      },
+      {
+        id: MODERATION_COMPANY_IDS[1],
+        name: 'E2E Test Corp Beta',
+        address: '456 Oak Ave, Portland, OR',
+        lat: 45.5231,
+        lng: -122.6765,
+      },
+    ];
+    for (const co of companies) {
+      await adminClient.from('private_companies').upsert(
+        {
+          id: co.id,
+          user_id: testUser.id,
+          name: co.name,
+          address: co.address,
+          latitude: co.lat,
+          longitude: co.lng,
+          metro_area_id: metroId,
+        },
+        { onConflict: 'id' }
+      );
+    }
+
+    // 4. Upsert two pending contributions (reset to pending if they already exist)
+    for (let i = 0; i < 2; i++) {
+      await adminClient.from('company_contributions').upsert(
+        {
+          id: MODERATION_CONTRIB_IDS[i],
+          user_id: testUser.id,
+          private_company_id: MODERATION_COMPANY_IDS[i],
+          status: 'pending',
+          reviewer_id: null,
+          reviewer_notes: null,
+          reviewed_at: null,
+          created_shared_company_id: null,
+        },
+        { onConflict: 'id' }
+      );
+    }
+
+    console.log('✓ Moderation test contributions seeded (2 pending)');
+  } catch (error) {
+    console.warn('⚠ Moderation seeding warning:', error);
+  }
+}
+
 export default async function globalSetup(config: FullConfig): Promise<void> {
   await cleanupOrphanedE2EUsers();
   await ensureAdminUser();
   await ensureTestUserKeys();
+  await ensureModerationTestData();
 }

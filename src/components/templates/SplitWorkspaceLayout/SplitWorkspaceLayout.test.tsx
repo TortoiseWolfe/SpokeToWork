@@ -36,7 +36,7 @@ describe('SplitWorkspaceLayout', () => {
       expect(screen.queryByTestId('slot-sheet')).not.toBeInTheDocument();
     });
 
-    it('applies two-column grid to the desktop container', () => {
+    it('uses a flex row with a width-collapsible table panel', () => {
       render(
         <SplitWorkspaceLayout
           table={<div>t</div>}
@@ -44,8 +44,11 @@ describe('SplitWorkspaceLayout', () => {
           mobileSheet={<div>s</div>}
         />
       );
-      const grid = screen.getByTestId('split-workspace-desktop');
-      expect(grid.className).toMatch(/flex/);
+      const root = screen.getByTestId('split-workspace-desktop');
+      expect(root.className).toMatch(/flex/);
+      expect(
+        screen.getByTestId('split-workspace-table-panel').className
+      ).toMatch(/w-1\/2/);
     });
 
     it('table panel scrolls, map panel does not', () => {
@@ -61,6 +64,24 @@ describe('SplitWorkspaceLayout', () => {
       ).toMatch(/overflow-y-auto/);
       expect(screen.getByTestId('split-workspace-map-panel').className).toMatch(
         /overflow-hidden/
+      );
+    });
+
+    it('exposes map and table panels as labelled regions', () => {
+      render(
+        <SplitWorkspaceLayout
+          table={<div>t</div>}
+          map={<div>m</div>}
+          mobileSheet={<div>s</div>}
+          mapLabel="Company map"
+          tableLabel="Company list"
+        />
+      );
+      expect(screen.getByRole('region', { name: 'Company map' })).toBe(
+        screen.getByTestId('split-workspace-map-panel')
+      );
+      expect(screen.getByRole('region', { name: 'Company list' })).toBe(
+        screen.getByTestId('split-workspace-table-panel')
       );
     });
   });
@@ -120,6 +141,20 @@ describe('SplitWorkspaceLayout', () => {
       expect(
         screen.getByTestId('split-workspace-mobile-map').className
       ).toMatch(/inset-0/);
+    });
+
+    it('map panel has a region landmark with label', () => {
+      render(
+        <SplitWorkspaceLayout
+          table={<div>t</div>}
+          map={<div>m</div>}
+          mobileSheet={<div>s</div>}
+          mapLabel="Company map"
+        />
+      );
+      expect(screen.getByRole('region', { name: 'Company map' })).toBe(
+        screen.getByTestId('split-workspace-mobile-map')
+      );
     });
   });
 

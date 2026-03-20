@@ -53,4 +53,49 @@ describe('BottomSheet', () => {
     const sheet = screen.getByRole('dialog', { name: 'Company list' });
     expect(sheet).toBeInTheDocument();
   });
+
+  it('is aria-modal=false at peek', () => {
+    render(<BottomSheet initialSnap="peek">content</BottomSheet>);
+    expect(screen.getByTestId('bottom-sheet')).toHaveAttribute(
+      'aria-modal',
+      'false'
+    );
+  });
+
+  it('is aria-modal=true at half/full', () => {
+    render(<BottomSheet initialSnap="half">content</BottomSheet>);
+    expect(screen.getByTestId('bottom-sheet')).toHaveAttribute(
+      'aria-modal',
+      'true'
+    );
+  });
+
+  it('traps Tab inside the sheet when open', () => {
+    render(
+      <>
+        <button data-testid="outside">outside</button>
+        <BottomSheet initialSnap="half">
+          <button data-testid="first">first</button>
+          <button data-testid="last">last</button>
+        </BottomSheet>
+      </>
+    );
+    // Trap moves focus to first tabbable on activate.
+    expect(screen.getByTestId('first')).toHaveFocus();
+  });
+
+  it('restores focus on close (unmount)', () => {
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+    const { unmount } = render(
+      <BottomSheet initialSnap="half">
+        <button>inside</button>
+      </BottomSheet>
+    );
+    expect(outside).not.toHaveFocus();
+    unmount();
+    expect(outside).toHaveFocus();
+    outside.remove();
+  });
 });
