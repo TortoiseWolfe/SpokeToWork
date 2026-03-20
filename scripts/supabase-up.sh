@@ -95,59 +95,35 @@ echo "Host-mapped ports (Studio web UI, psql from host):"
 [ -n "$DB_PORT" ] && echo "  DB:     localhost:$DB_PORT"
 [ -n "$STUDIO_PORT" ] && echo "  Studio: http://localhost:$STUDIO_PORT"
 
-# Phase 4: Seed Realtime tenant.
-# Must run AFTER Phase 1 (Realtime creates _realtime.tenants on startup).
+# Phase 4: Seed Realtime tenant via admin API.
+# Must run AFTER Realtime starts (it creates its internal tables on boot).
 # Without a tenant, all WebSocket subscriptions fail with "TenantNotFound".
+# The admin API encrypts secrets with DB_ENC_KEY — raw SQL inserts don't.
 echo ""
 echo "Phase 4: Seeding Realtime tenant..."
 JWT_SECRET="${SUPABASE_LOCAL_JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}"
 
-# Wait for Realtime to finish its Ecto migrations (creates the tenants table)
+# Wait for Realtime admin API to be ready
 for i in 1 2 3 4 5; do
-  if PGPASSWORD="$DB_PASSWORD" docker compose exec -T supabase-db \
-    psql -U supabase_admin -d postgres -tAc "SELECT 1 FROM _realtime.tenants LIMIT 0" > /dev/null 2>&1; then
+  if docker compose exec -T spoketowork curl -sf http://supabase-realtime:4000/api/tenants \
+    -H "Authorization: Bearer $SERVICE_KEY" > /dev/null 2>&1; then
     break
   fi
-  echo "  Waiting for Realtime migrations... ($i/5)"
+  echo "  Waiting for Realtime API... ($i/5)"
   sleep 3
 done
 
-PGPASSWORD="$DB_PASSWORD" docker compose exec -T supabase-db \
-  psql -U supabase_admin -d postgres <<EOSQL > /dev/null 2>&1
-INSERT INTO _realtime.tenants (
-  id, name, external_id, jwt_secret,
-  max_concurrent_users, max_events_per_second, max_bytes_per_second,
-  max_channels_per_client, max_joins_per_second,
-  postgres_cdc_default, inserted_at, updated_at
-) VALUES (
-  gen_random_uuid(),
-  'Local Development',
-  'supabase-realtime',
-  '$JWT_SECRET',
-  200, 100, 100000, 100, 500,
-  'postgres_cdc_rls',
-  now(), now()
-) ON CONFLICT (external_id) DO NOTHING;
-
-INSERT INTO _realtime.extensions (
-  id, type, settings, tenant_external_id,
-  inserted_at, updated_at
-) VALUES (
-  gen_random_uuid(),
-  'postgres_cdc_rls',
-  jsonb_build_object(
-    'db_host', 'supabase-db',
-    'db_port', '5432',
-    'db_name', 'postgres',
-    'db_user', 'supabase_admin',
-    'db_password', '$DB_PASSWORD',
-    'region', 'us-east-1',
-    'poll_interval_ms', 100,
-    'poll_max_record_bytes', 1048576,
-    'slot_name', 'supabase_realtime_rls'
-  ),
-  'supabase-realtime',
-  now(), now()
-) ON CONFLICT (tenant_external_id, type) DO NOTHING;
-EOSQL
-echo "  Realtime tenant registered."
+# Create tenant (idempotent — 422 if already exists)
+RESULT=$(docker compose exec -T spoketowork curl -s -w '\n%{http_code}' -X POST \
+  http://supabase-realtime:4000/api/tenants \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $SERVICE_KEY" \
+  -d "{\"tenant\":{\"name\":\"Local Development\",\"external_id\":\"supabase-realtime\",\"jwt_secret\":\"$JWT_SECRET\",\"extensions\":[{\"type\":\"postgres_cdc_rls\",\"settings\":{\"db_host\":\"supabase-db\",\"db_port\":\"5432\",\"db_name\":\"postgres\",\"db_user\":\"supabase_admin\",\"db_password\":\"$DB_PASSWORD\",\"region\":\"us-east-1\",\"poll_interval_ms\":100,\"poll_max_record_bytes\":1048576,\"slot_name\":\"supabase_realtime_rls\"}}]}}" 2>&1)
+HTTP_CODE=$(echo "$RESULT" | tail -1)
+if [ "$HTTP_CODE" = "201" ]; then
+  echo "  Realtime tenant created."
+elif [ "$HTTP_CODE" = "422" ]; then
+  echo "  Realtime tenant already exists."
+else
+  echo "  Warning: Realtime tenant creation returned HTTP $HTTP_CODE"
+fi
