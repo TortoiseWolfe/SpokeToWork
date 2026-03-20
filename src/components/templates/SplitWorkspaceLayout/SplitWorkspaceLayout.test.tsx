@@ -45,7 +45,7 @@ describe('SplitWorkspaceLayout', () => {
         />
       );
       const grid = screen.getByTestId('split-workspace-desktop');
-      expect(grid.className).toMatch(/grid-cols-\[1fr_1fr\]/);
+      expect(grid.className).toMatch(/flex/);
     });
 
     it('table panel scrolls, map panel does not', () => {

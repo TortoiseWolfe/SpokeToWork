@@ -41,10 +41,50 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useConnections } from '../useConnections';
 
 describe('useConnections', () => {
+  const mockProfile = { id: '', display_name: null, avatar_url: null };
   const mockConnectionList = {
-    pending_sent: [{ id: 'ps-1', addressee_id: 'user-2' }],
-    pending_received: [{ id: 'pr-1', requester_id: 'user-3' }],
-    accepted: [{ id: 'acc-1', requester_id: 'user-4' }],
+    pending_sent: [
+      {
+        connection: {
+          id: 'ps-1',
+          requester_id: 'user-1',
+          addressee_id: 'user-2',
+          status: 'pending' as const,
+          created_at: '',
+          updated_at: '',
+        },
+        requester: mockProfile,
+        addressee: mockProfile,
+      },
+    ],
+    pending_received: [
+      {
+        connection: {
+          id: 'pr-1',
+          requester_id: 'user-3',
+          addressee_id: 'user-1',
+          status: 'pending' as const,
+          created_at: '',
+          updated_at: '',
+        },
+        requester: mockProfile,
+        addressee: mockProfile,
+      },
+    ],
+    accepted: [
+      {
+        connection: {
+          id: 'acc-1',
+          requester_id: 'user-4',
+          addressee_id: 'user-1',
+          status: 'accepted' as const,
+          created_at: '',
+          updated_at: '',
+        },
+        requester: mockProfile,
+        addressee: mockProfile,
+      },
+    ],
     blocked: [],
   };
 
