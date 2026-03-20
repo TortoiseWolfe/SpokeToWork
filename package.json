@@ -132,6 +132,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@next/bundle-analyzer": "^15.5.3",
+    "@playwright/test": "^1.57.0",
     "@storybook/addon-a11y": "^10.2.8",
     "@storybook/addon-themes": "^10.2.8",
     "@storybook/nextjs-vite": "10.2.8",
@@ -153,6 +154,7 @@
     "@vitest/ui": "^4.0.15",
     "argon2": "^0.44.0",
     "axe-core": "^4.11.1",
+    "axe-playwright": "^2.2.2",
     "canvas": "^3.2.0",
     "concurrently": "^9.2.1",
     "daisyui": "beta",
