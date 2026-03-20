@@ -14,7 +14,10 @@ import type { Message, DecryptedMessage } from '@/types/messaging';
 import {
   sharedSecretCache,
   privateKeyCache,
-  profileCache,
+  getProfile,
+  setProfile,
+  deduplicateProfile,
+  deduplicateSecret,
 } from '@/lib/messaging/decryption-cache';
 
 const logger = createLogger('messaging:decrypt-message');
@@ -97,11 +100,48 @@ export async function decryptMessage(
     let sharedSecret = sharedSecretCache.get(cacheKey);
 
     if (!sharedSecret) {
-      // Get private key from memory (derived during sign-in)
-      let privateKey = privateKeyCache.get(user.id);
-      if (!privateKey) {
-        const derivedKeys = await keyManagementService.ensureKeys(user.id);
-        if (!derivedKeys) {
+      const derived = await deduplicateSecret(cacheKey, async () => {
+        // Get private key from memory (derived during sign-in)
+        let privateKey = privateKeyCache.get(user.id);
+        if (!privateKey) {
+          const derivedKeys = await keyManagementService.ensureKeys(user.id);
+          if (!derivedKeys) {
+            return null;
+          }
+          privateKey = derivedKeys.privateKey;
+          privateKeyCache.set(user.id, privateKey);
+        }
+
+        // Get other participant's public key
+        const otherPublicKey =
+          await keyManagementService.getUserPublicKey(otherParticipantId);
+        if (!otherPublicKey) return null;
+
+        const otherPublicKeyCrypto = await crypto.subtle.importKey(
+          'jwk',
+          otherPublicKey,
+          { name: 'ECDH', namedCurve: 'P-256' },
+          false,
+          []
+        );
+
+        const secret = await encryptionService.deriveSharedSecret(
+          privateKey,
+          otherPublicKeyCrypto
+        );
+        sharedSecretCache.set(cacheKey, secret);
+        logger.debug('Cached shared secret for conversation', {
+          conversationId,
+        });
+        return secret;
+      });
+
+      if (!derived) {
+        // Determine which step failed for the right placeholder message
+        const hasPrivateKey =
+          privateKeyCache.has(user.id) ||
+          (await keyManagementService.ensureKeys(user.id));
+        if (!hasPrivateKey) {
           logger.warn(
             'No derived keys available - user may need to re-authenticate'
           );
@@ -111,15 +151,6 @@ export async function decryptMessage(
             'Unable to decrypt — please sign in again'
           );
         }
-
-        privateKey = derivedKeys.privateKey;
-        privateKeyCache.set(user.id, privateKey);
-      }
-
-      // Get other participant's public key
-      const otherPublicKey =
-        await keyManagementService.getUserPublicKey(otherParticipantId);
-      if (!otherPublicKey) {
         logger.warn('Other participant has no public key', {
           otherParticipantId,
         });
@@ -129,23 +160,7 @@ export async function decryptMessage(
           'Unable to decrypt — sender encryption keys unavailable'
         );
       }
-
-      const otherPublicKeyCrypto = await crypto.subtle.importKey(
-        'jwk',
-        otherPublicKey,
-        { name: 'ECDH', namedCurve: 'P-256' },
-        false,
-        []
-      );
-
-      sharedSecret = await encryptionService.deriveSharedSecret(
-        privateKey,
-        otherPublicKeyCrypto
-      );
-      sharedSecretCache.set(cacheKey, sharedSecret);
-      logger.debug('Cached shared secret for conversation', {
-        conversationId,
-      });
+      sharedSecret = derived;
     }
 
     // Decrypt message (fast once we have shared secret)
@@ -155,17 +170,20 @@ export async function decryptMessage(
       sharedSecret
     );
 
-    // Get sender profile (cached)
-    let senderProfile = profileCache.get(msg.sender_id);
+    // Get sender profile (cached with TTL, deduplicated)
+    let senderProfile = getProfile(msg.sender_id);
     if (!senderProfile) {
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('username, display_name')
-        .eq('id', msg.sender_id)
-        .single();
+      senderProfile = await deduplicateProfile(msg.sender_id, async () => {
+        const { data } = await supabase
+          .from('user_profiles')
+          .select('username, display_name')
+          .eq('id', msg.sender_id)
+          .single();
 
-      senderProfile = data || { username: null, display_name: null };
-      profileCache.set(msg.sender_id, senderProfile);
+        const profile = data || { username: null, display_name: null };
+        setProfile(msg.sender_id, profile);
+        return profile;
+      });
     }
 
     return {

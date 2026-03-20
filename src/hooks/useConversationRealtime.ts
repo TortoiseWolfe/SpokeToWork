@@ -11,9 +11,12 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { messageService } from '@/services/messaging/message-service';
-import type { DecryptedMessage, UseConversationRealtimeReturn } from '@/types/messaging';
+import type {
+  DecryptedMessage,
+  UseConversationRealtimeReturn,
+} from '@/types/messaging';
 import { createClient } from '@/lib/supabase/client';
-import { profileCache } from '@/lib/messaging/decryption-cache';
+import { getProfile } from '@/lib/messaging/decryption-cache';
 import {
   decryptMessage,
   type ConversationDataRef,
@@ -117,7 +120,7 @@ export function useConversationRealtime(
             data: { user },
           } = await supabase.auth.getUser();
 
-          const senderProfile = user ? profileCache.get(user.id) : null;
+          const senderProfile = user ? getProfile(user.id) : null;
 
           const optimisticMsg: DecryptedMessage = {
             id: result.message.id,
@@ -133,9 +136,7 @@ export function useConversationRealtime(
             created_at: result.message.created_at,
             isOwn: true,
             senderName:
-              senderProfile?.display_name ||
-              senderProfile?.username ||
-              'You',
+              senderProfile?.display_name || senderProfile?.username || 'You',
           };
 
           setMessages((prev) => {

@@ -49,17 +49,32 @@ vi.mock('@/lib/supabase/messaging-client', () => ({
   }),
 }));
 
-vi.mock('@/lib/messaging/decryption-cache', () => ({
-  sharedSecretCache: new Map(),
-  privateKeyCache: new Map(),
-  profileCache: new Map(),
-}));
+const mockProfileStore = new Map<
+  string,
+  { username: string | null; display_name: string | null }
+>();
+
+vi.mock('@/lib/messaging/decryption-cache', () => {
+  const sharedSecretCache = new Map();
+  const privateKeyCache = new Map();
+  return {
+    sharedSecretCache,
+    privateKeyCache,
+    getProfile: (id: string) => mockProfileStore.get(id),
+    setProfile: (
+      id: string,
+      data: { username: string | null; display_name: string | null }
+    ) => mockProfileStore.set(id, data),
+    invalidateProfile: (id: string) => mockProfileStore.delete(id),
+    deduplicateProfile: (_id: string, fn: () => Promise<unknown>) => fn(),
+    deduplicateSecret: (_key: string, fn: () => Promise<unknown>) => fn(),
+  };
+});
 
 // Import the mock instances so we can clear them between tests
 import {
   sharedSecretCache,
   privateKeyCache,
-  profileCache,
 } from '@/lib/messaging/decryption-cache';
 
 vi.mock('@/lib/logger', () => ({
@@ -128,7 +143,7 @@ describe('decryptMessage', () => {
     vi.clearAllMocks();
     sharedSecretCache.clear();
     privateKeyCache.clear();
-    profileCache.clear();
+    mockProfileStore.clear();
   });
 
   it('returns null when user is not authenticated', async () => {
@@ -137,7 +152,10 @@ describe('decryptMessage', () => {
       makeMessage(),
       'conv-1',
       supabase,
-      makeRef({ participant_1_id: CURRENT_USER_ID, participant_2_id: OTHER_USER_ID })
+      makeRef({
+        participant_1_id: CURRENT_USER_ID,
+        participant_2_id: OTHER_USER_ID,
+      })
     );
     expect(result).toBeNull();
   });
@@ -147,7 +165,10 @@ describe('decryptMessage', () => {
 
     const ownMessage = makeMessage({ sender_id: CURRENT_USER_ID });
     const supabase = makeSupabase();
-    const ref = makeRef({ participant_1_id: CURRENT_USER_ID, participant_2_id: OTHER_USER_ID });
+    const ref = makeRef({
+      participant_1_id: CURRENT_USER_ID,
+      participant_2_id: OTHER_USER_ID,
+    });
 
     const result = await decryptMessage(ownMessage, 'conv-1', supabase, ref);
 
@@ -162,7 +183,10 @@ describe('decryptMessage', () => {
 
     const otherMessage = makeMessage({ sender_id: OTHER_USER_ID });
     const supabase = makeSupabase();
-    const ref = makeRef({ participant_1_id: CURRENT_USER_ID, participant_2_id: OTHER_USER_ID });
+    const ref = makeRef({
+      participant_1_id: CURRENT_USER_ID,
+      participant_2_id: OTHER_USER_ID,
+    });
 
     const result = await decryptMessage(otherMessage, 'conv-1', supabase, ref);
 
@@ -187,11 +211,16 @@ describe('decryptMessage', () => {
     mockDeriveSharedSecret.mockResolvedValue(mockSharedSecret);
 
     // decryptMessage THROWS — simulating AES-GCM auth failure from wrong shared secret
-    mockDecryptMessage.mockRejectedValue(new Error('The operation failed for an operation-specific reason'));
+    mockDecryptMessage.mockRejectedValue(
+      new Error('The operation failed for an operation-specific reason')
+    );
 
     const ownMessage = makeMessage({ sender_id: CURRENT_USER_ID });
     const supabase = makeSupabase();
-    const ref = makeRef({ participant_1_id: CURRENT_USER_ID, participant_2_id: OTHER_USER_ID });
+    const ref = makeRef({
+      participant_1_id: CURRENT_USER_ID,
+      participant_2_id: OTHER_USER_ID,
+    });
 
     const result = await decryptMessage(ownMessage, 'conv-1', supabase, ref);
 
@@ -215,11 +244,16 @@ describe('decryptMessage', () => {
     mockDeriveSharedSecret.mockResolvedValue(mockSharedSecret);
 
     // AES-GCM auth failure
-    mockDecryptMessage.mockRejectedValue(new Error('The operation failed for an operation-specific reason'));
+    mockDecryptMessage.mockRejectedValue(
+      new Error('The operation failed for an operation-specific reason')
+    );
 
     const otherMessage = makeMessage({ sender_id: OTHER_USER_ID });
     const supabase = makeSupabase();
-    const ref = makeRef({ participant_1_id: CURRENT_USER_ID, participant_2_id: OTHER_USER_ID });
+    const ref = makeRef({
+      participant_1_id: CURRENT_USER_ID,
+      participant_2_id: OTHER_USER_ID,
+    });
 
     const result = await decryptMessage(otherMessage, 'conv-1', supabase, ref);
 
@@ -244,7 +278,10 @@ describe('decryptMessage', () => {
 
     const ownMessage = makeMessage({ sender_id: CURRENT_USER_ID });
     const supabase = makeSupabase();
-    const ref = makeRef({ participant_1_id: CURRENT_USER_ID, participant_2_id: OTHER_USER_ID });
+    const ref = makeRef({
+      participant_1_id: CURRENT_USER_ID,
+      participant_2_id: OTHER_USER_ID,
+    });
 
     const result = await decryptMessage(ownMessage, 'conv-1', supabase, ref);
 
@@ -261,7 +298,10 @@ describe('decryptMessage', () => {
 
     const ownMessage = makeMessage({ sender_id: CURRENT_USER_ID });
     const supabase = makeSupabase();
-    const ref = makeRef({ participant_1_id: CURRENT_USER_ID, participant_2_id: OTHER_USER_ID });
+    const ref = makeRef({
+      participant_1_id: CURRENT_USER_ID,
+      participant_2_id: OTHER_USER_ID,
+    });
 
     const result = await decryptMessage(ownMessage, 'conv-1', supabase, ref);
 
