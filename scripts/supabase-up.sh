@@ -78,6 +78,10 @@ API_EXTERNAL_URL="http://supabase-kong:8000" \
 GOTRUE_SITE_URL="http://spoketowork:3000" \
   docker compose up -d --force-recreate supabase-auth
 
+# GoTrue restart invalidates all existing refresh tokens.
+# Delete stale Playwright auth state so auth.setup creates a fresh session.
+rm -f tests/e2e/fixtures/storage-state-auth.json
+
 # Discover host-mapped ports for reference output
 KONG_PORT=$(docker compose port supabase-kong 8000 2>/dev/null | cut -d: -f2)
 DB_PORT=$(docker compose port supabase-db 5432 2>/dev/null | cut -d: -f2)
