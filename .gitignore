@@ -29,6 +29,7 @@ public/blog-images/**/audit-report.md
 # generated files (created by prebuild scripts)
 /public/manifest.json
 docker/kong/kong.generated.yml
+screenshots/
 
 # production
 /build

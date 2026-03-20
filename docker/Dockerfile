@@ -25,62 +25,13 @@ WORKDIR /app
 # Create node user if it doesn't exist and set ownership
 RUN useradd -m -u 1000 node 2>/dev/null || true
 
-# Install system dependencies for Playwright browsers and development tools
+# Install system dependencies for development tools
+# Playwright browsers run in a separate MCP container (see .mcp.json)
 RUN apt-get update && apt-get install -y \
     git \
     curl \
-    chromium \
     imagemagick \
     bc \
-    # Dependencies for Chromium, Firefox, and WebKit
-    libnss3 \
-    libnspr4 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libdbus-1-3 \
-    libxkbcommon0 \
-    libatspi2.0-0 \
-    libx11-6 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libxcb1 \
-    libxss1 \
-    libpango-1.0-0 \
-    libcairo2 \
-    libasound2 \
-    # Additional dependencies found missing
-    libx11-xcb1 \
-    libxcursor1 \
-    libgtk-3-0 \
-    libgdk-pixbuf2.0-0 \
-    libcairo-gobject2 \
-    # WebKit specific
-    libgstreamer1.0-0 \
-    libgstreamer-plugins-base1.0-0 \
-    libgstreamer-gl1.0-0 \
-    libgstreamer-plugins-bad1.0-0 \
-    libenchant-2-2 \
-    libsecret-1-0 \
-    libhyphen0 \
-    libmanette-0.2-0 \
-    libwebpdemux2 \
-    gstreamer1.0-libav \
-    # Missing Playwright dependencies from validation
-    libgtk-4-1 \
-    libatomic1 \
-    libwoff1 \
-    libvpx7 \
-    libevent-2.1-7 \
-    libflite1 \
-    libavif15 \
-    libharfbuzz-icu0 \
-    libwebpmux3 \
     && rm -rf /var/lib/apt/lists/* \
     && git config --global --add safe.directory /app
 
@@ -90,9 +41,6 @@ RUN curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/git
 
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
-
-# Install Playwright browsers
-RUN npx playwright install chromium firefox webkit
 
 COPY --chown=node:node . .
 
@@ -114,8 +62,6 @@ EXPOSE 3000 6006
 # Set hostname and port
 ENV HOSTNAME="0.0.0.0"
 ENV PORT=3000
-# Set Puppeteer to use system chromium
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Use entrypoint to handle initialization
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
