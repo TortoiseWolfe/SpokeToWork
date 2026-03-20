@@ -11,6 +11,18 @@
 --   typing_indicators   - Typing indicator presence
 --   user_connections     - Friend request status changes
 
+-- Create _realtime schema (Realtime service stores its internal migrations here)
+CREATE SCHEMA IF NOT EXISTS _realtime;
+ALTER SCHEMA _realtime OWNER TO supabase_admin;
+
+-- Create supabase_realtime publication if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    CREATE PUBLICATION supabase_realtime;
+  END IF;
+END $$;
+
 -- REPLICA IDENTITY FULL is required for Realtime UPDATE/DELETE events
 ALTER TABLE conversations REPLICA IDENTITY FULL;
 ALTER TABLE conversation_members REPLICA IDENTITY FULL;
