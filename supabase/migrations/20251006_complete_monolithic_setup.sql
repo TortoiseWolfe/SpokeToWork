@@ -1474,6 +1474,8 @@ CREATE TABLE IF NOT EXISTS job_applications (
   -- Position details
   position_title TEXT CHECK (length(position_title) <= 200),
   job_link TEXT CHECK (length(job_link) <= 1000),
+  position_url TEXT CHECK (length(position_url) <= 1000),
+  status_url TEXT CHECK (length(status_url) <= 1000),
   work_location_type TEXT NOT NULL DEFAULT 'on_site' CHECK (work_location_type IN (
     'remote', 'hybrid', 'on_site'
   )),
