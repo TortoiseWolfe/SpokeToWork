@@ -141,6 +141,8 @@ const cleanupConnections = async (): Promise<void> => {
 };
 
 test.describe('Friend Request Flow', () => {
+  // Serial: multi-user tests create 2 browser contexts each with Supabase connections.
+  test.describe.configure({ mode: 'serial' });
   test.beforeEach(async ({ browserName }) => {
     // Friend request tests DELETE and CREATE user_connections rows.
     // Running on 3 browser shards simultaneously causes cross-shard

@@ -53,6 +53,8 @@ const getAdminClient = () => {
 const adminClient = getAdminClient();
 
 test.describe('Offline Message Queue', () => {
+  // Serial: multi-user tests create 2 browser contexts with Supabase connections.
+  test.describe.configure({ mode: 'serial' });
   // Firefox: Argon2id + multi-user Realtime delivery is 2-3x slower under CI contention
   test.slow(
     ({ browserName }) => browserName === 'firefox',

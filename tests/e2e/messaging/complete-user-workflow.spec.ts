@@ -187,6 +187,8 @@ const createConversation = async (
 };
 
 test.describe('Complete User Messaging Workflow (Feature 024)', () => {
+  // Serial: multi-user workflow creates 2 browser contexts with Supabase connections.
+  test.describe.configure({ mode: 'serial' });
   test.beforeEach(async ({ browserName }) => {
     // This test DELETEs user_connections rows. Running on 3 browser shards
     // simultaneously causes cross-shard interference — one shard's cleanup

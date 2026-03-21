@@ -254,6 +254,19 @@ jobs:
           npx http-server out -p 3000 -c-1 &
           npx wait-on http://localhost:3000 --timeout 60000
 
+      - name: Stagger browser shards to reduce Supabase Cloud contention
+        run: |
+          SHARD_NUM=$(echo "${{ matrix.shard }}" | cut -d/ -f1)
+          if [ "${{ matrix.browser }}" = "firefox" ]; then
+            DELAY=$((30 + SHARD_NUM * 5))
+            echo "Firefox shard $SHARD_NUM: waiting ${DELAY}s"
+            sleep $DELAY
+          elif [ "${{ matrix.browser }}" = "webkit" ]; then
+            DELAY=$((60 + SHARD_NUM * 5))
+            echo "WebKit shard $SHARD_NUM: waiting ${DELAY}s"
+            sleep $DELAY
+          fi
+
       - name: Run E2E tests (shard ${{ matrix.shard }})
         run: |
           pnpm exec playwright test \
