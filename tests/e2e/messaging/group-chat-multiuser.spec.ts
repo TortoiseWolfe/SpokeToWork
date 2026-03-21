@@ -186,7 +186,7 @@ test.describe('Group Chat E2E', () => {
           );
           await page.reload();
           await dismissCookieBanner(page);
-          await page.waitForLoadState('networkidle');
+          await page.waitForLoadState('domcontentloaded');
           await expect(connectionsList).toBeVisible({ timeout: 10000 });
         }
       }

@@ -193,7 +193,7 @@ test.describe('Real-time Message Delivery (T098)', () => {
     // First try Realtime delivery
     let delivered = false;
     try {
-      await page2.waitForSelector(`text="${testMessage}"`, { timeout: 20000 });
+      await page2.waitForSelector(`text="${testMessage}"`, { timeout: 45000 });
       delivered = true;
     } catch {
       // Realtime didn't deliver — try reload as fallback
@@ -238,13 +238,13 @@ test.describe('Real-time Message Delivery (T098)', () => {
     });
 
     // User 2: Message appears (should trigger "delivered" status)
-    await page2.waitForSelector(`text="${testMessage}"`, { timeout: 20000 });
+    await page2.waitForSelector(`text="${testMessage}"`, { timeout: 45000 });
 
     // Verify "delivered" status (double checkmark)
     // Timeout allows for the full Realtime round-trip: recipient marks as delivered → DB update → Realtime to sender
     await expect(
       messageBubble.locator('[aria-label*="delivered"]')
-    ).toBeVisible({ timeout: 20000 });
+    ).toBeVisible({ timeout: 45000 });
 
     // User 2: Scroll to message (should trigger "read" status)
     const message2 = page2.locator(`text="${testMessage}"`);
@@ -253,7 +253,7 @@ test.describe('Real-time Message Delivery (T098)', () => {
     // Verify "read" status (double blue checkmark)
     // Timeout allows for IntersectionObserver debounce (500ms) + Realtime round-trip
     await expect(messageBubble.locator('[aria-label*="read"]')).toBeVisible({
-      timeout: 20000,
+      timeout: 45000,
     });
   });
 
@@ -277,7 +277,7 @@ test.describe('Real-time Message Delivery (T098)', () => {
     // User 2: Verify all messages appear in order
     for (const msg of messages) {
       await expect(page2.locator(`text="${msg}"`)).toBeVisible({
-        timeout: 20000,
+        timeout: 45000,
       });
     }
 

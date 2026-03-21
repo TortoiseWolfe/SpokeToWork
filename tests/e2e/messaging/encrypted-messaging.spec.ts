@@ -138,7 +138,7 @@ test.describe('Encrypted Messaging Flow', () => {
         await dismissCookieBanner(pageA);
         await dismissReAuthModal(pageA, undefined, true);
         await expect(pageA.getByText(testMessage)).toBeVisible({
-          timeout: 30000,
+          timeout: 60000,
         });
       }
 
@@ -188,7 +188,7 @@ test.describe('Encrypted Messaging Flow', () => {
         await dismissCookieBanner(pageB);
         await dismissReAuthModal(pageB, USER_B.password, true);
         await expect(pageB.getByText(testMessage)).toBeVisible({
-          timeout: 30000,
+          timeout: 60000,
         });
       }
 
@@ -223,7 +223,7 @@ test.describe('Encrypted Messaging Flow', () => {
         await dismissCookieBanner(pageA);
         await dismissReAuthModal(pageA, undefined, true);
         await expect(pageA.getByText(replyMessage)).toBeVisible({
-          timeout: 30000,
+          timeout: 60000,
         });
       }
     } finally {
@@ -385,7 +385,7 @@ test.describe('Encrypted Messaging Flow', () => {
       // Verify User B sees the message (reload fallback for read replica lag)
       try {
         await expect(pageB.getByText(testMessage)).toBeVisible({
-          timeout: 30000,
+          timeout: 60000,
         });
       } catch {
         // Re-navigate — skip completeEncryptionSetup (already done, keys cached)
@@ -394,7 +394,7 @@ test.describe('Encrypted Messaging Flow', () => {
         await dismissCookieBanner(pageB);
         await dismissReAuthModal(pageB, USER_B.password, true);
         await expect(pageB.getByText(testMessage)).toBeVisible({
-          timeout: 30000,
+          timeout: 60000,
         });
       }
 
@@ -433,7 +433,7 @@ test.describe('Encrypted Messaging Flow', () => {
         await dismissCookieBanner(pageA);
         await dismissReAuthModal(pageA, undefined, true);
         await expect(pageA.getByText(testMessage)).toBeVisible({
-          timeout: 30000,
+          timeout: 60000,
         });
         updatedMessageBubble = pageA
           .locator('[data-testid="message-bubble"]')

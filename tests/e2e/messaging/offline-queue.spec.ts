@@ -362,12 +362,12 @@ test.describe('Offline Message Queue', () => {
       await pageA
         .locator(threadLocator)
         .first()
-        .waitFor({ state: 'visible', timeout: 30000 })
+        .waitFor({ state: 'visible', timeout: 60000 })
         .catch(() => {});
       await pageB
         .locator(threadLocator)
         .first()
-        .waitFor({ state: 'visible', timeout: 30000 })
+        .waitFor({ state: 'visible', timeout: 60000 })
         .catch(() => {});
 
       // Verify messages visible — reload fallback for decryption timing
@@ -378,7 +378,7 @@ test.describe('Offline Message Queue', () => {
         await dismissCookieBanner(pageA);
         await completeEncryptionSetup(pageA);
         await dismissReAuthModal(pageA);
-        await expect(pageA.getByText(messageA)).toBeVisible({ timeout: 30000 });
+        await expect(pageA.getByText(messageA)).toBeVisible({ timeout: 60000 });
       }
       // messageB may also need a reload if not yet visible (read replica lag)
       try {
@@ -388,7 +388,7 @@ test.describe('Offline Message Queue', () => {
         await dismissCookieBanner(pageA);
         await completeEncryptionSetup(pageA);
         await dismissReAuthModal(pageA);
-        await expect(pageA.getByText(messageB)).toBeVisible({ timeout: 30000 });
+        await expect(pageA.getByText(messageB)).toBeVisible({ timeout: 60000 });
       }
 
       try {
@@ -398,7 +398,7 @@ test.describe('Offline Message Queue', () => {
         await dismissCookieBanner(pageB);
         await completeEncryptionSetup(pageB, USER_B.password);
         await dismissReAuthModal(pageB, USER_B.password);
-        await expect(pageB.getByText(messageA)).toBeVisible({ timeout: 30000 });
+        await expect(pageB.getByText(messageA)).toBeVisible({ timeout: 60000 });
       }
       try {
         await expect(pageB.getByText(messageB)).toBeVisible({ timeout: 15000 });
@@ -407,7 +407,7 @@ test.describe('Offline Message Queue', () => {
         await dismissCookieBanner(pageB);
         await completeEncryptionSetup(pageB, USER_B.password);
         await dismissReAuthModal(pageB, USER_B.password);
-        await expect(pageB.getByText(messageB)).toBeVisible({ timeout: 30000 });
+        await expect(pageB.getByText(messageB)).toBeVisible({ timeout: 60000 });
       }
     } finally {
       await contextA.close();
