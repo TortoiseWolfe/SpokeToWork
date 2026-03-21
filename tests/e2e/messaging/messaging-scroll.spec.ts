@@ -325,20 +325,25 @@ test.describe('Messaging Scroll - User Story 3: Jump to Bottom Button', () => {
     if (await jumpButton.isVisible()) {
       await jumpButton.click();
 
-      // Wait for smooth scroll animation
-      await page.waitForTimeout(500);
-
-      // Check we're at the bottom
-      const scrollInfo = await messageThread.evaluate((el) => ({
-        scrollTop: el.scrollTop,
-        scrollHeight: el.scrollHeight,
-        clientHeight: el.clientHeight,
-      }));
-
-      const distanceFromBottom =
-        scrollInfo.scrollHeight -
-        (scrollInfo.scrollTop + scrollInfo.clientHeight);
-      expect(distanceFromBottom).toBeLessThan(100);
+      // Poll until scroll position stabilizes near bottom.
+      // Smooth scroll + potential Realtime DOM updates can shift scrollHeight
+      // during the animation, so a single check after a fixed wait is fragile.
+      await expect
+        .poll(
+          async () => {
+            const info = await messageThread.evaluate((el) => ({
+              scrollTop: el.scrollTop,
+              scrollHeight: el.scrollHeight,
+              clientHeight: el.clientHeight,
+            }));
+            return info.scrollHeight - (info.scrollTop + info.clientHeight);
+          },
+          {
+            message: 'Scroll should reach bottom after jump button click',
+            timeout: 10000,
+          }
+        )
+        .toBeLessThan(100);
 
       // Button should be hidden after reaching bottom
       await expect(jumpButton).not.toBeVisible();

@@ -563,9 +563,15 @@ test.describe('Encryption Key Security', () => {
     await page.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
     await dismissCookieBanner(page);
     await completeEncryptionSetup(page);
+    // Encryption setup may redirect away and lose the conversation param
+    if (!page.url().includes('conversation=')) {
+      await page.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
+      await dismissCookieBanner(page);
+    }
     await dismissReAuthModal(page);
 
     const messageInput = page.locator('textarea[aria-label="Message input"]');
+    await expect(messageInput).toBeVisible({ timeout: 15000 });
     await messageInput.fill('Key security test message');
     await page.getByRole('button', { name: /send/i }).click();
 

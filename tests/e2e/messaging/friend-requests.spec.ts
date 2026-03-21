@@ -535,9 +535,10 @@ test.describe('Friend Request Flow', () => {
     await completeEncryptionSetup(page);
     await dismissReAuthModal(page);
 
-    // Send first request — multi-attempt polling for read replica lag
+    // Send first request — multi-attempt polling for read replica lag.
+    // Supabase Cloud read replicas can lag 5-30s after cleanup DELETEs.
     let dupSendVisible = false;
-    for (let attempt = 0; attempt < 5; attempt++) {
+    for (let attempt = 0; attempt < 8; attempt++) {
       await page.goto('/messages?tab=connections');
       await dismissCookieBanner(page);
       // Only check encryption setup on first iteration (keys persist in DB)
@@ -560,13 +561,13 @@ test.describe('Friend Request Flow', () => {
         break;
       }
       console.log(
-        `Duplicate test: Send Request not visible (attempt ${attempt + 1}/5), reloading...`
+        `Duplicate test: Send Request not visible (attempt ${attempt + 1}/8), reloading...`
       );
-      await page.waitForTimeout(3000);
+      await page.waitForTimeout(5000);
     }
     if (!dupSendVisible) {
       throw new Error(
-        '"Send Request" button never appeared after 5 reload attempts (duplicate test)'
+        '"Send Request" button never appeared after 8 reload attempts (duplicate test)'
       );
     }
     await expect(page.getByText(/friend request sent/i)).toBeVisible({

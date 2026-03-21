@@ -491,15 +491,15 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       await pageA.goto('/messages?conversation=' + conversationId);
       await dismissCookieBanner(pageA);
       await completeEncryptionSetup(pageA);
-      await pageA.waitForLoadState('networkidle');
-      await pageA.waitForTimeout(1000); // Let messaging page mount fully
+      await pageA.waitForLoadState('domcontentloaded');
+      await pageA.waitForTimeout(2000); // Let messaging page mount + Realtime subscribe
       await dismissReAuthModal(pageA);
 
       testMessage = 'Hello from User A - ' + Date.now();
       const messageInput = pageA.locator(
         'textarea[aria-label="Message input"]'
       );
-      await expect(messageInput).toBeVisible({ timeout: 10000 });
+      await expect(messageInput).toBeVisible({ timeout: 15000 });
       await messageInput.fill(testMessage);
 
       const sendButton = pageA.getByRole('button', { name: /send/i });
