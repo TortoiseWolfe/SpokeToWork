@@ -131,8 +131,10 @@ test.describe('Companies Page - Application CRUD', () => {
       return;
     }
 
-    // Open drawer and get initial app count
+    // Open drawer and wait for application list to load (previous create test
+    // may have added an app that's still being fetched asynchronously)
     await companiesPage.clickFirstCompanyRow();
+    await sharedPage.waitForTimeout(1000);
     const initialAppCount = await companiesPage.getDrawerApplicationCount();
 
     // Click Add Application

@@ -179,11 +179,23 @@ test.describe('Companies Page - Sort Functionality (Feature 051)', () => {
   test('should verify memoization is working via render count tracking', async () => {
     // Feature 051: Verify React.memo is applied and render counts are tracked
     // Each CompanyRow tracks its render count via data-render-count attribute
-    // Note: With React.memo, rows should NOT re-render when only sort order changes
-    // BUT this depends on all callback props being stable (useCallback)
+    // Note: data-render-count is only set in development (not production builds)
     const rowCount = await companiesPage.getCompanyRowCount();
     if (rowCount < 2) {
       test.skip();
+      return;
+    }
+
+    // Skip in production builds where render count attribute is stripped
+    const firstRow = sharedPage
+      .locator('[data-testid^="company-row-"]')
+      .first();
+    const hasRenderCount = await firstRow.getAttribute('data-render-count');
+    if (hasRenderCount === null) {
+      test.skip(
+        true,
+        'Render count tracking not available in production build'
+      );
       return;
     }
 

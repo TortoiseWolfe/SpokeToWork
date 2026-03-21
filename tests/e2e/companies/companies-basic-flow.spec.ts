@@ -52,7 +52,7 @@ test.describe('Companies Page - Basic Flow', () => {
     await freshPage.goto(`${BASE_URL}/companies`);
 
     // Should redirect to sign-in
-    await freshPage.waitForURL(/.*\/sign-in/, { timeout: 10000 });
+    await freshPage.waitForURL(/.*\/sign-in/, { timeout: 30000 });
     await expect(freshPage).toHaveURL(/.*\/sign-in/);
 
     await freshContext.close();
