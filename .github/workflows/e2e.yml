@@ -99,7 +99,7 @@ jobs:
 
       - name: Start server
         run: |
-          npx serve out -l 3000 &
+          npx http-server out -p 3000 -c-1 --header "Cross-Origin-Opener-Policy: same-origin" --header "Cross-Origin-Embedder-Policy: credentialless" &
           npx wait-on http://localhost:3000 --timeout 60000
 
       - name: Run smoke tests
@@ -166,7 +166,7 @@ jobs:
 
       - name: Start server
         run: |
-          npx serve out -l 3000 &
+          npx http-server out -p 3000 -c-1 --header "Cross-Origin-Opener-Policy: same-origin" --header "Cross-Origin-Embedder-Policy: credentialless" &
           npx wait-on http://localhost:3000 --timeout 60000
 
       - name: Run auth setup
@@ -251,7 +251,7 @@ jobs:
 
       - name: Start server
         run: |
-          npx serve out -l 3000 &
+          npx http-server out -p 3000 -c-1 --header "Cross-Origin-Opener-Policy: same-origin" --header "Cross-Origin-Embedder-Policy: credentialless" &
           npx wait-on http://localhost:3000 --timeout 60000
 
       - name: Run E2E tests (shard ${{ matrix.shard }})
