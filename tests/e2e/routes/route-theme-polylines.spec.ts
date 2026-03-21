@@ -32,7 +32,11 @@ async function waitForMapLayers(page: Page, timeout = 55000) {
     .toBeGreaterThan(0);
 }
 
-async function setThemeAndWait(page: Page, theme: string) {
+async function setThemeAndWait(
+  page: Page,
+  theme: string,
+  previousColor?: string | null
+) {
   await page.evaluate(
     (t) => document.documentElement.setAttribute('data-theme', t),
     theme
@@ -61,6 +65,39 @@ async function setThemeAndWait(page: Page, theme: string) {
       { message: `Bike routes source after ${theme}`, timeout: 10000 }
     )
     .toBe(true);
+  // Wait for React to process the theme change and update MapLibre paint.
+  // useDaisyColors reads CSS vars via MutationObserver → useRoutePalette
+  // recomputes → RoutePolyline re-renders → react-map-gl calls setPaintProperty.
+  if (previousColor) {
+    await expect
+      .poll(
+        () =>
+          page.evaluate((prev) => {
+            const map = (window as any).maplibreMap;
+            if (!map) return prev;
+            const layers = (map.getStyle()?.layers ?? []).filter(
+              (l: any) =>
+                l.id.startsWith('route-') &&
+                !l.id.includes('glow') &&
+                !l.id.includes('dash')
+            );
+            if (layers.length === 0) return prev;
+            try {
+              return map.getPaintProperty(layers[0].id, 'line-color') ?? prev;
+            } catch {
+              return prev;
+            }
+          }, previousColor),
+        {
+          message: `Paint update after ${theme} (was ${previousColor})`,
+          timeout: 10000,
+        }
+      )
+      .not.toBe(previousColor);
+  } else {
+    // First theme set — just wait for React render cycle
+    await page.waitForTimeout(1000);
+  }
 }
 
 async function getRouteLayerIds(page: Page): Promise<string[]> {
@@ -118,12 +155,11 @@ test.describe('Route polyline theming', () => {
     await setThemeAndWait(page, 'light');
     const lightColor = await getRouteLineColor(page, mainLayer);
 
-    await setThemeAndWait(page, 'dracula');
+    await setThemeAndWait(page, 'dracula', lightColor);
     const draculaColor = await getRouteLineColor(page, mainLayer);
 
     expect(lightColor).toBeTruthy();
     expect(draculaColor).toBeTruthy();
-    // Colors should differ between themes (DaisyUI tokens change)
     expect(draculaColor).not.toBe(lightColor);
   });
 
@@ -139,12 +175,11 @@ test.describe('Route polyline theming', () => {
     await setThemeAndWait(page, 'dracula');
     const draculaColor = await getRouteLineColor(page, mainLayer);
 
-    await setThemeAndWait(page, 'cupcake');
+    await setThemeAndWait(page, 'cupcake', draculaColor);
     const cupcakeColor = await getRouteLineColor(page, mainLayer);
 
     expect(draculaColor).toBeTruthy();
     expect(cupcakeColor).toBeTruthy();
-    // Dracula and cupcake have different success/info color tokens
     expect(cupcakeColor).not.toBe(draculaColor);
   });
 

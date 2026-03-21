@@ -121,15 +121,12 @@ export function useCompanyApplications(
   return {
     applications, summaries, isLoading, refreshSummaries,
     create: useCallback((d: JobApplicationCreate) => run(async () => {
-      const ref = user && selected ? companyRef(selected) : null;
-      if (!ref) return;
-      await svc.create({ ...d,
-        shared_company_id: ref.type === 'shared' ? ref.id : null,
-        private_company_id: ref.type === 'private' ? ref.id : null,
-      });
+      // The form (ApplicationForm) already sets shared_company_id / private_company_id
+      // based on the companyId + companyType props. Pass form data through directly.
+      await svc.create(d);
       await refetchSelected();
       await refreshSummaries();
-    }, 'Failed to create application', true), [user, selected, svc, refetchSelected, refreshSummaries, run]),
+    }, 'Failed to create application', true), [svc, refetchSelected, refreshSummaries, run]),
     update: useCallback((id: string, p: Omit<JobApplicationUpdate, 'id'>) => run(async () => {
       await svc.update({ id, ...p });
       await refetchSelected();
