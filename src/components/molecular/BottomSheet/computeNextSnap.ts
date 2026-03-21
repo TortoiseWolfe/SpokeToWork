@@ -60,3 +60,10 @@ export function snapPointToOffset(
 ): number {
   return viewportHeight - SNAP_POINTS[snap] * viewportHeight;
 }
+
+/** Inverse of snapPointToOffset. Only valid for computeNextSnap outputs. */
+export function offsetToSnap(offset: number, vh: number): SnapPoint {
+  if (offset === snapPointToOffset('full', vh)) return 'full';
+  if (offset === snapPointToOffset('half', vh)) return 'half';
+  return 'peek';
+}

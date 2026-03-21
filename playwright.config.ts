@@ -7,6 +7,7 @@ import type { TestViewport } from './src/types/mobile-first';
  * https://github.com/motdotla/dotenv
  */
 require('dotenv').config();
+require('dotenv').config({ path: '.env.supabase.local', override: true });
 
 /**
  * Convert TestViewport to Playwright device config

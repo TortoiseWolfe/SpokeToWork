@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { Popup } from 'react-map-gl/maplibre';
 import { MapContainer } from '@/components/map/MapContainer';
 import type { MapMarker } from '@/components/map/MapContainer';
@@ -13,6 +13,8 @@ export interface ModerationMapProps {
   selectedContributionId: string | null;
   /** Fires with the stripped contribution id when a pending marker is clicked. */
   onSelectPending: (contributionId: string) => void;
+  /** When set, pan to this contribution's marker. Cleared by caller after dispatch. */
+  flyToContributionId?: string;
 }
 
 const PENDING_PREFIX = 'pending-';
@@ -35,6 +37,7 @@ export function ModerationMap({
   approvedMarkers,
   selectedContributionId,
   onSelectPending,
+  flyToContributionId,
 }: ModerationMapProps) {
   const [popupMarker, setPopupMarker] = useState<MapMarker | null>(null);
 
@@ -59,8 +62,30 @@ export function ModerationMap({
     ? `${PENDING_PREFIX}${selectedContributionId}`
     : undefined;
 
-  // DEFAULT_MAP_CONFIG.center is LatLngTuple ([num,num,num?]) — MapContainer
-  // wants a strict pair. Same narrowing as Phase 3 Task 3.
+  // FlyTo: resolve contribution ID → marker position, bump seq to re-fire
+  const seqRef = useRef(0);
+  const [flyToTarget, setFlyToTarget] = useState<{
+    center: [number, number];
+    zoom?: number;
+    seq: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!flyToContributionId) {
+      setFlyToTarget(null);
+      return;
+    }
+    const target = markers.find(
+      (m) => m.id === `${PENDING_PREFIX}${flyToContributionId}`
+    );
+    if (!target) {
+      setFlyToTarget(null);
+      return;
+    }
+    seqRef.current += 1;
+    setFlyToTarget({ center: target.position, seq: seqRef.current });
+  }, [flyToContributionId, markers]);
+
   const [lat, lng] = DEFAULT_MAP_CONFIG.center;
 
   return (
@@ -71,6 +96,7 @@ export function ModerationMap({
       markers={markers}
       selectedMarkerId={selectedMarkerId}
       onMarkerClick={handleMarkerClick}
+      flyToTarget={flyToTarget}
     >
       {popupMarker && (
         <Popup

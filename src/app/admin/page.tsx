@@ -40,9 +40,14 @@ export default function AdminPage() {
             Route analytics across all users.
           </p>
         </div>
-        <Link href="/admin/moderation" className="btn btn-primary">
-          Moderation Queue
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/admin/users" className="btn btn-ghost">
+            Users
+          </Link>
+          <Link href="/admin/moderation" className="btn btn-primary">
+            Moderation Queue
+          </Link>
+        </div>
       </header>
 
       <AdminStatsGrid {...analytics} />

@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import Map from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import RoutePolyline, { RoutePolylines } from './RoutePolyline';
+import RoutePolyline from './RoutePolyline';
+import { RoutePolylines } from './RoutePolylines';
 import type { BicycleRoute, RouteGeometry } from '@/types/route';
 
 // Cleveland GreenWay approximate coordinates
@@ -166,7 +167,9 @@ export const MultipleRoutes: StoryObj<typeof RoutePolylines> = {
   render: () => (
     <RoutePolylines
       routes={[mockUserRoute, mockSystemRoute]}
-      onRouteClick={(route) => console.log('Clicked:', route.name)}
+      onRouteClick={(route: BicycleRoute) =>
+        console.log('Clicked:', route.name)
+      }
     />
   ),
 };
@@ -176,7 +179,9 @@ export const MultipleRoutesWithActive: StoryObj<typeof RoutePolylines> = {
     <RoutePolylines
       routes={[mockUserRoute, mockSystemRoute]}
       activeRouteId="user-route-1"
-      onRouteClick={(route) => console.log('Clicked:', route.name)}
+      onRouteClick={(route: BicycleRoute) =>
+        console.log('Clicked:', route.name)
+      }
     />
   ),
 };
