@@ -88,6 +88,7 @@ export async function updateSession(request: NextRequest) {
     '/profile',
     '/account',
     '/payment-demo', // Payment page requires authentication
+    '/companies', // Companies page requires authentication
   ];
 
   if (

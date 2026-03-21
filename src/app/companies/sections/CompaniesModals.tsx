@@ -87,12 +87,15 @@ export function CompaniesModals({
               companyName={selectedUnified.name}
               application={modals.editingApplication}
               onSubmit={async (data) => {
-                if (modals.editingApplication) {
-                  await apps.update(modals.editingApplication.id, data);
-                } else {
-                  await apps.create(data as JobApplicationCreate);
+                try {
+                  if (modals.editingApplication) {
+                    await apps.update(modals.editingApplication.id, data);
+                  } else {
+                    await apps.create(data as JobApplicationCreate);
+                  }
+                } finally {
+                  modals.closeAppForm();
                 }
-                modals.closeAppForm();
               }}
               onCancel={modals.closeAppForm}
             />
