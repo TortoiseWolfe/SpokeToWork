@@ -105,7 +105,9 @@ async function getRouteLayerIds(page: Page): Promise<string[]> {
     const map = (window as any).maplibreMap;
     if (!map) return [];
     return (map.getStyle()?.layers ?? [])
-      .filter((l: any) => l.id.startsWith('route-'))
+      .filter(
+        (l: any) => l.id.startsWith('route-') || l.id === 'all-bike-routes'
+      )
       .map((l: any) => l.id);
   });
 }
@@ -147,16 +149,18 @@ test.describe('Route polyline theming', () => {
     page,
   }) => {
     const ids = await getRouteLayerIds(page);
-    test.skip(ids.length === 0, 'No route layers in database');
-
-    const mainLayer =
-      ids.find((id) => !id.includes('glow') && !id.includes('dash')) ?? ids[0];
+    // Prefer all-bike-routes layer (uses palette colors, not custom route colors)
+    const paletteLayer = ids.find((id) => id === 'all-bike-routes');
+    test.skip(
+      !paletteLayer,
+      'No palette-driven route layer (all-bike-routes) found'
+    );
 
     await setThemeAndWait(page, 'light');
-    const lightColor = await getRouteLineColor(page, mainLayer);
+    const lightColor = await getRouteLineColor(page, paletteLayer!);
 
     await setThemeAndWait(page, 'dracula', lightColor);
-    const draculaColor = await getRouteLineColor(page, mainLayer);
+    const draculaColor = await getRouteLineColor(page, paletteLayer!);
 
     expect(lightColor).toBeTruthy();
     expect(draculaColor).toBeTruthy();
@@ -167,16 +171,17 @@ test.describe('Route polyline theming', () => {
     page,
   }) => {
     const ids = await getRouteLayerIds(page);
-    test.skip(ids.length === 0, 'No route layers in database');
-
-    const mainLayer =
-      ids.find((id) => !id.includes('glow') && !id.includes('dash')) ?? ids[0];
+    const paletteLayer = ids.find((id) => id === 'all-bike-routes');
+    test.skip(
+      !paletteLayer,
+      'No palette-driven route layer (all-bike-routes) found'
+    );
 
     await setThemeAndWait(page, 'dracula');
-    const draculaColor = await getRouteLineColor(page, mainLayer);
+    const draculaColor = await getRouteLineColor(page, paletteLayer!);
 
     await setThemeAndWait(page, 'cupcake', draculaColor);
-    const cupcakeColor = await getRouteLineColor(page, mainLayer);
+    const cupcakeColor = await getRouteLineColor(page, paletteLayer!);
 
     expect(draculaColor).toBeTruthy();
     expect(cupcakeColor).toBeTruthy();
