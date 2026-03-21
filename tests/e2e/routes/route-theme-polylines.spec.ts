@@ -127,7 +127,7 @@ test.describe('Route polyline theming', () => {
     expect(draculaColor).not.toBe(lightColor);
   });
 
-  test('route colors change between dracula and synthwave themes', async ({
+  test('route colors change between dracula and cupcake themes', async ({
     page,
   }) => {
     const ids = await getRouteLayerIds(page);
@@ -139,12 +139,13 @@ test.describe('Route polyline theming', () => {
     await setThemeAndWait(page, 'dracula');
     const draculaColor = await getRouteLineColor(page, mainLayer);
 
-    await setThemeAndWait(page, 'synthwave');
-    const synthwaveColor = await getRouteLineColor(page, mainLayer);
+    await setThemeAndWait(page, 'cupcake');
+    const cupcakeColor = await getRouteLineColor(page, mainLayer);
 
     expect(draculaColor).toBeTruthy();
-    expect(synthwaveColor).toBeTruthy();
-    expect(synthwaveColor).not.toBe(draculaColor);
+    expect(cupcakeColor).toBeTruthy();
+    // Dracula and cupcake have different success/info color tokens
+    expect(cupcakeColor).not.toBe(draculaColor);
   });
 
   test('route layers survive full theme rotation', async ({ page }) => {
