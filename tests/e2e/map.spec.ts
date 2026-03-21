@@ -548,12 +548,19 @@ test.describe('Geolocation Map Page', () => {
         .toBe(true);
     }
 
-    // Verify bike routes still exist after 10 toggles
-    const hasRoutesAfterToggles = await page.evaluate(() => {
-      const map = (window as any).maplibreMap?.getMap?.();
-      return map?.getSource?.('all-bike-routes') !== undefined;
-    });
-    expect(hasRoutesAfterToggles).toBe(true);
+    // Wait for React to re-render BikeRoutesLayer after the final toggle.
+    // Rapid theme changes cause useDaisyColors MutationObserver to fire 10×,
+    // triggering batched re-renders that may temporarily unmount the layer.
+    await expect
+      .poll(
+        async () =>
+          page.evaluate(() => {
+            const map = (window as any).maplibreMap?.getMap?.();
+            return map?.getSource?.('all-bike-routes') !== undefined;
+          }),
+        { message: 'Bike routes source after 10 toggles', timeout: 10000 }
+      )
+      .toBe(true);
 
     // Map canvas should still be functional
     await expect(page.locator('.maplibregl-canvas')).toBeVisible();

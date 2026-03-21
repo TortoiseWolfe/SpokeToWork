@@ -53,6 +53,12 @@ const getAdminClient = () => {
 const adminClient = getAdminClient();
 
 test.describe('Offline Message Queue', () => {
+  // Firefox: Argon2id + multi-user Realtime delivery is 2-3x slower under CI contention
+  test.slow(
+    ({ browserName }) => browserName === 'firefox',
+    'Firefox: slow Argon2id + Realtime'
+  );
+
   let conversationId: string | null = null;
 
   test.beforeAll(async () => {

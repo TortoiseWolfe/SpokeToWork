@@ -57,6 +57,13 @@ const getAdminClient = () => {
 const adminClient = getAdminClient();
 
 test.describe('Encrypted Messaging Flow', () => {
+  // Firefox: Argon2id key derivation + Realtime WebSocket establishment is 2-3x
+  // slower, causing multi-user message delivery to exceed default timeouts.
+  test.slow(
+    ({ browserName }) => browserName === 'firefox',
+    'Firefox: slow Argon2id + Realtime'
+  );
+
   let conversationId: string | null = null;
 
   test.beforeAll(async () => {

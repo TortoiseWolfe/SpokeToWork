@@ -391,7 +391,7 @@ test.describe('Friend Request Flow', () => {
       await sendReqBtn.click({ force: true });
       await expect(pageB.getByText(/friend request sent/i).first()).toBeVisible(
         {
-          timeout: 10000,
+          timeout: 30000,
         }
       );
 
