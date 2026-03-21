@@ -33,6 +33,12 @@ export function CompaniesPageInner() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Auth guard — must be before all domain hooks so the redirect fires
+  // immediately instead of waiting for 13+ hook effects to initialize.
+  useEffect(() => {
+    if (!authLoading && !user) router.push('/sign-in');
+  }, [user, authLoading, router]);
+
   const cx = useCompanies();
   const rx = useRoutes({ skip: !user || authLoading });
   const ws = useCompanyWorkspace();
@@ -77,9 +83,6 @@ export function CompaniesPageInner() {
   );
 
   useFullscreenWorkspace(containerRef, !authLoading && !home.isLoading);
-  useEffect(() => {
-    if (!authLoading && !user) router.push('/sign-in');
-  }, [user, authLoading, router]);
   useEffect(() => {
     if (cx.error) setError(cx.error.message);
   }, [cx.error]);

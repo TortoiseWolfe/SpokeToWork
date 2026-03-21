@@ -40,8 +40,8 @@ export function SplitWorkspaceLayout({
   mobileSheet,
   onToggleRoutes,
   routesOpen = false,
-  mapLabel = 'Map',
-  tableLabel = 'List',
+  mapLabel = 'Map view',
+  tableLabel = 'List view',
   className = '',
 }: SplitWorkspaceLayoutProps) {
   const { category } = useDeviceType();
