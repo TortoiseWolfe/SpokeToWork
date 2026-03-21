@@ -85,8 +85,9 @@ test.describe('Companies Page - Application CRUD', () => {
       return;
     }
 
-    // Open drawer and get initial app count
+    // Open drawer and wait for application list to load from Supabase
     await companiesPage.clickFirstCompanyRow();
+    await sharedPage.waitForTimeout(2000);
     const initialAppCount = await companiesPage.getDrawerApplicationCount();
 
     // Click Add Application
