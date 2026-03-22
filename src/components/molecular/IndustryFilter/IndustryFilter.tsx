@@ -26,7 +26,7 @@ function Row({
   selected: Set<string>;
   onToggle: (id: string) => void;
 }) {
-  const { industry, children } = node;
+  const { node: item, children } = node;
   return (
     <>
       <label
@@ -36,14 +36,14 @@ function Row({
         <input
           type="checkbox"
           className="checkbox checkbox-sm"
-          checked={selected.has(industry.id)}
-          onChange={() => onToggle(industry.id)}
-          aria-label={industry.name}
+          checked={selected.has(item.id)}
+          onChange={() => onToggle(item.id)}
+          aria-label={item.name}
         />
-        <span className="text-sm">{industry.name}</span>
+        <span className="text-sm">{item.name}</span>
       </label>
       {children.map((c) => (
-        <Row key={c.industry.id} node={c} depth={depth + 1} selected={selected} onToggle={onToggle} />
+        <Row key={c.node.id} node={c} depth={depth + 1} selected={selected} onToggle={onToggle} />
       ))}
     </>
   );
@@ -77,7 +77,7 @@ export function IndustryFilter({ tree, selected, onChange }: IndustryFilterProps
           </button>
         )}
         {tree.map((n) => (
-          <Row key={n.industry.id} node={n} depth={0} selected={selSet} onToggle={toggle} />
+          <Row key={n.node.id} node={n} depth={0} selected={selSet} onToggle={toggle} />
         ))}
         {tree.length === 0 && (
           <p className="text-base-content/60 p-2 text-sm">Loading industries…</p>

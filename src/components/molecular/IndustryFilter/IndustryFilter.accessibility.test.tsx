@@ -15,8 +15,8 @@ const mk = (id: string, name: string, parent_id: string | null = null): Industry
 // loading-state placeholder.
 const tree: IndustryTreeNode[] = [
   {
-    industry: mk('t', 'Transportation'),
-    children: [{ industry: mk('d', 'Delivery', 't'), children: [] }],
+    node: mk('t', 'Transportation'),
+    children: [{ node: mk('d', 'Delivery', 't'), children: [] }],
   },
 ];
 

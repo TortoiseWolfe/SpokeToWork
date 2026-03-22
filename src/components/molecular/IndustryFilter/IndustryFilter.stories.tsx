@@ -5,11 +5,11 @@ import type { IndustryTreeNode } from '@/hooks/useIndustries';
 
 const tree: IndustryTreeNode[] = [
   {
-    industry: { id: 't', parent_id: null, slug: 'transportation', name: 'Transportation', color: 'info', icon: 'truck', sort_order: 1, created_at: '', updated_at: '' },
+    node: { id: 't', parent_id: null, slug: 'transportation', name: 'Transportation', color: 'info', icon: 'truck', sort_order: 1, created_at: '', updated_at: '' },
     children: [
-      { industry: { id: 'd', parent_id: 't', slug: 'delivery', name: 'Delivery & Logistics', color: null, icon: null, sort_order: 1, created_at: '', updated_at: '' },
+      { node: { id: 'd', parent_id: 't', slug: 'delivery', name: 'Delivery & Logistics', color: null, icon: null, sort_order: 1, created_at: '', updated_at: '' },
         children: [
-          { industry: { id: 'b', parent_id: 'd', slug: 'bicycle-courier', name: 'Bicycle Courier', color: null, icon: null, sort_order: 1, created_at: '', updated_at: '' }, children: [] },
+          { node: { id: 'b', parent_id: 'd', slug: 'bicycle-courier', name: 'Bicycle Courier', color: null, icon: null, sort_order: 1, created_at: '', updated_at: '' }, children: [] },
         ],
       },
     ],

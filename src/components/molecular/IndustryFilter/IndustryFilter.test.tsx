@@ -10,9 +10,9 @@ const mk = (id: string, name: string, parent_id: string | null = null): Industry
 
 const tree: IndustryTreeNode[] = [
   {
-    industry: mk('t', 'Transportation'),
+    node: mk('t', 'Transportation'),
     children: [
-      { industry: mk('d', 'Delivery', 't'), children: [] },
+      { node: mk('d', 'Delivery', 't'), children: [] },
     ],
   },
 ];
