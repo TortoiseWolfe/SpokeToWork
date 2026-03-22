@@ -3524,5 +3524,311 @@ GRANT EXECUTE ON FUNCTION admin_list_users() TO authenticated;
 -- END FEATURE: Admin User List
 -- ============================================================================
 
+-- ═══════════════════════════════════════════════════════════════════════════
+-- INDUSTRY TAXONOMY (2026-03-22) — hierarchical categorization for companies
+-- Source: Model B sandbox (TASK_15112), best-of-both merge
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS industries (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  parent_id   UUID REFERENCES industries(id) ON DELETE RESTRICT,
+  slug        VARCHAR(64) NOT NULL UNIQUE,
+  name        VARCHAR(100) NOT NULL,
+  icon        VARCHAR(32),
+  color       VARCHAR(16),
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_industries_parent ON industries(parent_id);
+
+COMMENT ON TABLE industries IS 'Hierarchical industry taxonomy. Adjacency list; query via get_industry_descendants().';
+COMMENT ON COLUMN industries.color IS 'DaisyUI semantic token name (primary|secondary|accent|info|success|warning|error). Null inherits from parent.';
+COMMENT ON COLUMN industries.icon IS 'lucide-react icon name. Null inherits from parent.';
+
+ALTER TABLE industries ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view industries" ON industries;
+CREATE POLICY "Anyone can view industries" ON industries
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admin can insert industries" ON industries;
+CREATE POLICY "Admin can insert industries" ON industries
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Admin can update industries" ON industries;
+CREATE POLICY "Admin can update industries" ON industries
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Admin can delete industries" ON industries;
+CREATE POLICY "Admin can delete industries" ON industries
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+GRANT SELECT ON industries TO anon;
+GRANT SELECT ON industries TO authenticated;
+
+-- company_industries: polymorphic junction (shared XOR private)
+CREATE TABLE IF NOT EXISTS company_industries (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shared_company_id   UUID REFERENCES shared_companies(id) ON DELETE CASCADE,
+  private_company_id  UUID REFERENCES private_companies(id) ON DELETE CASCADE,
+  industry_id         UUID NOT NULL REFERENCES industries(id) ON DELETE CASCADE,
+  is_primary          BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT company_industries_xor CHECK (
+    (shared_company_id IS NOT NULL)::int + (private_company_id IS NOT NULL)::int = 1
+  )
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_company_industries_shared
+  ON company_industries(shared_company_id, industry_id) WHERE shared_company_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_company_industries_private
+  ON company_industries(private_company_id, industry_id) WHERE private_company_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_company_industries_shared_primary
+  ON company_industries(shared_company_id) WHERE shared_company_id IS NOT NULL AND is_primary;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_company_industries_private_primary
+  ON company_industries(private_company_id) WHERE private_company_id IS NOT NULL AND is_primary;
+CREATE INDEX IF NOT EXISTS idx_company_industries_industry ON company_industries(industry_id);
+
+COMMENT ON TABLE company_industries IS 'Polymorphic M:N. XOR: exactly one of shared_company_id/private_company_id. Partial unique indexes enforce (company,industry) pairs and at-most-one-primary-per-company.';
+
+ALTER TABLE company_industries ENABLE ROW LEVEL SECURITY;
+
+-- Split policies: Postgres ORs multiple SELECT policies.
+-- Shared-linked rows are world-readable (matches shared_companies RLS).
+DROP POLICY IF EXISTS "Anyone views shared company industries" ON company_industries;
+CREATE POLICY "Anyone views shared company industries" ON company_industries
+  FOR SELECT USING (shared_company_id IS NOT NULL);
+
+-- Private-linked rows visible only to owner.
+DROP POLICY IF EXISTS "Owner views private company industries" ON company_industries;
+CREATE POLICY "Owner views private company industries" ON company_industries
+  FOR SELECT USING (
+    private_company_id IN (SELECT id FROM private_companies WHERE user_id = auth.uid())
+  );
+
+-- Writes: admin for shared-linked, owner for private-linked.
+DROP POLICY IF EXISTS "Admin manages shared company industries" ON company_industries;
+CREATE POLICY "Admin manages shared company industries" ON company_industries
+  FOR ALL USING (
+    shared_company_id IS NOT NULL
+    AND EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  ) WITH CHECK (
+    shared_company_id IS NOT NULL
+    AND EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Owner manages private company industries" ON company_industries;
+CREATE POLICY "Owner manages private company industries" ON company_industries
+  FOR ALL USING (
+    private_company_id IN (SELECT id FROM private_companies WHERE user_id = auth.uid())
+  ) WITH CHECK (
+    private_company_id IN (SELECT id FROM private_companies WHERE user_id = auth.uid())
+  );
+
+GRANT SELECT ON company_industries TO anon;
+GRANT SELECT ON company_industries TO authenticated;
+
+-- industry_suggestions: user-proposed taxonomy additions, admin-moderated
+CREATE TABLE IF NOT EXISTS industry_suggestions (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id               UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  suggested_name        VARCHAR(100) NOT NULL,
+  suggested_parent_id   UUID REFERENCES industries(id) ON DELETE SET NULL,
+  rationale             TEXT,
+  status                VARCHAR(16) NOT NULL DEFAULT 'pending'
+                          CHECK (status IN ('pending','approved','rejected','merged')),
+  resolved_industry_id  UUID REFERENCES industries(id) ON DELETE SET NULL,
+  admin_notes           TEXT,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  resolved_at           TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_industry_suggestions_status
+  ON industry_suggestions(status) WHERE status = 'pending';
+
+ALTER TABLE industry_suggestions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users view own suggestions" ON industry_suggestions;
+CREATE POLICY "Users view own suggestions" ON industry_suggestions
+  FOR SELECT USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Admin views all suggestions" ON industry_suggestions;
+CREATE POLICY "Admin views all suggestions" ON industry_suggestions
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Users create suggestions" ON industry_suggestions;
+CREATE POLICY "Users create suggestions" ON industry_suggestions
+  FOR INSERT WITH CHECK (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Admin resolves suggestions" ON industry_suggestions;
+CREATE POLICY "Admin resolves suggestions" ON industry_suggestions
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Users delete own pending suggestions" ON industry_suggestions;
+CREATE POLICY "Users delete own pending suggestions" ON industry_suggestions
+  FOR DELETE USING (user_id = auth.uid() AND status = 'pending');
+
+-- Recursive descendant expansion. PostgREST can't ship CTEs; wrap in function.
+CREATE OR REPLACE FUNCTION get_industry_descendants(root_ids UUID[])
+RETURNS TABLE(industry_id UUID)
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public
+AS $$
+  WITH RECURSIVE tree AS (
+    SELECT id FROM industries WHERE id = ANY(root_ids)
+    -- UNION (not UNION ALL): deduplication is the cycle-termination
+    -- condition. If an admin writes a parent_id cycle, the recursion
+    -- reaches fixpoint (no new rows) and halts instead of spinning.
+    UNION
+    SELECT i.id FROM industries i JOIN tree t ON i.parent_id = t.id
+  )
+  SELECT id FROM tree;
+$$;
+
+COMMENT ON FUNCTION get_industry_descendants IS 'Returns root_ids plus all transitive children. Recursive CTE wrapped for PostgREST.';
+
+-- Filter helper: expand industry roots -> company IDs (both polymorphs).
+-- SECURITY INVOKER means RLS on company_industries does ALL row gating.
+DROP FUNCTION IF EXISTS filter_companies_by_industry(UUID[], UUID);
+CREATE OR REPLACE FUNCTION filter_companies_by_industry(root_industry_ids UUID[])
+RETURNS TABLE(shared_company_id UUID, private_company_id UUID)
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public
+AS $$
+  SELECT DISTINCT ci.shared_company_id, ci.private_company_id
+  FROM company_industries ci
+  WHERE ci.industry_id IN (SELECT industry_id FROM get_industry_descendants(root_industry_ids));
+$$;
+
+COMMENT ON FUNCTION filter_companies_by_industry IS 'Two-round-trip filter: call this RPC, then .or() the returned IDs against user_companies_unified.';
+
+-- Seed taxonomy. Stable UUIDs so children can reference parents by literal.
+-- Re-runs are no-ops via ON CONFLICT (slug) DO NOTHING.
+-- Color values are DaisyUI token names matching keyof ThemeColors (useThemeColors.ts:25-33).
+
+-- Roots (level 1)
+INSERT INTO industries (id, parent_id, slug, name, icon, color, sort_order) VALUES
+  ('10000000-0000-4000-a000-000000000001', NULL, 'transportation', 'Transportation', 'truck', 'info', 1),
+  ('10000000-0000-4000-a000-000000000002', NULL, 'food-and-hospitality', 'Food & Hospitality', 'utensils', 'warning', 2),
+  ('10000000-0000-4000-a000-000000000003', NULL, 'retail', 'Retail', 'shopping-bag', 'accent', 3),
+  ('10000000-0000-4000-a000-000000000004', NULL, 'services', 'Services', 'briefcase', 'secondary', 4),
+  ('10000000-0000-4000-a000-000000000005', NULL, 'trades', 'Trades & Construction', 'hammer', 'error', 5),
+  ('10000000-0000-4000-a000-000000000006', NULL, 'health-and-wellness', 'Health & Wellness', 'heart-pulse', 'success', 6)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Level 2
+INSERT INTO industries (id, parent_id, slug, name, sort_order) VALUES
+  ('20000000-0000-4000-a000-000000000011', '10000000-0000-4000-a000-000000000001', 'delivery-and-logistics', 'Delivery & Logistics', 1),
+  ('20000000-0000-4000-a000-000000000012', '10000000-0000-4000-a000-000000000001', 'rideshare', 'Rideshare & Passenger', 2),
+  ('20000000-0000-4000-a000-000000000013', '10000000-0000-4000-a000-000000000001', 'warehouse-and-fulfillment', 'Warehouse & Fulfillment', 3),
+  ('20000000-0000-4000-a000-000000000021', '10000000-0000-4000-a000-000000000002', 'restaurants', 'Restaurants', 1),
+  ('20000000-0000-4000-a000-000000000022', '10000000-0000-4000-a000-000000000002', 'cafes-and-coffee', 'Cafes & Coffee', 2),
+  ('20000000-0000-4000-a000-000000000023', '10000000-0000-4000-a000-000000000002', 'bars-and-nightlife', 'Bars & Nightlife', 3),
+  ('20000000-0000-4000-a000-000000000024', '10000000-0000-4000-a000-000000000002', 'catering', 'Catering', 4),
+  ('20000000-0000-4000-a000-000000000031', '10000000-0000-4000-a000-000000000003', 'grocery', 'Grocery & Convenience', 1),
+  ('20000000-0000-4000-a000-000000000032', '10000000-0000-4000-a000-000000000003', 'apparel', 'Apparel', 2),
+  ('20000000-0000-4000-a000-000000000033', '10000000-0000-4000-a000-000000000003', 'bike-shops', 'Bike Shops', 3),
+  ('20000000-0000-4000-a000-000000000041', '10000000-0000-4000-a000-000000000004', 'cleaning', 'Cleaning', 1),
+  ('20000000-0000-4000-a000-000000000042', '10000000-0000-4000-a000-000000000004', 'landscaping', 'Landscaping', 2),
+  ('20000000-0000-4000-a000-000000000043', '10000000-0000-4000-a000-000000000004', 'staffing', 'Staffing & Temp', 3),
+  ('20000000-0000-4000-a000-000000000051', '10000000-0000-4000-a000-000000000005', 'electrical', 'Electrical', 1),
+  ('20000000-0000-4000-a000-000000000052', '10000000-0000-4000-a000-000000000005', 'plumbing', 'Plumbing', 2),
+  ('20000000-0000-4000-a000-000000000053', '10000000-0000-4000-a000-000000000005', 'hvac', 'HVAC', 3),
+  ('20000000-0000-4000-a000-000000000061', '10000000-0000-4000-a000-000000000006', 'fitness', 'Fitness & Gyms', 1),
+  ('20000000-0000-4000-a000-000000000062', '10000000-0000-4000-a000-000000000006', 'clinics', 'Clinics', 2)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Level 3
+INSERT INTO industries (id, parent_id, slug, name, sort_order) VALUES
+  ('30000000-0000-4000-a000-000000000111', '20000000-0000-4000-a000-000000000011', 'bicycle-courier', 'Bicycle Courier', 1),
+  ('30000000-0000-4000-a000-000000000112', '20000000-0000-4000-a000-000000000011', 'food-delivery', 'Food Delivery', 2),
+  ('30000000-0000-4000-a000-000000000113', '20000000-0000-4000-a000-000000000011', 'package-delivery', 'Package Delivery', 3),
+  ('30000000-0000-4000-a000-000000000211', '20000000-0000-4000-a000-000000000021', 'quick-service', 'Quick Service', 1),
+  ('30000000-0000-4000-a000-000000000212', '20000000-0000-4000-a000-000000000021', 'full-service', 'Full Service', 2)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Update unified view to include primary_industry_id
+DROP VIEW IF EXISTS user_companies_unified;
+CREATE OR REPLACE VIEW user_companies_unified
+WITH (security_invoker = true) AS
+SELECT
+  CAST('shared' AS text) as source,
+  sc.id as company_id,
+  CAST(NULL AS uuid) as private_company_id,
+  uct.id as tracking_id,
+  sc.name,
+  sc.website,
+  sc.careers_url,
+  COALESCE(cl.address, hq.address, '') as address,
+  COALESCE(cl.latitude, hq.latitude, 0) as latitude,
+  COALESCE(cl.longitude, hq.longitude, 0) as longitude,
+  COALESCE(cl.phone, hq.phone, '') as phone,
+  COALESCE(cl.email, hq.email, '') as email,
+  COALESCE(uct.contact_name, cl.contact_name, hq.contact_name, '') as contact_name,
+  COALESCE(uct.contact_title, cl.contact_title, hq.contact_title, '') as contact_title,
+  uct.notes,
+  uct.status,
+  uct.priority,
+  uct.follow_up_date,
+  uct.is_active,
+  sc.is_verified,
+  uct.user_id,
+  uct.created_at,
+  uct.updated_at,
+  (SELECT ci.industry_id FROM company_industries ci
+   WHERE ci.shared_company_id = sc.id AND ci.is_primary LIMIT 1) AS primary_industry_id
+FROM user_company_tracking uct
+JOIN shared_companies sc ON uct.shared_company_id = sc.id
+LEFT JOIN company_locations cl ON uct.location_id = cl.id
+LEFT JOIN company_locations hq ON hq.shared_company_id = sc.id AND hq.is_headquarters = true
+
+UNION ALL
+
+SELECT
+  CAST('private' AS text) as source,
+  CAST(NULL AS uuid) as company_id,
+  pc.id as private_company_id,
+  CAST(NULL AS uuid) as tracking_id,
+  pc.name,
+  pc.website,
+  pc.careers_url,
+  COALESCE(pc.address, '') as address,
+  COALESCE(pc.latitude, 0) as latitude,
+  COALESCE(pc.longitude, 0) as longitude,
+  COALESCE(pc.phone, '') as phone,
+  COALESCE(pc.email, '') as email,
+  COALESCE(pc.contact_name, '') as contact_name,
+  COALESCE(pc.contact_title, '') as contact_title,
+  pc.notes,
+  pc.status,
+  pc.priority,
+  pc.follow_up_date,
+  pc.is_active,
+  false as is_verified,
+  pc.user_id,
+  pc.created_at,
+  pc.updated_at,
+  (SELECT ci.industry_id FROM company_industries ci
+   WHERE ci.private_company_id = pc.id AND ci.is_primary LIMIT 1) AS primary_industry_id
+FROM private_companies pc;
+
+COMMENT ON VIEW user_companies_unified IS 'Unified view combining shared tracking + private companies (Feature 012). Updated for industry taxonomy.';
+
+GRANT SELECT ON user_companies_unified TO authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- END FEATURE: Industry Taxonomy
+-- ═══════════════════════════════════════════════════════════════════════════
+
 -- Commit the transaction - everything succeeded
 COMMIT;

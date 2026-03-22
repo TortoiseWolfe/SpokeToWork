@@ -7,6 +7,8 @@
  * @see specs/012-multi-tenant-companies/data-model.md
  */
 
+import type { ThemeColors } from '@/hooks/useThemeColors';
+
 // =============================================================================
 // LEGACY COMPANY STATUS (for existing company tracking)
 // =============================================================================
@@ -826,6 +828,8 @@ export interface UnifiedCompanyFilters {
   is_active?: boolean;
   is_verified?: boolean;
   search?: string;
+  /** Industry IDs — recursively expanded to include all descendants */
+  industry_ids?: string[];
 }
 
 /**
@@ -1002,4 +1006,69 @@ export interface UpdateTeamMemberData {
   email?: string;
   role_title?: string | null;
   start_date?: string | null;
+}
+
+// =============================================================================
+// INDUSTRY TAXONOMY
+// =============================================================================
+
+/**
+ * Row from the `industries` taxonomy table. Color is narrowed from the wire
+ * type (`string | null`) to `keyof ThemeColors | null`. The DB has no CHECK
+ * constraint enforcing this — consumers of `.from('industries')` must
+ * validate before narrowing (see useIndustries).
+ */
+export interface Industry {
+  id: string;
+  parent_id: string | null;
+  slug: string;
+  name: string;
+  /** DaisyUI token name. Null inherits from parent. */
+  color: keyof ThemeColors | null;
+  /** lucide-react icon name. Null inherits from parent. */
+  icon: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Industry with color/icon resolved by walking parent chain.
+ * Produced by useIndustries().resolve(id).
+ */
+export interface ResolvedIndustry {
+  id: string;
+  parent_id: string | null;
+  slug: string;
+  name: string;
+  /** Always non-null — falls back to 'primary' if no ancestor has color. */
+  color: keyof ThemeColors;
+  /** Always non-null — falls back to 'building' if no ancestor has icon. */
+  icon: string;
+  /** Full path root->leaf, e.g. ['Transportation', 'Delivery & Logistics', 'Bicycle Courier'] */
+  ancestry: string[];
+}
+
+/** Row from `company_industries` junction. */
+export interface CompanyIndustry {
+  id: string;
+  shared_company_id: string | null;
+  private_company_id: string | null;
+  industry_id: string;
+  is_primary: boolean;
+  created_at: string;
+}
+
+/** Row from `industry_suggestions`. */
+export interface IndustrySuggestion {
+  id: string;
+  user_id: string;
+  suggested_name: string;
+  suggested_parent_id: string | null;
+  rationale: string | null;
+  status: 'pending' | 'approved' | 'rejected' | 'merged';
+  resolved_industry_id: string | null;
+  admin_notes: string | null;
+  created_at: string;
+  resolved_at: string | null;
 }
