@@ -3968,5 +3968,335 @@ ON CONFLICT (slug) DO NOTHING;
 -- END FEATURE: Worker Skills Taxonomy
 -- ═══════════════════════════════════════════════════════════════════════════
 
+-- ═══════════════════════════════════════════════════════════════════════════
+-- FEATURE: Resume Upload & Profile Visibility (Source: Model A, B's defensive patterns applied)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS worker_resumes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  label TEXT NOT NULL CHECK (length(label) >= 1 AND length(label) <= 100),
+  storage_path TEXT NOT NULL,
+  file_name TEXT NOT NULL CHECK (length(file_name) >= 1 AND length(file_name) <= 255),
+  mime_type TEXT NOT NULL CHECK (mime_type IN (
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/rtf',
+    'image/jpeg',
+    'image/png'
+  )),
+  file_size INTEGER NOT NULL CHECK (file_size > 0 AND file_size <= 10485760),
+  is_default BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_worker_resumes_one_default
+  ON worker_resumes (user_id) WHERE is_default = TRUE;
+
+CREATE INDEX IF NOT EXISTS idx_worker_resumes_storage_path
+  ON worker_resumes (storage_path);
+
+CREATE INDEX IF NOT EXISTS idx_worker_resumes_user_id
+  ON worker_resumes (user_id);
+
+DROP TRIGGER IF EXISTS update_worker_resumes_updated_at ON worker_resumes;
+CREATE TRIGGER update_worker_resumes_updated_at
+  BEFORE UPDATE ON worker_resumes
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Server-side resume limit enforcement (fixes client-only enforcement in Model A)
+CREATE OR REPLACE FUNCTION check_resume_limit()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF (SELECT count(*) FROM worker_resumes WHERE user_id = NEW.user_id) >= 5 THEN
+    RAISE EXCEPTION 'Maximum 5 resumes per worker';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS enforce_resume_limit ON worker_resumes;
+CREATE TRIGGER enforce_resume_limit
+  BEFORE INSERT ON worker_resumes
+  FOR EACH ROW EXECUTE FUNCTION check_resume_limit();
+
+ALTER TABLE worker_resumes ENABLE ROW LEVEL SECURITY;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON worker_resumes TO authenticated;
+
+CREATE TABLE IF NOT EXISTS worker_visibility (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  profile_public BOOLEAN NOT NULL DEFAULT TRUE,
+  resume_visible_to TEXT NOT NULL DEFAULT 'none'
+    CHECK (resume_visible_to IN ('none', 'applied', 'all_employers')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+DROP TRIGGER IF EXISTS update_worker_visibility_updated_at ON worker_visibility;
+CREATE TRIGGER update_worker_visibility_updated_at
+  BEFORE UPDATE ON worker_visibility
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE worker_visibility ENABLE ROW LEVEL SECURITY;
+
+GRANT SELECT, INSERT, UPDATE ON worker_visibility TO authenticated;
+
+CREATE OR REPLACE FUNCTION can_access_resume(
+  p_storage_path TEXT,
+  p_viewer_id UUID
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER STABLE
+SET search_path = public
+AS $$
+DECLARE
+  v_resume RECORD;
+  v_visibility TEXT;
+  v_viewer_role TEXT;
+BEGIN
+  SELECT wr.id, wr.user_id, wr.is_default, wv.resume_visible_to
+  INTO v_resume
+  FROM worker_resumes wr
+  LEFT JOIN worker_visibility wv ON wv.user_id = wr.user_id
+  WHERE wr.storage_path = p_storage_path;
+
+  IF NOT FOUND THEN RETURN FALSE; END IF;
+
+  IF v_resume.user_id = p_viewer_id THEN RETURN TRUE; END IF;
+
+  v_visibility := COALESCE(v_resume.resume_visible_to, 'none');
+
+  IF v_visibility = 'none' THEN RETURN FALSE; END IF;
+
+  IF v_visibility = 'all_employers' THEN
+    IF NOT v_resume.is_default THEN RETURN FALSE; END IF;
+    SELECT role INTO v_viewer_role FROM user_profiles WHERE id = p_viewer_id;
+    RETURN v_viewer_role = 'employer';
+  END IF;
+
+  IF v_visibility = 'applied' THEN
+    RETURN EXISTS (
+      SELECT 1 FROM job_applications ja
+      WHERE ja.resume_id = v_resume.id
+        AND (
+          EXISTS (
+            SELECT 1 FROM user_company_tracking uct
+            WHERE uct.shared_company_id = ja.shared_company_id
+              AND uct.user_id = p_viewer_id
+          )
+          OR EXISTS (
+            SELECT 1 FROM private_companies pc
+            WHERE pc.id = ja.private_company_id
+              AND pc.user_id = p_viewer_id
+          )
+        )
+    );
+  END IF;
+
+  RETURN FALSE;
+END;
+$$;
+
+DROP POLICY IF EXISTS "Workers manage own resumes" ON worker_resumes;
+DROP POLICY IF EXISTS "Authorized users read resume metadata" ON worker_resumes;
+
+CREATE POLICY "Workers manage own resumes"
+ON worker_resumes FOR ALL TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Authorized users read resume metadata"
+ON worker_resumes FOR SELECT TO authenticated
+USING (can_access_resume(storage_path, auth.uid()));
+
+DROP POLICY IF EXISTS "Workers manage own visibility" ON worker_visibility;
+DROP POLICY IF EXISTS "Authenticated users read visibility" ON worker_visibility;
+
+CREATE POLICY "Workers manage own visibility"
+ON worker_visibility FOR ALL TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Authenticated users read visibility"
+ON worker_visibility FOR SELECT TO authenticated
+USING (true);
+
+CREATE OR REPLACE FUNCTION set_default_resume(p_resume_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id UUID;
+BEGIN
+  SELECT user_id INTO v_user_id
+  FROM worker_resumes
+  WHERE id = p_resume_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Resume not found';
+  END IF;
+
+  IF v_user_id != auth.uid() THEN
+    RAISE EXCEPTION 'Not authorized';
+  END IF;
+
+  UPDATE worker_resumes SET is_default = FALSE
+  WHERE user_id = v_user_id AND is_default = TRUE;
+
+  UPDATE worker_resumes SET is_default = TRUE
+  WHERE id = p_resume_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION get_worker_profile_for_employer(
+  p_worker_id UUID,
+  p_viewer_id UUID
+)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER STABLE
+SET search_path = public
+AS $$
+DECLARE
+  v_visibility RECORD;
+  v_profile RECORD;
+  v_resume RECORD;
+  v_access TEXT := 'none';
+  v_reason TEXT := NULL;
+BEGIN
+  SELECT profile_public, resume_visible_to INTO v_visibility
+  FROM worker_visibility
+  WHERE user_id = p_worker_id;
+
+  IF NOT FOUND THEN
+    v_visibility.profile_public := TRUE;
+    v_visibility.resume_visible_to := 'none';
+  END IF;
+
+  IF NOT v_visibility.profile_public THEN
+    RETURN jsonb_build_object(
+      'profile', NULL,
+      'resume_access', 'none',
+      'resume', NULL,
+      'access_reason', NULL
+    );
+  END IF;
+
+  SELECT id, display_name, bio, avatar_url
+  INTO v_profile
+  FROM user_profiles
+  WHERE id = p_worker_id;
+
+  IF v_visibility.resume_visible_to = 'all_employers' THEN
+    IF EXISTS (SELECT 1 FROM user_profiles WHERE id = p_viewer_id AND role = 'employer') THEN
+      v_access := 'download';
+      v_reason := 'visible_to_all';
+      SELECT id, label, file_name, storage_path, file_size, mime_type
+      INTO v_resume
+      FROM worker_resumes
+      WHERE user_id = p_worker_id AND is_default = TRUE;
+    END IF;
+
+  ELSIF v_visibility.resume_visible_to = 'applied' THEN
+    SELECT wr.id, wr.label, wr.file_name, wr.storage_path, wr.file_size, wr.mime_type
+    INTO v_resume
+    FROM job_applications ja
+    JOIN worker_resumes wr ON wr.id = ja.resume_id
+    WHERE ja.user_id = p_worker_id
+      AND ja.resume_id IS NOT NULL
+      AND (
+        EXISTS (
+          SELECT 1 FROM user_company_tracking uct
+          WHERE uct.shared_company_id = ja.shared_company_id
+            AND uct.user_id = p_viewer_id
+        )
+        OR EXISTS (
+          SELECT 1 FROM private_companies pc
+          WHERE pc.id = ja.private_company_id
+            AND pc.user_id = p_viewer_id
+        )
+      )
+    ORDER BY ja.created_at DESC
+    LIMIT 1;
+
+    IF v_resume.id IS NOT NULL THEN
+      v_access := 'download';
+      v_reason := 'applied_to_your_company';
+    END IF;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'profile', jsonb_build_object(
+      'id', v_profile.id,
+      'display_name', v_profile.display_name,
+      'bio', v_profile.bio,
+      'avatar_url', v_profile.avatar_url
+    ),
+    'resume_access', v_access,
+    'resume', CASE WHEN v_resume.id IS NOT NULL THEN jsonb_build_object(
+      'id', v_resume.id,
+      'label', v_resume.label,
+      'file_name', v_resume.file_name,
+      'storage_path', v_resume.storage_path,
+      'file_size', v_resume.file_size,
+      'mime_type', v_resume.mime_type
+    ) ELSE NULL END,
+    'access_reason', v_reason
+  );
+END;
+$$;
+
+ALTER TABLE job_applications
+  ADD COLUMN IF NOT EXISTS resume_id UUID REFERENCES worker_resumes(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_job_applications_resume_id
+  ON job_applications (resume_id) WHERE resume_id IS NOT NULL;
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('resumes', 'resumes', FALSE)
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "Workers upload own resumes" ON storage.objects;
+DROP POLICY IF EXISTS "Workers update own resumes" ON storage.objects;
+DROP POLICY IF EXISTS "Workers delete own resumes" ON storage.objects;
+DROP POLICY IF EXISTS "Authorized users read resumes" ON storage.objects;
+
+CREATE POLICY "Workers upload own resumes"
+ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (
+  bucket_id = 'resumes'
+  AND auth.uid()::text = (storage.foldername(name))[1]
+);
+
+CREATE POLICY "Workers update own resumes"
+ON storage.objects FOR UPDATE TO authenticated
+USING (
+  bucket_id = 'resumes'
+  AND auth.uid()::text = (storage.foldername(name))[1]
+);
+
+CREATE POLICY "Workers delete own resumes"
+ON storage.objects FOR DELETE TO authenticated
+USING (
+  bucket_id = 'resumes'
+  AND auth.uid()::text = (storage.foldername(name))[1]
+);
+
+CREATE POLICY "Authorized users read resumes"
+ON storage.objects FOR SELECT TO authenticated
+USING (
+  bucket_id = 'resumes'
+  AND can_access_resume(name, auth.uid())
+);
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- END FEATURE: Resume Upload & Profile Visibility
+-- ═══════════════════════════════════════════════════════════════════════════
+
 -- Commit the transaction - everything succeeded
 COMMIT;
