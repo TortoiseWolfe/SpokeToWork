@@ -712,6 +712,7 @@ export interface UnifiedCompany {
   is_active: boolean;
   is_verified: boolean;
   submit_to_shared: boolean;
+  primary_industry_id: string | null;
   created_at: string;
   updated_at: string;
 }

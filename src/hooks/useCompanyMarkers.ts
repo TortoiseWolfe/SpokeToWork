@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { UnifiedCompany } from '@/types/company';
+import type { UnifiedCompany, ResolvedIndustry } from '@/types/company';
 import type { MapMarker } from '@/components/map/MapContainer';
 import { getUnifiedCompanyId } from '@/lib/companies/company-id';
 
@@ -17,13 +17,15 @@ export interface UseCompanyMarkersOptions {
    * "on this route somewhere."
    */
   nextRideIds?: Set<string>;
+  /** Resolves a primary_industry_id → color/icon. Pass useIndustries().resolve. */
+  resolveIndustry?: (id: string) => ResolvedIndustry | null;
 }
 
 export function useCompanyMarkers(
   companies: UnifiedCompany[],
   opts: UseCompanyMarkersOptions = {}
 ): MapMarker[] {
-  const { activeRouteIds, nextRideIds } = opts;
+  const { activeRouteIds, nextRideIds, resolveIndustry } = opts;
 
   return useMemo(
     () =>
@@ -36,6 +38,9 @@ export function useCompanyMarkers(
             : activeRouteIds?.has(id)
               ? ('active-route' as const)
               : ('default' as const);
+          const resolved = c.primary_industry_id && resolveIndustry
+            ? resolveIndustry(c.primary_industry_id)
+            : null;
           return {
             // Prefixed so route-endpoint markers (start-*, end-*) never
             // collide when a future split view puts both on the same map.
@@ -43,8 +48,9 @@ export function useCompanyMarkers(
             position: [c.latitude!, c.longitude!] as [number, number],
             popup: c.name,
             variant,
+            ...(resolved && { industryStyle: { color: resolved.color, icon: resolved.icon } }),
           };
         }),
-    [companies, activeRouteIds, nextRideIds]
+    [companies, activeRouteIds, nextRideIds, resolveIndustry]
   );
 }

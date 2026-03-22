@@ -14,6 +14,7 @@ import { useMapTheme, type MapTheme } from '@/hooks/useMapTheme';
 import { useThemeColors, type ThemeColors } from '@/hooks/useThemeColors';
 import { DEFAULT_MAP_CONFIG } from '@/utils/map-utils';
 import { BikeRoutesLayer } from '@/components/map/BikeRoutesLayer';
+import { Truck, Utensils, ShoppingBag, Briefcase, Hammer, HeartPulse, Building, type LucideIcon } from 'lucide-react';
 
 /**
  * Marker variant for different display styles
@@ -36,6 +37,8 @@ export interface MapMarker {
   popup?: string;
   id: string;
   variant?: MarkerVariant;
+  /** Industry styling — fill color token + lucide icon name. When set, overrides variant fill. */
+  industryStyle?: { color: keyof ThemeColors; icon: string };
 }
 
 interface MapContainerInnerProps {
@@ -78,6 +81,17 @@ interface MapContainerInnerProps {
  * border-white + rgba(0,0,0,...) halo on each pin stays fixed — white-on-black
  * outline reads against both light and dark map tiles regardless of fill.
  */
+/** Allowlist: icon names from DB → React components. Unknown → Building. */
+const INDUSTRY_ICONS: Record<string, LucideIcon> = {
+  truck: Truck,
+  utensils: Utensils,
+  'shopping-bag': ShoppingBag,
+  briefcase: Briefcase,
+  hammer: Hammer,
+  'heart-pulse': HeartPulse,
+  building: Building,
+};
+
 const VARIANT_TOKEN: Record<MarkerVariant, keyof ThemeColors> = {
   default: 'primary',
   'next-ride': 'warning',
@@ -106,6 +120,9 @@ export const CustomMarker: React.FC<{
   const isActiveRoute = marker.variant === 'active-route';
   const isStartPoint = marker.variant === 'start-point';
   const isEndPoint = marker.variant === 'end-point';
+  const ind = marker.industryStyle;
+  const fill = ind ? colors[ind.color] : color;
+  const IndIcon = ind ? (INDUSTRY_ICONS[ind.icon] ?? Building) : null;
 
   return (
     <div
@@ -241,11 +258,21 @@ export const CustomMarker: React.FC<{
             </svg>
           </div>
         </div>
+      ) : IndIcon ? (
+        <div
+          className={`flex h-6 w-6 items-center justify-center rounded-full border-2 border-white ${isSelected ? 'ring-info ring-4 ring-offset-2' : ''}`}
+          style={{
+            backgroundColor: fill,
+            boxShadow: '0 2px 6px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.15)',
+          }}
+        >
+          <IndIcon className="h-3 w-3 text-white" />
+        </div>
       ) : (
         <div
           className={`h-6 w-6 rounded-full border-2 border-white ${isSelected ? 'ring-info ring-4 ring-offset-2' : ''}`}
           style={{
-            backgroundColor: color,
+            backgroundColor: fill,
             boxShadow: '0 2px 6px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.15)',
           }}
         />

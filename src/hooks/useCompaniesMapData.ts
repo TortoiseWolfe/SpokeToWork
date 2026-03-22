@@ -17,7 +17,7 @@ import { extendRoutesToHome } from '@/lib/map/route-geometry';
 import { DEFAULT_MAP_CONFIG } from '@/utils/map-utils';
 import type { MapMarker } from '@/components/map/MapContainer';
 import type { BicycleRoute } from '@/types/route';
-import type { HomeLocation, UnifiedCompany } from '@/types/company';
+import type { HomeLocation, ResolvedIndustry, UnifiedCompany } from '@/types/company';
 
 export interface UseCompaniesMapDataReturn {
   markers: MapMarker[];
@@ -30,12 +30,14 @@ export function useCompaniesMapData(
   companies: UnifiedCompany[],
   activeRouteCompanyIds: Set<string>,
   routes: BicycleRoute[],
-  homeLocation: HomeLocation | null
+  homeLocation: HomeLocation | null,
+  resolveIndustry?: (id: string) => ResolvedIndustry | null
 ): UseCompaniesMapDataReturn {
   // Stable opts — fresh opts → fresh markers → CompanyMap fly-loop.
   const markerOpts = useMemo(
-    () => ({ activeRouteIds: activeRouteCompanyIds }),
-    [activeRouteCompanyIds]
+    () => ({ activeRouteIds: activeRouteCompanyIds, resolveIndustry }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeRouteCompanyIds, resolveIndustry]
   );
   const markers = useCompanyMarkers(companies, markerOpts);
 

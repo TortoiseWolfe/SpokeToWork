@@ -21,6 +21,7 @@ import { useCompanyApplications } from '@/hooks/useCompanyApplications';
 import { useRouteActions } from '@/hooks/useRouteActions';
 import { useCompanyHandlers } from '@/hooks/useCompanyHandlers';
 import { useCompaniesMapData } from '@/hooks/useCompaniesMapData';
+import { useCompaniesIndustryFilter } from '@/hooks/useCompaniesIndustryFilter';
 import { CompaniesBody } from './sections/CompaniesBody';
 import { CompaniesModals } from './sections/CompaniesModals';
 import { RoutesDrawer } from './sections/RoutesDrawer';
@@ -39,7 +40,8 @@ export function CompaniesPageInner() {
     if (!authLoading && !user) router.push('/sign-in');
   }, [user, authLoading, router]);
 
-  const cx = useCompanies();
+  const ind = useCompaniesIndustryFilter();
+  const cx = useCompanies({ filters: ind.companyFilters });
   const rx = useRoutes({ skip: !user || authLoading });
   const ws = useCompanyWorkspace();
   const modals = useCompaniesPageModals();
@@ -79,7 +81,8 @@ export function CompaniesPageInner() {
     cx.companies,
     ws.activeRouteCompanyIds,
     rx.routes,
-    home.homeLocation
+    home.homeLocation,
+    ind.resolveIndustry
   );
 
   useFullscreenWorkspace(containerRef, !authLoading && !home.isLoading);
@@ -120,6 +123,9 @@ export function CompaniesPageInner() {
           showingPanel={showingPanel}
           error={error}
           onDismissError={() => setError(null)}
+          industryTree={ind.industryTree}
+          selectedIndustries={ind.industryIds}
+          onIndustriesChange={ind.setIndustryIds}
         />
       </div>
       <CompaniesModals

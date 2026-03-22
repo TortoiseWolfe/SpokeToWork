@@ -92,6 +92,46 @@ export class MultiTenantCompanyService {
 
     let query = this.supabase.from('user_companies_unified').select('*');
 
+    // Industry filter: two round trips. RPC expands selected root(s) to all
+    // descendants and returns matching company IDs from the junction table;
+    // we then gate the unified view by those IDs. Empty result → short-circuit.
+    if (filters?.industry_ids?.length) {
+      const { data: matches, error: rpcError } = await this.supabase.rpc(
+        'filter_companies_by_industry',
+        { root_industry_ids: filters.industry_ids }
+      );
+      if (rpcError) {
+        throw rpcError;
+      }
+
+      // Defensive dedup. The RPC already SELECTs DISTINCT on (shared, private)
+      // pairs — under the XOR constraint that's company-level dedup — but a
+      // future schema change that drops DISTINCT would silently balloon the
+      // .in.() URL below. Set is O(n) over already-distinct values today.
+      const rows = matches ?? [];
+      const sharedIds = [
+        ...new Set(
+          rows
+            .map((m: { shared_company_id: string | null }) => m.shared_company_id)
+            .filter((id: string | null): id is string => id !== null)
+        ),
+      ];
+      const privateIds = [
+        ...new Set(
+          rows
+            .map((m: { private_company_id: string | null }) => m.private_company_id)
+            .filter((id: string | null): id is string => id !== null)
+        ),
+      ];
+
+      if (sharedIds.length === 0 && privateIds.length === 0) return [];
+
+      const orTerms: string[] = [];
+      if (sharedIds.length) orTerms.push(`company_id.in.(${sharedIds.join(',')})`);
+      if (privateIds.length) orTerms.push(`private_company_id.in.(${privateIds.join(',')})`);
+      query = query.or(orTerms.join(','));
+    }
+
     // Apply filters
     if (filters?.source) {
       query = query.eq('source', filters.source);

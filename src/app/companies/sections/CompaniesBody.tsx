@@ -12,6 +12,8 @@ import { BottomSheet } from '@/components/molecular/BottomSheet';
 import { CompanyListCompact } from '@/components/molecular/CompanyListCompact';
 import { CompaniesToolbar } from './CompaniesToolbar';
 import { CompaniesPanel } from './CompaniesPanel';
+import { CompaniesFilterBar } from './CompaniesFilterBar';
+import type { IndustryTreeNode } from '@/hooks/useIndustries';
 import type { UseCompanyHandlersReturn } from '@/hooks/useCompanyHandlers';
 import type { UseCompaniesMapDataReturn } from '@/hooks/useCompaniesMapData';
 import type { ModalsApi } from '@/hooks/useCompaniesPageModals';
@@ -38,6 +40,9 @@ export interface CompaniesBodyProps {
   showingPanel: boolean;
   error: string | null;
   onDismissError: () => void;
+  industryTree: IndustryTreeNode[];
+  selectedIndustries: string[];
+  onIndustriesChange: (ids: string[]) => void;
 }
 
 export function CompaniesBody(p: CompaniesBodyProps) {
@@ -55,6 +60,11 @@ export function CompaniesBody(p: CompaniesBodyProps) {
             onDismissError={p.onDismissError}
             homeLocation={p.homeLocation}
             showingPanel={p.showingPanel}
+          />
+          <CompaniesFilterBar
+            industryTree={p.industryTree}
+            selectedIndustries={p.selectedIndustries}
+            onIndustriesChange={p.onIndustriesChange}
           />
           <CompaniesPanel
             modals={p.modals}
