@@ -15,6 +15,13 @@ import { validateDisplayName, validateBio } from '@/lib/profile/validation';
 import { createLogger } from '@/lib/logger/logger';
 import { keyManagementService } from '@/services/messaging/key-service';
 import { KeyMismatchError, ConnectionError } from '@/types/messaging';
+import { useMySkills } from '@/hooks/useMySkills';
+import { useSkills } from '@/hooks/useSkills';
+import { useWorkerResumes } from '@/hooks/useWorkerResumes';
+import { useWorkerVisibility } from '@/hooks/useWorkerVisibility';
+import { ResumeList } from '@/components/molecular/ResumeList';
+import { VisibilityControls } from '@/components/molecular/VisibilityControls';
+import { SkillBadge } from '@/components/atomic/SkillBadge';
 
 const logger = createLogger('components:auth:AccountSettings');
 
@@ -64,6 +71,14 @@ function AccountSettings({ className = '' }: AccountSettingsProps) {
   const [removingAvatar, setRemovingAvatar] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+
+  // Worker skills (worker role only)
+  const { skills: allSkills, resolve: resolveSkill } = useSkills();
+  const { skills: userSkills, addSkill, removeSkill, setPrimary } = useMySkills(profile?.role === 'worker' ? (user?.id ?? null) : null);
+
+  // Resume & visibility (worker role only)
+  const { resumes, isLoading: resumesLoading, upload, remove: removeResume, setDefault: setDefaultResume, rename: renameResume } = useWorkerResumes(profile?.role === 'worker' ? user?.id : undefined);
+  const { visibility, update: updateVisibility } = useWorkerVisibility(profile?.role === 'worker' ? user?.id : undefined);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -505,6 +520,94 @@ function AccountSettings({ className = '' }: AccountSettingsProps) {
           </div>
         </div>
       </div>
+
+      {/* Worker Skills Card (worker role only) */}
+      {profile?.role === 'worker' && (
+        <div className="card bg-base-200">
+          <div className="card-body">
+            <h3 className="card-title">My Skills</h3>
+            <p className="text-base-content/70 text-sm mb-3">
+              Tag your skills to appear in employer searches.
+            </p>
+            {/* Current skills */}
+            {userSkills.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {userSkills.map((us) => {
+                  const resolved = resolveSkill(us.skill_id);
+                  return resolved ? (
+                    <div key={us.skill_id} className="flex items-center gap-1">
+                      <SkillBadge skill={resolved} />
+                      {!us.is_primary && (
+                        <button
+                          type="button"
+                          className="btn btn-xs btn-ghost"
+                          onClick={() => setPrimary(us.skill_id)}
+                          aria-label={`Set ${resolved.name} as primary`}
+                        >
+                          ★
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="btn btn-xs btn-ghost text-error"
+                        onClick={() => removeSkill(us.skill_id)}
+                        aria-label={`Remove ${resolved.name}`}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : null;
+                })}
+              </div>
+            )}
+            {/* Add skill dropdown */}
+            <select
+              className="select select-bordered select-sm w-full max-w-xs"
+              onChange={(e) => { if (e.target.value) addSkill(e.target.value); e.target.value = ''; }}
+              defaultValue=""
+              aria-label="Add a skill"
+            >
+              <option value="" disabled>Add a skill…</option>
+              {allSkills
+                .filter((s) => !userSkills.some((us) => us.skill_id === s.id))
+                .map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* My Resumes Card (worker role only) */}
+      {profile?.role === 'worker' && (
+        <div className="card bg-base-200">
+          <div className="card-body">
+            <h3 className="card-title">My Resumes</h3>
+            <ResumeList
+              resumes={resumes}
+              isLoading={resumesLoading}
+              onUpload={upload}
+              onRemove={removeResume}
+              onSetDefault={setDefaultResume}
+              onRename={renameResume}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Profile Visibility Card (worker role only) */}
+      {profile?.role === 'worker' && visibility && (
+        <div className="card bg-base-200">
+          <div className="card-body">
+            <h3 className="card-title">Profile Visibility</h3>
+            <VisibilityControls
+              profilePublic={visibility.profile_public}
+              resumeVisibleTo={visibility.resume_visible_to}
+              onChange={updateVisibility}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Account Deletion Modal */}
       <AccountDeletionModal
