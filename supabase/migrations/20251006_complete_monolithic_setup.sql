@@ -3830,5 +3830,143 @@ GRANT SELECT ON user_companies_unified TO authenticated;
 -- END FEATURE: Industry Taxonomy
 -- ═══════════════════════════════════════════════════════════════════════════
 
+-- ═══════════════════════════════════════════════════════════════════════════
+-- BEGIN FEATURE: Worker Skills Taxonomy (Phase 3)
+-- Discoverability-by-tagging: anon can read user_profiles iff the profile
+-- has at least one user_skills row. No separate visibility column.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- ─── skills lookup ─────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS skills (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  parent_id   UUID REFERENCES skills(id) ON DELETE RESTRICT,
+  slug        VARCHAR(64) NOT NULL UNIQUE,
+  name        VARCHAR(100) NOT NULL,
+  icon        VARCHAR(32),
+  color       VARCHAR(16),
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_skills_parent ON skills(parent_id);
+
+ALTER TABLE skills ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can view skills" ON skills FOR SELECT USING (true);
+-- No INSERT/UPDATE policy: RLS denies writes by default. Admin-only via service role.
+
+GRANT SELECT ON skills TO anon;
+
+-- ─── user_skills junction ──────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS user_skills (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  skill_id    UUID NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+  is_primary  BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Composite: one row per (user, skill)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_user_skills ON user_skills(user_id, skill_id);
+-- Partial: at most one primary per user (DB-enforced headline)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_user_skills_primary ON user_skills(user_id) WHERE is_primary;
+-- Lookup indexes
+CREATE INDEX IF NOT EXISTS idx_user_skills_skill ON user_skills(skill_id);
+-- This single-column index is specifically for the EXISTS probe in the discoverability
+-- policy. The composite uq_user_skills could serve, but a dedicated index is
+-- cheap insurance against a future planner surprise.
+CREATE INDEX IF NOT EXISTS idx_user_skills_user ON user_skills(user_id);
+
+ALTER TABLE user_skills ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view user_skills" ON user_skills FOR SELECT USING (true);
+CREATE POLICY "Users manage own skills" ON user_skills
+  FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+
+GRANT SELECT ON user_skills TO anon;
+
+-- ─── Discoverability-by-tagging policy on user_profiles ───────────────────
+-- Anon sees a profile iff it has >=1 user_skills row. Tagging IS the opt-in.
+-- Composes with existing authenticated policy under OR semantics.
+
+DROP POLICY IF EXISTS "Anon views discoverable profiles" ON user_profiles;
+CREATE POLICY "Anon views discoverable profiles" ON user_profiles
+  FOR SELECT TO anon
+  USING (EXISTS (SELECT 1 FROM user_skills us WHERE us.user_id = user_profiles.id));
+
+-- ─── RPCs ──────────────────────────────────────────────────────────────────
+
+CREATE OR REPLACE FUNCTION get_skill_descendants(root_ids UUID[])
+RETURNS TABLE(skill_id UUID)
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public
+AS $$
+  WITH RECURSIVE tree AS (
+    SELECT id FROM skills WHERE id = ANY(root_ids)
+    UNION
+    SELECT s.id FROM skills s JOIN tree t ON s.parent_id = t.id
+  )
+  SELECT id AS skill_id FROM tree;
+$$;
+
+CREATE OR REPLACE FUNCTION filter_workers_by_skill(root_skill_ids UUID[])
+RETURNS TABLE(user_id UUID)
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public
+AS $$
+  SELECT DISTINCT us.user_id
+  FROM user_skills us
+  WHERE us.skill_id IN (SELECT skill_id FROM get_skill_descendants(root_skill_ids));
+$$;
+
+-- ─── Seed: 7 trades (L1) + 23 specializations (L2) ───────────────────────
+-- UUID prefix a0.../a6 for L1 trades, b01.../b23 for L2 specializations.
+-- Distinct from industries prefix (10/20/30) to avoid confusion in logs.
+
+INSERT INTO skills (id, parent_id, slug, name, icon, color, sort_order) VALUES
+  -- L1: Trades
+  ('a0000000-0000-4000-a000-000000000001', NULL, 'courier',        'Courier',          'bike',          'info',      1),
+  ('a0000000-0000-4000-a000-000000000002', NULL, 'warehouse',      'Warehouse',        'package',       'warning',   2),
+  ('a0000000-0000-4000-a000-000000000003', NULL, 'kitchen',        'Kitchen',          'chef-hat',      'error',     3),
+  ('a0000000-0000-4000-a000-000000000004', NULL, 'front-of-house', 'Front of House',   'coffee',        'accent',    4),
+  ('a0000000-0000-4000-a000-000000000005', NULL, 'retail-floor',   'Retail Floor',     'shopping-cart', 'secondary', 5),
+  ('a0000000-0000-4000-a000-000000000006', NULL, 'bike-mechanic',  'Bike Mechanic',    'wrench',        'success',   6),
+  ('a0000000-0000-4000-a000-000000000007', NULL, 'grounds-labor',  'Grounds & Labor',  'shovel',        'primary',   7),
+  -- L2: Courier specializations
+  ('b0000000-0000-4000-a000-000000000001', 'a0000000-0000-4000-a000-000000000001', 'food-delivery-rider', 'Food Delivery',     NULL, NULL, 1),
+  ('b0000000-0000-4000-a000-000000000002', 'a0000000-0000-4000-a000-000000000001', 'package-delivery',    'Package Delivery',  NULL, NULL, 2),
+  ('b0000000-0000-4000-a000-000000000003', 'a0000000-0000-4000-a000-000000000001', 'document-courier',    'Document Courier',  NULL, NULL, 3),
+  -- L2: Warehouse specializations
+  ('b0000000-0000-4000-a000-000000000004', 'a0000000-0000-4000-a000-000000000002', 'picker',              'Picker',            NULL, NULL, 1),
+  ('b0000000-0000-4000-a000-000000000005', 'a0000000-0000-4000-a000-000000000002', 'packer',              'Packer',            NULL, NULL, 2),
+  ('b0000000-0000-4000-a000-000000000006', 'a0000000-0000-4000-a000-000000000002', 'loader-unloader',     'Loader / Unloader', NULL, NULL, 3),
+  ('b0000000-0000-4000-a000-000000000007', 'a0000000-0000-4000-a000-000000000002', 'forklift-operator',   'Forklift Operator', NULL, NULL, 4),
+  -- L2: Kitchen specializations
+  ('b0000000-0000-4000-a000-000000000008', 'a0000000-0000-4000-a000-000000000003', 'line-cook',           'Line Cook',         NULL, NULL, 1),
+  ('b0000000-0000-4000-a000-000000000009', 'a0000000-0000-4000-a000-000000000003', 'prep-cook',           'Prep Cook',         NULL, NULL, 2),
+  ('b0000000-0000-4000-a000-000000000010', 'a0000000-0000-4000-a000-000000000003', 'dishwasher',          'Dishwasher',        NULL, NULL, 3),
+  -- L2: Front of House specializations
+  ('b0000000-0000-4000-a000-000000000011', 'a0000000-0000-4000-a000-000000000004', 'server',              'Server',            NULL, NULL, 1),
+  ('b0000000-0000-4000-a000-000000000012', 'a0000000-0000-4000-a000-000000000004', 'barista',             'Barista',           NULL, NULL, 2),
+  ('b0000000-0000-4000-a000-000000000013', 'a0000000-0000-4000-a000-000000000004', 'bartender',           'Bartender',         NULL, NULL, 3),
+  ('b0000000-0000-4000-a000-000000000014', 'a0000000-0000-4000-a000-000000000004', 'host',                'Host',              NULL, NULL, 4),
+  -- L2: Retail Floor specializations
+  ('b0000000-0000-4000-a000-000000000015', 'a0000000-0000-4000-a000-000000000005', 'stocker',             'Stocker',           NULL, NULL, 1),
+  ('b0000000-0000-4000-a000-000000000016', 'a0000000-0000-4000-a000-000000000005', 'cashier',             'Cashier',           NULL, NULL, 2),
+  ('b0000000-0000-4000-a000-000000000017', 'a0000000-0000-4000-a000-000000000005', 'sales-associate',     'Sales Associate',   NULL, NULL, 3),
+  -- L2: Bike Mechanic specializations
+  ('b0000000-0000-4000-a000-000000000018', 'a0000000-0000-4000-a000-000000000006', 'repair-tech',         'Repair Tech',       NULL, NULL, 1),
+  ('b0000000-0000-4000-a000-000000000019', 'a0000000-0000-4000-a000-000000000006', 'assembly',            'Assembly',          NULL, NULL, 2),
+  ('b0000000-0000-4000-a000-000000000020', 'a0000000-0000-4000-a000-000000000006', 'wheel-builder',       'Wheel Builder',     NULL, NULL, 3),
+  -- L2: Grounds & Labor specializations
+  ('b0000000-0000-4000-a000-000000000021', 'a0000000-0000-4000-a000-000000000007', 'mover',               'Mover',             NULL, NULL, 1),
+  ('b0000000-0000-4000-a000-000000000022', 'a0000000-0000-4000-a000-000000000007', 'landscaper',          'Landscaper',        NULL, NULL, 2),
+  ('b0000000-0000-4000-a000-000000000023', 'a0000000-0000-4000-a000-000000000007', 'cleaner',             'Cleaner',           NULL, NULL, 3)
+ON CONFLICT (slug) DO NOTHING;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- END FEATURE: Worker Skills Taxonomy
+-- ═══════════════════════════════════════════════════════════════════════════
+
 -- Commit the transaction - everything succeeded
 COMMIT;
