@@ -8,6 +8,23 @@ const mockRefreshSession = vi.fn();
 const mockDeriveKeys = vi.fn();
 const mockRotateKeys = vi.fn();
 
+// Mock skills and resume hooks to avoid DB calls
+vi.mock('@/hooks/useSkills', () => ({
+  useSkills: () => ({ skills: [], rows: [], tree: [], resolve: () => null, isLoading: false, error: null }),
+}));
+
+vi.mock('@/hooks/useMySkills', () => ({
+  useMySkills: () => ({ skills: [], addSkill: vi.fn(), removeSkill: vi.fn(), setPrimary: vi.fn(), isLoading: false, error: null }),
+}));
+
+vi.mock('@/hooks/useWorkerResumes', () => ({
+  useWorkerResumes: () => ({ resumes: [], isLoading: false, error: null, upload: vi.fn(), remove: vi.fn(), setDefault: vi.fn(), rename: vi.fn() }),
+}));
+
+vi.mock('@/hooks/useWorkerVisibility', () => ({
+  useWorkerVisibility: () => ({ visibility: null, isLoading: false, error: null, update: vi.fn() }),
+}));
+
 // Feature 049: Mock key management service
 vi.mock('@/services/messaging/key-service', () => ({
   keyManagementService: {

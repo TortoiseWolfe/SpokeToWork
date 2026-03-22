@@ -3,6 +3,23 @@ import { render, screen } from '@testing-library/react';
 import { axe } from 'jest-axe';
 import AccountSettings from './AccountSettings';
 
+// Mock skills hooks to avoid DB calls
+vi.mock('@/hooks/useSkills', () => ({
+  useSkills: () => ({ skills: [], rows: [], tree: [], resolve: () => null, isLoading: false, error: null }),
+}));
+
+vi.mock('@/hooks/useMySkills', () => ({
+  useMySkills: () => ({ skills: [], addSkill: vi.fn(), removeSkill: vi.fn(), setPrimary: vi.fn(), isLoading: false, error: null }),
+}));
+
+vi.mock('@/hooks/useWorkerResumes', () => ({
+  useWorkerResumes: () => ({ resumes: [], isLoading: false, error: null, upload: vi.fn(), remove: vi.fn(), setDefault: vi.fn(), rename: vi.fn() }),
+}));
+
+vi.mock('@/hooks/useWorkerVisibility', () => ({
+  useWorkerVisibility: () => ({ visibility: null, isLoading: false, error: null, update: vi.fn() }),
+}));
+
 // Mock the useUserProfile hook to return a loaded state
 vi.mock('@/hooks/useUserProfile', () => ({
   useUserProfile: () => ({
