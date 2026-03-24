@@ -91,10 +91,11 @@ export default defineConfig({
       },
     },
 
-    // Unauthenticated tests (signup, login flows, rate-limiting) - no auth dependency
+    // Unauthenticated tests (signup, login flows, rate-limiting, public profiles) - no auth dependency
     {
       name: 'chromium-noauth',
-      testMatch: /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts/,
+      testMatch:
+        /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts|company\/company-profile-public\.spec\.ts|worker\/(worker-profile-public|workers-filter)\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: './tests/e2e/fixtures/storage-state.json',
@@ -104,7 +105,8 @@ export default defineConfig({
     // Browser projects depend on setup, use authenticated state
     {
       name: 'chromium',
-      testIgnore: /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts/,
+      testIgnore:
+        /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts|company\/company-profile-public\.spec\.ts|worker\/(worker-profile-public|workers-filter)\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: './tests/e2e/fixtures/storage-state-auth.json',
@@ -115,7 +117,7 @@ export default defineConfig({
     {
       name: 'firefox',
       testIgnore:
-        /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts|map\.spec\.ts|mobile-check\.spec\.ts/,
+        /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts|company\/company-profile-public\.spec\.ts|worker\/(worker-profile-public|workers-filter)\.spec\.ts|map\.spec\.ts|mobile-check\.spec\.ts/,
       // map.spec.ts: MapLibre GL requires WebGL — CI runners have no GPU, firefox has no software fallback
       //   (chromium/webkit have software WebGL; firefox doesn't — verified with firefoxUserPrefs force-enable)
       // mobile-check.spec.ts: Playwright firefox rejects isMobile context option (driver limitation)
@@ -132,7 +134,8 @@ export default defineConfig({
 
     {
       name: 'webkit',
-      testIgnore: /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts/,
+      testIgnore:
+        /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts|company\/company-profile-public\.spec\.ts|worker\/(worker-profile-public|workers-filter)\.spec\.ts/,
       // 1 retry (vs chromium's 2) — webkit is 2-3x slower, shard 2/4 hits 75min timeout
       retries: process.env.CI ? 1 : 0,
       use: {
