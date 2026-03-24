@@ -61,11 +61,21 @@ async function navigateBothToConversation(
     timeout: 15000,
   });
 
+  // Wait for message subscriptions to reach SUBSCRIBED status on both pages.
+  // useConversationRealtimeSync sets data-messages-subscribed on document.body
+  // when the Supabase Realtime channel is ready. Without this, messages sent
+  // before the receiver's subscription is active are silently dropped.
+  await Promise.all([
+    page1.waitForSelector(`body[data-messages-subscribed="${convId}"]`, {
+      timeout: 30000,
+    }),
+    page2.waitForSelector(`body[data-messages-subscribed="${convId}"]`, {
+      timeout: 30000,
+    }),
+  ]);
+
   if (options?.waitForTypingSubscription) {
-    // Wait for Realtime typing subscriptions to be fully active on both pages.
-    // useTypingIndicator sets data-typing-subscribed on document.body when the
-    // Supabase Realtime channel reaches 'SUBSCRIBED' status. This ensures
-    // broadcasts won't be lost due to the receiver not being subscribed yet.
+    // Additionally wait for typing subscriptions (Broadcast channel).
     await Promise.all([
       page1.waitForSelector(`body[data-typing-subscribed="${convId}"]`, {
         timeout: 30000,
@@ -74,9 +84,6 @@ async function navigateBothToConversation(
         timeout: 30000,
       }),
     ]);
-  } else {
-    // For non-typing tests: wait for Realtime subscriptions to establish
-    await Promise.all([page1.waitForTimeout(3000), page2.waitForTimeout(3000)]);
   }
 }
 
@@ -112,9 +119,9 @@ async function simulateTypingOnPage(
 }
 
 test.describe('Real-time Message Delivery (T098)', () => {
-  // beforeEach runs 2× loginAndVerify + navigation — needs 90s+ on firefox/webkit
-  // 180s gives 60s+ buffer for actual test execution after setup
-  test.describe.configure({ timeout: 180000 });
+  // Serial: each test creates 2 browser contexts with Realtime WebSocket connections.
+  // Running in parallel doubles peak connection load → subscription timeouts on CI.
+  test.describe.configure({ mode: 'serial', timeout: 180000 });
   // Firefox: Argon2id + Realtime WebSocket is 2-3x slower under CI contention
   test.slow(
     ({ browserName }) => browserName === 'firefox',
@@ -289,9 +296,9 @@ test.describe('Real-time Message Delivery (T098)', () => {
 });
 
 test.describe('Typing Indicators (T099)', () => {
-  // Dual-user beforeEach: 2 sign-ins (45s each) + encryption setup > 30s default
-  // 180s gives buffer for firefox/webkit where setup takes 90s+
-  test.describe.configure({ timeout: 180000 });
+  // Serial: each test creates 2 browser contexts with Realtime WebSocket connections.
+  // Running in parallel doubles peak connection load → subscription timeouts on CI.
+  test.describe.configure({ mode: 'serial', timeout: 180000 });
 
   let context1: BrowserContext;
   let context2: BrowserContext;

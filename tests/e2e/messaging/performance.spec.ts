@@ -452,7 +452,9 @@ async function scrollToTopAndWait(page: import('@playwright/test').Page) {
 // ─── Virtual Scrolling Performance ──────────────────────────────────────────
 
 test.describe('Virtual Scrolling Performance', () => {
-  test.describe.configure({ timeout: 180000 });
+  // Serial: tests share a seeded conversation with Realtime subscriptions.
+  // Parallel execution causes subscription contention on Supabase Cloud free tier.
+  test.describe.configure({ mode: 'serial', timeout: 180000 });
   test('T172b: Virtual scrolling activates at 100+ messages', async ({
     page,
   }) => {
@@ -630,7 +632,10 @@ test.describe('Virtual Scrolling Performance', () => {
 
 test.describe('Keyboard Navigation', () => {
   test.beforeEach(async ({ browserName }) => {
-    test.skip(browserName === 'firefox', 'Skip on firefox: argon2id 90s/modal exceeds CI timeout');
+    test.skip(
+      browserName === 'firefox',
+      'Skip on firefox: argon2id 90s/modal exceeds CI timeout'
+    );
   });
   test('T169: Keyboard navigation through messages', async ({ page }) => {
     test.setTimeout(90000); // openConversation needs 45-60s on CI reload path
@@ -697,7 +702,10 @@ test.describe('Keyboard Navigation', () => {
 
 test.describe('Scroll Restoration', () => {
   test.beforeEach(async ({ browserName }) => {
-    test.skip(browserName === 'firefox', 'Skip on firefox: argon2id 90s/modal exceeds CI timeout');
+    test.skip(
+      browserName === 'firefox',
+      'Skip on firefox: argon2id 90s/modal exceeds CI timeout'
+    );
   });
   test('Scroll position maintained during pagination', async ({ page }) => {
     test.setTimeout(90000);

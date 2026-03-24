@@ -258,11 +258,11 @@ jobs:
         run: |
           SHARD_NUM=$(echo "${{ matrix.shard }}" | cut -d/ -f1)
           if [ "${{ matrix.browser }}" = "firefox" ]; then
-            DELAY=$((30 + SHARD_NUM * 5))
-            echo "Firefox shard $SHARD_NUM: waiting ${DELAY}s"
+            DELAY=$((45 + SHARD_NUM * 10))
+            echo "Firefox shard $SHARD_NUM: waiting ${DELAY}s (Argon2id ~40s on CI)"
             sleep $DELAY
           elif [ "${{ matrix.browser }}" = "webkit" ]; then
-            DELAY=$((60 + SHARD_NUM * 5))
+            DELAY=$((75 + SHARD_NUM * 10))
             echo "WebKit shard $SHARD_NUM: waiting ${DELAY}s"
             sleep $DELAY
           fi
