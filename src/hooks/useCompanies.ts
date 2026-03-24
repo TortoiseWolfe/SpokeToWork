@@ -307,6 +307,7 @@ export function useCompanies(
         private_company_id: created.id,
         user_id: created.user_id,
         metro_area_id: created.metro_area_id,
+        primary_industry_id: null,
         name: created.name,
         website: created.website,
         careers_url: created.careers_url,

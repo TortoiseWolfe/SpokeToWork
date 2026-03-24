@@ -61,6 +61,7 @@ function makeCompany(overrides: Partial<UnifiedCompany> = {}): UnifiedCompany {
     private_company_id: 'p-1',
     user_id: 'u1',
     metro_area_id: null,
+    primary_industry_id: null,
     name: 'Test',
     website: null,
     careers_url: null,

@@ -8,6 +8,7 @@ const base: Omit<
 > = {
   user_id: 'u1',
   metro_area_id: null,
+  primary_industry_id: null,
   name: 'Test Co',
   website: null,
   careers_url: null,

@@ -13,6 +13,7 @@ const sharedCompany: UnifiedCompany = {
   private_company_id: null,
   user_id: 'user-1',
   metro_area_id: null,
+  primary_industry_id: null,
   name: 'Acme Shared',
   address: '123 Main St',
   latitude: 40.7128,

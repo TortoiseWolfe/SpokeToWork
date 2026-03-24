@@ -32,7 +32,8 @@ export function useMySkills(userId: string | null): UseMySkillsReturn {
       setIsLoading(false);
       return;
     }
-    const { data, error: err } = await createClient()
+     
+    const { data, error: err } = await (createClient() as any)
       .from('user_skills')
       .select('*')
       .eq('user_id', userId)
@@ -40,7 +41,7 @@ export function useMySkills(userId: string | null): UseMySkillsReturn {
     if (err) {
       setError(new Error(err.message));
     } else {
-      setSkills(data as UserSkill[]);
+      setSkills((data ?? []) as UserSkill[]);
     }
     setIsLoading(false);
   }, [userId]);
@@ -53,7 +54,8 @@ export function useMySkills(userId: string | null): UseMySkillsReturn {
     async (skillId: string) => {
       if (!userId) return;
       const isFirst = skills.length === 0;
-      const { error: err } = await createClient()
+       
+      const { error: err } = await (createClient() as any)
         .from('user_skills')
         .insert({ user_id: userId, skill_id: skillId, is_primary: isFirst });
       if (err) throw new Error(err.message);
@@ -65,7 +67,8 @@ export function useMySkills(userId: string | null): UseMySkillsReturn {
   const removeSkill = useCallback(
     async (skillId: string) => {
       if (!userId) return;
-      const { error: err } = await createClient()
+       
+      const { error: err } = await (createClient() as any)
         .from('user_skills')
         .delete()
         .eq('user_id', userId)
@@ -79,7 +82,8 @@ export function useMySkills(userId: string | null): UseMySkillsReturn {
   const setPrimary = useCallback(
     async (skillId: string) => {
       if (!userId) return;
-      const sb = createClient();
+       
+      const sb = createClient() as any;
       // uq_user_skills_primary rejects two primaries — clear current first.
       const { error: clearErr } = await sb
         .from('user_skills')

@@ -128,7 +128,9 @@ export function buildResolver<T extends TaxonomyNode>(
   };
 }
 
-export function buildTree<T extends TaxonomyNode>(rows: T[]): TaxonomyTreeNode<T>[] {
+export function buildTree<T extends TaxonomyNode>(
+  rows: T[]
+): TaxonomyTreeNode<T>[] {
   const nodes = new Map<string, TaxonomyTreeNode<T>>(
     rows.map((r) => [r.id, { node: r, children: [] }])
   );
@@ -196,7 +198,8 @@ export function createTaxonomyHook<T extends TaxonomyNode>(cfg: {
       }
       let cancelled = false;
       (async () => {
-        const { data, error: err } = await createClient()
+         
+        const { data, error: err } = await (createClient() as any)
           .from(cfg.table)
           .select('*')
           .order('sort_order');
@@ -204,7 +207,10 @@ export function createTaxonomyHook<T extends TaxonomyNode>(cfg: {
         if (err) {
           setError(new Error(err.message));
         } else {
-          cache = { rows: (data as any[]).map((r) => toTaxonomyNode<T>(r)), ts: Date.now() };
+          cache = {
+            rows: (data as any[]).map((r) => toTaxonomyNode<T>(r)),
+            ts: Date.now(),
+          };
           setRows(cache.rows);
         }
         setIsLoading(false);
@@ -215,7 +221,11 @@ export function createTaxonomyHook<T extends TaxonomyNode>(cfg: {
     }, []);
 
     const resolve = useMemo(
-      () => buildResolver<T>(rows, { color: cfg.fallbackColor, icon: cfg.fallbackIcon }),
+      () =>
+        buildResolver<T>(rows, {
+          color: cfg.fallbackColor,
+          icon: cfg.fallbackIcon,
+        }),
       [rows]
     );
     const tree = useMemo(() => buildTree<T>(rows), [rows]);

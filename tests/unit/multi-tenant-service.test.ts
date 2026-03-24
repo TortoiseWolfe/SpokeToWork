@@ -46,6 +46,7 @@ const createMockUnifiedCompany = (
   private_company_id: null,
   user_id: 'user-1',
   metro_area_id: 'metro-1',
+  primary_industry_id: null,
   name: 'Test Company',
   website: 'https://test.com',
   careers_url: 'https://test.com/careers',

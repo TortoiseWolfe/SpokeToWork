@@ -22,19 +22,27 @@ export async function getDiscoverableWorkers(
   filters?: WorkerFilters
 ): Promise<DiscoverableWorker[]> {
   const sb = createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const sbAny = sb as any;
 
   let query = sbAny
     .from('user_profiles')
-    .select('id, username, display_name, avatar_url, bio, user_skills!inner(skill_id, is_primary, created_at)');
+    .select(
+      'id, username, display_name, avatar_url, bio, user_skills!inner(skill_id, is_primary, created_at)'
+    );
 
   if (filters?.skill_ids?.length) {
-    const { data: matches, error: rpcError } = await sb.rpc('filter_workers_by_skill', {
-      root_skill_ids: filters.skill_ids,
-    });
+     
+    const { data: matches, error: rpcError } = await (sb as any).rpc(
+      'filter_workers_by_skill',
+      {
+        root_skill_ids: filters.skill_ids,
+      }
+    );
     if (rpcError) throw rpcError;
-    const ids = ((matches ?? []) as { user_id: string }[]).map((m) => m.user_id);
+    const ids = ((matches ?? []) as { user_id: string }[]).map(
+      (m) => m.user_id
+    );
     if (ids.length === 0) return [];
     query = query.in('id', ids);
   }
@@ -53,12 +61,16 @@ export async function getDiscoverableWorkers(
   }));
 }
 
-export async function getWorkerById(id: string): Promise<DiscoverableWorker | null> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getWorkerById(
+  id: string
+): Promise<DiscoverableWorker | null> {
+   
   const sbAny = createClient() as any;
   const { data, error } = await sbAny
     .from('user_profiles')
-    .select('id, username, display_name, avatar_url, bio, user_skills!inner(skill_id, is_primary, created_at)')
+    .select(
+      'id, username, display_name, avatar_url, bio, user_skills!inner(skill_id, is_primary, created_at)'
+    )
     .eq('id', id)
     .maybeSingle();
   if (error) throw error;
