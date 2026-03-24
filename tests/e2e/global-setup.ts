@@ -557,9 +557,172 @@ async function ensureModerationTestData(): Promise<void> {
   }
 }
 
+// ── Fixed UUIDs for public profile seeding ────────────────────────────────
+const SEEDED_COMPANY_ID = 'e2e00000-0000-4000-a000-000000000001';
+const SEEDED_INDUSTRY_ID = '10000000-0000-4000-a000-000000000001'; // Transportation (from migration seed)
+const SEEDED_SKILL_ID = 'a0000000-0000-4000-a000-000000000001'; // Bicycle Mechanic (from migration seed)
+
+/**
+ * Ensure primary test user has role='worker' so AccountSettings
+ * renders Resume/Visibility sections.
+ */
+async function ensureWorkerRole(): Promise<void> {
+  const adminClient = getAdminClient();
+  if (!adminClient) return;
+
+  const testEmail = process.env.TEST_USER_PRIMARY_EMAIL;
+  if (!testEmail) return;
+
+  const { data: users } = await adminClient.auth.admin.listUsers({
+    perPage: 1000,
+  });
+  const testUser = users?.users?.find((u) => u.email === testEmail);
+  if (!testUser) return;
+
+  console.log('👷 Ensuring primary test user has worker role...');
+  await adminClient
+    .from('user_profiles')
+    .update({ role: 'worker' })
+    .eq('id', testUser.id);
+  console.log('✓ Primary test user role set to worker');
+}
+
+/**
+ * Seed a shared company with an industry for company-profile-public E2E tests.
+ * Writes the company UUID to tests/e2e/fixtures/seeded-company-id.json.
+ */
+async function ensurePublicProfileCompany(): Promise<void> {
+  const adminClient = getAdminClient();
+  if (!adminClient) return;
+
+  console.log('🏢 Ensuring public profile company exists...');
+  try {
+    // Ensure a metro area exists
+    const { data: metros } = await adminClient
+      .from('metro_areas')
+      .select('id')
+      .limit(1);
+    let metroId = metros?.[0]?.id;
+    if (!metroId) {
+      const { data: newMetro } = await adminClient
+        .from('metro_areas')
+        .insert({
+          name: 'Portland',
+          state: 'OR',
+          center_lat: 45.52,
+          center_lng: -122.68,
+          radius_miles: 25,
+        })
+        .select('id')
+        .single();
+      metroId = newMetro?.id;
+    }
+
+    // Upsert the shared company
+    await adminClient.from('shared_companies').upsert(
+      {
+        id: SEEDED_COMPANY_ID,
+        name: 'E2E Public Profile Corp',
+        metro_area_id: metroId,
+        is_verified: true,
+      },
+      { onConflict: 'id' }
+    );
+
+    // Link an industry (Transportation — seeded by migration)
+    await adminClient.from('company_industries').upsert(
+      {
+        shared_company_id: SEEDED_COMPANY_ID,
+        industry_id: SEEDED_INDUSTRY_ID,
+        is_primary: true,
+      },
+      { onConflict: 'shared_company_id,industry_id' }
+    );
+
+    // Write fixture
+    const fs = await import('fs');
+    const path = await import('path');
+    const fixturePath = path.join(
+      __dirname,
+      'fixtures',
+      'seeded-company-id.json'
+    );
+    fs.writeFileSync(
+      fixturePath,
+      JSON.stringify({ sharedCompanyId: SEEDED_COMPANY_ID }, null, 2) + '\n'
+    );
+
+    console.log('✓ Public profile company seeded:', SEEDED_COMPANY_ID);
+  } catch (error) {
+    console.warn('⚠ Public profile company seeding warning:', error);
+  }
+}
+
+/**
+ * Seed the primary test user as a discoverable worker with >=1 skill.
+ * Writes the user UUID to tests/e2e/fixtures/seeded-worker-id.json.
+ */
+async function ensureDiscoverableWorker(): Promise<void> {
+  const adminClient = getAdminClient();
+  if (!adminClient) return;
+
+  const testEmail = process.env.TEST_USER_PRIMARY_EMAIL;
+  if (!testEmail) return;
+
+  console.log('🔧 Ensuring discoverable worker exists...');
+  try {
+    const { data: users } = await adminClient.auth.admin.listUsers({
+      perPage: 1000,
+    });
+    const testUser = users?.users?.find((u) => u.email === testEmail);
+    if (!testUser) {
+      console.log(`  ⚠ User ${testEmail} not found`);
+      return;
+    }
+
+    // Ensure user has a display_name (needed for heading to render)
+    const displayName = testEmail.split('@')[0];
+    await adminClient
+      .from('user_profiles')
+      .upsert(
+        { id: testUser.id, username: displayName, display_name: displayName },
+        { onConflict: 'id' }
+      );
+
+    // Ensure at least one skill (Bicycle Mechanic — seeded by migration)
+     
+    await (adminClient as any)
+      .from('user_skills')
+      .upsert(
+        { user_id: testUser.id, skill_id: SEEDED_SKILL_ID, is_primary: true },
+        { onConflict: 'user_id,skill_id' }
+      );
+
+    // Write fixture
+    const fs = await import('fs');
+    const path = await import('path');
+    const fixturePath = path.join(
+      __dirname,
+      'fixtures',
+      'seeded-worker-id.json'
+    );
+    fs.writeFileSync(
+      fixturePath,
+      JSON.stringify({ workerId: testUser.id }, null, 2) + '\n'
+    );
+
+    console.log('✓ Discoverable worker seeded:', testUser.id);
+  } catch (error) {
+    console.warn('⚠ Discoverable worker seeding warning:', error);
+  }
+}
+
 export default async function globalSetup(config: FullConfig): Promise<void> {
   await cleanupOrphanedE2EUsers();
   await ensureAdminUser();
   await ensureTestUserKeys();
   await ensureModerationTestData();
+  await ensureWorkerRole();
+  await ensurePublicProfileCompany();
+  await ensureDiscoverableWorker();
 }
