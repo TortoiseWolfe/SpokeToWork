@@ -464,7 +464,7 @@ test.describe('Friend Request Flow', () => {
   });
 
   test('User A can cancel a sent pending request', async ({ page }) => {
-    test.setTimeout(90000); // webkit login ~45s, need margin for test body
+    test.setTimeout(180000); // login ~45s + up to 10 retries for read replica lag
 
     // Sign in as User A
     await loginAndVerify(page, {
@@ -474,12 +474,12 @@ test.describe('Friend Request Flow', () => {
 
     // Send friend request to User B — multi-attempt for read replica lag
     let cancelSendVisible = false;
-    for (let attempt = 0; attempt < 5; attempt++) {
+    for (let attempt = 0; attempt < 10; attempt++) {
       await page.goto('/messages?tab=connections');
       await dismissCookieBanner(page);
       // Only check encryption setup on first iteration (keys persist in DB)
       if (attempt === 0) await completeEncryptionSetup(page);
-      await dismissReAuthModal(page);
+      await dismissReAuthModal(page, undefined, attempt > 0);
       const searchInput = page.locator('#user-search-input');
       await expect(searchInput).toBeVisible({ timeout: 5000 });
       await searchInput.fill(USER_B.displayName);
@@ -499,13 +499,13 @@ test.describe('Friend Request Flow', () => {
         break;
       }
       console.log(
-        `Send Request not visible (attempt ${attempt + 1}/5), reloading...`
+        `Send Request not visible (attempt ${attempt + 1}/10), waiting for read replica...`
       );
       await page.waitForTimeout(3000);
     }
     if (!cancelSendVisible) {
       throw new Error(
-        '"Send Request" button never appeared after 5 reload attempts'
+        '"Send Request" button never appeared after 10 reload attempts'
       );
     }
     await expect(page.getByText(/friend request sent/i).first()).toBeVisible({

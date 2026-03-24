@@ -66,25 +66,46 @@ async function navigateBothToConversation(
   // useConversationRealtimeSync sets data-messages-subscribed on document.body
   // when the Supabase Realtime channel is ready. Without this, messages sent
   // before the receiver's subscription is active are silently dropped.
-  await Promise.all([
-    page1.waitForSelector(`body[data-messages-subscribed="${convId}"]`, {
-      timeout: 30000,
-    }),
-    page2.waitForSelector(`body[data-messages-subscribed="${convId}"]`, {
-      timeout: 30000,
-    }),
-  ]);
+  // Reload fallback: under Supabase Cloud free-tier contention, the Realtime
+  // channel may never reach SUBSCRIBED within the first attempt.
+  for (const page of [page1, page2]) {
+    const pw = page === page2 ? TEST_USER_2.password : undefined;
+    try {
+      await page.waitForSelector(`body[data-messages-subscribed="${convId}"]`, {
+        timeout: 30000,
+      });
+    } catch {
+      console.log('Subscription readiness timeout — reloading page...');
+      await page.reload();
+      await dismissCookieBanner(page);
+      await completeEncryptionSetup(page, pw);
+      await dismissReAuthModal(page, pw, true);
+      await page.waitForSelector(`body[data-messages-subscribed="${convId}"]`, {
+        timeout: 30000,
+      });
+    }
+  }
 
   if (options?.waitForTypingSubscription) {
     // Additionally wait for typing subscriptions (Broadcast channel).
-    await Promise.all([
-      page1.waitForSelector(`body[data-typing-subscribed="${convId}"]`, {
-        timeout: 30000,
-      }),
-      page2.waitForSelector(`body[data-typing-subscribed="${convId}"]`, {
-        timeout: 30000,
-      }),
-    ]);
+    // Same reload fallback for contention resilience.
+    for (const page of [page1, page2]) {
+      const pw = page === page2 ? TEST_USER_2.password : undefined;
+      try {
+        await page.waitForSelector(`body[data-typing-subscribed="${convId}"]`, {
+          timeout: 30000,
+        });
+      } catch {
+        console.log('Typing subscription timeout — reloading page...');
+        await page.reload();
+        await dismissCookieBanner(page);
+        await completeEncryptionSetup(page, pw);
+        await dismissReAuthModal(page, pw, true);
+        await page.waitForSelector(`body[data-typing-subscribed="${convId}"]`, {
+          timeout: 30000,
+        });
+      }
+    }
   }
 }
 
