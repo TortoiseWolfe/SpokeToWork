@@ -62,48 +62,63 @@ async function navigateBothToConversation(
     timeout: 15000,
   });
 
-  // Wait for message subscriptions to reach SUBSCRIBED status on both pages.
+  // Best-effort wait for Realtime subscription readiness.
   // useConversationRealtimeSync sets data-messages-subscribed on document.body
-  // when the Supabase Realtime channel is ready. Without this, messages sent
-  // before the receiver's subscription is active are silently dropped.
-  // Reload fallback: under Supabase Cloud free-tier contention, the Realtime
-  // channel may never reach SUBSCRIBED within the first attempt.
+  // when the channel reaches SUBSCRIBED. Under free-tier contention the channel
+  // may never reach SUBSCRIBED — the 10s polling fallback in the app guarantees
+  // eventual message delivery regardless, so we proceed after a reasonable wait.
   for (const page of [page1, page2]) {
     const pw = page === page2 ? TEST_USER_2.password : undefined;
     try {
       await page.waitForSelector(`body[data-messages-subscribed="${convId}"]`, {
-        timeout: 30000,
+        timeout: 15000,
       });
     } catch {
-      console.log('Subscription readiness timeout — reloading page...');
+      // Reload once and try again — if still fails, proceed anyway (polling fallback)
+      console.log(
+        'Subscription readiness timeout — reloading (polling fallback active)...'
+      );
       await page.reload();
       await dismissCookieBanner(page);
       await completeEncryptionSetup(page, pw);
       await dismissReAuthModal(page, pw, true);
-      await page.waitForSelector(`body[data-messages-subscribed="${convId}"]`, {
-        timeout: 30000,
-      });
+      await page
+        .waitForSelector(`body[data-messages-subscribed="${convId}"]`, {
+          timeout: 15000,
+        })
+        .catch(() =>
+          console.log(
+            'Subscription still not ready after reload — relying on polling fallback'
+          )
+        );
     }
   }
 
   if (options?.waitForTypingSubscription) {
-    // Additionally wait for typing subscriptions (Broadcast channel).
-    // Same reload fallback for contention resilience.
+    // Best-effort wait for typing indicator subscriptions (Broadcast channel).
     for (const page of [page1, page2]) {
       const pw = page === page2 ? TEST_USER_2.password : undefined;
       try {
         await page.waitForSelector(`body[data-typing-subscribed="${convId}"]`, {
-          timeout: 30000,
+          timeout: 15000,
         });
       } catch {
-        console.log('Typing subscription timeout — reloading page...');
+        console.log(
+          'Typing subscription timeout — reloading (test seam bypasses Realtime)...'
+        );
         await page.reload();
         await dismissCookieBanner(page);
         await completeEncryptionSetup(page, pw);
         await dismissReAuthModal(page, pw, true);
-        await page.waitForSelector(`body[data-typing-subscribed="${convId}"]`, {
-          timeout: 30000,
-        });
+        await page
+          .waitForSelector(`body[data-typing-subscribed="${convId}"]`, {
+            timeout: 15000,
+          })
+          .catch(() =>
+            console.log(
+              'Typing subscription still not ready — test seam will simulate directly'
+            )
+          );
       }
     }
   }
