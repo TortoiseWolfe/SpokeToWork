@@ -414,8 +414,9 @@ async function openConversation(page: Page) {
     await page
       .locator('[data-testid="message-bubble"]')
       .first()
-      .waitFor({ state: 'visible', timeout: 30000 });
+      .waitFor({ state: 'visible', timeout: 45000 });
   } catch {
+    // Reload fallback — 1000-message seed can be slow under CI contention
     await page.reload();
     await dismissCookieBanner(page);
     await completeEncryptionSetup(page);
@@ -713,16 +714,14 @@ test.describe('Scroll Restoration', () => {
 
     const messageThread = page.getByTestId('message-thread');
 
-    // Component lands at the bottom on initial load; scrolling to 0 is
-    // a real position change that fires the scroll event driving pagination.
-    await messageThread.evaluate((el) => {
-      el.scrollTop = 0;
-      el.dispatchEvent(new Event('scroll', { bubbles: true }));
-    });
+    // Component lands at the bottom on initial load; use the robust
+    // scrollToTopAndWait helper that handles re-dispatch and stabilization.
+    await scrollToTopAndWait(page);
 
     const paginationLoader = page.getByTestId('pagination-loader');
-    await expect(paginationLoader).toBeVisible({ timeout: 5000 });
-    await expect(paginationLoader).not.toBeVisible({ timeout: 10000 });
+    // Pagination may take a moment to trigger — use longer timeout under CI contention
+    await expect(paginationLoader).toBeVisible({ timeout: 10000 });
+    await expect(paginationLoader).not.toBeVisible({ timeout: 15000 });
 
     // After older messages are prepended the view must not be pinned to 0
     const scrollTop = await messageThread.evaluate((el) => el.scrollTop);

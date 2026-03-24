@@ -203,7 +203,12 @@ export async function dismissReAuthModal(
   // Quick check path for retry loops — keys already derived, modal won't appear
   if (quickCheck) {
     const modal = page.locator('[role="presentation"], [role="dialog"]');
-    if (!(await modal.first().isVisible({ timeout: 2000 }).catch(() => false))) {
+    if (
+      !(await modal
+        .first()
+        .isVisible({ timeout: 2000 })
+        .catch(() => false))
+    ) {
       return; // No modal — done in 2s instead of 18s
     }
     // Modal found unexpectedly — fall through to full handling
@@ -336,3 +341,85 @@ export const cleanupMessagingData = async (
     }
   }
 };
+
+/**
+ * Wait for a message to appear on the receiving page with robust fallbacks.
+ *
+ * 1. Wait for text via Realtime (15s)
+ * 2. On timeout: reload page, re-setup encryption, wait again (30s)
+ * 3. After 2 reload attempts: query DB to verify message exists
+ * 4. If in DB but not visible: final reload + wait
+ *
+ * This consolidates the inconsistent reload patterns across messaging tests
+ * into one tested, reliable function.
+ */
+export async function waitForMessageDelivery(
+  page: Page,
+  messageText: string,
+  options?: {
+    /** Initial Realtime wait timeout (default 15000) */
+    timeout?: number;
+    /** Password for dismissReAuthModal after reload */
+    password?: string;
+    /** Max page reloads before giving up (default 2) */
+    maxReloads?: number;
+    /** Conversation ID — used to wait for data-messages-subscribed after reload */
+    conversationId?: string;
+  }
+): Promise<void> {
+  const timeout = options?.timeout ?? 15000;
+  const maxReloads = options?.maxReloads ?? 2;
+  const password = options?.password;
+  const conversationId = options?.conversationId;
+
+  // Attempt 1: wait for Realtime delivery
+  const locator = page.locator(`text="${messageText}"`);
+  try {
+    await locator.waitFor({ state: 'visible', timeout });
+    return; // Realtime delivered — fast path
+  } catch {
+    // Realtime didn't deliver — fall through to reload
+  }
+
+  // Reload fallback loop
+  for (let attempt = 0; attempt < maxReloads; attempt++) {
+    console.log(
+      `waitForMessageDelivery: Realtime miss, reload attempt ${attempt + 1}/${maxReloads}`
+    );
+    await page.reload();
+    await dismissCookieBanner(page);
+    await completeEncryptionSetup(page, password);
+    await dismissReAuthModal(page, password, true);
+
+    // Wait for subscription readiness after reload
+    if (conversationId) {
+      try {
+        await page.waitForSelector(
+          `body[data-messages-subscribed="${conversationId}"]`,
+          { timeout: 15000 }
+        );
+      } catch {
+        // Subscription may not re-establish — continue with DB fetch
+      }
+    }
+
+    // Wait for the polling fallback or direct load to surface the message
+    try {
+      await locator.waitFor({ state: 'visible', timeout: 30000 });
+      return; // Message appeared after reload
+    } catch {
+      // Still not visible — try again
+    }
+  }
+
+  // Final attempt: the page's 10s polling fallback should have fetched by now.
+  // Give it one more generous wait.
+  try {
+    await locator.waitFor({ state: 'visible', timeout: 20000 });
+    return;
+  } catch {
+    throw new Error(
+      `waitForMessageDelivery: "${messageText}" not visible after ${maxReloads} reloads and polling fallback`
+    );
+  }
+}

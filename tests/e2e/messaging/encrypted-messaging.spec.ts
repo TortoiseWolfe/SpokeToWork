@@ -18,6 +18,7 @@ import {
   ensureConversation,
   cleanupMessagingData,
   completeEncryptionSetup,
+  waitForMessageDelivery,
   dismissCookieBanner,
   dismissReAuthModal,
 } from './test-helpers';
@@ -178,21 +179,10 @@ test.describe('Encrypted Messaging Flow', () => {
       await dismissReAuthModal(pageB, USER_B.password);
 
       // ===== STEP 7: User B sees the decrypted message =====
-      // Try initial load; if decryption timing causes miss, reload to re-fetch
-      const messageB = pageB.getByText(testMessage);
-      try {
-        await expect(messageB).toBeVisible({ timeout: 15000 });
-      } catch {
-        // Re-navigate — skip completeEncryptionSetup (already done above,
-        // keys are in localStorage). Only quickCheck for ReAuth modal.
-        await pageB.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
-        await pageB.waitForLoadState('domcontentloaded');
-        await dismissCookieBanner(pageB);
-        await dismissReAuthModal(pageB, USER_B.password, true);
-        await expect(pageB.getByText(testMessage)).toBeVisible({
-          timeout: 60000,
-        });
-      }
+      await waitForMessageDelivery(pageB, testMessage, {
+        password: USER_B.password,
+        conversationId: conversationId ?? undefined,
+      });
 
       // ===== STEP 10: Verify User B can reply =====
       const replyMessage = `Reply from User B ${Date.now()}`;
@@ -210,24 +200,10 @@ test.describe('Encrypted Messaging Flow', () => {
       await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
       await dismissCookieBanner(pageA);
       await completeEncryptionSetup(pageA);
-      if (!pageA.url().includes('conversation=')) {
-        await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
-        await dismissCookieBanner(pageA);
-      }
       await dismissReAuthModal(pageA, undefined, true);
-      const replyA = pageA.getByText(replyMessage);
-      try {
-        await expect(replyA).toBeVisible({ timeout: 15000 });
-      } catch {
-        // Re-navigate — skip completeEncryptionSetup (already done, keys cached)
-        await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
-        await pageA.waitForLoadState('domcontentloaded');
-        await dismissCookieBanner(pageA);
-        await dismissReAuthModal(pageA, undefined, true);
-        await expect(pageA.getByText(replyMessage)).toBeVisible({
-          timeout: 60000,
-        });
-      }
+      await waitForMessageDelivery(pageA, replyMessage, {
+        conversationId: conversationId ?? undefined,
+      });
     } finally {
       await contextA.close();
       await contextB.close();

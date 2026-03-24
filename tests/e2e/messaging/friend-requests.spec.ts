@@ -136,6 +136,18 @@ const cleanupConnections = async (): Promise<void> => {
       .eq('addressee_id', userAId);
     if (e1) console.warn('cleanup A→B failed:', e1.message);
     if (e2) console.warn('cleanup B→A failed:', e2.message);
+
+    // Verify deletion propagated to read replica (Supabase Cloud lag can be 5-30s)
+    for (let poll = 0; poll < 10; poll++) {
+      const { data: remaining } = await client
+        .from('user_connections')
+        .select('id')
+        .or(
+          `and(requester_id.eq.${userAId},addressee_id.eq.${userBId}),and(requester_id.eq.${userBId},addressee_id.eq.${userAId})`
+        );
+      if (!remaining || remaining.length === 0) break;
+      await new Promise((r) => setTimeout(r, 2000));
+    }
     console.log('Cleaned up connections between test users');
   }
 };
@@ -219,11 +231,11 @@ test.describe('Friend Request Flow', () => {
         .isVisible({ timeout: 8000 })
         .catch(() => false);
 
-      for (let attempt = 1; !sendBtnVisible && attempt < 8; attempt++) {
+      for (let attempt = 1; !sendBtnVisible && attempt < 10; attempt++) {
         console.log(
-          `Send Request not visible (attempt ${attempt + 1}/8), reloading...`
+          `Send Request not visible (attempt ${attempt + 1}/10), waiting for read replica...`
         );
-        await pageA.waitForTimeout(5000);
+        await pageA.waitForTimeout(3000);
         await pageA.goto('/messages?tab=connections');
         await pageA.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageA);
@@ -247,7 +259,7 @@ test.describe('Friend Request Flow', () => {
       }
       if (!sendBtnVisible) {
         throw new Error(
-          '"Send Request" button never appeared after 8 reload attempts'
+          '"Send Request" button never appeared after 10 reload attempts'
         );
       }
       await sendRequestButton.click({ force: true });
@@ -354,7 +366,7 @@ test.describe('Friend Request Flow', () => {
         .first();
       let sendVisible = false;
 
-      for (let attempt = 0; attempt < 8; attempt++) {
+      for (let attempt = 0; attempt < 10; attempt++) {
         await pageB.goto('/messages?tab=connections');
         await pageB.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageB);
@@ -381,13 +393,13 @@ test.describe('Friend Request Flow', () => {
           .catch(() => false);
         if (sendVisible) break;
         console.log(
-          `Send Request not visible (attempt ${attempt + 1}/8), reloading...`
+          `Send Request not visible (attempt ${attempt + 1}/10), waiting for read replica...`
         );
-        await pageB.waitForTimeout(5000);
+        await pageB.waitForTimeout(3000);
       }
       if (!sendVisible) {
         throw new Error(
-          '"Send Request" button never appeared after 8 reload attempts'
+          '"Send Request" button never appeared after 10 reload attempts'
         );
       }
       await sendReqBtn.click({ force: true });

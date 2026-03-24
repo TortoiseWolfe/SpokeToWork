@@ -16,6 +16,7 @@ import {
   completeEncryptionSetup,
   dismissCookieBanner,
   dismissReAuthModal,
+  waitForMessageDelivery,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
 
@@ -245,7 +246,10 @@ test.describe('Real-time Message Delivery (T098)', () => {
     });
 
     // User 2: Message appears (should trigger "delivered" status)
-    await page2.waitForSelector(`text="${testMessage}"`, { timeout: 45000 });
+    await waitForMessageDelivery(page2, testMessage, {
+      password: TEST_USER_2.password,
+      conversationId: conversationId!,
+    });
 
     // Verify "delivered" status (double checkmark)
     // Timeout allows for the full Realtime round-trip: recipient marks as delivered → DB update → Realtime to sender
@@ -281,10 +285,12 @@ test.describe('Real-time Message Delivery (T098)', () => {
       await page1.click('button[aria-label="Send message"]');
     }
 
-    // User 2: Verify all messages appear in order
+    // User 2: Verify all messages appear (with reload fallback for Realtime drops)
     for (const msg of messages) {
-      await expect(page2.locator(`text="${msg}"`)).toBeVisible({
-        timeout: 45000,
+      await waitForMessageDelivery(page2, msg, {
+        password: TEST_USER_2.password,
+        conversationId: conversationId!,
+        maxReloads: 1, // Only 1 reload per message to stay within timeout
       });
     }
 

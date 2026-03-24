@@ -9,6 +9,7 @@ import {
   completeEncryptionSetup,
   dismissCookieBanner,
   dismissReAuthModal,
+  waitForMessageDelivery,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
 
@@ -516,28 +517,11 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       await pageB.goto('/messages?conversation=' + conversationId);
       await dismissCookieBanner(pageB);
       await completeEncryptionSetup(pageB, USER_B.password);
-      await pageB.waitForLoadState('networkidle');
-      await pageB.waitForTimeout(1000); // Let messaging page mount fully
       await dismissReAuthModal(pageB, USER_B.password);
-      // Reload fallback for Supabase Cloud read replica lag
-      try {
-        await expect(pageB.getByText(testMessage)).toBeVisible({
-          timeout: 15000,
-        });
-      } catch {
-        // Re-navigate with encryption setup + conversation URL preservation
-        await pageB.goto('/messages?conversation=' + conversationId);
-        await dismissCookieBanner(pageB);
-        await completeEncryptionSetup(pageB, USER_B.password);
-        if (!pageB.url().includes('conversation=')) {
-          await pageB.goto('/messages?conversation=' + conversationId);
-          await dismissCookieBanner(pageB);
-        }
-        await dismissReAuthModal(pageB, USER_B.password, true);
-        await expect(pageB.getByText(testMessage)).toBeVisible({
-          timeout: 30000,
-        });
-      }
+      await waitForMessageDelivery(pageB, testMessage, {
+        password: USER_B.password,
+        conversationId: conversationId ?? undefined,
+      });
       console.log('Step 9: Message received');
 
       // STEP 10: User B replies
@@ -559,30 +543,10 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       await pageA.goto('/messages?conversation=' + conversationId);
       await dismissCookieBanner(pageA);
       await completeEncryptionSetup(pageA);
-      if (!pageA.url().includes('conversation=')) {
-        await pageA.goto('/messages?conversation=' + conversationId);
-        await dismissCookieBanner(pageA);
-      }
       await dismissReAuthModal(pageA, undefined, true);
-
-      // Reload fallback for Supabase Cloud read replica lag
-      try {
-        await expect(pageA.getByText(replyMessage)).toBeVisible({
-          timeout: 30000,
-        });
-      } catch {
-        await pageA.goto('/messages?conversation=' + conversationId);
-        await dismissCookieBanner(pageA);
-        await completeEncryptionSetup(pageA);
-        if (!pageA.url().includes('conversation=')) {
-          await pageA.goto('/messages?conversation=' + conversationId);
-          await dismissCookieBanner(pageA);
-        }
-        await dismissReAuthModal(pageA, undefined, true);
-        await expect(pageA.getByText(replyMessage)).toBeVisible({
-          timeout: 30000,
-        });
-      }
+      await waitForMessageDelivery(pageA, replyMessage, {
+        conversationId: conversationId ?? undefined,
+      });
       console.log('Step 11: Reply received');
 
       // STEP 12: Sign out both users

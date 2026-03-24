@@ -313,7 +313,7 @@ test.describe('Offline Message Queue', () => {
       const testStartISO = new Date(timestamp - 60_000).toISOString();
       let messages: { sequence_number: number }[] | null = null;
       if (conversationId) {
-        for (let attempt = 0; attempt < 15; attempt++) {
+        for (let attempt = 0; attempt < 20; attempt++) {
           await pageA.waitForTimeout(3000);
           const { data } = await adminClient
             .from('messages')
@@ -326,7 +326,7 @@ test.describe('Offline Message Queue', () => {
             break;
           }
           console.log(
-            `T149 DB poll attempt ${attempt + 1}/15: found ${data?.length ?? 0} messages`
+            `T149 DB poll attempt ${attempt + 1}/20: found ${data?.length ?? 0} messages`
           );
         }
       }

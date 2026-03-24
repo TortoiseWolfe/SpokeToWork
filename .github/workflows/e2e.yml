@@ -255,16 +255,29 @@ jobs:
           npx wait-on http://localhost:3000 --timeout 60000
 
       - name: Stagger browser shards to reduce Supabase Cloud contention
+        env:
+          MATRIX_SHARD: ${{ matrix.shard }}
+          MATRIX_BROWSER: ${{ matrix.browser }}
         run: |
-          SHARD_NUM=$(echo "${{ matrix.shard }}" | cut -d/ -f1)
-          if [ "${{ matrix.browser }}" = "firefox" ]; then
-            DELAY=$((45 + SHARD_NUM * 10))
+          SHARD_NUM=$(echo "$MATRIX_SHARD" | cut -d/ -f1)
+          # Shard 2 carries the heaviest messaging tests (dual-context, 4+ Realtime channels).
+          # Give it extra time to establish subscriptions before other shards add connections.
+          if [ "$SHARD_NUM" = "2" ]; then
+            SHARD2_EXTRA=30
+          else
+            SHARD2_EXTRA=0
+          fi
+          if [ "$MATRIX_BROWSER" = "firefox" ]; then
+            DELAY=$((45 + SHARD_NUM * 10 + SHARD2_EXTRA))
             echo "Firefox shard $SHARD_NUM: waiting ${DELAY}s (Argon2id ~40s on CI)"
             sleep $DELAY
-          elif [ "${{ matrix.browser }}" = "webkit" ]; then
-            DELAY=$((75 + SHARD_NUM * 10))
+          elif [ "$MATRIX_BROWSER" = "webkit" ]; then
+            DELAY=$((75 + SHARD_NUM * 10 + SHARD2_EXTRA))
             echo "WebKit shard $SHARD_NUM: waiting ${DELAY}s"
             sleep $DELAY
+          elif [ "$SHARD2_EXTRA" -gt 0 ]; then
+            echo "Chromium shard $SHARD_NUM: waiting ${SHARD2_EXTRA}s (messaging-heavy shard)"
+            sleep $SHARD2_EXTRA
           fi
 
       - name: Run E2E tests (shard ${{ matrix.shard }})

@@ -66,7 +66,7 @@ async function findMessageBubble(page: Page, text: string) {
     await expect(byText).toHaveAttribute(
       'data-message-id',
       /^(?!optimistic-)/,
-      { timeout: 30000 }
+      { timeout: 45000 }
     );
   } catch {
     // Realtime confirmation lost — common on webkit where argon2id blocks
@@ -81,7 +81,7 @@ async function findMessageBubble(page: Page, text: string) {
     await expect(byText).toHaveAttribute(
       'data-message-id',
       /^(?!optimistic-)/,
-      { timeout: 30000 }
+      { timeout: 45000 }
     );
   }
 
