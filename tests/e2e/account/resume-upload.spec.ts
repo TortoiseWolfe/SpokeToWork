@@ -25,14 +25,21 @@ test.describe('Account Settings — Resumes & Visibility', () => {
   });
 
   test('visibility radio defaults to Private', async ({ page }) => {
-    // Wait for visibility controls to load
-    await page.waitForLoadState('networkidle');
+    // Wait for Profile Visibility section to render (async visibility fetch)
+    await expect(
+      page.getByRole('heading', { name: 'Profile Visibility' })
+    ).toBeVisible({ timeout: 15000 });
     const privateRadio = page.getByRole('radio', { name: /private/i });
-    await expect(privateRadio).toBeChecked();
+    await expect(privateRadio).toBeChecked({ timeout: 10000 });
   });
 
   test('changes visibility to Applied and persists', async ({ page }) => {
+    // Wait for visibility controls to load before interacting
+    await expect(
+      page.getByRole('heading', { name: 'Profile Visibility' })
+    ).toBeVisible({ timeout: 15000 });
     const appliedRadio = page.getByRole('radio', { name: /applied/i });
+    await expect(appliedRadio).toBeVisible({ timeout: 10000 });
     await appliedRadio.check();
     await expect(appliedRadio).toBeChecked();
 
