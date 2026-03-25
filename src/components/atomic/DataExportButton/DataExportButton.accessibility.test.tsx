@@ -11,6 +11,26 @@ import DataExportButton from './DataExportButton';
 
 expect.extend(toHaveNoViolations);
 
+// Mock Supabase client — required because gdprService imports createClient
+// and vmThreads pool may not hoist the global mock from tests/setup.ts
+vi.mock('@/lib/supabase/client', () => ({
+  createClient: vi.fn(() => ({
+    auth: {
+      getUser: vi.fn(() =>
+        Promise.resolve({ data: { user: { id: 'test-user' } }, error: null })
+      ),
+      getSession: vi.fn(() =>
+        Promise.resolve({ data: { session: null }, error: null })
+      ),
+    },
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ data: [], error: null })),
+      })),
+    })),
+  })),
+}));
+
 // Mock GDPR service using vi.hoisted for proper hoisting
 const { mockExportUserData } = vi.hoisted(() => ({
   mockExportUserData: vi.fn(),
