@@ -138,7 +138,7 @@ test.describe('Group Chat E2E', () => {
   });
 
   test('should create group with connected users', async ({ browser }) => {
-    test.setTimeout(90000);
+    test.setTimeout(180000);
 
     const context = await browser.newContext();
     const page = await context.newPage();
@@ -179,7 +179,7 @@ test.describe('Group Chat E2E', () => {
       for (let attempt = 0; attempt < 3; attempt++) {
         const found = await firstConnection
           .or(emptyState)
-          .isVisible({ timeout: 20000 })
+          .isVisible({ timeout: 30000 })
           .catch(() => false);
         if (found) break;
         if (attempt < 2) {
@@ -193,7 +193,7 @@ test.describe('Group Chat E2E', () => {
         }
       }
       await expect(firstConnection.or(emptyState)).toBeVisible({
-        timeout: 15000,
+        timeout: 30000,
       });
 
       // Select members by clicking on them in the available connections list

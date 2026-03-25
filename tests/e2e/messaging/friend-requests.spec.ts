@@ -634,8 +634,11 @@ test.describe('Accessibility', () => {
 
     // Verify keyboard navigation
     await page.keyboard.press('Tab');
-    const focusedElement = page.locator(':focus').first();
-    await expect(focusedElement).toBeVisible();
+    const activeTag = await page.evaluate(
+      () => document.activeElement?.tagName
+    );
+    expect(activeTag).toBeTruthy();
+    expect(activeTag).not.toBe('BODY');
 
     // Verify ARIA labels on search input
     const searchInput = page.locator('#user-search-input');

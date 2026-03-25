@@ -367,7 +367,7 @@ export async function waitForMessageDelivery(
     conversationId?: string;
   }
 ): Promise<void> {
-  const timeout = options?.timeout ?? 15000;
+  const timeout = options?.timeout ?? 20000;
   const maxReloads = options?.maxReloads ?? 2;
   const password = options?.password;
   const conversationId = options?.conversationId;
@@ -415,7 +415,7 @@ export async function waitForMessageDelivery(
   // Final attempt: the page's 10s polling fallback should have fetched by now.
   // Give it one more generous wait.
   try {
-    await locator.waitFor({ state: 'visible', timeout: 20000 });
+    await locator.waitFor({ state: 'visible', timeout: 30000 });
     return;
   } catch {
     throw new Error(

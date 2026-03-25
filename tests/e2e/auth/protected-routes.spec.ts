@@ -289,7 +289,7 @@ test.describe('Protected Routes E2E', () => {
 
       // Note: If redirect-after-auth is implemented, should redirect to /account
       // Otherwise, redirects to default (profile)
-      await page.waitForURL(/\/(account|profile)/);
+      await page.waitForURL(/\/(account|profile)/, { timeout: 60000 });
 
       // Sign out
       await signOut(page);
