@@ -184,19 +184,57 @@ function MessagesContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadConversationInfo and loadMessages are intentionally excluded to prevent re-fetching when other state changes; they should only run when conversationId/auth state changes (FR-005)
   }, [conversationId, needsReAuth, checkingKeys]);
 
-  // Subscribe to new messages via Realtime (T098)
+  // Subscribe to new messages via Realtime (T098) + polling fallback.
+  // Supabase Realtime on the free tier can silently drop messages under
+  // connection contention. The polling fallback refetches every 10s when
+  // Realtime hasn't delivered recently, guaranteeing eventual delivery.
+  const lastRealtimeEventRef = useRef(0);
   useEffect(() => {
     if (!conversationId || needsReAuth || checkingKeys) return;
 
     const unsubscribe = realtimeService.subscribeToMessages(
       conversationId,
       () => {
-        // Reload messages when a new one arrives from another user
+        lastRealtimeEventRef.current = Date.now();
         loadMessages();
+      },
+      () => {
+        // Reconnection catch-up
+        loadMessages();
+      },
+      () => {
+        // Signal subscription readiness (used by E2E tests)
+        if (typeof document !== 'undefined') {
+          document.body.setAttribute(
+            'data-messages-subscribed',
+            conversationId
+          );
+        }
       }
     );
 
-    return () => unsubscribe();
+    // Polling fallback: refetch every 10s when Realtime is quiet
+    const pollTimer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      if (Date.now() - lastRealtimeEventRef.current < 10_000) return;
+      loadMessages().then(() => {
+        if (typeof document !== 'undefined') {
+          document.body.setAttribute(
+            'data-messages-last-poll',
+            new Date().toISOString()
+          );
+        }
+      });
+    }, 10_000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(pollTimer);
+      if (typeof document !== 'undefined') {
+        document.body.removeAttribute('data-messages-subscribed');
+        document.body.removeAttribute('data-messages-last-poll');
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, needsReAuth, checkingKeys]);
 
@@ -311,9 +349,7 @@ function MessagesContent() {
       } else {
         setMessages((prev) => {
           // Preserve optimistic messages not yet confirmed by server
-          const optimistic = prev.filter((m) =>
-            m.id.startsWith('optimistic-')
-          );
+          const optimistic = prev.filter((m) => m.id.startsWith('optimistic-'));
           if (optimistic.length === 0) return result.messages;
           // Remove optimistic messages whose content already appears in server results
           const serverOwnContent = new Set(
