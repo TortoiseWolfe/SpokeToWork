@@ -389,10 +389,10 @@ export async function waitForMessageDelivery(
     await page.reload();
     await dismissCookieBanner(page);
     await completeEncryptionSetup(page, password);
-    // Use FULL modal handling (not quickCheck) — on Firefox, the ReAuthModal
-    // takes 3-5s to appear after page load. quickCheck (2s) misses it, leaving
-    // needsReAuth=true permanently, which blocks polling/realtime from starting.
-    await dismissReAuthModal(page, password);
+    // On Firefox/WebKit, the ReAuthModal may take 3-5s to appear after page load.
+    // Wait for page to settle before quickCheck so we don't miss the modal.
+    await page.waitForTimeout(3000);
+    await dismissReAuthModal(page, password, true);
 
     // Wait for subscription readiness after reload
     if (conversationId) {
