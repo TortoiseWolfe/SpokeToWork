@@ -1,12 +1,35 @@
 import { test, expect } from '@playwright/test';
+import { createClient } from '@supabase/supabase-js';
 
 /**
  * Account Settings — Resumes & Visibility
  * Requires authenticated session (wired via global-setup.ts fixtures).
+ * Sets role='worker' before each test to ensure resume/visibility sections render.
+ * (employer-team-workflow may change role to 'employer' in a parallel shard.)
  */
 
 test.describe('Account Settings — Resumes & Visibility', () => {
   test.beforeEach(async ({ page }) => {
+    // Ensure user role is 'worker' (may have been changed by employer tests in another shard)
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const email = process.env.TEST_USER_PRIMARY_EMAIL;
+    if (url && key && email) {
+      const admin = createClient(url, key, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      const { data: users } = await admin.auth.admin.listUsers({
+        perPage: 1000,
+      });
+      const user = users?.users?.find((u) => u.email === email);
+      if (user) {
+        await admin
+          .from('user_profiles')
+          .update({ role: 'worker' })
+          .eq('id', user.id);
+      }
+    }
+
     await page.goto('/account');
     await page.waitForLoadState('networkidle');
   });
