@@ -296,11 +296,11 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
         .isVisible({ timeout: 8000 })
         .catch(() => false);
 
-      for (let attempt = 1; !sendBtnVisible && attempt < 8; attempt++) {
+      for (let attempt = 1; !sendBtnVisible && attempt < 10; attempt++) {
         console.log(
-          `Step 4: Send Request not visible (attempt ${attempt + 1}/8), reloading...`
+          `Step 4: Send Request not visible (attempt ${attempt + 1}/10), waiting for read replica...`
         );
-        await pageA.waitForTimeout(5000);
+        await pageA.waitForTimeout(3000);
         await pageA.goto('/messages?tab=connections');
         await pageA.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageA);
@@ -324,7 +324,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       }
       if (!sendBtnVisible) {
         throw new Error(
-          'Step 4: "Send Request" button never appeared after 8 reload attempts'
+          'Step 4: "Send Request" button never appeared after 10 reload attempts'
         );
       }
 
@@ -389,7 +389,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       // the friend request from appearing on User B's received tab.
       console.log('Step 6: User B viewing pending requests...');
       let requestVisible = false;
-      for (let attempt = 0; attempt < 8; attempt++) {
+      for (let attempt = 0; attempt < 10; attempt++) {
         await pageB.goto('/messages?tab=connections');
         await pageB.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageB);
@@ -412,13 +412,13 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
           .catch(() => false);
         if (requestVisible) break;
         console.log(
-          `Step 6: Connection request not visible (attempt ${attempt + 1}/8), reloading...`
+          `Step 6: Connection request not visible (attempt ${attempt + 1}/10), waiting for read replica...`
         );
         await pageB.waitForTimeout(3000);
       }
       if (!requestVisible) {
         throw new Error(
-          'Step 6: Connection request never appeared after 5 reload attempts'
+          'Step 6: Connection request never appeared after 10 reload attempts'
         );
       }
       console.log('Step 6: Pending request visible');
