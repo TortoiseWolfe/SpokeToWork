@@ -504,9 +504,10 @@ test.describe('Virtual Scrolling Performance', () => {
     await expect(jumpButton).toBeVisible();
 
     await jumpButton.click();
-    // Wait for scroll-to-bottom animation to complete before checking visibility
-    await page.waitForTimeout(1000);
-    await expect(jumpButton).not.toBeVisible({ timeout: 15000 });
+    // Wait for scroll-to-bottom animation to complete before checking visibility.
+    // WebKit's smooth scroll can take 2-3s on CI — use generous settle time.
+    await page.waitForTimeout(3000);
+    await expect(jumpButton).not.toBeVisible({ timeout: 30000 });
   });
 
   test('T167: Pagination loads older messages', async ({ page }) => {

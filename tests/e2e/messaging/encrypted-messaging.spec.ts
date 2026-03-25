@@ -131,19 +131,10 @@ test.describe('Encrypted Messaging Flow', () => {
       await expect(sendButton).not.toContainText('Sending', { timeout: 15000 });
 
       // ===== STEP 6: Verify message appears in User A's view =====
-      const messageA = pageA.getByText(testMessage);
-      try {
-        await expect(messageA).toBeVisible({ timeout: 15000 });
-      } catch {
-        // Re-navigate — skip completeEncryptionSetup (already done, keys cached)
-        await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
-        await pageA.waitForLoadState('domcontentloaded');
-        await dismissCookieBanner(pageA);
-        await dismissReAuthModal(pageA, undefined, true);
-        await expect(pageA.getByText(testMessage)).toBeVisible({
-          timeout: 60000,
-        });
-      }
+      await waitForMessageDelivery(pageA, testMessage, {
+        timeout: 20000,
+        conversationId: conversationId ?? undefined,
+      });
 
       // Verify message actually reached the DB (not just optimistic)
       if (adminClient && conversationId) {
