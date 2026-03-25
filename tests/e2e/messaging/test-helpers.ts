@@ -78,6 +78,20 @@ export const ensureConnection = async (
   if (error) {
     console.error('ensureConnection INSERT failed:', error.message);
   }
+
+  // Verify the connection is readable (Supabase Cloud read replica lag can be 5-30s)
+  for (let poll = 0; poll < 10; poll++) {
+    const { data: verified } = await client
+      .from('user_connections')
+      .select('id')
+      .or(
+        `and(requester_id.eq.${idA},addressee_id.eq.${idB}),and(requester_id.eq.${idB},addressee_id.eq.${idA})`
+      )
+      .maybeSingle();
+    if (verified) return;
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  console.warn('ensureConnection: connection not verified after 10 polls');
 };
 
 /**
@@ -144,9 +158,10 @@ export async function completeEncryptionSetup(
         continue;
       }
 
-      // Wait for redirect to /messages (argon2id key derivation can take 10-20s)
+      // Wait for redirect to /messages (argon2id key derivation can take 10-20s
+      // on chromium, up to 90s on Firefox CI runners)
       try {
-        await page.waitForURL(/\/messages(?!\/setup)/, { timeout: 60000 });
+        await page.waitForURL(/\/messages(?!\/setup)/, { timeout: 120000 });
         await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(2000);
         console.log('✓ Encryption setup completed in browser');
