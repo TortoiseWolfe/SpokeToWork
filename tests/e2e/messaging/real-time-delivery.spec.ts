@@ -332,6 +332,11 @@ test.describe('Typing Indicators (T099)', () => {
   // Serial: each test creates 2 browser contexts with Realtime WebSocket connections.
   // Running in parallel doubles peak connection load → subscription timeouts on CI.
   test.describe.configure({ mode: 'serial', timeout: 300000 });
+  // Firefox: Argon2id + Realtime is 2-3x slower under CI contention
+  test.slow(
+    ({ browserName }) => browserName === 'firefox',
+    'Firefox: slow Argon2id + Realtime'
+  );
 
   let context1: BrowserContext;
   let context2: BrowserContext;
