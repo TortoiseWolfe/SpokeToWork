@@ -158,7 +158,7 @@ async function simulateTypingOnPage(
 test.describe('Real-time Message Delivery (T098)', () => {
   // Serial: each test creates 2 browser contexts with Realtime WebSocket connections.
   // Running in parallel doubles peak connection load → subscription timeouts on CI.
-  test.describe.configure({ mode: 'serial', timeout: 180000 });
+  test.describe.configure({ mode: 'serial', timeout: 300000 });
   // Firefox: Argon2id + Realtime WebSocket is 2-3x slower under CI contention
   test.slow(
     ({ browserName }) => browserName === 'firefox',
@@ -278,19 +278,20 @@ test.describe('Real-time Message Delivery (T098)', () => {
     });
 
     // Verify "delivered" status (double checkmark)
-    // Timeout allows for the full Realtime round-trip: recipient marks as delivered → DB update → Realtime to sender
+    // Timeout allows for the full Realtime round-trip: recipient marks as delivered
+    // → DB update → Realtime/polling to sender. Webkit Argon2id eats ~40s of setup.
     await expect(
       messageBubble.locator('[aria-label*="delivered"]')
-    ).toBeVisible({ timeout: 45000 });
+    ).toBeVisible({ timeout: 60000 });
 
     // User 2: Scroll to message (should trigger "read" status)
     const message2 = page2.locator(`text="${testMessage}"`);
     await message2.scrollIntoViewIfNeeded();
 
     // Verify "read" status (double blue checkmark)
-    // Timeout allows for IntersectionObserver debounce (500ms) + Realtime round-trip
+    // Timeout allows for IntersectionObserver debounce (500ms) + Realtime/polling round-trip
     await expect(messageBubble.locator('[aria-label*="read"]')).toBeVisible({
-      timeout: 45000,
+      timeout: 60000,
     });
   });
 
@@ -330,7 +331,7 @@ test.describe('Real-time Message Delivery (T098)', () => {
 test.describe('Typing Indicators (T099)', () => {
   // Serial: each test creates 2 browser contexts with Realtime WebSocket connections.
   // Running in parallel doubles peak connection load → subscription timeouts on CI.
-  test.describe.configure({ mode: 'serial', timeout: 180000 });
+  test.describe.configure({ mode: 'serial', timeout: 300000 });
 
   let context1: BrowserContext;
   let context2: BrowserContext;
