@@ -367,8 +367,16 @@ export const cleanupMessagingData = async (
     .eq('participant_2_id', p2);
 
   if (conversations) {
+    // Only delete messages older than 2 minutes to avoid cross-shard interference.
+    // With 12 parallel shards, another shard's test may have just sent a message
+    // in this conversation. Deleting ALL messages would destroy in-progress test data.
+    const twoMinAgo = new Date(Date.now() - 120_000).toISOString();
     for (const conv of conversations) {
-      await client.from('messages').delete().eq('conversation_id', conv.id);
+      await client
+        .from('messages')
+        .delete()
+        .eq('conversation_id', conv.id)
+        .lt('created_at', twoMinAgo);
     }
   }
 };
