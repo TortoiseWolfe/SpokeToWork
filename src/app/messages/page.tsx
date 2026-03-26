@@ -139,6 +139,7 @@ function MessagesContent() {
         user?.id
       );
       if (restored) {
+        setNeedsReAuth(false);
         setCheckingKeys(false);
       } else {
         // Cache miss — check if user has keys in database
