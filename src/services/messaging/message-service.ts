@@ -293,6 +293,11 @@ export class MessageService {
           queued: false, // Not queued (successful send)
         };
       } catch (sendError) {
+        // Log the actual error so E2E diagnostics can see what failed
+        console.error(
+          '[sendMessage] INSERT failed, queuing offline:',
+          sendError instanceof Error ? sendError.message : sendError
+        );
         // Online but send failed - queue with retry
         const messageId = crypto.randomUUID();
         await offlineQueueService.queueMessage({

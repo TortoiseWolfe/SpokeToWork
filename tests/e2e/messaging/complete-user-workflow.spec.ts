@@ -184,6 +184,19 @@ const createConversation = async (
     return null;
   }
 
+  // Verify conversation is readable on read replica before returning.
+  // Without this, the user's sendMessage INSERT fails silently because
+  // the RLS policy can't find the conversation on the replica.
+  for (let poll = 0; poll < 10; poll++) {
+    const { data: verified } = await client
+      .from('conversations')
+      .select('id')
+      .eq('id', newConvo.id)
+      .maybeSingle();
+    if (verified) return newConvo.id;
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  console.warn('createConversation: not verified on replica after 10 polls');
   return newConvo.id;
 };
 
