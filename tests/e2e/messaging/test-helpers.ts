@@ -128,6 +128,22 @@ export async function completeEncryptionSetup(
       return; // Not on setup page
     }
 
+    // Diagnostic: log WHY we ended up on the setup page
+    const diag = await page.evaluate(() => {
+      const keys = Object.keys(localStorage).filter((k) =>
+        k.startsWith('stw_keys_')
+      );
+      const authKey = Object.keys(localStorage).find((k) =>
+        k.includes('auth-token')
+      );
+      return {
+        url: window.location.href,
+        stwKeysCount: keys.length,
+        stwKeyNames: keys,
+        hasAuthToken: !!authKey,
+      };
+    });
+    console.log('Encryption setup page diagnostic:', JSON.stringify(diag));
     console.log('Detected encryption setup page, completing setup...');
 
     // Retry up to 3 times — first attempt may fail with "must be signed in"
