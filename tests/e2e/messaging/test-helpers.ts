@@ -442,7 +442,23 @@ export async function waitForMessageDelivery(
       await locator.waitFor({ state: 'visible', timeout: 30000 });
       return; // Message appeared after reload
     } catch {
-      // Still not visible — try again
+      // Diagnostic: what IS in the DOM right now?
+      const diag = await page
+        .evaluate(() => {
+          const bubbles = document.querySelectorAll(
+            '[data-testid="message-bubble"]'
+          );
+          const url = window.location.href;
+          const texts = Array.from(bubbles)
+            .slice(-3)
+            .map((b) => b.textContent?.substring(0, 80));
+          return { url, bubbleCount: bubbles.length, lastTexts: texts };
+        })
+        .catch(() => ({ url: 'unknown', bubbleCount: -1, lastTexts: [] }));
+      console.log(
+        `waitForMessageDelivery diagnostic (attempt ${attempt + 1}):`,
+        JSON.stringify(diag)
+      );
     }
   }
 
@@ -452,6 +468,39 @@ export async function waitForMessageDelivery(
     await locator.waitFor({ state: 'visible', timeout: 30000 });
     return;
   } catch {
+    // Final diagnostic before throwing
+    const finalDiag = await page
+      .evaluate(() => {
+        const bubbles = document.querySelectorAll(
+          '[data-testid="message-bubble"]'
+        );
+        const url = window.location.href;
+        const texts = Array.from(bubbles)
+          .slice(-5)
+          .map((b) => b.textContent?.substring(0, 100));
+        const pollAttr =
+          document.body.getAttribute('data-messages-last-poll') || 'none';
+        const subAttr =
+          document.body.getAttribute('data-messages-subscribed') || 'none';
+        return {
+          url,
+          bubbleCount: bubbles.length,
+          lastTexts: texts,
+          lastPoll: pollAttr,
+          subscribed: subAttr,
+        };
+      })
+      .catch(() => ({
+        url: 'unknown',
+        bubbleCount: -1,
+        lastTexts: [],
+        lastPoll: 'error',
+        subscribed: 'error',
+      }));
+    console.log(
+      'waitForMessageDelivery FINAL diagnostic:',
+      JSON.stringify(finalDiag)
+    );
     throw new Error(
       `waitForMessageDelivery: "${messageText}" not visible after ${maxReloads} reloads and polling fallback`
     );
