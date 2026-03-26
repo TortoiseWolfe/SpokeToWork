@@ -509,6 +509,39 @@ export async function waitForMessageDelivery(
       'waitForMessageDelivery FINAL diagnostic:',
       JSON.stringify(finalDiag)
     );
+
+    // DB-level diagnostic: check if any messages exist in this conversation
+    const adminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (adminUrl && adminKey && conversationId) {
+      try {
+        const { createClient: cc } = await import('@supabase/supabase-js');
+        const admin = cc(adminUrl, adminKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        const { data: dbMsgs, error: dbErr } = await admin
+          .from('messages')
+          .select('id, sender_id, created_at')
+          .eq('conversation_id', conversationId)
+          .order('created_at', { ascending: false })
+          .limit(3);
+        console.log(
+          'waitForMessageDelivery DB diagnostic:',
+          JSON.stringify({
+            conversationId,
+            dbMessageCount: dbMsgs?.length ?? -1,
+            dbError: dbErr?.message ?? null,
+            recentMessages: dbMsgs?.map((m) => ({
+              id: m.id.substring(0, 8),
+              age: `${Math.round((Date.now() - new Date(m.created_at).getTime()) / 1000)}s`,
+            })),
+          })
+        );
+      } catch {
+        console.log('waitForMessageDelivery DB diagnostic: query failed');
+      }
+    }
+
     throw new Error(
       `waitForMessageDelivery: "${messageText}" not visible after ${maxReloads} reloads and polling fallback`
     );
