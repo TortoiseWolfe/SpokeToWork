@@ -338,6 +338,21 @@ export const ensureConversation = async (
     console.warn('ensureConversation:', error.message);
     return null;
   }
+
+  // Verify the conversation is readable on the read replica.
+  // Supabase Cloud read-replica lag can delay the INSERT by 5-30s.
+  // Without this, the user's sendMessage INSERT fails silently because
+  // the RLS policy can't find the conversation on the replica.
+  for (let poll = 0; poll < 10; poll++) {
+    const { data: verified } = await client
+      .from('conversations')
+      .select('id')
+      .eq('id', data.id)
+      .maybeSingle();
+    if (verified) return data.id;
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  console.warn('ensureConversation: not verified after 10 polls');
   return data.id;
 };
 
