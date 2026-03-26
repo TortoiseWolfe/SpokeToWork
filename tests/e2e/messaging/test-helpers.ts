@@ -425,19 +425,19 @@ export async function waitForMessageDelivery(
     await page.waitForTimeout(3000);
     await dismissReAuthModal(page, password, true);
 
-    // Wait for subscription readiness after reload
-    if (conversationId) {
-      try {
-        await page.waitForSelector(
-          `body[data-messages-subscribed="${conversationId}"]`,
-          { timeout: 15000 }
-        );
-      } catch {
-        // Subscription may not re-establish — continue with DB fetch
-      }
+    // Wait for at least one successful poll cycle after reload.
+    // data-messages-last-poll proves: keys are ready, loadMessages() ran,
+    // messages were fetched AND decrypted. This is a stronger signal than
+    // data-messages-subscribed (which only means the Realtime channel connected).
+    try {
+      await page.waitForSelector('body[data-messages-last-poll]', {
+        timeout: 20000,
+      });
+    } catch {
+      // Poll hasn't fired yet — continue with message wait
     }
 
-    // Wait for the polling fallback or direct load to surface the message
+    // Wait for the message text to appear (poll should have loaded it)
     try {
       await locator.waitFor({ state: 'visible', timeout: 30000 });
       return; // Message appeared after reload
