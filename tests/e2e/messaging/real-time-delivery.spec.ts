@@ -158,8 +158,10 @@ async function simulateTypingOnPage(
 test.describe('Real-time Message Delivery (T098)', () => {
   // Serial: each test creates 2 browser contexts with Realtime WebSocket connections.
   // Running in parallel doubles peak connection load → subscription timeouts on CI.
-  test.describe.configure({ mode: 'serial', timeout: 300000 });
-  // Firefox: Argon2id + Realtime WebSocket is 2-3x slower under CI contention
+  test.describe.configure({ mode: 'serial' });
+  // Firefox/WebKit: Argon2id + Realtime WebSocket is 2-3x slower under CI contention.
+  // NOTE: timeout is NOT set in describe.configure because it overrides test.slow().
+  // Instead each test uses test.setTimeout() which IS multiplied by test.slow().
   test.slow(
     ({ browserName }) => browserName === 'firefox' || browserName === 'webkit',
     'Firefox/WebKit: slow Argon2id + Realtime on CI'
@@ -331,8 +333,9 @@ test.describe('Real-time Message Delivery (T098)', () => {
 test.describe('Typing Indicators (T099)', () => {
   // Serial: each test creates 2 browser contexts with Realtime WebSocket connections.
   // Running in parallel doubles peak connection load → subscription timeouts on CI.
-  test.describe.configure({ mode: 'serial', timeout: 300000 });
-  // Firefox: Argon2id + Realtime is 2-3x slower under CI contention
+  test.describe.configure({ mode: 'serial' });
+  // Firefox/WebKit: Argon2id + Realtime is 2-3x slower under CI contention.
+  // NOTE: timeout removed from describe.configure — it overrides test.slow().
   test.slow(
     ({ browserName }) => browserName === 'firefox' || browserName === 'webkit',
     'Firefox/WebKit: slow Argon2id + Realtime on CI'

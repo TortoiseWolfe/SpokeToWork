@@ -455,7 +455,8 @@ async function scrollToTopAndWait(page: import('@playwright/test').Page) {
 test.describe('Virtual Scrolling Performance', () => {
   // Serial: tests share a seeded conversation with Realtime subscriptions.
   // Parallel execution causes subscription contention on Supabase Cloud free tier.
-  test.describe.configure({ mode: 'serial', timeout: 180000 });
+  // NOTE: timeout removed from describe.configure — it overrides test.slow().
+  test.describe.configure({ mode: 'serial' });
   test.slow(
     ({ browserName }) => browserName === 'firefox' || browserName === 'webkit',
     'Firefox/WebKit: slow Argon2id + Realtime on CI'
