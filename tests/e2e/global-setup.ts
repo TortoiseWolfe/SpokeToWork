@@ -324,21 +324,10 @@ async function ensureTestUserKeys(): Promise<void> {
         console.log(
           `  ✓ Encryption keys already exist for ${email} — skipping re-seed`
         );
-        // Still clean up old messages to prevent stale test data
-        if (adminClient) {
-          const { data: convos } = await adminClient
-            .from('conversations')
-            .select('id')
-            .or(`participant_1_id.eq.${userId},participant_2_id.eq.${userId}`);
-          if (convos) {
-            for (const c of convos) {
-              await adminClient
-                .from('messages')
-                .delete()
-                .eq('conversation_id', c.id);
-            }
-          }
-        }
+        // DO NOT delete messages here — each test file's beforeAll calls
+        // cleanupMessagingData at the right time. Deleting here causes
+        // cross-shard interference: while shard 2/4 is sending messages,
+        // another shard's global-setup deletes them.
         continue;
       }
 
