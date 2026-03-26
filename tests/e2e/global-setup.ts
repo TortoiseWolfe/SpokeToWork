@@ -304,12 +304,48 @@ async function ensureTestUserKeys(): Promise<void> {
         }
       }
 
-      // 2. Delete existing keys — always recreate to match current ARGON2_CONFIG
-      //    (keys from previous runs may use different Argon2 parameters)
+      // 2. Check if keys already exist — skip delete+recreate if they do.
+      //    Deleting keys while another shard is running causes decryption failures
+      //    ("Encrypted with previous keys") because the public key fetch returns null
+      //    during the brief window between DELETE and INSERT.
+      let hasExistingKeys = false;
+      if (adminClient) {
+        const { data: existingKeys } = await adminClient
+          .from('user_encryption_keys')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('revoked', false)
+          .limit(1)
+          .maybeSingle();
+        hasExistingKeys = !!existingKeys;
+      }
+
+      if (hasExistingKeys) {
+        console.log(
+          `  ✓ Encryption keys already exist for ${email} — skipping re-seed`
+        );
+        // Still clean up old messages to prevent stale test data
+        if (adminClient) {
+          const { data: convos } = await adminClient
+            .from('conversations')
+            .select('id')
+            .or(`participant_1_id.eq.${userId},participant_2_id.eq.${userId}`);
+          if (convos) {
+            for (const c of convos) {
+              await adminClient
+                .from('messages')
+                .delete()
+                .eq('conversation_id', c.id);
+            }
+          }
+        }
+        continue;
+      }
+
+      // Keys don't exist — full delete + recreate
       await executeSQL(
         `DELETE FROM user_encryption_keys WHERE user_id = '${userId}'`
       );
-      // Fallback: admin client delete if executeSQL silently failed (no access token)
       if (adminClient) {
         await adminClient
           .from('user_encryption_keys')
@@ -317,10 +353,7 @@ async function ensureTestUserKeys(): Promise<void> {
           .eq('user_id', userId);
       }
 
-      // 2b. Delete ALL messages in conversations involving this user.
-      //     When keys are regenerated, ALL old messages become undecryptable
-      //     (both sent AND received). The page shows "Encrypted with previous
-      //     keys" for dozens of old messages, hiding the actual test message.
+      // Delete ALL messages (old keys can't decrypt them)
       await executeSQL(`
         DELETE FROM messages WHERE conversation_id IN (
           SELECT id FROM conversations
@@ -328,32 +361,17 @@ async function ensureTestUserKeys(): Promise<void> {
         )
       `);
       if (adminClient) {
-        // First pass: delete all messages sent BY this user
-        const { error: senderErr } = await adminClient
-          .from('messages')
-          .delete()
-          .eq('sender_id', userId);
-        if (senderErr) {
-          console.warn(`  ⚠ sender_id delete failed: ${senderErr.message}`);
-        }
-
-        // Second pass: delete all messages in conversations involving this user
-        // (catches messages sent TO this user by other users/admin)
+        await adminClient.from('messages').delete().eq('sender_id', userId);
         const { data: convos } = await adminClient
           .from('conversations')
           .select('id')
           .or(`participant_1_id.eq.${userId},participant_2_id.eq.${userId}`);
         if (convos) {
           for (const c of convos) {
-            const { error: convErr } = await adminClient
+            await adminClient
               .from('messages')
               .delete()
               .eq('conversation_id', c.id);
-            if (convErr) {
-              console.warn(
-                `  ⚠ conversation ${c.id} message delete failed: ${convErr.message}`
-              );
-            }
           }
           console.log(
             `  ✓ Deleted messages from ${convos.length} conversations for ${email}`
@@ -690,7 +708,7 @@ async function ensureDiscoverableWorker(): Promise<void> {
       );
 
     // Ensure at least one skill (Bicycle Mechanic — seeded by migration)
-     
+
     await (adminClient as any)
       .from('user_skills')
       .upsert(
