@@ -125,30 +125,35 @@ function MessagesContent() {
   // Check if encryption keys are available on mount
   useEffect(() => {
     const checkKeys = async () => {
-      // First check if user has keys stored in database
-      const hasStoredKeys = await keyManagementService.hasKeys();
-
-      if (!hasStoredKeys) {
-        // No keys at all - redirect to setup page (full page for password manager)
-        router.push('/messages/setup');
-        return;
-      }
-
       // Get current user ID for per-user key cache lookup
       const supabase = (await import('@/lib/supabase/client')).createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      // Try restoring from localStorage cache (per-user, avoids argon2id)
+      // Try restoring from localStorage cache first (avoids Argon2id entirely).
+      // This is checked BEFORE hasKeys() because the DB query can fail under
+      // Supabase Cloud read-replica lag, causing a false redirect to /messages/setup
+      // which triggers Argon2id and crashes Firefox on CI.
       const restored = await keyManagementService.restoreKeysFromSession(
         user?.id
       );
-      if (!restored) {
-        // Keys not in memory or cache — need to unlock via password
+      if (restored) {
+        setCheckingKeys(false);
+      } else {
+        // Cache miss — check if user has keys in database
+        const hasStoredKeys = await keyManagementService.hasKeys();
+
+        if (!hasStoredKeys) {
+          // No keys at all - redirect to setup page (full page for password manager)
+          router.push('/messages/setup');
+          return;
+        }
+
+        // Keys exist in DB but not in cache — need to unlock via password
         setNeedsReAuth(true);
+        setCheckingKeys(false);
       }
-      setCheckingKeys(false);
 
       // Check for post-setup toast
       if (typeof sessionStorage !== 'undefined') {
