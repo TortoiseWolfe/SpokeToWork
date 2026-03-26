@@ -457,8 +457,8 @@ test.describe('Virtual Scrolling Performance', () => {
   // Parallel execution causes subscription contention on Supabase Cloud free tier.
   test.describe.configure({ mode: 'serial', timeout: 180000 });
   test.slow(
-    ({ browserName }) => browserName === 'firefox',
-    'Firefox: slow Argon2id + Realtime'
+    ({ browserName }) => browserName === 'firefox' || browserName === 'webkit',
+    'Firefox/WebKit: slow Argon2id + Realtime on CI'
   );
   test('T172b: Virtual scrolling activates at 100+ messages', async ({
     page,

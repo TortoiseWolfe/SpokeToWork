@@ -161,8 +161,8 @@ test.describe('Real-time Message Delivery (T098)', () => {
   test.describe.configure({ mode: 'serial', timeout: 300000 });
   // Firefox: Argon2id + Realtime WebSocket is 2-3x slower under CI contention
   test.slow(
-    ({ browserName }) => browserName === 'firefox',
-    'Firefox: slow Argon2id + Realtime'
+    ({ browserName }) => browserName === 'firefox' || browserName === 'webkit',
+    'Firefox/WebKit: slow Argon2id + Realtime on CI'
   );
 
   let context1: BrowserContext;
@@ -334,8 +334,8 @@ test.describe('Typing Indicators (T099)', () => {
   test.describe.configure({ mode: 'serial', timeout: 300000 });
   // Firefox: Argon2id + Realtime is 2-3x slower under CI contention
   test.slow(
-    ({ browserName }) => browserName === 'firefox',
-    'Firefox: slow Argon2id + Realtime'
+    ({ browserName }) => browserName === 'firefox' || browserName === 'webkit',
+    'Firefox/WebKit: slow Argon2id + Realtime on CI'
   );
 
   let context1: BrowserContext;

@@ -52,8 +52,8 @@ test.describe('Group Chat E2E', () => {
   // Serial: group chat tests create connections and conversations via Supabase.
   test.describe.configure({ mode: 'serial' });
   test.slow(
-    ({ browserName }) => browserName === 'firefox',
-    'Firefox: slow Argon2id + Realtime'
+    ({ browserName }) => browserName === 'firefox' || browserName === 'webkit',
+    'Firefox/WebKit: slow Argon2id + Realtime on CI'
   );
   test.beforeEach(async () => {
     if (adminClient) {

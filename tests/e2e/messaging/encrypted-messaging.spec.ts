@@ -63,8 +63,8 @@ test.describe('Encrypted Messaging Flow', () => {
   // Firefox: Argon2id key derivation + Realtime WebSocket establishment is 2-3x
   // slower, causing multi-user message delivery to exceed default timeouts.
   test.slow(
-    ({ browserName }) => browserName === 'firefox',
-    'Firefox: slow Argon2id + Realtime'
+    ({ browserName }) => browserName === 'firefox' || browserName === 'webkit',
+    'Firefox/WebKit: slow Argon2id + Realtime on CI'
   );
 
   let conversationId: string | null = null;

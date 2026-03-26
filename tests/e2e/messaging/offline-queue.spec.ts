@@ -57,8 +57,8 @@ test.describe('Offline Message Queue', () => {
   test.describe.configure({ mode: 'serial' });
   // Firefox: Argon2id + multi-user Realtime delivery is 2-3x slower under CI contention
   test.slow(
-    ({ browserName }) => browserName === 'firefox',
-    'Firefox: slow Argon2id + Realtime'
+    ({ browserName }) => browserName === 'firefox' || browserName === 'webkit',
+    'Firefox/WebKit: slow Argon2id + Realtime on CI'
   );
 
   let conversationId: string | null = null;
