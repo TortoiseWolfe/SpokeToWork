@@ -86,9 +86,7 @@ export class MessageService {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session?.user) {
-        throw new AuthenticationError(
-          'You must be signed in to send messages'
-        );
+        throw new AuthenticationError('You must be signed in to send messages');
       }
 
       const messageId = crypto.randomUUID();
@@ -549,27 +547,62 @@ export class MessageService {
 
       logger.debug('Keys available in memory', { userId: user.id });
 
-      // Get other participant's public key
+      // Get other participant's public key (retry for read-replica lag)
       logger.debug('Fetching public key for other user', {
         otherParticipantId,
       });
-      const otherPublicKey =
+      let otherPublicKey =
         await keyManagementService.getUserPublicKey(otherParticipantId);
+
+      // Supabase Cloud read replicas can lag 5-30s after key creation.
+      // Retry with exponential backoff instead of returning empty array.
+      if (!otherPublicKey) {
+        for (let retryAttempt = 0; retryAttempt < 3; retryAttempt++) {
+          const delay = (retryAttempt + 1) * 1000;
+          logger.debug(
+            `Public key not found, retry ${retryAttempt + 1}/3 in ${delay}ms`
+          );
+          await new Promise((r) => setTimeout(r, delay));
+          otherPublicKey =
+            await keyManagementService.getUserPublicKey(otherParticipantId);
+          if (otherPublicKey) break;
+        }
+      }
+
       logger.debug('Other user public key', {
         status: otherPublicKey ? 'FOUND' : 'MISSING',
       });
 
       if (!otherPublicKey) {
-        // Cannot decrypt messages without other user's public key
-        // This shouldn't happen if messages exist, but handle gracefully
+        // Still no key after retries — return placeholder messages instead of
+        // empty array. This preserves the message list in the UI and prevents
+        // the polling fallback from silently losing all messages.
         logger.error(
-          'CRITICAL: Cannot decrypt - other user has no public key',
+          'Cannot decrypt - other user has no public key after retries',
           { otherParticipantId }
         );
+        const nextCursor =
+          messagesToDecrypt.length > 0
+            ? messagesToDecrypt[messagesToDecrypt.length - 1].sequence_number
+            : null;
         return {
-          messages: [],
-          has_more: false,
-          cursor: null,
+          messages: messagesToDecrypt.map((msg) => ({
+            id: msg.id,
+            conversation_id: msg.conversation_id,
+            sender_id: msg.sender_id,
+            content: 'Unable to decrypt — sender keys unavailable',
+            sequence_number: msg.sequence_number,
+            deleted: msg.deleted,
+            edited: msg.edited,
+            edited_at: msg.edited_at,
+            delivered_at: msg.delivered_at,
+            read_at: msg.read_at,
+            created_at: msg.created_at,
+            isOwn: msg.sender_id === user.id,
+            senderName: 'Unknown',
+          })),
+          has_more: hasMore,
+          cursor: nextCursor,
         };
       }
 
