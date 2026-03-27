@@ -25,24 +25,60 @@ import { loginAndVerify } from '../utils/auth-helpers';
 const AUTH_FILE = path.resolve('tests/e2e/fixtures/storage-state-auth.json');
 
 /**
- * Inject pre-derived encryption keys from storageState into a page's localStorage.
- * This avoids running Argon2id from scratch (60-90s on Firefox/WebKit CI).
+ * Inject pre-derived encryption keys from storageState into a page's localStorage,
+ * aliased to the page's actual logged-in userId.
+ *
+ * auth.setup.ts derives keys as stw_keys_<userId> but the userId may differ between
+ * the setup run and the test run (e.g. user recreated). This function:
+ * 1. Reads all stw_keys_* from the storage state file
+ * 2. Gets the actual userId from the page's Supabase auth session
+ * 3. If no key matches the current userId, copies the first available key under
+ *    the correct stw_keys_<actualUserId> name so restoreKeysFromSession() finds it.
  */
 async function injectEncryptionKeys(page: Page): Promise<void> {
   try {
     if (!fs.existsSync(AUTH_FILE)) return;
     const state = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
-    const entries = state.origins?.[0]?.localStorage?.filter(
+    const entries: { name: string; value: string }[] = state.origins?.[0]?.localStorage?.filter(
       (item: { name: string }) => item.name.startsWith('stw_keys_')
     ) || [];
     if (entries.length === 0) return;
+
+    // Inject all cached keys first
     await page.evaluate((keys: { name: string; value: string }[]) => {
       for (const { name, value } of keys) {
         localStorage.setItem(name, value);
       }
     }, entries);
-  } catch {
-    // Non-fatal — test will fall back to Argon2id setup
+
+    // Now get the actual userId and ensure a key exists for it
+    const aliased = await page.evaluate((keyEntries: { name: string; value: string }[]) => {
+      // Read userId from Supabase auth token in localStorage
+      const authEntry = Object.keys(localStorage).find(k => k.includes('auth-token'));
+      if (!authEntry) return { userId: null, had: false, aliased: false };
+      try {
+        const token = JSON.parse(localStorage.getItem(authEntry)!);
+        const userId = token?.user?.id || token?.currentSession?.user?.id;
+        if (!userId) return { userId: null, had: false, aliased: false };
+
+        const targetKey = `stw_keys_${userId}`;
+        if (localStorage.getItem(targetKey)) {
+          return { userId, had: true, aliased: false };
+        }
+
+        // No key for this userId — alias the first available key
+        if (keyEntries.length > 0) {
+          localStorage.setItem(targetKey, keyEntries[0].value);
+          return { userId, had: false, aliased: true };
+        }
+        return { userId, had: false, aliased: false };
+      } catch {
+        return { userId: null, had: false, aliased: false };
+      }
+    }, entries);
+    console.log(`injectEncryptionKeys: userId=${aliased.userId}, had=${aliased.had}, aliased=${aliased.aliased}`);
+  } catch (e) {
+    console.log('injectEncryptionKeys failed (non-fatal):', e);
   }
 }
 
