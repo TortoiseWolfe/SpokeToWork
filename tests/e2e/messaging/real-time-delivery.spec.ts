@@ -7,6 +7,8 @@
  */
 
 import { test, expect, Page, BrowserContext } from '@playwright/test';
+import * as fs from 'fs';
+import * as path from 'path';
 import {
   getAdminClient,
   getUserIdByEmail,
@@ -19,6 +21,30 @@ import {
   waitForMessageDelivery,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
+
+const AUTH_FILE = path.resolve('tests/e2e/fixtures/storage-state-auth.json');
+
+/**
+ * Inject pre-derived encryption keys from storageState into a page's localStorage.
+ * This avoids running Argon2id from scratch (60-90s on Firefox/WebKit CI).
+ */
+async function injectEncryptionKeys(page: Page): Promise<void> {
+  try {
+    if (!fs.existsSync(AUTH_FILE)) return;
+    const state = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
+    const entries = state.origins?.[0]?.localStorage?.filter(
+      (item: { name: string }) => item.name.startsWith('stw_keys_')
+    ) || [];
+    if (entries.length === 0) return;
+    await page.evaluate((keys: { name: string; value: string }[]) => {
+      for (const { name, value } of keys) {
+        localStorage.setItem(name, value);
+      }
+    }, entries);
+  } catch {
+    // Non-fatal — test will fall back to Argon2id setup
+  }
+}
 
 const adminClient = getAdminClient();
 
@@ -218,6 +244,11 @@ test.describe('Real-time Message Delivery (T098)', () => {
         password: TEST_USER_2.password,
       }),
     ]);
+
+    // Inject pre-derived encryption keys into both pages' localStorage.
+    // This avoids running Argon2id from scratch (60-90s per user on Firefox/WebKit CI).
+    // Keys were derived by auth.setup.ts and saved to storage-state-auth.json.
+    await Promise.all([injectEncryptionKeys(page1), injectEncryptionKeys(page2)]);
   });
 
   test.afterEach(async () => {
@@ -226,8 +257,6 @@ test.describe('Real-time Message Delivery (T098)', () => {
   });
 
   test('should deliver message in <500ms between two windows', async () => {
-    // beforeEach runs 2× serial loginAndVerify + navigateBothToConversation runs 2× encryption setup.
-    // On Firefox/WebKit under CI contention this can exceed 3 minutes total.
     test.setTimeout(180_000);
     expect(conversationId).not.toBeNull();
     await navigateBothToConversation(page1, page2, conversationId!);
@@ -384,6 +413,9 @@ test.describe('Typing Indicators (T099)', () => {
         password: TEST_USER_2.password,
       }),
     ]);
+
+    // Inject pre-derived encryption keys (avoids 60-90s Argon2id per user on CI)
+    await Promise.all([injectEncryptionKeys(page1), injectEncryptionKeys(page2)]);
   });
 
   test.afterEach(async () => {

@@ -700,7 +700,9 @@ test.describe('Test Idempotency Verification', () => {
       const { data: connections } = await client
         .from('user_connections')
         .select('id')
-        .or('requester_id.eq.' + userAId + ',addressee_id.eq.' + userBId);
+        .or(
+          `and(requester_id.eq.${userAId},addressee_id.eq.${userBId}),and(requester_id.eq.${userBId},addressee_id.eq.${userAId})`
+        );
 
       expect(connections?.length || 0).toBe(0);
       console.log('Idempotency verified');
