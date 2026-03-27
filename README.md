@@ -1,3 +1,76 @@
+```
+/loop Fix SpokeToWork E2E tests until ALL 12 shards pass. Current state: 8/12 green, 4 failing (firefox-1/4, firefox-2/4, chromium-2/4, webkit-2/4), ~15 failures + 13 flaky.
+
+METHODOLOGY (follow strictly, no guessing):
+
+1. PULL LOGS:
+   gh run list --limit 1 --workflow e2e.yml
+   If in_progress → report and wait.
+   If completed → gh run view <ID> 2>&1 | grep -E "(✓|X) E2E"
+   If all 12 green → DONE, celebrate.
+
+2. GET FAILURE DETAILS (for each failing shard):
+   gh api repos/TortoiseWolfe/SpokeToWork/actions/jobs/<JOB_ID>/logs 2>&1 | grep -oP "\d+ failed|\d+ passed" | tail -2
+   For EVERY unique failing test, get the EXACT error:
+   gh api repos/TortoiseWolfe/SpokeToWork/actions/jobs/<JOB_ID>/logs 2>&1 | grep -A8 "  N) \[" | head -12
+
+3. CODE REVIEW (mandatory before ANY fix):
+   a. Read the PRODUCTION code that the test exercises:
+      - Trace: component → hook → service → Supabase query
+      - Read the ACTUAL function signatures, not what you think they are
+      - Check what data stores are used (memory? localStorage? IndexedDB? Supabase?)
+   b. Read the TEST code end-to-end:
+      - beforeAll/beforeEach: what data does it create? what does it clean up?
+      - The failing assertion: what EXACTLY does it check? what locator/selector?
+      - afterAll/afterEach: does cleanup delete data other tests need?
+   c. Read the TEST HELPER functions:
+      - handleReAuthModal, signIn, navigateToConversation, sendMessage
+      - What do they wait for? What timeouts? What can silently fail?
+   d. Check the E2E INFRASTRUCTURE:
+      - playwright.config.ts: workers, timeouts, fullyParallel, storageState
+      - auth.setup.ts: what keys/connections/conversations does it create?
+      - e2e.yml: what env vars, what stagger delays, what server?
+
+4. DIAGNOSE (write it down before coding):
+   - "Test X fails because [specific reason]"
+   - "The production code does [this] but the test expects [that]"
+   - "The data is missing because [specific mechanism]"
+   If you can't write a specific diagnosis, you haven't read enough code.
+
+5. CRITICAL CONTEXT (from previous sessions):
+   - Root cause: Supabase Cloud read-replica lag — conversations created by admin client
+     aren't visible to test users fast enough. sendMessage() INSERT silently blocked by RLS
+     policy "Users can send messages to own conversations" when replica hasn't replicated yet.
+   - Encryption has TWO key stores: keyManagementService (memory + localStorage sh_keys_*) AND encryptionService (IndexedDB/Dexie)
+   - Playwright storageState captures localStorage but NOT IndexedDB
+   - sendMessage() → encrypt() → getPrivateKey() reads IndexedDB → returns null → silent encryption failure
+   - restoreKeysFromCache() was updated to populate IndexedDB via storePrivateKey() — verify it actually works
+   - The useConversationRealtime hook decrypts messages using encryptionService which needs IndexedDB keys
+   - auth.setup.ts creates keys for 3 users (primary, secondary, tertiary)
+   - fullyParallel: false on CI, 2 workers, domcontentloaded, chatsTab.waitFor(30s)
+   - Key files: src/services/messaging/key-service.ts, src/lib/messaging/encryption.ts,
+     src/lib/messaging/database.ts, src/hooks/useConversationRealtime.ts
+   - real-time-delivery.spec.ts: "Target page, context or browser has been closed" in navigateBothToConversation()
+   - complete-user-workflow.spec.ts: "Friend request already sent or received" — stale state from prior runs
+   - friend-requests.spec.ts: "Send Request" button never appears after 10 reloads
+   - complete-flows.spec.ts: Account deletion test — user doesn't exist before deletion starts
+
+6. FIX (only after diagnosis):
+   - Docker must be running: docker compose exec spoketowork echo alive
+   - Type check: docker compose exec spoketowork pnpm run type-check
+   - Unit test: docker compose exec spoketowork pnpm test
+   - Commit via Docker with descriptive message explaining the ROOT CAUSE
+   - Push with 10min timeout, verify new CI run starts
+
+RULES:
+- NEVER skip or ignore tests
+- NEVER guess — read code and logs first
+- NEVER increase timeouts without fixing the underlying issue
+- If the same fix doesn't work twice, the diagnosis is WRONG — stop and re-investigate from scratch
+- If you've tried 3+ fixes for the same test, you're missing something fundamental — do a deeper code review
+- Track: what failed, what the actual error was, what you changed, whether it helped
+```
+
 # SpokeToWork - Job Hunting by Bicycle
 
 Track companies, plan bicycle routes, find work locally.
