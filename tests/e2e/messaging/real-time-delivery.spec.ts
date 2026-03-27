@@ -207,15 +207,17 @@ test.describe('Real-time Message Delivery (T098)', () => {
     page1 = await context1.newPage();
     page2 = await context2.newPage();
 
-    // Sign in both users
-    await loginAndVerify(page1, {
-      email: TEST_USER_1.email,
-      password: TEST_USER_1.password,
-    });
-    await loginAndVerify(page2, {
-      email: TEST_USER_2.email,
-      password: TEST_USER_2.password,
-    });
+    // Sign in both users in parallel (separate contexts, no shared state)
+    await Promise.all([
+      loginAndVerify(page1, {
+        email: TEST_USER_1.email,
+        password: TEST_USER_1.password,
+      }),
+      loginAndVerify(page2, {
+        email: TEST_USER_2.email,
+        password: TEST_USER_2.password,
+      }),
+    ]);
   });
 
   test.afterEach(async () => {
@@ -371,15 +373,17 @@ test.describe('Typing Indicators (T099)', () => {
     page1 = await context1.newPage();
     page2 = await context2.newPage();
 
-    // Sign in both users
-    await loginAndVerify(page1, {
-      email: TEST_USER_1.email,
-      password: TEST_USER_1.password,
-    });
-    await loginAndVerify(page2, {
-      email: TEST_USER_2.email,
-      password: TEST_USER_2.password,
-    });
+    // Sign in both users in parallel (separate contexts, no shared state)
+    await Promise.all([
+      loginAndVerify(page1, {
+        email: TEST_USER_1.email,
+        password: TEST_USER_1.password,
+      }),
+      loginAndVerify(page2, {
+        email: TEST_USER_2.email,
+        password: TEST_USER_2.password,
+      }),
+    ]);
   });
 
   test.afterEach(async () => {
