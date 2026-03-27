@@ -70,23 +70,57 @@ async function navigateBothToConversation(
   convId: string,
   options?: { waitForTypingSubscription?: boolean }
 ): Promise<void> {
-  await page1.goto(`/messages?conversation=${convId}`);
-  await dismissCookieBanner(page1);
-  await completeEncryptionSetup(page1);
-  await dismissReAuthModal(page1);
+  const t0 = Date.now();
+  const elapsed = () => `${((Date.now() - t0) / 1000).toFixed(1)}s`;
 
+  // Diagnostic: check localStorage keys before navigation
+  for (const [label, page] of [['page1', page1], ['page2', page2]] as const) {
+    const diag = await page.evaluate(() => ({
+      url: window.location.href,
+      stwKeys: Object.keys(localStorage).filter(k => k.startsWith('stw_keys_')),
+    }));
+    console.log(`[${elapsed()}] ${label} pre-nav: url=${diag.url}, stwKeys=${JSON.stringify(diag.stwKeys)}`);
+  }
+
+  console.log(`[${elapsed()}] page1.goto /messages`);
+  await page1.goto(`/messages?conversation=${convId}`);
+  console.log(`[${elapsed()}] page1 dismissCookieBanner`);
+  await dismissCookieBanner(page1);
+
+  // Diagnostic: check if page redirected to /messages/setup
+  const p1Url = page1.url();
+  console.log(`[${elapsed()}] page1 after goto: url=${p1Url}`);
+
+  console.log(`[${elapsed()}] page1 completeEncryptionSetup`);
+  await completeEncryptionSetup(page1);
+  console.log(`[${elapsed()}] page1 dismissReAuthModal`);
+  await dismissReAuthModal(page1);
+  console.log(`[${elapsed()}] page1 setup done, url=${page1.url()}`);
+
+  console.log(`[${elapsed()}] page2.goto /messages`);
   await page2.goto(`/messages?conversation=${convId}`);
+  console.log(`[${elapsed()}] page2 dismissCookieBanner`);
   await dismissCookieBanner(page2);
+
+  const p2Url = page2.url();
+  console.log(`[${elapsed()}] page2 after goto: url=${p2Url}`);
+
+  console.log(`[${elapsed()}] page2 completeEncryptionSetup`);
   await completeEncryptionSetup(page2, TEST_USER_2.password);
+  console.log(`[${elapsed()}] page2 dismissReAuthModal`);
   await dismissReAuthModal(page2, TEST_USER_2.password);
+  console.log(`[${elapsed()}] page2 setup done, url=${page2.url()}`);
 
   // Wait for messaging UI ready on both pages
+  console.log(`[${elapsed()}] waiting for textarea on page1`);
   await page1.waitForSelector('textarea[placeholder*="Type"]', {
     timeout: 15000,
   });
+  console.log(`[${elapsed()}] waiting for textarea on page2`);
   await page2.waitForSelector('textarea[placeholder*="Type"]', {
     timeout: 15000,
   });
+  console.log(`[${elapsed()}] both textareas found`);
 
   // Best-effort wait for Realtime subscription readiness.
   // useConversationRealtimeSync sets data-messages-subscribed on document.body
@@ -217,13 +251,19 @@ test.describe('Real-time Message Delivery (T098)', () => {
     );
 
     // Seed connection + conversation so messaging UI has data
+    const t0 = Date.now();
+    const elapsed = () => `${((Date.now() - t0) / 1000).toFixed(1)}s`;
+
     if (adminClient) {
+      console.log(`[beforeEach ${elapsed()}] ensureConnection`);
       await ensureConnection(adminClient, TEST_USER_1.email, TEST_USER_2.email);
+      console.log(`[beforeEach ${elapsed()}] ensureConversation`);
       conversationId = await ensureConversation(
         adminClient,
         TEST_USER_1.email,
         TEST_USER_2.email
       );
+      console.log(`[beforeEach ${elapsed()}] conversation=${conversationId}`);
     }
 
     // Create two separate browser contexts (simulates two users)
@@ -234,6 +274,7 @@ test.describe('Real-time Message Delivery (T098)', () => {
     page2 = await context2.newPage();
 
     // Sign in both users in parallel (separate contexts, no shared state)
+    console.log(`[beforeEach ${elapsed()}] loginAndVerify (parallel)`);
     await Promise.all([
       loginAndVerify(page1, {
         email: TEST_USER_1.email,
@@ -244,11 +285,13 @@ test.describe('Real-time Message Delivery (T098)', () => {
         password: TEST_USER_2.password,
       }),
     ]);
+    console.log(`[beforeEach ${elapsed()}] logins done`);
 
     // Inject pre-derived encryption keys into both pages' localStorage.
     // This avoids running Argon2id from scratch (60-90s per user on Firefox/WebKit CI).
     // Keys were derived by auth.setup.ts and saved to storage-state-auth.json.
     await Promise.all([injectEncryptionKeys(page1), injectEncryptionKeys(page2)]);
+    console.log(`[beforeEach ${elapsed()}] keys injected`);
   });
 
   test.afterEach(async () => {
