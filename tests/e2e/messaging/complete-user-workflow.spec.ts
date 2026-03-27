@@ -133,19 +133,30 @@ const cleanupTestData = async (client: SupabaseClient): Promise<void> => {
         ',participant_2_id.eq.' +
         userBId
     );
+  // Delete connections in both directions (A→B and B→A)
   await client
     .from('user_connections')
     .delete()
-    .or(
-      'requester_id.eq.' +
-        userAId +
-        ',requester_id.eq.' +
-        userBId +
-        ',addressee_id.eq.' +
-        userAId +
-        ',addressee_id.eq.' +
-        userBId
-    );
+    .eq('requester_id', userAId)
+    .eq('addressee_id', userBId);
+  await client
+    .from('user_connections')
+    .delete()
+    .eq('requester_id', userBId)
+    .eq('addressee_id', userAId);
+
+  // Poll read replica to verify deletion propagated (Supabase Cloud lag can be 5-30s)
+  for (let poll = 0; poll < 10; poll++) {
+    const { data: remaining } = await client
+      .from('user_connections')
+      .select('id')
+      .or(
+        `and(requester_id.eq.${userAId},addressee_id.eq.${userBId}),and(requester_id.eq.${userBId},addressee_id.eq.${userAId})`
+      );
+    if (!remaining || remaining.length === 0) break;
+    console.log(`Cleanup poll ${poll + 1}/10: ${remaining.length} connections still visible`);
+    await new Promise((r) => setTimeout(r, 2000));
+  }
 
   console.log('Cleanup completed');
 };

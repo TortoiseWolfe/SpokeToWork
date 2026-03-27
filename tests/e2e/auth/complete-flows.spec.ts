@@ -501,11 +501,13 @@ test.describe('Flow 4: Account Deletion', () => {
       // Dismiss floating UI on account page too
       await dismissFloatingUI(page);
 
-      // Verify user exists before deletion (retry — triggers may still be propagating)
-      let userExistsBefore = await userExistsInAuth(testUserId);
-      if (!userExistsBefore) {
-        await sleep(3000);
+      // Verify user exists before deletion (poll — read replica lag can be 5-30s)
+      let userExistsBefore = false;
+      for (let poll = 0; poll < 5; poll++) {
         userExistsBefore = await userExistsInAuth(testUserId);
+        if (userExistsBefore) break;
+        console.log(`User existence poll ${poll + 1}/5: not yet visible`);
+        await sleep(3000);
       }
       expect(userExistsBefore).toBe(true);
       console.log('User exists before deletion');

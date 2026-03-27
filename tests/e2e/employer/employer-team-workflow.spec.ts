@@ -420,9 +420,9 @@ test.describe('Employer Team Workflow', () => {
 
     // Navigate to employer dashboard and poll for connection request
     // (useConnections hook fetches once on mount — need reload to refetch)
-    // Supabase Cloud read replica lag can exceed 60s — poll up to 12 times
+    // Supabase Cloud read replica lag can exceed 60s — poll up to 20 times (100s)
     let requestFound = false;
-    for (let attempt = 0; attempt < 12; attempt++) {
+    for (let attempt = 0; attempt < 20; attempt++) {
       await page.goto('/employer');
       await expect(
         page.getByRole('heading', { name: 'Employer Dashboard' })
@@ -449,11 +449,11 @@ test.describe('Employer Team Workflow', () => {
           .catch(() => false);
         if (requestFound) break;
         console.log(
-          `Team badge attempt ${attempt + 1}/12: received tab visible but no request`
+          `Team badge attempt ${attempt + 1}/20: received tab visible but no request`
         );
       } else {
         console.log(
-          `Team badge attempt ${attempt + 1}/12: received tab not visible (read replica lag)`
+          `Team badge attempt ${attempt + 1}/20: received tab not visible (read replica lag)`
         );
       }
       await page.waitForTimeout(5000);

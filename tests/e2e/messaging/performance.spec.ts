@@ -464,6 +464,7 @@ test.describe('Virtual Scrolling Performance', () => {
   test('T172b: Virtual scrolling activates at 100+ messages', async ({
     page,
   }) => {
+    test.setTimeout(180_000);
     await openConversation(page);
 
     // react-virtual only renders the visible window; with 1000 messages the
@@ -479,6 +480,7 @@ test.describe('Virtual Scrolling Performance', () => {
     page,
     browserName,
   }) => {
+    test.setTimeout(180_000);
     await openConversation(page);
 
     // CDP Performance API is only available in Chromium

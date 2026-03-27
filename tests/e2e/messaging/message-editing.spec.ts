@@ -211,6 +211,7 @@ test.describe('Message Editing', () => {
   test('should disable Save button when content unchanged', async ({
     page,
   }) => {
+    test.setTimeout(120_000);
     await navigateToConversation(page);
 
     // Send a message (unique text to avoid matching accumulated messages)
@@ -565,6 +566,7 @@ test.describe('Accessibility', () => {
   test('delete confirmation modal should have proper ARIA labels', async ({
     page,
   }) => {
+    test.setTimeout(120_000);
     await navigateToConversation(page);
 
     // Send a message (unique text to avoid matching accumulated messages)

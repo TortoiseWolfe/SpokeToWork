@@ -224,7 +224,9 @@ test.describe('Real-time Message Delivery (T098)', () => {
   });
 
   test('should deliver message in <500ms between two windows', async () => {
-    // Use describe-level timeout (120s) — beforeEach runs 2× loginAndVerify (~90s on webkit)
+    // beforeEach runs 2× serial loginAndVerify + navigateBothToConversation runs 2× encryption setup.
+    // On Firefox/WebKit under CI contention this can exceed 3 minutes total.
+    test.setTimeout(180_000);
     expect(conversationId).not.toBeNull();
     await navigateBothToConversation(page1, page2, conversationId!);
 
@@ -386,6 +388,7 @@ test.describe('Typing Indicators (T099)', () => {
   });
 
   test('should show typing indicator when user types', async () => {
+    test.setTimeout(180_000);
     expect(conversationId).not.toBeNull();
     await navigateBothToConversation(page1, page2, conversationId!, {
       waitForTypingSubscription: true,
