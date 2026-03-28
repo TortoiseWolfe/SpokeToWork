@@ -428,7 +428,7 @@ setup('authenticate shared test user', async ({ page }) => {
         await p.locator('#setup-password').fill(userPwd);
         await p.locator('#setup-confirm').fill(userPwd);
         await setupBtn2.click();
-        await p.waitForURL(/\/messages(?!\/setup)/, { timeout: 120000 });
+        await p.waitForURL(/\/messages(?!\/setup)/, { timeout: 180000 });
       }
 
       // Handle ReAuth modal
@@ -438,10 +438,12 @@ setup('authenticate shared test user', async ({ page }) => {
         const unlock2 = p.getByRole('button', { name: /unlock/i });
         if (await unlock2.isVisible({ timeout: 3000 }).catch(() => false)) {
           await unlock2.click();
+          // Argon2id key derivation takes 60-90s on chromium, up to 180s on
+          // Firefox/WebKit under CI contention (12 parallel shards).
           await p
             .locator('[role="presentation"], [role="dialog"]')
             .first()
-            .waitFor({ state: 'hidden', timeout: 120000 });
+            .waitFor({ state: 'hidden', timeout: 180000 });
         }
       }
 

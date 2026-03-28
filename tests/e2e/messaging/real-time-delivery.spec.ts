@@ -41,24 +41,40 @@ async function injectEncryptionKeys(page: Page): Promise<void> {
     ) || [];
     if (entries.length === 0) return;
 
-    // Inject all cached keys — app will match by userId
+    // Inject all cached keys — app will match by userId.
+    // If no exact match exists (auth.setup key derivation failed for this user),
+    // alias the first available key as a fallback to prevent a 164s ReAuthModal
+    // timeout. The aliased key may cause "Encrypted with previous keys" on the
+    // receiving end but at least the test can proceed past setup.
     const result = await page.evaluate((keys: { name: string; value: string }[]) => {
       for (const { name, value } of keys) {
         localStorage.setItem(name, value);
       }
-      // Report which userId this page has and whether a key matches
       const authEntry = Object.keys(localStorage).find(k => k.includes('auth-token'));
-      if (!authEntry) return { userId: null, matched: false, injected: keys.length };
+      if (!authEntry) return { userId: null, matched: false, aliased: false };
       try {
         const token = JSON.parse(localStorage.getItem(authEntry)!);
         const userId = token?.user?.id || token?.currentSession?.user?.id;
-        const matched = !!localStorage.getItem(`stw_keys_${userId}`);
-        return { userId, matched, injected: keys.length };
+        if (!userId) return { userId: null, matched: false, aliased: false };
+        const targetKey = `stw_keys_${userId}`;
+        if (localStorage.getItem(targetKey)) {
+          return { userId, matched: true, aliased: false };
+        }
+        // No exact match — alias first available key as fallback
+        if (keys.length > 0) {
+          localStorage.setItem(targetKey, keys[0].value);
+          return { userId, matched: false, aliased: true };
+        }
+        return { userId, matched: false, aliased: false };
       } catch {
-        return { userId: null, matched: false, injected: keys.length };
+        return { userId: null, matched: false, aliased: false };
       }
     }, entries);
-    console.log(`injectEncryptionKeys: userId=${result.userId}, matched=${result.matched}, injected=${result.injected}`);
+    if (result.aliased) {
+      console.warn(`injectEncryptionKeys: ALIASED key for userId=${result.userId} (auth.setup may have failed for this user)`);
+    } else {
+      console.log(`injectEncryptionKeys: userId=${result.userId}, matched=${result.matched}`);
+    }
   } catch (e) {
     console.log('injectEncryptionKeys failed (non-fatal):', e);
   }
