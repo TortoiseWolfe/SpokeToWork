@@ -25,15 +25,12 @@ import { loginAndVerify } from '../utils/auth-helpers';
 const AUTH_FILE = path.resolve('tests/e2e/fixtures/storage-state-auth.json');
 
 /**
- * Inject pre-derived encryption keys from storageState into a page's localStorage,
- * aliased to the page's actual logged-in userId.
+ * Inject pre-derived encryption keys from storageState into a page's localStorage.
+ * auth.setup.ts derives keys as stw_keys_<userId> for each test user.
+ * We inject ALL cached keys — each page's app code will look up its own by userId.
  *
- * auth.setup.ts derives keys as stw_keys_<userId> but the userId may differ between
- * the setup run and the test run (e.g. user recreated). This function:
- * 1. Reads all stw_keys_* from the storage state file
- * 2. Gets the actual userId from the page's Supabase auth session
- * 3. If no key matches the current userId, copies the first available key under
- *    the correct stw_keys_<actualUserId> name so restoreKeysFromSession() finds it.
+ * IMPORTANT: Do NOT alias/copy keys across users. Each user's ECDH private key
+ * is unique — using user A's key for user B breaks shared-secret derivation.
  */
 async function injectEncryptionKeys(page: Page): Promise<void> {
   try {
@@ -44,39 +41,24 @@ async function injectEncryptionKeys(page: Page): Promise<void> {
     ) || [];
     if (entries.length === 0) return;
 
-    // Inject all cached keys first
-    await page.evaluate((keys: { name: string; value: string }[]) => {
+    // Inject all cached keys — app will match by userId
+    const result = await page.evaluate((keys: { name: string; value: string }[]) => {
       for (const { name, value } of keys) {
         localStorage.setItem(name, value);
       }
-    }, entries);
-
-    // Now get the actual userId and ensure a key exists for it
-    const aliased = await page.evaluate((keyEntries: { name: string; value: string }[]) => {
-      // Read userId from Supabase auth token in localStorage
+      // Report which userId this page has and whether a key matches
       const authEntry = Object.keys(localStorage).find(k => k.includes('auth-token'));
-      if (!authEntry) return { userId: null, had: false, aliased: false };
+      if (!authEntry) return { userId: null, matched: false, injected: keys.length };
       try {
         const token = JSON.parse(localStorage.getItem(authEntry)!);
         const userId = token?.user?.id || token?.currentSession?.user?.id;
-        if (!userId) return { userId: null, had: false, aliased: false };
-
-        const targetKey = `stw_keys_${userId}`;
-        if (localStorage.getItem(targetKey)) {
-          return { userId, had: true, aliased: false };
-        }
-
-        // No key for this userId — alias the first available key
-        if (keyEntries.length > 0) {
-          localStorage.setItem(targetKey, keyEntries[0].value);
-          return { userId, had: false, aliased: true };
-        }
-        return { userId, had: false, aliased: false };
+        const matched = !!localStorage.getItem(`stw_keys_${userId}`);
+        return { userId, matched, injected: keys.length };
       } catch {
-        return { userId: null, had: false, aliased: false };
+        return { userId: null, matched: false, injected: keys.length };
       }
     }, entries);
-    console.log(`injectEncryptionKeys: userId=${aliased.userId}, had=${aliased.had}, aliased=${aliased.aliased}`);
+    console.log(`injectEncryptionKeys: userId=${result.userId}, matched=${result.matched}, injected=${result.injected}`);
   } catch (e) {
     console.log('injectEncryptionKeys failed (non-fatal):', e);
   }
@@ -106,57 +88,45 @@ async function navigateBothToConversation(
   convId: string,
   options?: { waitForTypingSubscription?: boolean }
 ): Promise<void> {
-  const t0 = Date.now();
-  const elapsed = () => `${((Date.now() - t0) / 1000).toFixed(1)}s`;
-
-  // Diagnostic: check localStorage keys before navigation
-  for (const [label, page] of [['page1', page1], ['page2', page2]] as const) {
-    const diag = await page.evaluate(() => ({
-      url: window.location.href,
-      stwKeys: Object.keys(localStorage).filter(k => k.startsWith('stw_keys_')),
-    }));
-    console.log(`[${elapsed()}] ${label} pre-nav: url=${diag.url}, stwKeys=${JSON.stringify(diag.stwKeys)}`);
-  }
-
-  console.log(`[${elapsed()}] page1.goto /messages`);
   await page1.goto(`/messages?conversation=${convId}`);
-  console.log(`[${elapsed()}] page1 dismissCookieBanner`);
   await dismissCookieBanner(page1);
-
-  // Diagnostic: check if page redirected to /messages/setup
-  const p1Url = page1.url();
-  console.log(`[${elapsed()}] page1 after goto: url=${p1Url}`);
-
-  console.log(`[${elapsed()}] page1 completeEncryptionSetup`);
   await completeEncryptionSetup(page1);
-  console.log(`[${elapsed()}] page1 dismissReAuthModal`);
   await dismissReAuthModal(page1);
-  console.log(`[${elapsed()}] page1 setup done, url=${page1.url()}`);
 
-  console.log(`[${elapsed()}] page2.goto /messages`);
   await page2.goto(`/messages?conversation=${convId}`);
-  console.log(`[${elapsed()}] page2 dismissCookieBanner`);
   await dismissCookieBanner(page2);
-
-  const p2Url = page2.url();
-  console.log(`[${elapsed()}] page2 after goto: url=${p2Url}`);
-
-  console.log(`[${elapsed()}] page2 completeEncryptionSetup`);
   await completeEncryptionSetup(page2, TEST_USER_2.password);
-  console.log(`[${elapsed()}] page2 dismissReAuthModal`);
   await dismissReAuthModal(page2, TEST_USER_2.password);
-  console.log(`[${elapsed()}] page2 setup done, url=${page2.url()}`);
 
   // Wait for messaging UI ready on both pages
-  console.log(`[${elapsed()}] waiting for textarea on page1`);
   await page1.waitForSelector('textarea[placeholder*="Type"]', {
     timeout: 15000,
   });
-  console.log(`[${elapsed()}] waiting for textarea on page2`);
   await page2.waitForSelector('textarea[placeholder*="Type"]', {
     timeout: 15000,
   });
-  console.log(`[${elapsed()}] both textareas found`);
+
+  // Verify conversation is loaded (not just the textarea) — wait for at least
+  // one successful loadMessages poll. This proves: keys restored, conversation
+  // found on read replica, messages fetched and decrypted.
+  for (const page of [page1, page2]) {
+    try {
+      await page.waitForSelector('body[data-messages-last-poll]', {
+        timeout: 20000,
+      });
+    } catch {
+      // Poll hasn't fired — reload to trigger fresh loadMessages
+      console.log('Messages poll not detected — reloading to trigger loadMessages');
+      const pw = page === page2 ? TEST_USER_2.password : undefined;
+      await page.reload();
+      await dismissCookieBanner(page);
+      await completeEncryptionSetup(page, pw);
+      await dismissReAuthModal(page, pw, true);
+      await page.waitForSelector('body[data-messages-last-poll]', {
+        timeout: 20000,
+      }).catch(() => console.log('Messages poll still not detected after reload'));
+    }
+  }
 
   // Best-effort wait for Realtime subscription readiness.
   // useConversationRealtimeSync sets data-messages-subscribed on document.body
@@ -287,19 +257,13 @@ test.describe('Real-time Message Delivery (T098)', () => {
     );
 
     // Seed connection + conversation so messaging UI has data
-    const t0 = Date.now();
-    const elapsed = () => `${((Date.now() - t0) / 1000).toFixed(1)}s`;
-
     if (adminClient) {
-      console.log(`[beforeEach ${elapsed()}] ensureConnection`);
       await ensureConnection(adminClient, TEST_USER_1.email, TEST_USER_2.email);
-      console.log(`[beforeEach ${elapsed()}] ensureConversation`);
       conversationId = await ensureConversation(
         adminClient,
         TEST_USER_1.email,
         TEST_USER_2.email
       );
-      console.log(`[beforeEach ${elapsed()}] conversation=${conversationId}`);
     }
 
     // Create two separate browser contexts (simulates two users)
@@ -310,7 +274,6 @@ test.describe('Real-time Message Delivery (T098)', () => {
     page2 = await context2.newPage();
 
     // Sign in both users in parallel (separate contexts, no shared state)
-    console.log(`[beforeEach ${elapsed()}] loginAndVerify (parallel)`);
     await Promise.all([
       loginAndVerify(page1, {
         email: TEST_USER_1.email,
@@ -321,13 +284,10 @@ test.describe('Real-time Message Delivery (T098)', () => {
         password: TEST_USER_2.password,
       }),
     ]);
-    console.log(`[beforeEach ${elapsed()}] logins done`);
 
     // Inject pre-derived encryption keys into both pages' localStorage.
     // This avoids running Argon2id from scratch (60-90s per user on Firefox/WebKit CI).
-    // Keys were derived by auth.setup.ts and saved to storage-state-auth.json.
     await Promise.all([injectEncryptionKeys(page1), injectEncryptionKeys(page2)]);
-    console.log(`[beforeEach ${elapsed()}] keys injected`);
   });
 
   test.afterEach(async () => {
@@ -346,6 +306,30 @@ test.describe('Real-time Message Delivery (T098)', () => {
 
     await page1.fill('textarea[placeholder*="Type"]', testMessage);
     await page1.click('button[aria-label="Send message"]');
+
+    // Verify message reached the database (sendMessage swallows RLS errors as "queued").
+    // Poll via admin client to confirm INSERT succeeded before expecting delivery.
+    if (adminClient) {
+      let dbConfirmed = false;
+      for (let poll = 0; poll < 10; poll++) {
+        const { data } = await adminClient
+          .from('messages')
+          .select('id')
+          .eq('conversation_id', conversationId!)
+          .ilike('encrypted_content', '%')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (data && data.length > 0) {
+          dbConfirmed = true;
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+      if (!dbConfirmed) {
+        console.error('Message NOT in database after 20s — INSERT was likely blocked by RLS');
+      }
+      expect(dbConfirmed).toBe(true);
+    }
 
     // User 2: Wait for message via Realtime → polling fallback → reload chain
     await waitForMessageDelivery(page2, testMessage, {
