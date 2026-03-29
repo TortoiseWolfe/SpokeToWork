@@ -1,12 +1,13 @@
 /**
  * Global Setup for E2E Tests
  *
- * Runs before any test to:
+ * Runs ONCE before any test shard to:
  * 1. Clean up orphaned e2e-* test users from previous crashed runs
  * 2. Ensure admin user (spoketowork) exists with ECDH encryption keys
  *    for welcome message and complete flow tests
- * 3. Ensure test users have password-derived encryption keys so
- *    messaging E2E tests can actually send/receive encrypted messages
+ * 3. Delete + recreate encryption keys for all test users so each run
+ *    starts with fresh, consistent key material (stale Node-derived keys
+ *    cause browser-side Argon2id to hang indefinitely in auth.setup)
  */
 
 import { FullConfig } from '@playwright/test';
