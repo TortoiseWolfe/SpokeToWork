@@ -304,34 +304,12 @@ async function ensureTestUserKeys(): Promise<void> {
         }
       }
 
-      // 2. Check if keys already exist — skip delete+recreate if they do.
-      //    Deleting keys while another shard is running causes decryption failures
-      //    ("Encrypted with previous keys") because the public key fetch returns null
-      //    during the brief window between DELETE and INSERT.
-      let hasExistingKeys = false;
-      if (adminClient) {
-        const { data: existingKeys } = await adminClient
-          .from('user_encryption_keys')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('revoked', false)
-          .limit(1)
-          .maybeSingle();
-        hasExistingKeys = !!existingKeys;
-      }
-
-      if (hasExistingKeys) {
-        console.log(
-          `  ✓ Encryption keys already exist for ${email} — skipping re-seed`
-        );
-        // DO NOT delete messages here — each test file's beforeAll calls
-        // cleanupMessagingData at the right time. Deleting here causes
-        // cross-shard interference: while shard 2/4 is sending messages,
-        // another shard's global-setup deletes them.
-        continue;
-      }
-
-      // Keys don't exist — full delete + recreate
+      // 2. Always delete and recreate keys to ensure consistency.
+      //    Stale keys (e.g. derived by a previous Node.js run with different
+      //    crypto internals) cause auth.setup browser-side Argon2id to hang
+      //    indefinitely because the browser can't unlock Node-derived keys.
+      //    global-setup runs ONCE before any shards, so no cross-shard risk.
+      console.log(`  Deleting existing keys for ${email} to force clean re-derivation...`);
       await executeSQL(
         `DELETE FROM user_encryption_keys WHERE user_id = '${userId}'`
       );
