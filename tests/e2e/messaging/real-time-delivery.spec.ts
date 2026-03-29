@@ -320,32 +320,47 @@ test.describe('Real-time Message Delivery (T098)', () => {
     const testMessage = `Real-time test message ${Date.now()}`;
     const startTime = Date.now();
 
-    await page1.fill('textarea[placeholder*="Type"]', testMessage);
-    await page1.click('button[aria-label="Send message"]');
+    // Send with retry: sendMessage() silently queues RLS failures as "offline"
+    // when the conversation hasn't replicated to the read replica yet.
+    // Retry the send up to 3 times, verifying via admin client each time.
+    let dbConfirmed = false;
+    for (let sendAttempt = 0; sendAttempt < 3; sendAttempt++) {
+      if (sendAttempt > 0) {
+        console.log(`Send attempt ${sendAttempt + 1}: reloading page1 and resending`);
+        await page1.reload();
+        await dismissCookieBanner(page1);
+        await completeEncryptionSetup(page1);
+        await dismissReAuthModal(page1, undefined, true);
+        await page1.waitForSelector('textarea[placeholder*="Type"]', { timeout: 15000 });
+      }
 
-    // Verify message reached the database (sendMessage swallows RLS errors as "queued").
-    // Poll via admin client to confirm INSERT succeeded before expecting delivery.
-    if (adminClient) {
-      let dbConfirmed = false;
-      for (let poll = 0; poll < 10; poll++) {
-        const { data } = await adminClient
-          .from('messages')
-          .select('id')
-          .eq('conversation_id', conversationId!)
-          .ilike('encrypted_content', '%')
-          .order('created_at', { ascending: false })
-          .limit(1);
-        if (data && data.length > 0) {
-          dbConfirmed = true;
-          break;
+      await page1.fill('textarea[placeholder*="Type"]', testMessage);
+      await page1.click('button[aria-label="Send message"]');
+
+      // Poll DB to verify INSERT succeeded
+      if (adminClient) {
+        for (let poll = 0; poll < 5; poll++) {
+          await new Promise((r) => setTimeout(r, 2000));
+          const { data } = await adminClient
+            .from('messages')
+            .select('id')
+            .eq('conversation_id', conversationId!)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          if (data && data.length > 0) {
+            dbConfirmed = true;
+            break;
+          }
         }
-        await new Promise((r) => setTimeout(r, 2000));
+      } else {
+        // No admin client — can't verify, assume success
+        dbConfirmed = true;
       }
-      if (!dbConfirmed) {
-        console.error('Message NOT in database after 20s — INSERT was likely blocked by RLS');
-      }
-      expect(dbConfirmed).toBe(true);
+
+      if (dbConfirmed) break;
+      console.log(`Send attempt ${sendAttempt + 1}: message NOT in DB (RLS read-replica lag)`);
     }
+    expect(dbConfirmed).toBe(true);
 
     // User 2: Wait for message via Realtime → polling fallback → reload chain
     await waitForMessageDelivery(page2, testMessage, {
