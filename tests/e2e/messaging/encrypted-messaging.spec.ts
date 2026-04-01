@@ -13,8 +13,6 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import * as fs from 'fs';
-import * as path from 'path';
 import {
   ensureConnection,
   ensureConversation,
@@ -26,7 +24,6 @@ import {
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
 
-const AUTH_FILE = path.resolve('tests/e2e/fixtures/storage-state-auth.json');
 const BASE_URL = process.env.NEXT_PUBLIC_DEPLOY_URL || 'http://localhost:3000';
 
 // Test users - use PRIMARY and TERTIARY from standardized test fixtures (Feature 026)
@@ -60,68 +57,6 @@ const getAdminClient = () => {
 
 const adminClient = getAdminClient();
 
-/**
- * Inject pre-derived encryption keys from storageState into a page's localStorage.
- * auth.setup.ts derives keys as stw_keys_<userId> for each test user.
- * Without this, each user derives keys independently via completeEncryptionSetup,
- * which can cause key mismatches ("Encrypted with previous keys") when the
- * send-retry loop reloads and re-derives keys.
- */
-async function injectEncryptionKeys(page: Page): Promise<boolean> {
-  try {
-    if (!fs.existsSync(AUTH_FILE)) return false;
-    const state = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
-    const entries: { name: string; value: string }[] =
-      state.origins?.[0]?.localStorage?.filter((item: { name: string }) =>
-        item.name.startsWith('stw_keys_')
-      ) || [];
-    if (entries.length === 0) return false;
-
-    const result = await page.evaluate(
-      (keys: { name: string; value: string }[]) => {
-        for (const { name, value } of keys) {
-          localStorage.setItem(name, value);
-        }
-        const authEntry = Object.keys(localStorage).find((k) =>
-          k.includes('auth-token')
-        );
-        if (!authEntry) return { userId: null, matched: false, aliased: false };
-        try {
-          const token = JSON.parse(localStorage.getItem(authEntry)!);
-          const userId = token?.user?.id || token?.currentSession?.user?.id;
-          if (!userId) return { userId: null, matched: false, aliased: false };
-          const targetKey = `stw_keys_${userId}`;
-          if (localStorage.getItem(targetKey)) {
-            return { userId, matched: true, aliased: false };
-          }
-          // No exact match — alias first available key as fallback
-          if (keys.length > 0) {
-            localStorage.setItem(targetKey, keys[0].value);
-            return { userId, matched: false, aliased: true };
-          }
-          return { userId, matched: false, aliased: false };
-        } catch {
-          return { userId: null, matched: false, aliased: false };
-        }
-      },
-      entries
-    );
-    if (result.aliased) {
-      console.warn(
-        `injectEncryptionKeys: ALIASED key for userId=${result.userId}`
-      );
-    } else {
-      console.log(
-        `injectEncryptionKeys: userId=${result.userId}, matched=${result.matched}`
-      );
-    }
-    return result.matched;
-  } catch (e) {
-    console.log('injectEncryptionKeys failed (non-fatal):', e);
-    return false;
-  }
-}
-
 test.describe('Encrypted Messaging Flow', () => {
   // Serial: each test creates 2 browser contexts with Supabase connections.
   test.describe.configure({ mode: 'serial' });
@@ -137,6 +72,31 @@ test.describe('Encrypted Messaging Flow', () => {
   test.beforeAll(async () => {
     if (adminClient) {
       await cleanupMessagingData(adminClient, USER_A.email, USER_B.email);
+      // Also delete ALL messages (not just >2min old) to avoid ghost messages
+      // from previous CI runs that show "Encrypted with previous keys".
+      // global-setup.ts rotates keys each run, making old messages undecryptable.
+      const { getUserIdByEmail } = await import('./test-helpers');
+      const [idA, idB] = await Promise.all([
+        getUserIdByEmail(adminClient, USER_A.email),
+        getUserIdByEmail(adminClient, USER_B.email),
+      ]);
+      if (idA && idB) {
+        const p1 = idA < idB ? idA : idB;
+        const p2 = idA < idB ? idB : idA;
+        const { data: convos } = await adminClient
+          .from('conversations')
+          .select('id')
+          .eq('participant_1_id', p1)
+          .eq('participant_2_id', p2);
+        if (convos) {
+          for (const c of convos) {
+            await adminClient
+              .from('messages')
+              .delete()
+              .eq('conversation_id', c.id);
+          }
+        }
+      }
     }
   });
 
@@ -174,21 +134,10 @@ test.describe('Encrypted Messaging Flow', () => {
         password: USER_B.password,
       });
 
-      // Inject pre-derived encryption keys from auth.setup.ts.
-      // This avoids running Argon2id from scratch (60-90s per user on Firefox/WebKit CI)
-      // and ensures both users have consistent keys that match the DB state from global-setup.
-      // IMPORTANT: When keys are injected, do NOT call completeEncryptionSetup — it would
-      // derive new ECDH key pairs, overwriting the injected keys and causing
-      // "Encrypted with previous keys" on the receiving end.
-      const keysInjectedA = await injectEncryptionKeys(pageA);
-      const keysInjectedB = await injectEncryptionKeys(pageB);
-
       // ===== STEP 3: User A navigates directly to conversation =====
       await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
       await dismissCookieBanner(pageA);
-      if (!keysInjectedA) {
-        await completeEncryptionSetup(pageA);
-      }
+      await completeEncryptionSetup(pageA);
       await dismissReAuthModal(pageA);
 
       // ===== STEP 4: User A sends an encrypted message =====
@@ -205,9 +154,7 @@ test.describe('Encrypted Messaging Flow', () => {
           );
           await pageA.reload();
           await dismissCookieBanner(pageA);
-          if (!keysInjectedA) {
-            await completeEncryptionSetup(pageA);
-          }
+          await completeEncryptionSetup(pageA);
           await dismissReAuthModal(pageA, undefined, true);
           await pageA.waitForSelector('textarea[aria-label="Message input"]', {
             timeout: 15000,
@@ -270,9 +217,7 @@ test.describe('Encrypted Messaging Flow', () => {
       // ===== STEP 6: User B navigates directly to conversation =====
       await pageB.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
       await dismissCookieBanner(pageB);
-      if (!keysInjectedB) {
-        await completeEncryptionSetup(pageB, USER_B.password);
-      }
+      await completeEncryptionSetup(pageB, USER_B.password);
       if (!pageB.url().includes('conversation=')) {
         await pageB.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
         await dismissCookieBanner(pageB);
