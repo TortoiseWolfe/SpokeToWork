@@ -67,15 +67,15 @@ const adminClient = getAdminClient();
  * which can cause key mismatches ("Encrypted with previous keys") when the
  * send-retry loop reloads and re-derives keys.
  */
-async function injectEncryptionKeys(page: Page): Promise<void> {
+async function injectEncryptionKeys(page: Page): Promise<boolean> {
   try {
-    if (!fs.existsSync(AUTH_FILE)) return;
+    if (!fs.existsSync(AUTH_FILE)) return false;
     const state = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
     const entries: { name: string; value: string }[] =
       state.origins?.[0]?.localStorage?.filter((item: { name: string }) =>
         item.name.startsWith('stw_keys_')
       ) || [];
-    if (entries.length === 0) return;
+    if (entries.length === 0) return false;
 
     const result = await page.evaluate(
       (keys: { name: string; value: string }[]) => {
@@ -115,8 +115,10 @@ async function injectEncryptionKeys(page: Page): Promise<void> {
         `injectEncryptionKeys: userId=${result.userId}, matched=${result.matched}`
       );
     }
+    return result.matched;
   } catch (e) {
     console.log('injectEncryptionKeys failed (non-fatal):', e);
+    return false;
   }
 }
 
@@ -172,17 +174,21 @@ test.describe('Encrypted Messaging Flow', () => {
         password: USER_B.password,
       });
 
-      // Inject pre-derived encryption keys from auth.setup.ts to avoid
-      // key mismatches when send-retry loop reloads and re-derives keys.
-      await Promise.all([
-        injectEncryptionKeys(pageA),
-        injectEncryptionKeys(pageB),
-      ]);
+      // Inject pre-derived encryption keys from auth.setup.ts.
+      // This avoids running Argon2id from scratch (60-90s per user on Firefox/WebKit CI)
+      // and ensures both users have consistent keys that match the DB state from global-setup.
+      // IMPORTANT: When keys are injected, do NOT call completeEncryptionSetup — it would
+      // derive new ECDH key pairs, overwriting the injected keys and causing
+      // "Encrypted with previous keys" on the receiving end.
+      const keysInjectedA = await injectEncryptionKeys(pageA);
+      const keysInjectedB = await injectEncryptionKeys(pageB);
 
       // ===== STEP 3: User A navigates directly to conversation =====
       await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
       await dismissCookieBanner(pageA);
-      await completeEncryptionSetup(pageA);
+      if (!keysInjectedA) {
+        await completeEncryptionSetup(pageA);
+      }
       await dismissReAuthModal(pageA);
 
       // ===== STEP 4: User A sends an encrypted message =====
@@ -199,7 +205,9 @@ test.describe('Encrypted Messaging Flow', () => {
           );
           await pageA.reload();
           await dismissCookieBanner(pageA);
-          await completeEncryptionSetup(pageA);
+          if (!keysInjectedA) {
+            await completeEncryptionSetup(pageA);
+          }
           await dismissReAuthModal(pageA, undefined, true);
           await pageA.waitForSelector('textarea[aria-label="Message input"]', {
             timeout: 15000,
@@ -262,7 +270,9 @@ test.describe('Encrypted Messaging Flow', () => {
       // ===== STEP 6: User B navigates directly to conversation =====
       await pageB.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
       await dismissCookieBanner(pageB);
-      await completeEncryptionSetup(pageB, USER_B.password);
+      if (!keysInjectedB) {
+        await completeEncryptionSetup(pageB, USER_B.password);
+      }
       if (!pageB.url().includes('conversation=')) {
         await pageB.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
         await dismissCookieBanner(pageB);
