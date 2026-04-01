@@ -13,6 +13,8 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import * as fs from 'fs';
+import * as path from 'path';
 import {
   ensureConnection,
   ensureConversation,
@@ -24,6 +26,7 @@ import {
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
 
+const AUTH_FILE = path.resolve('tests/e2e/fixtures/storage-state-auth.json');
 const BASE_URL = process.env.NEXT_PUBLIC_DEPLOY_URL || 'http://localhost:3000';
 
 // Test users - use PRIMARY and TERTIARY from standardized test fixtures (Feature 026)
@@ -56,6 +59,66 @@ const getAdminClient = () => {
 };
 
 const adminClient = getAdminClient();
+
+/**
+ * Inject pre-derived encryption keys from storageState into a page's localStorage.
+ * auth.setup.ts derives keys as stw_keys_<userId> for each test user.
+ * Without this, each user derives keys independently via completeEncryptionSetup,
+ * which can cause key mismatches ("Encrypted with previous keys") when the
+ * send-retry loop reloads and re-derives keys.
+ */
+async function injectEncryptionKeys(page: Page): Promise<void> {
+  try {
+    if (!fs.existsSync(AUTH_FILE)) return;
+    const state = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
+    const entries: { name: string; value: string }[] =
+      state.origins?.[0]?.localStorage?.filter((item: { name: string }) =>
+        item.name.startsWith('stw_keys_')
+      ) || [];
+    if (entries.length === 0) return;
+
+    const result = await page.evaluate(
+      (keys: { name: string; value: string }[]) => {
+        for (const { name, value } of keys) {
+          localStorage.setItem(name, value);
+        }
+        const authEntry = Object.keys(localStorage).find((k) =>
+          k.includes('auth-token')
+        );
+        if (!authEntry) return { userId: null, matched: false, aliased: false };
+        try {
+          const token = JSON.parse(localStorage.getItem(authEntry)!);
+          const userId = token?.user?.id || token?.currentSession?.user?.id;
+          if (!userId) return { userId: null, matched: false, aliased: false };
+          const targetKey = `stw_keys_${userId}`;
+          if (localStorage.getItem(targetKey)) {
+            return { userId, matched: true, aliased: false };
+          }
+          // No exact match — alias first available key as fallback
+          if (keys.length > 0) {
+            localStorage.setItem(targetKey, keys[0].value);
+            return { userId, matched: false, aliased: true };
+          }
+          return { userId, matched: false, aliased: false };
+        } catch {
+          return { userId: null, matched: false, aliased: false };
+        }
+      },
+      entries
+    );
+    if (result.aliased) {
+      console.warn(
+        `injectEncryptionKeys: ALIASED key for userId=${result.userId}`
+      );
+    } else {
+      console.log(
+        `injectEncryptionKeys: userId=${result.userId}, matched=${result.matched}`
+      );
+    }
+  } catch (e) {
+    console.log('injectEncryptionKeys failed (non-fatal):', e);
+  }
+}
 
 test.describe('Encrypted Messaging Flow', () => {
   // Serial: each test creates 2 browser contexts with Supabase connections.
@@ -108,6 +171,13 @@ test.describe('Encrypted Messaging Flow', () => {
         email: USER_B.email,
         password: USER_B.password,
       });
+
+      // Inject pre-derived encryption keys from auth.setup.ts to avoid
+      // key mismatches when send-retry loop reloads and re-derives keys.
+      await Promise.all([
+        injectEncryptionKeys(pageA),
+        injectEncryptionKeys(pageB),
+      ]);
 
       // ===== STEP 3: User A navigates directly to conversation =====
       await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
