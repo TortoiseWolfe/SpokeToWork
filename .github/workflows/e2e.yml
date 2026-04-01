@@ -112,6 +112,7 @@ jobs:
             --timeout=30000
         env:
           CI: true
+          SMOKE_ONLY: 'true'
           SKIP_WEBSERVER: true
           BASE_URL: http://localhost:3000
           NEXT_PUBLIC_E2E_TEST_MODE: 'true'

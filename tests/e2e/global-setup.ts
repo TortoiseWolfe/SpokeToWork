@@ -607,6 +607,12 @@ async function ensureDiscoverableWorker(): Promise<void> {
 }
 
 export default async function globalSetup(config: FullConfig): Promise<void> {
+  if (process.env.SMOKE_ONLY === 'true') {
+    console.log('🚀 SMOKE_ONLY mode — running lightweight cleanup only');
+    await cleanupOrphanedE2EUsers();
+    return;
+  }
+
   await cleanupOrphanedE2EUsers();
   await ensureAdminUser();
   await ensureTestUserKeys();
