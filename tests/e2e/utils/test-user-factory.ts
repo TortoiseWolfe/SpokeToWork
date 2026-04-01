@@ -15,6 +15,7 @@
  */
 
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
+import { executeSQL } from './supabase-admin';
 
 // ============================================================================
 // LAZY VALIDATION (updated from fail-fast)
@@ -100,15 +101,13 @@ export async function createTestUser(
 ): Promise<TestUser> {
   const client = getAdminClient();
 
-  // Check if user already exists
-  const { data: existingUsers } = await client.auth.admin.listUsers({
-    perPage: 1000,
-  });
-  const existingUser = existingUsers?.users?.find((u) => u.email === email);
-
-  if (existingUser) {
+  // Check if user already exists (direct SQL instead of listUsers(1000))
+  const existing = (await executeSQL(
+    `SELECT id FROM auth.users WHERE email = '${email.replace(/'/g, "''")}'`
+  )) as { id: string }[];
+  if (existing[0]?.id) {
     console.log(`createTestUser: User ${email} already exists, deleting first`);
-    await deleteTestUser(existingUser.id);
+    await deleteTestUser(existing[0].id);
   }
 
   // Create user with email confirmed
@@ -239,17 +238,17 @@ export async function deleteTestUser(userId: string): Promise<boolean> {
  * Delete a test user by email address
  */
 export async function deleteTestUserByEmail(email: string): Promise<boolean> {
-  const client = getAdminClient();
+  // Direct SQL instead of listUsers(1000)
+  const rows = (await executeSQL(
+    `SELECT id FROM auth.users WHERE email = '${email.replace(/'/g, "''")}'`
+  )) as { id: string }[];
 
-  const { data: users } = await client.auth.admin.listUsers({ perPage: 1000 });
-  const user = users?.users?.find((u) => u.email === email);
-
-  if (!user) {
+  if (!rows[0]?.id) {
     console.log(`deleteTestUserByEmail: User ${email} not found`);
     return true; // Already doesn't exist
   }
 
-  return deleteTestUser(user.id);
+  return deleteTestUser(rows[0].id);
 }
 
 /**
@@ -258,8 +257,15 @@ export async function deleteTestUserByEmail(email: string): Promise<boolean> {
 export async function getUserByEmail(email: string): Promise<User | null> {
   const client = getAdminClient();
 
-  const { data: users } = await client.auth.admin.listUsers({ perPage: 1000 });
-  return users?.users?.find((u) => u.email === email) || null;
+  // Direct SQL to find user ID instead of listUsers(1000)
+  const rows = (await executeSQL(
+    `SELECT id FROM auth.users WHERE email = '${email.replace(/'/g, "''")}'`
+  )) as { id: string }[];
+  if (!rows[0]?.id) return null;
+
+  // Fetch the full User object by ID (single user, fast)
+  const { data } = await client.auth.admin.getUserById(rows[0].id);
+  return data?.user ?? null;
 }
 
 /**

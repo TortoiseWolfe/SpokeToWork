@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { executeSQL } from '../utils/supabase-admin';
 
 /**
  * Account Settings — Resumes & Visibility
@@ -18,15 +19,14 @@ test.describe('Account Settings — Resumes & Visibility', () => {
       const admin = createClient(url, key, {
         auth: { autoRefreshToken: false, persistSession: false },
       });
-      const { data: users } = await admin.auth.admin.listUsers({
-        perPage: 1000,
-      });
-      const user = users?.users?.find((u) => u.email === email);
-      if (user) {
+      const rows = (await executeSQL(
+        `SELECT id FROM auth.users WHERE email = '${email!.replace(/'/g, "''")}'`
+      )) as { id: string }[];
+      if (rows[0]?.id) {
         await admin
           .from('user_profiles')
           .update({ role: 'worker' })
-          .eq('id', user.id);
+          .eq('id', rows[0].id);
       }
     }
 

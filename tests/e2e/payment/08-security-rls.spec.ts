@@ -9,6 +9,7 @@
 
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { executeSQL } from '../utils/supabase-admin';
 
 // Note: These tests require Supabase credentials
 // In CI/CD, use test database with known test users
@@ -106,10 +107,10 @@ test.describe('Row Level Security Policies', () => {
     );
 
     // Get a real user ID to satisfy the FK constraint on template_user_id
-    const { data: users } = await supabaseAdmin.auth.admin.listUsers({
-      perPage: 1000,
-    });
-    const realUserId = users?.users?.[0]?.id;
+    const userRows = (await executeSQL(
+      `SELECT id FROM auth.users LIMIT 1`
+    )) as { id: string }[];
+    const realUserId = userRows[0]?.id;
     if (!realUserId) {
       test.skip(true, 'No users in auth.users for FK reference');
       return;
@@ -148,10 +149,10 @@ test.describe('Row Level Security Policies', () => {
     );
 
     // Get a real user ID to satisfy FK constraint
-    const { data: users } = await supabaseAdmin.auth.admin.listUsers({
-      perPage: 1000,
-    });
-    const realUserId = users?.users?.[0]?.id;
+    const userRows = (await executeSQL(
+      `SELECT id FROM auth.users LIMIT 1`
+    )) as { id: string }[];
+    const realUserId = userRows[0]?.id;
     if (!realUserId) {
       test.skip(true, 'No users in auth.users for FK reference');
       return;
@@ -231,10 +232,10 @@ test.describe('Row Level Security Policies', () => {
     );
 
     // Get a real user ID to satisfy FK constraint
-    const { data: users } = await supabaseAdmin.auth.admin.listUsers({
-      perPage: 1000,
-    });
-    const realUserId = users?.users?.[0]?.id;
+    const userRows = (await executeSQL(
+      `SELECT id FROM auth.users LIMIT 1`
+    )) as { id: string }[];
+    const realUserId = userRows[0]?.id;
     if (!realUserId) {
       test.skip(true, 'No users in auth.users for FK reference');
       return;

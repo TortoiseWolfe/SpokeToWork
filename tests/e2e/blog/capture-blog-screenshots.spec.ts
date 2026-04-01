@@ -21,6 +21,7 @@ import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as path from 'path';
 import * as fs from 'fs';
+import { executeSQL } from '../utils/supabase-admin';
 
 // ============================================================================
 // AUDIT INFRASTRUCTURE
@@ -276,14 +277,13 @@ test.describe.serial('Blog Screenshot Capture with Accuracy Audit', () => {
     if (adminClient) {
       console.log('🧹 Flushing test user data for clean screenshots...');
 
-      // Get user ID from auth.users
-      const { data: authData } = await adminClient.auth.admin.listUsers({
-        perPage: 1000,
-      });
-      const user = authData?.users?.find((u) => u.email === TEST_USER?.email);
+      // Get user ID from auth.users (direct SQL instead of listUsers(1000))
+      const userRows = (await executeSQL(
+        `SELECT id FROM auth.users WHERE email = '${TEST_USER?.email?.replace(/'/g, "''")}'`
+      )) as { id: string }[];
 
-      if (user) {
-        const userId = user.id;
+      if (userRows[0]?.id) {
+        const userId = userRows[0].id;
 
         // Delete private companies (user's personal companies)
         const { error: privateError, count: privateCount } = await adminClient

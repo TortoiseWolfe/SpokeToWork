@@ -5,6 +5,7 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { executeSQL } from '../utils/supabase-admin';
 import {
   completeEncryptionSetup,
   dismissCookieBanner,
@@ -48,22 +49,20 @@ const getAdminClient = (): SupabaseClient | null => {
 };
 
 const getUserIds = async (
-  client: SupabaseClient
+  _client: SupabaseClient
 ): Promise<{ userAId: string | null; userBId: string | null }> => {
-  const { data: authUsers } = await client.auth.admin.listUsers({
-    perPage: 1000,
-  });
-  let userAId: string | null = null;
-  let userBId: string | null = null;
-
-  if (authUsers?.users) {
-    for (const user of authUsers.users) {
-      if (user.email === USER_A.email) userAId = user.id;
-      if (user.email === USER_B.email) userBId = user.id;
-    }
-  }
-
-  return { userAId, userBId };
+  const [rowsA, rowsB] = await Promise.all([
+    executeSQL(
+      `SELECT id FROM auth.users WHERE email = '${USER_A.email.replace(/'/g, "''")}'`
+    ) as Promise<{ id: string }[]>,
+    executeSQL(
+      `SELECT id FROM auth.users WHERE email = '${USER_B.email.replace(/'/g, "''")}'`
+    ) as Promise<{ id: string }[]>,
+  ]);
+  return {
+    userAId: rowsA[0]?.id ?? null,
+    userBId: rowsB[0]?.id ?? null,
+  };
 };
 
 /**
@@ -154,7 +153,9 @@ const cleanupTestData = async (client: SupabaseClient): Promise<void> => {
         `and(requester_id.eq.${userAId},addressee_id.eq.${userBId}),and(requester_id.eq.${userBId},addressee_id.eq.${userAId})`
       );
     if (!remaining || remaining.length === 0) break;
-    console.log(`Cleanup poll ${poll + 1}/10: ${remaining.length} connections still visible`);
+    console.log(
+      `Cleanup poll ${poll + 1}/10: ${remaining.length} connections still visible`
+    );
     await new Promise((r) => setTimeout(r, 2000));
   }
 

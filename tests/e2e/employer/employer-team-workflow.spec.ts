@@ -16,6 +16,7 @@
 
 import { test, expect } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { executeSQL } from '../utils/supabase-admin';
 
 // Test users from .env
 const EMPLOYER = {
@@ -45,24 +46,22 @@ const getAdminClient = (): SupabaseClient | null => {
 };
 
 /** Get user IDs from auth.users by email lookup.
- *  listUsers() defaults to 50 per page — if there are >50 users (e2e tests
- *  create/delete many), our test users may not be on page 1. Use perPage: 1000
- *  to avoid pagination issues.
+ *  Uses direct SQL instead of listUsers(1000) to avoid 3-5s latency per call
+ *  under 18-shard contention.
  */
-async function getUserIds(client: SupabaseClient) {
-  let employerId: string | null = null;
-  let workerId: string | null = null;
-
-  const { data: allUsers } = await client.auth.admin.listUsers({
-    perPage: 1000,
-  });
-  if (allUsers?.users) {
-    for (const user of allUsers.users) {
-      if (user.email === EMPLOYER.email) employerId = user.id;
-      if (user.email === WORKER.email) workerId = user.id;
-    }
-  }
-  return { employerId, workerId };
+async function getUserIds(_client: SupabaseClient) {
+  const [empRows, wrkRows] = await Promise.all([
+    executeSQL(
+      `SELECT id FROM auth.users WHERE email = '${EMPLOYER.email.replace(/'/g, "''")}'`
+    ) as Promise<{ id: string }[]>,
+    executeSQL(
+      `SELECT id FROM auth.users WHERE email = '${WORKER.email.replace(/'/g, "''")}'`
+    ) as Promise<{ id: string }[]>,
+  ]);
+  return {
+    employerId: empRows[0]?.id ?? null,
+    workerId: wrkRows[0]?.id ?? null,
+  };
 }
 
 /** Ensure employer has role='employer' and is linked to a company. */

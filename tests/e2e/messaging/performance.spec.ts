@@ -13,6 +13,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { executeSQL } from '../utils/supabase-admin';
 import {
   completeEncryptionSetup,
   dismissCookieBanner,
@@ -166,20 +167,18 @@ test.beforeAll(async ({}, testInfo) => {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // ── 1. Resolve user UUIDs ───────────────────────────────────────────
-  const { data: userList } = await supabase.auth.admin.listUsers({
-    perPage: 1000,
-  });
-  const users = Array.isArray(userList)
-    ? userList
-    : ((userList as { users: unknown[] })?.users ?? []);
+  // ── 1. Resolve user UUIDs (direct SQL instead of listUsers(1000)) ──
+  const [primaryRows, secondaryRows] = await Promise.all([
+    executeSQL(
+      `SELECT id FROM auth.users WHERE email = '${TEST_USER_PRIMARY_EMAIL!.replace(/'/g, "''")}'`
+    ) as Promise<{ id: string }[]>,
+    executeSQL(
+      `SELECT id FROM auth.users WHERE email = '${TEST_USER_SECONDARY_EMAIL!.replace(/'/g, "''")}'`
+    ) as Promise<{ id: string }[]>,
+  ]);
 
-  const primary = users.find(
-    (u: { email?: string }) => u.email === TEST_USER_PRIMARY_EMAIL
-  ) as { id: string } | undefined;
-  const secondary = users.find(
-    (u: { email?: string }) => u.email === TEST_USER_SECONDARY_EMAIL
-  ) as { id: string } | undefined;
+  const primary = primaryRows[0] as { id: string } | undefined;
+  const secondary = secondaryRows[0] as { id: string } | undefined;
 
   if (!primary || !secondary) {
     throw new Error(

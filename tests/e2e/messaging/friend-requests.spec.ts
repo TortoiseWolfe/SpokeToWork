@@ -17,6 +17,7 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { executeSQL } from '../utils/supabase-admin';
 import {
   ensureConnection,
   ensureConversation,
@@ -56,22 +57,21 @@ const getAdminClient = (): SupabaseClient | null => {
 };
 
 const getUserIds = async (
-  client: SupabaseClient
+  _client: SupabaseClient
 ): Promise<{ userAId: string | null; userBId: string | null }> => {
-  const { data: authUsers } = await client.auth.admin.listUsers({
-    perPage: 1000,
-  });
-  let userAId: string | null = null;
-  let userBId: string | null = null;
-
-  if (authUsers?.users) {
-    for (const user of authUsers.users) {
-      if (user.email === USER_A.email) userAId = user.id;
-      if (user.email === USER_B.email) userBId = user.id;
-    }
-  }
-
-  return { userAId, userBId };
+  // Direct SQL instead of listUsers(1000) — 100ms vs 3-5s under contention
+  const [rowsA, rowsB] = await Promise.all([
+    executeSQL(
+      `SELECT id FROM auth.users WHERE email = '${USER_A.email.replace(/'/g, "''")}'`
+    ) as Promise<{ id: string }[]>,
+    executeSQL(
+      `SELECT id FROM auth.users WHERE email = '${USER_B.email.replace(/'/g, "''")}'`
+    ) as Promise<{ id: string }[]>,
+  ]);
+  return {
+    userAId: rowsA[0]?.id ?? null,
+    userBId: rowsB[0]?.id ?? null,
+  };
 };
 
 /**
@@ -118,9 +118,7 @@ const cleanupConnections = async (): Promise<void> => {
   const client = getAdminClient();
   if (!client) return;
 
-  const { data: users } = await client.auth.admin.listUsers({ perPage: 1000 });
-  const userAId = users?.users?.find((u) => u.email === USER_A.email)?.id;
-  const userBId = users?.users?.find((u) => u.email === USER_B.email)?.id;
+  const { userAId, userBId } = await getUserIds(client);
 
   if (userAId && userBId) {
     // Delete both directions explicitly (A→B and B→A)
