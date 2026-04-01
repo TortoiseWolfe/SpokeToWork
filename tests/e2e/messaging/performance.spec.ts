@@ -13,7 +13,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
-import { executeSQL } from '../utils/supabase-admin';
+import { executeSQL, escapeSQL } from '../utils/supabase-admin';
 import {
   completeEncryptionSetup,
   dismissCookieBanner,
@@ -170,10 +170,10 @@ test.beforeAll(async ({}, testInfo) => {
   // ── 1. Resolve user UUIDs (direct SQL instead of listUsers(1000)) ──
   const [primaryRows, secondaryRows] = await Promise.all([
     executeSQL(
-      `SELECT id FROM auth.users WHERE email = '${TEST_USER_PRIMARY_EMAIL!.replace(/'/g, "''")}'`
+      `SELECT id FROM auth.users WHERE email = '${escapeSQL(TEST_USER_PRIMARY_EMAIL!)}'`
     ) as Promise<{ id: string }[]>,
     executeSQL(
-      `SELECT id FROM auth.users WHERE email = '${TEST_USER_SECONDARY_EMAIL!.replace(/'/g, "''")}'`
+      `SELECT id FROM auth.users WHERE email = '${escapeSQL(TEST_USER_SECONDARY_EMAIL!)}'`
     ) as Promise<{ id: string }[]>,
   ]);
 

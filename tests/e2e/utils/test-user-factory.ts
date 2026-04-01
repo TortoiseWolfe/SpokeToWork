@@ -15,7 +15,7 @@
  */
 
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
-import { executeSQL } from './supabase-admin';
+import { executeSQL, escapeSQL } from './supabase-admin';
 
 // ============================================================================
 // LAZY VALIDATION (updated from fail-fast)
@@ -44,6 +44,30 @@ export interface TestUser {
   id: string;
   email: string;
   password: string;
+}
+
+/**
+ * Find user ID by email — tries fast SQL via Management API first,
+ * falls back to admin listUsers when SUPABASE_ACCESS_TOKEN is unavailable
+ * (e.g. Accessibility workflow).
+ */
+async function findUserIdByEmail(
+  client: SupabaseClient,
+  email: string
+): Promise<string | null> {
+  if (process.env.SUPABASE_ACCESS_TOKEN) {
+    try {
+      const rows = (await executeSQL(
+        `SELECT id FROM auth.users WHERE email = '${escapeSQL(email)}'`
+      )) as { id: string }[];
+      return rows[0]?.id ?? null;
+    } catch {
+      // Fall through to listUsers
+    }
+  }
+  // Fallback: admin client listUsers (slower but works without Management API)
+  const { data } = await client.auth.admin.listUsers({ perPage: 1000 });
+  return data?.users?.find((u) => u.email === email)?.id ?? null;
 }
 
 let adminClient: SupabaseClient | null = null;
@@ -101,13 +125,11 @@ export async function createTestUser(
 ): Promise<TestUser> {
   const client = getAdminClient();
 
-  // Check if user already exists (direct SQL instead of listUsers(1000))
-  const existing = (await executeSQL(
-    `SELECT id FROM auth.users WHERE email = '${email.replace(/'/g, "''")}'`
-  )) as { id: string }[];
-  if (existing[0]?.id) {
+  // Check if user already exists (SQL with fallback to listUsers)
+  const existingId = await findUserIdByEmail(client, email);
+  if (existingId) {
     console.log(`createTestUser: User ${email} already exists, deleting first`);
-    await deleteTestUser(existing[0].id);
+    await deleteTestUser(existingId);
   }
 
   // Create user with email confirmed
@@ -238,17 +260,15 @@ export async function deleteTestUser(userId: string): Promise<boolean> {
  * Delete a test user by email address
  */
 export async function deleteTestUserByEmail(email: string): Promise<boolean> {
-  // Direct SQL instead of listUsers(1000)
-  const rows = (await executeSQL(
-    `SELECT id FROM auth.users WHERE email = '${email.replace(/'/g, "''")}'`
-  )) as { id: string }[];
+  const client = getAdminClient();
+  const userId = await findUserIdByEmail(client, email);
 
-  if (!rows[0]?.id) {
+  if (!userId) {
     console.log(`deleteTestUserByEmail: User ${email} not found`);
     return true; // Already doesn't exist
   }
 
-  return deleteTestUser(rows[0].id);
+  return deleteTestUser(userId);
 }
 
 /**
@@ -257,14 +277,11 @@ export async function deleteTestUserByEmail(email: string): Promise<boolean> {
 export async function getUserByEmail(email: string): Promise<User | null> {
   const client = getAdminClient();
 
-  // Direct SQL to find user ID instead of listUsers(1000)
-  const rows = (await executeSQL(
-    `SELECT id FROM auth.users WHERE email = '${email.replace(/'/g, "''")}'`
-  )) as { id: string }[];
-  if (!rows[0]?.id) return null;
+  const userId = await findUserIdByEmail(client, email);
+  if (!userId) return null;
 
   // Fetch the full User object by ID (single user, fast)
-  const { data } = await client.auth.admin.getUserById(rows[0].id);
+  const { data } = await client.auth.admin.getUserById(userId);
   return data?.user ?? null;
 }
 

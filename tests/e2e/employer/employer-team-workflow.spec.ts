@@ -16,7 +16,7 @@
 
 import { test, expect } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { executeSQL } from '../utils/supabase-admin';
+import { executeSQL, escapeSQL } from '../utils/supabase-admin';
 
 // Test users from .env
 const EMPLOYER = {
@@ -52,10 +52,10 @@ const getAdminClient = (): SupabaseClient | null => {
 async function getUserIds(_client: SupabaseClient) {
   const [empRows, wrkRows] = await Promise.all([
     executeSQL(
-      `SELECT id FROM auth.users WHERE email = '${EMPLOYER.email.replace(/'/g, "''")}'`
+      `SELECT id FROM auth.users WHERE email = '${escapeSQL(EMPLOYER.email)}'`
     ) as Promise<{ id: string }[]>,
     executeSQL(
-      `SELECT id FROM auth.users WHERE email = '${WORKER.email.replace(/'/g, "''")}'`
+      `SELECT id FROM auth.users WHERE email = '${escapeSQL(WORKER.email)}'`
     ) as Promise<{ id: string }[]>,
   ]);
   return {

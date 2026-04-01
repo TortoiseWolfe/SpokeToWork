@@ -21,7 +21,7 @@ import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as path from 'path';
 import * as fs from 'fs';
-import { executeSQL } from '../utils/supabase-admin';
+import { executeSQL, escapeSQL } from '../utils/supabase-admin';
 
 // ============================================================================
 // AUDIT INFRASTRUCTURE
@@ -279,7 +279,7 @@ test.describe.serial('Blog Screenshot Capture with Accuracy Audit', () => {
 
       // Get user ID from auth.users (direct SQL instead of listUsers(1000))
       const userRows = (await executeSQL(
-        `SELECT id FROM auth.users WHERE email = '${TEST_USER?.email?.replace(/'/g, "''")}'`
+        `SELECT id FROM auth.users WHERE email = '${escapeSQL(TEST_USER?.email ?? '')}'`
       )) as { id: string }[];
 
       if (userRows[0]?.id) {

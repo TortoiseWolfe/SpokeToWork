@@ -5,7 +5,7 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { executeSQL } from '../utils/supabase-admin';
+import { executeSQL, escapeSQL } from '../utils/supabase-admin';
 import {
   completeEncryptionSetup,
   dismissCookieBanner,
@@ -53,10 +53,10 @@ const getUserIds = async (
 ): Promise<{ userAId: string | null; userBId: string | null }> => {
   const [rowsA, rowsB] = await Promise.all([
     executeSQL(
-      `SELECT id FROM auth.users WHERE email = '${USER_A.email.replace(/'/g, "''")}'`
+      `SELECT id FROM auth.users WHERE email = '${escapeSQL(USER_A.email)}'`
     ) as Promise<{ id: string }[]>,
     executeSQL(
-      `SELECT id FROM auth.users WHERE email = '${USER_B.email.replace(/'/g, "''")}'`
+      `SELECT id FROM auth.users WHERE email = '${escapeSQL(USER_B.email)}'`
     ) as Promise<{ id: string }[]>,
   ]);
   return {

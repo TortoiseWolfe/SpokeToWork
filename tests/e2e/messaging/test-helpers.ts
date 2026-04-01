@@ -5,7 +5,7 @@
 
 import { Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { executeSQL } from '../utils/supabase-admin';
+import { executeSQL, escapeSQL } from '../utils/supabase-admin';
 
 export const getAdminClient = (): SupabaseClient | null => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -24,7 +24,7 @@ export const getUserIdByEmail = async (
   // users and takes 3-5s per call. Under 18-shard contention, beforeAll hooks
   // were making 10+ listUsers calls and exceeding the 30s timeout.
   const rows = (await executeSQL(
-    `SELECT id FROM auth.users WHERE email = '${email.replace(/'/g, "''")}'`
+    `SELECT id FROM auth.users WHERE email = '${escapeSQL(email)}'`
   )) as { id: string }[];
   return rows[0]?.id ?? null;
 };

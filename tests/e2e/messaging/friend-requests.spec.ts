@@ -17,7 +17,7 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { executeSQL } from '../utils/supabase-admin';
+import { executeSQL, escapeSQL } from '../utils/supabase-admin';
 import {
   ensureConnection,
   ensureConversation,
@@ -62,10 +62,10 @@ const getUserIds = async (
   // Direct SQL instead of listUsers(1000) — 100ms vs 3-5s under contention
   const [rowsA, rowsB] = await Promise.all([
     executeSQL(
-      `SELECT id FROM auth.users WHERE email = '${USER_A.email.replace(/'/g, "''")}'`
+      `SELECT id FROM auth.users WHERE email = '${escapeSQL(USER_A.email)}'`
     ) as Promise<{ id: string }[]>,
     executeSQL(
-      `SELECT id FROM auth.users WHERE email = '${USER_B.email.replace(/'/g, "''")}'`
+      `SELECT id FROM auth.users WHERE email = '${escapeSQL(USER_B.email)}'`
     ) as Promise<{ id: string }[]>,
   ]);
   return {

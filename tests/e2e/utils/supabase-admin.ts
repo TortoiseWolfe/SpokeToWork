@@ -17,7 +17,7 @@ const PROJECT_REF = SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
  * Escape a string for safe SQL interpolation.
  * Prevents SQL injection by escaping single quotes and backslashes.
  */
-function escapeSQL(value: string): string {
+export function escapeSQL(value: string): string {
   // Escape backslashes first, then single quotes
   return value.replace(/\\/g, '\\\\').replace(/'/g, "''");
 }

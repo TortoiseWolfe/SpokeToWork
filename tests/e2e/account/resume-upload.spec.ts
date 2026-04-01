@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
-import { executeSQL } from '../utils/supabase-admin';
+import { executeSQL, escapeSQL } from '../utils/supabase-admin';
 
 /**
  * Account Settings — Resumes & Visibility
@@ -20,7 +20,7 @@ test.describe('Account Settings — Resumes & Visibility', () => {
         auth: { autoRefreshToken: false, persistSession: false },
       });
       const rows = (await executeSQL(
-        `SELECT id FROM auth.users WHERE email = '${email!.replace(/'/g, "''")}'`
+        `SELECT id FROM auth.users WHERE email = '${escapeSQL(email!)}'`
       )) as { id: string }[];
       if (rows[0]?.id) {
         await admin
