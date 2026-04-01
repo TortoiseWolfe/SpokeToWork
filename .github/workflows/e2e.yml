@@ -205,8 +205,10 @@ jobs:
       matrix:
         # Only run chromium on PRs, all browsers on main/develop
         browser: ${{ github.event_name == 'pull_request' && fromJSON('["chromium"]') || fromJSON('["chromium", "firefox", "webkit"]') }}
-        # 4 shards per browser for parallel execution
-        shard: [1/4, 2/4, 3/4, 4/4]
+        # 6 shards per browser — spreads messaging-heavy tests thinner,
+        # reducing Supabase Cloud contention per shard (was 4, shard 2/4
+        # consistently failed with 1715 tests and 40-55min runtime)
+        shard: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
 
     steps:
       - name: Checkout code
@@ -258,24 +260,22 @@ jobs:
           MATRIX_BROWSER: ${{ matrix.browser }}
         run: |
           SHARD_NUM=$(echo "$MATRIX_SHARD" | cut -d/ -f1)
-          # Shard 2 carries the heaviest messaging tests (dual-context, 4+ Realtime channels).
-          # Give it extra time to establish subscriptions before other shards add connections.
-          if [ "$SHARD_NUM" = "2" ]; then
-            SHARD2_EXTRA=30
-          else
-            SHARD2_EXTRA=0
-          fi
+          # Stagger shards to reduce concurrent Supabase Cloud connections.
+          # Each shard gets SHARD_NUM * 5s base delay, browsers get extra offset.
           if [ "$MATRIX_BROWSER" = "firefox" ]; then
-            DELAY=$((45 + SHARD_NUM * 10 + SHARD2_EXTRA))
-            echo "Firefox shard $SHARD_NUM: waiting ${DELAY}s (Argon2id ~40s on CI)"
+            DELAY=$((30 + SHARD_NUM * 5))
+            echo "Firefox shard $SHARD_NUM: waiting ${DELAY}s"
             sleep $DELAY
           elif [ "$MATRIX_BROWSER" = "webkit" ]; then
-            DELAY=$((75 + SHARD_NUM * 10 + SHARD2_EXTRA))
+            DELAY=$((60 + SHARD_NUM * 5))
             echo "WebKit shard $SHARD_NUM: waiting ${DELAY}s"
             sleep $DELAY
-          elif [ "$SHARD2_EXTRA" -gt 0 ]; then
-            echo "Chromium shard $SHARD_NUM: waiting ${SHARD2_EXTRA}s (messaging-heavy shard)"
-            sleep $SHARD2_EXTRA
+          else
+            DELAY=$((SHARD_NUM * 5))
+            if [ "$DELAY" -gt 0 ]; then
+              echo "Chromium shard $SHARD_NUM: waiting ${DELAY}s"
+              sleep $DELAY
+            fi
           fi
 
       - name: Run E2E tests (shard ${{ matrix.shard }})
