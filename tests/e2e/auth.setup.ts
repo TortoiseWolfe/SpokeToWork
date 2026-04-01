@@ -341,11 +341,14 @@ setup('authenticate shared test user', async ({ page }) => {
   await page.waitForLoadState('domcontentloaded');
   await page.waitForTimeout(3000); // Let React hydrate
 
-  // Handle encryption setup page if keys haven't been initialized
+  // Handle encryption setup page if keys haven't been initialized.
+  // global-setup.ts deletes all keys from the DB, so the app must query Supabase
+  // Cloud, discover no keys exist, and redirect to /messages/setup. Under 18-shard
+  // contention this round-trip can take 5-10s, so wait up to 15s for the button.
   const setupBtn = page.locator(
     'button:has-text("Set Up Encrypted Messaging")'
   );
-  if (await setupBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (await setupBtn.isVisible({ timeout: 15000 }).catch(() => false)) {
     const pwd = process.env.TEST_USER_PRIMARY_PASSWORD || password;
     await page.locator('#setup-password').fill(pwd);
     await page.locator('#setup-confirm').fill(pwd);
@@ -399,15 +402,10 @@ setup('authenticate shared test user', async ({ page }) => {
       // Log in as this user
       await p.goto('/sign-in');
       await p.waitForLoadState('domcontentloaded');
-      const emailInput = p.locator(
-        'input[type="email"], input[name="email"]'
-      );
+      const emailInput = p.locator('input[type="email"], input[name="email"]');
       await emailInput.waitFor({ state: 'visible', timeout: 10000 });
       await emailInput.fill(userEmail);
-      await p.fill(
-        'input[type="password"], input[name="password"]',
-        userPwd
-      );
+      await p.fill('input[type="password"], input[name="password"]', userPwd);
       await p.click('button[type="submit"]');
       await p
         .waitForURL((url) => !url.pathname.includes('/sign-in'), {
