@@ -14,8 +14,6 @@ import { FullConfig } from '@playwright/test';
 import * as crypto from 'crypto';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { executeSQL } from './utils/supabase-admin';
-import { createTestUser } from './utils/test-user-factory';
-import { ARGON2_CONFIG } from '../../src/types/messaging';
 
 /** Admin Supabase client for local dev (bypasses RLS, works without Management API) */
 function getAdminClient(): SupabaseClient | null {
@@ -224,57 +222,35 @@ async function generateAndStoreAdminKeys(userId: string): Promise<void> {
 }
 
 /**
- * P-256 curve order for scalar reduction.
- * Must match the constant in src/lib/messaging/key-derivation.ts.
- */
-const P256_ORDER = BigInt(
-  '0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551'
-);
-
-/**
- * Ensure every test user has password-derived encryption keys in the database.
+ * Clean old encryption keys and messages for test users.
+ * Key derivation now happens entirely in-browser via auth.setup.ts →
+ * completeEncryptionSetup → initializeKeys. This ensures browser-compatible
+ * ECDH keys (Node.js @noble/curves P-256 is incompatible with Firefox WebCrypto).
  *
- * Without these keys, deriveKeys() in the browser throws
- * "No salt found. User may need migration or initialization." and
- * messaging tests fail or get skipped.
+ * Without this cleanup, stale Node-derived keys in the DB cause
+ * deriveKeys() verifyPublicKey to throw KeyMismatchError in the browser,
+ * resulting in "Encrypted with previous keys" on all messages.
  *
- * Replicates the exact same pipeline as src/lib/messaging/key-derivation.ts:
- *   password + salt → Argon2id → 32-byte seed → reduceScalar → P-256 keypair
+ * auth.setup.ts will derive browser-compatible keys via completeEncryptionSetup
+ * → initializeKeys (creates new salt + key pair + uploads public key to DB).
  */
 async function ensureTestUserKeys(): Promise<void> {
-  console.log('🔑 Ensuring test users have encryption keys...');
-
-  // Dynamic imports — both are project dependencies
-  const { argon2id } = await import('hash-wasm');
-  const { p256 } = await import('@noble/curves/nist.js');
+  console.log('🔑 Cleaning old encryption keys (browser will re-derive)...');
 
   const testUsers = [
-    {
-      email: process.env.TEST_USER_PRIMARY_EMAIL,
-      password: process.env.TEST_USER_PRIMARY_PASSWORD,
-    },
-    {
-      email: process.env.TEST_USER_SECONDARY_EMAIL,
-      password: process.env.TEST_USER_SECONDARY_PASSWORD,
-    },
-    {
-      email: process.env.TEST_USER_TERTIARY_EMAIL,
-      password: process.env.TEST_USER_TERTIARY_PASSWORD,
-    },
-  ].filter(
-    (u): u is { email: string; password: string } => !!u.email && !!u.password
-  );
+    process.env.TEST_USER_PRIMARY_EMAIL,
+    process.env.TEST_USER_SECONDARY_EMAIL,
+    process.env.TEST_USER_TERTIARY_EMAIL,
+  ].filter((email): email is string => !!email);
 
   if (testUsers.length === 0) {
-    console.log(
-      '  ⚠ No test user credentials found in env — skipping key seeding'
-    );
+    console.log('  ⚠ No test user emails found in env — skipping key cleanup');
     return;
   }
 
   const adminClient = getAdminClient();
 
-  for (const { email, password } of testUsers) {
+  for (const email of testUsers) {
     try {
       // 1. Look up user_id — try SQL first, fall back to admin client
       let userId: string | undefined;
@@ -291,26 +267,20 @@ async function ensureTestUserKeys(): Promise<void> {
       }
 
       if (!userId) {
-        // User doesn't exist yet — create them via admin API
-        console.log(`  ⚠ User ${email} not found — creating via admin API...`);
-        try {
-          const created = await createTestUser(email, password, {
-            createProfile: true,
-          });
-          userId = created.id;
-          console.log(`  ✓ Created user ${email} (${userId})`);
-        } catch (createErr) {
-          console.warn(`  ⚠ Failed to create ${email}:`, createErr);
-          continue;
-        }
+        // User doesn't exist yet — skip key cleanup (auth.setup will handle creation)
+        console.log(`  ⚠ User ${email} not found — skipping key cleanup`);
+        continue;
       }
 
-      // 2. Always delete and recreate keys to ensure consistency.
-      //    Stale keys (e.g. derived by a previous Node.js run with different
-      //    crypto internals) cause auth.setup browser-side Argon2id to hang
-      //    indefinitely because the browser can't unlock Node-derived keys.
-      //    global-setup runs ONCE before any shards, so no cross-shard risk.
-      console.log(`  Deleting existing keys for ${email} to force clean re-derivation...`);
+      // 2. Delete old keys and messages.
+      //    Node.js @noble/curves produces ECDH keys incompatible with Firefox
+      //    WebCrypto (confirmed: deriveKeys verifyPublicKey throws KeyMismatchError).
+      //    DO NOT seed Node-derived keys into the DB — let the browser create
+      //    keys via completeEncryptionSetup → initializeKeys during auth.setup.ts.
+      //    Browser-derived keys are compatible across all engines.
+      console.log(
+        `  Deleting existing keys for ${email} to force browser re-derivation...`
+      );
       await executeSQL(
         `DELETE FROM user_encryption_keys WHERE user_id = '${userId}'`
       );
@@ -347,76 +317,9 @@ async function ensureTestUserKeys(): Promise<void> {
         }
       }
 
-      // 3. Generate random salt (16 bytes, matching ARGON2_CONFIG.SALT_LENGTH)
-      const salt = crypto.randomBytes(16);
-
-      // 4. Argon2id hash — uses ARGON2_CONFIG from src/types/messaging.ts
-      //    In E2E test mode: ~1s. In production: 10-30s.
-      const seed = await argon2id({
-        password,
-        salt,
-        parallelism: ARGON2_CONFIG.PARALLELISM,
-        iterations: ARGON2_CONFIG.TIME_COST,
-        memorySize: ARGON2_CONFIG.MEMORY_COST,
-        hashLength: ARGON2_CONFIG.HASH_LENGTH,
-        outputType: 'binary',
-      });
-
-      // 5. Reduce scalar mod P-256 order (matches reduceScalar in key-derivation.ts)
-      let seedBigInt = BigInt(0);
-      for (const byte of seed) {
-        seedBigInt = (seedBigInt << BigInt(8)) + BigInt(byte);
-      }
-      const reduced = (seedBigInt % (P256_ORDER - BigInt(1))) + BigInt(1);
-      const privKeyBytes = new Uint8Array(32);
-      let rem = reduced;
-      for (let i = 31; i >= 0; i--) {
-        privKeyBytes[i] = Number(rem & BigInt(0xff));
-        rem = rem >> BigInt(8);
-      }
-
-      // 6. Compute P-256 public key (uncompressed: 0x04 || x || y)
-      const pubKeyBytes = p256.getPublicKey(privKeyBytes, false);
-      const x = Buffer.from(pubKeyBytes.slice(1, 33)).toString('base64url');
-      const y = Buffer.from(pubKeyBytes.slice(33, 65)).toString('base64url');
-      const jwk = { kty: 'EC', crv: 'P-256', x, y };
-
-      // 7. Store public_key + encryption_salt in database
-      const saltBase64 = Buffer.from(salt).toString('base64');
-
-      // Try SQL first, then admin client
-      const jwkJson = JSON.stringify(jwk).replace(/'/g, "''");
-      const sqlResult = await executeSQL(`
-        INSERT INTO user_encryption_keys (user_id, public_key, encryption_salt, revoked)
-        VALUES ('${userId}', '${jwkJson}'::jsonb, '${saltBase64}', false)
-        ON CONFLICT DO NOTHING
-      `);
-
-      // If executeSQL skipped (returned []), use admin client
-      if (sqlResult.length === 0 && adminClient) {
-        const { error: insertErr } = await adminClient
-          .from('user_encryption_keys')
-          .insert({
-            user_id: userId,
-            public_key: jwk,
-            encryption_salt: saltBase64,
-            revoked: false,
-          });
-        if (insertErr) {
-          console.warn(
-            `  ⚠ Admin client key insert failed for ${email}:`,
-            insertErr.message
-          );
-          continue;
-        }
-      }
-
-      console.log(`  ✓ Encryption keys seeded for ${email}`);
-      // NOTE: Do NOT cache Node.js-generated JWKs in localStorage.
-      // Node.js @noble/curves produces keys incompatible with firefox
-      // WebCrypto ECDH. Let the browser derive its own keys via ReAuth
-      // modal (~1s with E2E test params). The browser-derived keys
-      // will be cached by key-service.ts for subsequent navigations.
+      console.log(
+        `  ✓ Encryption keys cleaned for ${email} (browser will re-derive)`
+      );
     } catch (error) {
       console.warn(`  ⚠ Key seeding failed for ${email}:`, error);
       // Don't fail other users if one fails
