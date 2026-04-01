@@ -5,6 +5,7 @@
 
 import { Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { executeSQL } from '../utils/supabase-admin';
 
 export const getAdminClient = (): SupabaseClient | null => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -16,11 +17,16 @@ export const getAdminClient = (): SupabaseClient | null => {
 };
 
 export const getUserIdByEmail = async (
-  client: SupabaseClient,
+  _client: SupabaseClient,
   email: string
 ): Promise<string | null> => {
-  const { data } = await client.auth.admin.listUsers({ perPage: 1000 });
-  return data?.users?.find((u) => u.email === email)?.id ?? null;
+  // Use direct SQL instead of listUsers({perPage:1000}) which fetches ALL
+  // users and takes 3-5s per call. Under 18-shard contention, beforeAll hooks
+  // were making 10+ listUsers calls and exceeding the 30s timeout.
+  const rows = (await executeSQL(
+    `SELECT id FROM auth.users WHERE email = '${email.replace(/'/g, "''")}'`
+  )) as { id: string }[];
+  return rows[0]?.id ?? null;
 };
 
 export const ensureUserProfile = async (
