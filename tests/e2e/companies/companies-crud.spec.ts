@@ -232,15 +232,14 @@ test.describe('Companies Page - Application CRUD', () => {
 
     // Click delete
     await companiesPage.clickDeleteApplication(positionToDelete);
-    await sharedPage.waitForTimeout(1000);
+
+    // Wait for the deleted card to disappear from the DOM before counting
+    const deletedApp = sharedPage.getByText(positionToDelete);
+    await expect(deletedApp).not.toBeVisible({ timeout: 10000 });
 
     // Verify app count decreased
     const afterDeleteCount = await companiesPage.getDrawerApplicationCount();
     expect(afterDeleteCount).toBe(beforeDeleteCount - 1);
-
-    // Verify application is no longer visible
-    const deletedApp = sharedPage.getByText(positionToDelete);
-    await expect(deletedApp).not.toBeVisible();
 
     await companiesPage.closeDrawer();
   });

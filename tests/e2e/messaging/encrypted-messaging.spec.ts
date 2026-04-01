@@ -116,48 +116,78 @@ test.describe('Encrypted Messaging Flow', () => {
       await dismissReAuthModal(pageA);
 
       // ===== STEP 4: User A sends an encrypted message =====
+      // Send with retry: sendMessage() silently queues RLS failures as "offline"
+      // when the conversation hasn't replicated to the read replica yet.
+      // Retry the send up to 3 times, verifying via admin client each time.
+      // (Same pattern as real-time-delivery.spec.ts:327-362)
       const testMessage = `Test encrypted message ${Date.now()}`;
-      const messageInput = pageA.locator(
-        'textarea[aria-label="Message input"]'
-      );
-      await expect(messageInput).toBeVisible({ timeout: 15000 });
-      await messageInput.fill(testMessage);
+      let dbConfirmed = false;
+      for (let sendAttempt = 0; sendAttempt < 3; sendAttempt++) {
+        if (sendAttempt > 0) {
+          console.log(
+            `Send attempt ${sendAttempt + 1}: reloading pageA and resending`
+          );
+          await pageA.reload();
+          await dismissCookieBanner(pageA);
+          await completeEncryptionSetup(pageA);
+          await dismissReAuthModal(pageA, undefined, true);
+          await pageA.waitForSelector('textarea[aria-label="Message input"]', {
+            timeout: 15000,
+          });
+        }
 
-      const sendButton = pageA.getByRole('button', { name: /send/i });
-      await expect(sendButton).toBeEnabled();
-      await sendButton.click();
+        const messageInput = pageA.locator(
+          'textarea[aria-label="Message input"]'
+        );
+        await expect(messageInput).toBeVisible({ timeout: 15000 });
+        await messageInput.fill(testMessage);
 
-      // Wait for sending state to complete (encryption + API can take >5s)
-      await expect(sendButton).not.toContainText('Sending', { timeout: 15000 });
+        const sendButton = pageA.getByRole('button', { name: /send/i });
+        await expect(sendButton).toBeEnabled();
+        await sendButton.click();
 
-      // ===== STEP 6: Verify message appears in User A's view =====
+        // Wait for sending state to complete (encryption + API can take >5s)
+        await expect(sendButton).not.toContainText('Sending', {
+          timeout: 15000,
+        });
+
+        // Poll DB to verify INSERT succeeded
+        if (adminClient && conversationId) {
+          for (let poll = 0; poll < 5; poll++) {
+            await new Promise((r) => setTimeout(r, 2000));
+            const { data } = await adminClient
+              .from('messages')
+              .select('id')
+              .eq('conversation_id', conversationId)
+              .order('created_at', { ascending: false })
+              .limit(1);
+            if (data && data.length > 0) {
+              dbConfirmed = true;
+              break;
+            }
+          }
+        } else {
+          // No admin client — can't verify, assume success
+          dbConfirmed = true;
+        }
+
+        if (dbConfirmed) {
+          console.log(
+            `Send attempt ${sendAttempt + 1}: message confirmed in DB`
+          );
+          break;
+        }
+        console.log(
+          `Send attempt ${sendAttempt + 1}: message NOT in DB (RLS read-replica lag)`
+        );
+      }
+      expect(dbConfirmed).toBe(true);
+
+      // ===== STEP 5: Verify message appears in User A's view =====
       await waitForMessageDelivery(pageA, testMessage, {
         timeout: 20000,
         conversationId: conversationId ?? undefined,
       });
-
-      // Verify message actually reached the DB (not just optimistic)
-      if (adminClient && conversationId) {
-        let dbMessageFound = false;
-        for (let poll = 0; poll < 5; poll++) {
-          const { data: msgs } = await adminClient
-            .from('messages')
-            .select('id')
-            .eq('conversation_id', conversationId)
-            .order('created_at', { ascending: false })
-            .limit(1);
-          if (msgs && msgs.length > 0) {
-            dbMessageFound = true;
-            break;
-          }
-          await new Promise((r) => setTimeout(r, 2000));
-        }
-        if (!dbMessageFound) {
-          throw new Error(
-            'Message not found in DB after send — encryption/send may have failed silently'
-          );
-        }
-      }
 
       // ===== STEP 6: User B navigates directly to conversation =====
       await pageB.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
