@@ -21,6 +21,7 @@ import {
   waitForMessageDelivery,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
+import { executeSQL, escapeSQL } from '../utils/supabase-admin';
 
 const AUTH_FILE = path.resolve('tests/e2e/fixtures/storage-state-auth.json');
 
@@ -36,9 +37,10 @@ async function injectEncryptionKeys(page: Page): Promise<void> {
   try {
     if (!fs.existsSync(AUTH_FILE)) return;
     const state = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
-    const entries: { name: string; value: string }[] = state.origins?.[0]?.localStorage?.filter(
-      (item: { name: string }) => item.name.startsWith('stw_keys_')
-    ) || [];
+    const entries: { name: string; value: string }[] =
+      state.origins?.[0]?.localStorage?.filter((item: { name: string }) =>
+        item.name.startsWith('stw_keys_')
+      ) || [];
     if (entries.length === 0) return;
 
     // Inject all cached keys — app will match by userId.
@@ -46,34 +48,43 @@ async function injectEncryptionKeys(page: Page): Promise<void> {
     // alias the first available key as a fallback to prevent a 164s ReAuthModal
     // timeout. The aliased key may cause "Encrypted with previous keys" on the
     // receiving end but at least the test can proceed past setup.
-    const result = await page.evaluate((keys: { name: string; value: string }[]) => {
-      for (const { name, value } of keys) {
-        localStorage.setItem(name, value);
-      }
-      const authEntry = Object.keys(localStorage).find(k => k.includes('auth-token'));
-      if (!authEntry) return { userId: null, matched: false, aliased: false };
-      try {
-        const token = JSON.parse(localStorage.getItem(authEntry)!);
-        const userId = token?.user?.id || token?.currentSession?.user?.id;
-        if (!userId) return { userId: null, matched: false, aliased: false };
-        const targetKey = `stw_keys_${userId}`;
-        if (localStorage.getItem(targetKey)) {
-          return { userId, matched: true, aliased: false };
+    const result = await page.evaluate(
+      (keys: { name: string; value: string }[]) => {
+        for (const { name, value } of keys) {
+          localStorage.setItem(name, value);
         }
-        // No exact match — alias first available key as fallback
-        if (keys.length > 0) {
-          localStorage.setItem(targetKey, keys[0].value);
-          return { userId, matched: false, aliased: true };
+        const authEntry = Object.keys(localStorage).find((k) =>
+          k.includes('auth-token')
+        );
+        if (!authEntry) return { userId: null, matched: false, aliased: false };
+        try {
+          const token = JSON.parse(localStorage.getItem(authEntry)!);
+          const userId = token?.user?.id || token?.currentSession?.user?.id;
+          if (!userId) return { userId: null, matched: false, aliased: false };
+          const targetKey = `stw_keys_${userId}`;
+          if (localStorage.getItem(targetKey)) {
+            return { userId, matched: true, aliased: false };
+          }
+          // No exact match — alias first available key as fallback
+          if (keys.length > 0) {
+            localStorage.setItem(targetKey, keys[0].value);
+            return { userId, matched: false, aliased: true };
+          }
+          return { userId, matched: false, aliased: false };
+        } catch {
+          return { userId: null, matched: false, aliased: false };
         }
-        return { userId, matched: false, aliased: false };
-      } catch {
-        return { userId: null, matched: false, aliased: false };
-      }
-    }, entries);
+      },
+      entries
+    );
     if (result.aliased) {
-      console.warn(`injectEncryptionKeys: ALIASED key for userId=${result.userId} (auth.setup may have failed for this user)`);
+      console.warn(
+        `injectEncryptionKeys: ALIASED key for userId=${result.userId} (auth.setup may have failed for this user)`
+      );
     } else {
-      console.log(`injectEncryptionKeys: userId=${result.userId}, matched=${result.matched}`);
+      console.log(
+        `injectEncryptionKeys: userId=${result.userId}, matched=${result.matched}`
+      );
     }
   } catch (e) {
     console.log('injectEncryptionKeys failed (non-fatal):', e);
@@ -132,15 +143,21 @@ async function navigateBothToConversation(
       });
     } catch {
       // Poll hasn't fired — reload to trigger fresh loadMessages
-      console.log('Messages poll not detected — reloading to trigger loadMessages');
+      console.log(
+        'Messages poll not detected — reloading to trigger loadMessages'
+      );
       const pw = page === page2 ? TEST_USER_2.password : undefined;
       await page.reload();
       await dismissCookieBanner(page);
       await completeEncryptionSetup(page, pw);
       await dismissReAuthModal(page, pw, true);
-      await page.waitForSelector('body[data-messages-last-poll]', {
-        timeout: 20000,
-      }).catch(() => console.log('Messages poll still not detected after reload'));
+      await page
+        .waitForSelector('body[data-messages-last-poll]', {
+          timeout: 20000,
+        })
+        .catch(() =>
+          console.log('Messages poll still not detected after reload')
+        );
     }
   }
 
@@ -303,7 +320,10 @@ test.describe('Real-time Message Delivery (T098)', () => {
 
     // Inject pre-derived encryption keys into both pages' localStorage.
     // This avoids running Argon2id from scratch (60-90s per user on Firefox/WebKit CI).
-    await Promise.all([injectEncryptionKeys(page1), injectEncryptionKeys(page2)]);
+    await Promise.all([
+      injectEncryptionKeys(page1),
+      injectEncryptionKeys(page2),
+    ]);
   });
 
   test.afterEach(async () => {
@@ -326,39 +346,43 @@ test.describe('Real-time Message Delivery (T098)', () => {
     let dbConfirmed = false;
     for (let sendAttempt = 0; sendAttempt < 3; sendAttempt++) {
       if (sendAttempt > 0) {
-        console.log(`Send attempt ${sendAttempt + 1}: reloading page1 and resending`);
+        console.log(
+          `Send attempt ${sendAttempt + 1}: reloading page1 and resending`
+        );
         await page1.reload();
         await dismissCookieBanner(page1);
         await completeEncryptionSetup(page1);
         await dismissReAuthModal(page1, undefined, true);
-        await page1.waitForSelector('textarea[placeholder*="Type"]', { timeout: 15000 });
+        await page1.waitForSelector('textarea[placeholder*="Type"]', {
+          timeout: 15000,
+        });
       }
 
       await page1.fill('textarea[placeholder*="Type"]', testMessage);
       await page1.click('button[aria-label="Send message"]');
 
-      // Poll DB to verify INSERT succeeded
-      if (adminClient) {
-        for (let poll = 0; poll < 5; poll++) {
+      // Poll DB via Management API (→ primary, not read replica).
+      // The Supabase client routes reads through PostgREST to the replica,
+      // which can lag 5-30s+ under 18-shard CI load.
+      if (conversationId) {
+        for (let poll = 0; poll < 10; poll++) {
           await new Promise((r) => setTimeout(r, 2000));
-          const { data } = await adminClient
-            .from('messages')
-            .select('id')
-            .eq('conversation_id', conversationId!)
-            .order('created_at', { ascending: false })
-            .limit(1);
-          if (data && data.length > 0) {
+          const rows = (await executeSQL(
+            `SELECT id FROM messages WHERE conversation_id = '${escapeSQL(conversationId)}' ORDER BY created_at DESC LIMIT 1`
+          )) as { id: string }[];
+          if (rows && rows.length > 0) {
             dbConfirmed = true;
             break;
           }
         }
       } else {
-        // No admin client — can't verify, assume success
-        dbConfirmed = true;
+        dbConfirmed = false;
       }
 
       if (dbConfirmed) break;
-      console.log(`Send attempt ${sendAttempt + 1}: message NOT in DB (RLS read-replica lag)`);
+      console.log(
+        `Send attempt ${sendAttempt + 1}: message NOT in DB (RLS read-replica lag)`
+      );
     }
     expect(dbConfirmed).toBe(true);
 
@@ -509,7 +533,10 @@ test.describe('Typing Indicators (T099)', () => {
     ]);
 
     // Inject pre-derived encryption keys (avoids 60-90s Argon2id per user on CI)
-    await Promise.all([injectEncryptionKeys(page1), injectEncryptionKeys(page2)]);
+    await Promise.all([
+      injectEncryptionKeys(page1),
+      injectEncryptionKeys(page2),
+    ]);
   });
 
   test.afterEach(async () => {

@@ -23,6 +23,7 @@ import {
   dismissReAuthModal,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
+import { executeSQL, escapeSQL } from '../utils/supabase-admin';
 
 const BASE_URL = process.env.NEXT_PUBLIC_DEPLOY_URL || 'http://localhost:3000';
 
@@ -176,24 +177,24 @@ test.describe('Encrypted Messaging Flow', () => {
           timeout: 15000,
         });
 
-        // Poll DB to verify INSERT succeeded
-        if (adminClient && conversationId) {
-          for (let poll = 0; poll < 5; poll++) {
+        // Poll DB to verify INSERT succeeded.
+        // Use executeSQL (Management API → primary DB) instead of the Supabase
+        // client which routes reads through PostgREST to the read replica.
+        // Under 18-shard CI load, read-replica lag can exceed 30s.
+        if (conversationId) {
+          for (let poll = 0; poll < 10; poll++) {
             await new Promise((r) => setTimeout(r, 2000));
-            const { data } = await adminClient
-              .from('messages')
-              .select('id')
-              .eq('conversation_id', conversationId)
-              .order('created_at', { ascending: false })
-              .limit(1);
-            if (data && data.length > 0) {
+            const rows = (await executeSQL(
+              `SELECT id FROM messages WHERE conversation_id = '${escapeSQL(conversationId)}' ORDER BY created_at DESC LIMIT 1`
+            )) as { id: string }[];
+            if (rows && rows.length > 0) {
               dbConfirmed = true;
               break;
             }
           }
         } else {
-          // No admin client — can't verify, assume success
-          dbConfirmed = true;
+          // No conversation ID — can't verify
+          dbConfirmed = false;
         }
 
         if (dbConfirmed) {
