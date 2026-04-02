@@ -39,6 +39,36 @@ import {
 
 const logger = createLogger('messaging:messages');
 
+/**
+ * Detect RLS/permission errors from Supabase read-replica lag.
+ * These are transient: the conversation exists on the primary but
+ * hasn't replicated yet, so the RLS policy denies the INSERT.
+ */
+function isRLSError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const err = error as Record<string, unknown>;
+  // PostgreSQL 42501 = insufficient_privilege (RLS denial)
+  if (err.code === '42501') return true;
+  // PostgreSQL 23503 = foreign_key_violation (conversation not on replica)
+  if (err.code === '23503') return true;
+  const msg = typeof err.message === 'string' ? err.message : '';
+  if (msg.includes('row-level security')) return true;
+  if (msg.includes('violates foreign key constraint')) return true;
+  return false;
+}
+
+/**
+ * Detect genuine network/offline errors that warrant offline queuing.
+ */
+function isNetworkError(error: unknown): boolean {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return true;
+  if (error instanceof TypeError) {
+    const msg = error.message.toLowerCase();
+    return msg.includes('fetch') || msg.includes('network');
+  }
+  return false;
+}
+
 export class MessageService {
   /**
    * Send an encrypted message to a connection
@@ -295,47 +325,119 @@ export class MessageService {
       } catch (sendError) {
         // Log the actual error so E2E diagnostics can see what failed
         console.error(
-          '[sendMessage] INSERT failed, queuing offline:',
+          '[sendMessage] INSERT failed:',
           sendError instanceof Error ? sendError.message : sendError
         );
-        // Online but send failed - queue with retry
-        const messageId = crypto.randomUUID();
-        await offlineQueueService.queueMessage({
-          id: messageId,
-          conversation_id: input.conversation_id,
-          sender_id: user.id,
-          encrypted_content: encrypted.ciphertext,
-          initialization_vector: encrypted.iv,
-        });
 
-        // Notify the useOfflineQueue hook so it can refresh state and trigger sync
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new Event('offline-queue-updated'));
+        // RLS/permission errors are transient when caused by read-replica lag.
+        // Retry up to 3 times with increasing delays before giving up.
+        if (isRLSError(sendError)) {
+          logger.warn(
+            'RLS error detected (likely read-replica lag), retrying',
+            {
+              conversation_id: input.conversation_id,
+            }
+          );
+
+          for (let rlsRetry = 0; rlsRetry < 3; rlsRetry++) {
+            await new Promise((r) => setTimeout(r, 2000 * (rlsRetry + 1)));
+            logger.info(`RLS retry ${rlsRetry + 1}/3`, {
+              conversation_id: input.conversation_id,
+            });
+
+            const { data: lastMsg } = await msgClient
+              .from('messages')
+              .select('sequence_number')
+              .eq('conversation_id', input.conversation_id)
+              .order('sequence_number', { ascending: false })
+              .limit(1)
+              .single();
+
+            const nextSeq = lastMsg ? lastMsg.sequence_number + 1 : 1;
+
+            const { data: retryData, error: retryError } = await msgClient
+              .from('messages')
+              .insert({
+                conversation_id: input.conversation_id,
+                sender_id: user.id,
+                encrypted_content: encrypted.ciphertext,
+                initialization_vector: encrypted.iv,
+                sequence_number: nextSeq,
+                deleted: false,
+                edited: false,
+              })
+              .select()
+              .single();
+
+            if (!retryError) {
+              logger.info('RLS retry succeeded', { attempt: rlsRetry + 1 });
+              await msgClient
+                .from('conversations')
+                .update({ last_message_at: new Date().toISOString() })
+                .eq('id', input.conversation_id);
+              return { message: retryData, queued: false };
+            }
+
+            // Sequence conflict during retry — re-read and try again
+            if (retryError.code === '23505') continue;
+
+            // Still RLS error — keep retrying
+            if (!isRLSError(retryError)) {
+              throw new ConnectionError(
+                'Failed to send message: ' + retryError.message
+              );
+            }
+          }
+
+          // All RLS retries exhausted — surface error to UI
+          throw new ConnectionError(
+            'Message send failed: conversation not accessible (read-replica lag exceeded retries)'
+          );
         }
 
-        // Return a placeholder message object
-        const queuedMessage: Message = {
-          id: messageId,
-          conversation_id: input.conversation_id,
-          sender_id: user.id,
-          encrypted_content: encrypted.ciphertext,
-          initialization_vector: encrypted.iv,
-          sequence_number: 0, // Will be assigned when synced
-          deleted: false,
-          edited: false,
-          edited_at: null,
-          delivered_at: null,
-          read_at: null,
-          created_at: new Date().toISOString(),
-          key_version: 1,
-          is_system_message: false,
-          system_message_type: null,
-        };
+        // Genuine network/offline errors — queue for later sync
+        if (isNetworkError(sendError)) {
+          const messageId = crypto.randomUUID();
+          await offlineQueueService.queueMessage({
+            id: messageId,
+            conversation_id: input.conversation_id,
+            sender_id: user.id,
+            encrypted_content: encrypted.ciphertext,
+            initialization_vector: encrypted.iv,
+          });
 
-        return {
-          message: queuedMessage,
-          queued: true, // Message queued for retry
-        };
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('offline-queue-updated'));
+          }
+
+          const queuedMessage: Message = {
+            id: messageId,
+            conversation_id: input.conversation_id,
+            sender_id: user.id,
+            encrypted_content: encrypted.ciphertext,
+            initialization_vector: encrypted.iv,
+            sequence_number: 0,
+            deleted: false,
+            edited: false,
+            edited_at: null,
+            delivered_at: null,
+            read_at: null,
+            created_at: new Date().toISOString(),
+            key_version: 1,
+            is_system_message: false,
+            system_message_type: null,
+          };
+
+          return {
+            message: queuedMessage,
+            queued: true,
+          };
+        }
+
+        // Unknown error — re-throw so the UI can show an error
+        throw sendError instanceof Error
+          ? sendError
+          : new ConnectionError('Failed to send message: ' + String(sendError));
       }
     } catch (error) {
       if (

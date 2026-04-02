@@ -363,10 +363,12 @@ test.describe('Flow 1: Email/Password Signup → Welcome Message', () => {
     page,
     browserName,
   }) => {
-    // hash-wasm Argon2id requires SharedArrayBuffer; Firefox blocks it without COOP/COEP headers
+    // hash-wasm Argon2id requires SharedArrayBuffer; Firefox and WebKit block it
+    // without COOP/COEP headers. Key initialization silently fails in SignInForm
+    // catch block, and the test polls hasEncryptionKeys() for 60s — always false.
     test.skip(
-      browserName === 'firefox',
-      'SharedArrayBuffer unavailable on Firefox without COOP/COEP headers'
+      browserName === 'firefox' || browserName === 'webkit',
+      'SharedArrayBuffer unavailable on Firefox/WebKit without COOP/COEP headers'
     );
     test.setTimeout(120000); // Key creation polling can take up to 45s on Firefox CI
     const testEmail = `e2e-flow1-${Date.now()}@mailinator.com`;
