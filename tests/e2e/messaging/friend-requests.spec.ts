@@ -482,7 +482,7 @@ test.describe('Friend Request Flow', () => {
 
     // Send friend request to User B — multi-attempt for read replica lag
     let cancelSendVisible = false;
-    for (let attempt = 0; attempt < 10; attempt++) {
+    for (let attempt = 0; attempt < 15; attempt++) {
       await page.goto('/messages?tab=connections');
       await dismissCookieBanner(page);
       // Only check encryption setup on first iteration (keys persist in DB)
@@ -507,13 +507,13 @@ test.describe('Friend Request Flow', () => {
         break;
       }
       console.log(
-        `Send Request not visible (attempt ${attempt + 1}/10), waiting for read replica...`
+        `Send Request not visible (attempt ${attempt + 1}/15), waiting for read replica...`
       );
       await page.waitForTimeout(3000);
     }
     if (!cancelSendVisible) {
       throw new Error(
-        '"Send Request" button never appeared after 10 reload attempts'
+        '"Send Request" button never appeared after 15 reload attempts'
       );
     }
     await expect(page.getByText(/friend request sent/i).first()).toBeVisible({

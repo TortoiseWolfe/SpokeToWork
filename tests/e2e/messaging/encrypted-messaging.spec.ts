@@ -178,22 +178,37 @@ test.describe('Encrypted Messaging Flow', () => {
         });
 
         // Poll DB to verify INSERT succeeded.
-        // Use executeSQL (Management API → primary DB) instead of the Supabase
-        // client which routes reads through PostgREST to the read replica.
-        // Under 18-shard CI load, read-replica lag can exceed 30s.
-        if (conversationId) {
-          for (let poll = 0; poll < 10; poll++) {
+        // Use admin client (PostgREST) with extended polling — read-replica lag
+        // under 18-shard CI load is typically 5-30s. If admin client doesn't find
+        // the message after 15 polls (30s), try executeSQL as final check against
+        // the primary. (Management API has strict rate limits, so it's last resort.)
+        if (adminClient && conversationId) {
+          for (let poll = 0; poll < 15; poll++) {
             await new Promise((r) => setTimeout(r, 2000));
+            const { data } = await adminClient
+              .from('messages')
+              .select('id')
+              .eq('conversation_id', conversationId)
+              .order('created_at', { ascending: false })
+              .limit(1);
+            if (data && data.length > 0) {
+              dbConfirmed = true;
+              break;
+            }
+          }
+          // Final check: query primary DB directly via Management API
+          if (!dbConfirmed) {
             const rows = (await executeSQL(
               `SELECT id FROM messages WHERE conversation_id = '${escapeSQL(conversationId)}' ORDER BY created_at DESC LIMIT 1`
             )) as { id: string }[];
             if (rows && rows.length > 0) {
               dbConfirmed = true;
-              break;
+              console.log(
+                'Message found via Management API (primary), not on replica yet'
+              );
             }
           }
         } else {
-          // No conversation ID — can't verify
           dbConfirmed = false;
         }
 

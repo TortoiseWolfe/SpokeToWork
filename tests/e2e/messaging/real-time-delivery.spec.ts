@@ -361,18 +361,32 @@ test.describe('Real-time Message Delivery (T098)', () => {
       await page1.fill('textarea[placeholder*="Type"]', testMessage);
       await page1.click('button[aria-label="Send message"]');
 
-      // Poll DB via Management API (→ primary, not read replica).
-      // The Supabase client routes reads through PostgREST to the replica,
-      // which can lag 5-30s+ under 18-shard CI load.
-      if (conversationId) {
-        for (let poll = 0; poll < 10; poll++) {
+      // Poll DB via admin client (PostgREST → read replica) with extended polling.
+      // Replica lag under 18-shard CI load is typically 5-30s.
+      // Final fallback: executeSQL (Management API → primary), but rate-limited.
+      if (adminClient && conversationId) {
+        for (let poll = 0; poll < 15; poll++) {
           await new Promise((r) => setTimeout(r, 2000));
+          const { data } = await adminClient
+            .from('messages')
+            .select('id')
+            .eq('conversation_id', conversationId)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          if (data && data.length > 0) {
+            dbConfirmed = true;
+            break;
+          }
+        }
+        if (!dbConfirmed) {
           const rows = (await executeSQL(
             `SELECT id FROM messages WHERE conversation_id = '${escapeSQL(conversationId)}' ORDER BY created_at DESC LIMIT 1`
           )) as { id: string }[];
           if (rows && rows.length > 0) {
             dbConfirmed = true;
-            break;
+            console.log(
+              'Message found via Management API (primary), not on replica yet'
+            );
           }
         }
       } else {
