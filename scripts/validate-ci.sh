@@ -65,21 +65,32 @@ run_check "TypeScript type check" "pnpm type-check"
 if [ "$IN_DOCKER" = false ]; then
     if ! docker compose ps supabase-db 2>/dev/null | grep -q "running"; then
         echo -e "\n${YELLOW}🗄️  Starting Supabase for contract tests...${NC}"
+        # supabase-up.sh needs env vars exported (not just in .env file).
+        # Override SUPABASE_API_PORT=0 for dynamic port assignment so we
+        # don't collide with other Supabase instances (e.g. eval sandboxes).
+        # Contract tests use Docker-internal hostnames, not host ports.
+        set -a
+        source <(grep -v '^#\|^$\|^UID=' .env 2>/dev/null || true)
+        export SUPABASE_API_PORT=0
+        set +a
         ./scripts/supabase-up.sh
     else
         echo -e "\n${GREEN}🗄️  Supabase already running${NC}"
     fi
 fi
 
-# 4. Unit + contract tests (batched to avoid OOM)
-run_check "Unit tests" "./scripts/test-batched-full.sh"
+# 4. Unit tests (single vitest process — 4GB heap handles all 4500 tests)
+run_check "Unit tests" "pnpm exec vitest run"
 
-# 4. Test coverage (optional - can be slow)
+# 5. Contract tests (live Supabase, separate config)
+run_check "Contract tests" "pnpm exec vitest run -c vitest.contract.config.ts"
+
+# 6. Test coverage (optional - can be slow)
 if [ "$1" != "--quick" ]; then
     run_check "Test coverage" "pnpm test:coverage"
 fi
 
-# 5. Production build
+# 7. Production build
 # next build and next dev both use .next/ — running them in the same container
 # causes race conditions (dev server overwrites manifest files mid-build).
 # Fix: stop the dev server container, build in a temporary container, restart.
@@ -102,7 +113,7 @@ else
     docker compose up -d spoketowork >/dev/null 2>&1
 fi
 
-# 6. Storybook build (optional - can be slow)
+# 8. Storybook build (optional - can be slow)
 if [ "$1" != "--quick" ]; then
     if [ "$IN_DOCKER" = true ]; then
         run_check "Storybook build" "pnpm build-storybook"
