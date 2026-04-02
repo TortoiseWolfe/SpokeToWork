@@ -61,6 +61,11 @@ const sharedTestConfig = {
     'tests/contract/profile/delete-account.contract.test.ts',
     'tests/contract/profile/get-profile.contract.test.ts',
     'tests/contract/profile/update-profile.contract.test.ts',
+    // RLS contract tests — need live Supabase network (supabase-kong:8000).
+    // Run via: vitest run -c vitest.contract.config.ts
+    'tests/contract/rls/worker-discoverability.contract.test.ts',
+    'tests/contract/rls/industries-anon.contract.test.ts',
+    'tests/contract/rls/skills-anon.contract.test.ts',
     'tests/integration/auth/oauth-flow.test.ts',
     'tests/integration/auth/password-reset-flow.test.ts',
     'tests/integration/auth/protected-routes.test.ts',

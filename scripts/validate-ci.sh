@@ -61,29 +61,19 @@ run_check "ESLint" "pnpm lint"
 # 2. Type check
 run_check "TypeScript type check" "pnpm type-check"
 
-# 3. Ensure Supabase is running (contract tests need a live DB)
-if [ "$IN_DOCKER" = false ]; then
-    if ! docker compose ps supabase-db 2>/dev/null | grep -q "running"; then
-        echo -e "\n${YELLOW}🗄️  Starting Supabase for contract tests...${NC}"
-        # supabase-up.sh needs env vars exported (not just in .env file).
-        # Override SUPABASE_API_PORT=0 for dynamic port assignment so we
-        # don't collide with other Supabase instances (e.g. eval sandboxes).
-        # Contract tests use Docker-internal hostnames, not host ports.
-        set -a
-        source <(grep -v '^#\|^$\|^UID=' .env 2>/dev/null || true)
-        export SUPABASE_API_PORT=0
-        set +a
-        ./scripts/supabase-up.sh
-    else
-        echo -e "\n${GREEN}🗄️  Supabase already running${NC}"
-    fi
-fi
-
-# 4. Unit tests (single vitest process — 4GB heap handles all 4500 tests)
+# 3. Unit tests (single vitest process — 4GB heap handles all 4500 tests)
 run_check "Unit tests" "pnpm exec vitest run"
 
-# 5. Contract tests (live Supabase, separate config)
-run_check "Contract tests" "pnpm exec vitest run -c vitest.contract.config.ts"
+# 4. Contract tests (only when Supabase is already running — don't start it in pre-push)
+if [ "$IN_DOCKER" = false ]; then
+    if docker compose ps supabase-db 2>/dev/null | grep -q "running"; then
+        run_check "Contract tests" "pnpm exec vitest run -c vitest.contract.config.ts"
+    else
+        echo -e "\n${YELLOW}⏭️  Skipping contract tests (Supabase not running — run ./scripts/supabase-up.sh to enable)${NC}"
+    fi
+else
+    run_check "Contract tests" "pnpm exec vitest run -c vitest.contract.config.ts"
+fi
 
 # 6. Test coverage (optional - can be slow)
 if [ "$1" != "--quick" ]; then
