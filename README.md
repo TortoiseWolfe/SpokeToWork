@@ -53,12 +53,34 @@ METHODOLOGY (follow strictly, no guessing):
    - src/services/messaging/key-service.ts:326-366 — restoreKeysFromSession (localStorage)
    - src/app/messages/page.tsx:126-183 — checkKeys useEffect
 
+9. CURRENT STATE (run 23913826067 on 3e84296, 2026-04-02):
+   - Supabase upgraded to Pro ($25/mo) — quota no longer blocks auth
+   - CI passes, Accessibility passes, Deploy triggers on CI success
+   - E2E: 12/18 shards pass, 5 fail, 1 running
+   - Failing shards: webkit 1/6, chromium 2/6, chromium 3/6, firefox 2/6, firefox 3/6
+   - Biggest cluster: message-editing tests (chromium 3/6 + firefox 3/6)
+     - findMessageBubble waits 45s for optimistic->server ID swap
+     - Swap never happens because realtime confirmation lost or INSERT silently queued
+     - Tests reload and retry but still fail — the message never reaches DB
+   - webkit 1/6: auth flow GoTrue propagation delay (loginAndVerify exhausts retries)
+   - chromium 2/6: friend-request UI element never appears
+   - firefox 2/6: encrypted messaging delivery check returns false
+   - E2E has NEVER passed all 18 shards — these are pre-existing failures
+
+10. REGRESSION GUARD:
+    - Before pushing any fix, verify passing shards still pass
+    - Track shard-level results per push in this format:
+      PUSH <hash> <date>: <pass>/<total> [<failing shards>]
+    - If a previously passing shard breaks, revert immediately
+
 RULES:
 - NEVER guess — read logs and code first
 - NEVER increase timeouts without fixing the underlying issue
+- NEVER skip, ignore, bypass, or work around a failing test
 - If the same fix doesn't work twice, the diagnosis is WRONG
 - If you've tried 3+ fixes for the same test, do a deeper code review
 - Track: what failed, what the actual error was, what you changed, whether it helped
+- Delete all test users each push for a clean run (paid plan covers it)
 ```
 
 # SpokeToWork - Job Hunting by Bicycle
