@@ -430,7 +430,26 @@ function MessagesContent() {
       // Only reload from server when message was sent online.
       // When queued offline, keep the optimistic message in the UI.
       if (!result.queued) {
-        await loadMessages();
+        // Replace the optimistic message with the server-confirmed message
+        // immediately. This avoids waiting for loadMessages() which reads
+        // from the read replica (can lag 30s+ under CI load) or Realtime
+        // which may not fire on CI. The INSERT response already has the
+        // server UUID, sequence_number, and timestamps.
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === tempId
+              ? {
+                  ...m,
+                  id: result.message.id,
+                  sequence_number: result.message.sequence_number,
+                  created_at: result.message.created_at,
+                  sender_id: result.message.sender_id,
+                }
+              : m
+          )
+        );
+        // Also trigger a background reload to pick up any other new messages
+        loadMessages();
       }
     } catch (err: unknown) {
       // Remove optimistic message on error
