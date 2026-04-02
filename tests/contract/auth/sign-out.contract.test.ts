@@ -6,15 +6,18 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 describe('Supabase Auth Sign-Out Contract', () => {
-  let supabase: ReturnType<typeof createClient>;
+  let supabase: SupabaseClient;
   const testEmail = `signout-test-${Date.now()}@example.com`;
   const testPassword = 'ValidPass123!';
 
   beforeEach(async () => {
-    supabase = createClient();
+    supabase = createClient(url, anonKey, { auth: { persistSession: false } });
 
     // Create and sign in test user
     await supabase.auth.signUp({

@@ -22,10 +22,7 @@ RUN if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; \
 FROM base AS dev
 WORKDIR /app
 
-# Create node user if it doesn't exist and set ownership
-RUN useradd -m -u 1000 node 2>/dev/null || true
-
-# Install system dependencies for development tools
+# Install system dependencies (requires root)
 # Playwright browsers run in a separate MCP container (see .mcp.json)
 RUN apt-get update && apt-get install -y \
     git \
@@ -39,22 +36,22 @@ RUN apt-get update && apt-get install -y \
 RUN curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar -xz -C /usr/local/bin gitleaks && \
     chmod +x /usr/local/bin/gitleaks
 
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
-
-COPY --chown=node:node . .
-
-# Set proper ownership for all files including pnpm store
-RUN chown -R node:node /app /pnpm
-
-# Copy entrypoint script
-COPY --chown=node:node docker/docker-entrypoint.sh /usr/local/bin/
+# Entrypoint needs root for chmod, copy before USER switch
+COPY docker/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Run as non-root user (Bret Fisher pattern: USER in Dockerfile,
-# not runtime su/gosu. This also fixes docker compose exec running
-# as root and creating root-owned files in bind mounts like .git/)
+# Switch to node user BEFORE copying app files (Bret Fisher pattern).
+# Official node:22-slim already includes the node user — no useradd needed.
+# --chown on COPY sets ownership at copy time, eliminating the expensive
+# RUN chown -R that previously re-owned hundreds of thousands of files
+# on every rebuild.
 USER node
+
+# Copy dependencies with correct ownership
+COPY --from=deps --chown=node:node /app/node_modules ./node_modules
+
+# Copy source with correct ownership
+COPY --chown=node:node . .
 
 # Expose ports for Next.js and Storybook
 EXPOSE 3000 6006

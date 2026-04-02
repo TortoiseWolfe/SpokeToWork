@@ -138,7 +138,8 @@ describe('useConversationRealtime', () => {
       expect(realtimeService.subscribeToMessages).toHaveBeenCalledWith(
         mockConversationId,
         expect.any(Function),
-        expect.any(Function) // onReconnect callback (bug fix #2)
+        expect.any(Function), // onReconnect callback
+        expect.any(Function) // onSubscribed callback (E2E DOM attribute)
       );
     });
 
@@ -397,7 +398,11 @@ describe('useConversationRealtime', () => {
     let realtimeCallback: ((message: any) => void) | undefined;
 
     (realtimeService.subscribeToMessages as any).mockImplementation(
-      (_id: string, callback: (message: any) => void, _onReconnect?: () => void) => {
+      (
+        _id: string,
+        callback: (message: any) => void,
+        _onReconnect?: () => void
+      ) => {
         realtimeCallback = callback;
         return vi.fn();
       }
@@ -463,7 +468,9 @@ describe('useConversationRealtime', () => {
     });
 
     // Should have refetched messages on reconnect
-    expect(messageService.getMessageHistory).toHaveBeenCalledWith(mockConversationId);
+    expect(messageService.getMessageHistory).toHaveBeenCalledWith(
+      mockConversationId
+    );
   });
 
   it('Bug #3: should add sent message to state immediately (optimistic update)', async () => {
@@ -570,7 +577,11 @@ describe('useConversationRealtime', () => {
     let realtimeCallback: ((message: any) => void) | undefined;
 
     (realtimeService.subscribeToMessages as any).mockImplementation(
-      (_id: string, callback: (message: any) => void, _onReconnect?: () => void) => {
+      (
+        _id: string,
+        callback: (message: any) => void,
+        _onReconnect?: () => void
+      ) => {
         realtimeCallback = callback;
         return vi.fn();
       }

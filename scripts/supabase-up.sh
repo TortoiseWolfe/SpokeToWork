@@ -57,6 +57,12 @@ docker compose exec -T supabase-db \
   psql -U supabase_admin -d postgres -c "NOTIFY pgrst, 'reload schema';" > /dev/null 2>&1
 echo "Migrations applied."
 
+# Seed test users via Supabase Auth API (contract tests need real auth users).
+# Runs inside the app container which has tsx and the env vars.
+echo "Seeding test users..."
+docker compose exec -T spoketowork npx tsx scripts/seed-test-users.ts 2>/dev/null || \
+  echo "  ⚠️  Test user seeding skipped (app container not ready or script missing)"
+
 # Write Supabase config for the app container.
 # Docker-internal hostname — resolves from app, Playwright, and headless Chrome.
 cat > .env.supabase.local <<EOF

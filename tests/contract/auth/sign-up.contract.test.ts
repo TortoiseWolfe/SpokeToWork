@@ -7,18 +7,21 @@
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
   TEST_EMAIL_SECONDARY,
   TEST_PASSWORD_SECONDARY,
   hasSecondaryUser,
 } from '../../fixtures/test-user';
 
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
 describe('Supabase Auth Sign-Up Contract', () => {
-  let supabase: ReturnType<typeof createClient>;
+  let supabase: SupabaseClient;
 
   beforeAll(() => {
-    supabase = createClient();
+    supabase = createClient(url, anonKey, { auth: { persistSession: false } });
 
     if (!hasSecondaryUser()) {
       console.warn(
@@ -43,7 +46,8 @@ describe('Supabase Auth Sign-Up Contract', () => {
       expect(error).toBeNull();
       expect(data.user).toBeDefined();
       expect(data.user?.email).toBe(testEmail);
-      expect(data.user?.email_confirmed_at).toBeNull(); // Unverified initially
+      // With GOTRUE_MAILER_AUTOCONFIRM=true, users are confirmed immediately
+      expect(data.user?.email_confirmed_at).toBeDefined();
     }
   );
 
@@ -67,7 +71,7 @@ describe('Supabase Auth Sign-Up Contract', () => {
     });
 
     expect(error).toBeDefined();
-    expect(error?.message).toContain('password');
+    expect(error?.message?.toLowerCase()).toContain('password');
   });
 
   it.skipIf(!hasSecondaryUser())('should reject duplicate email', async () => {

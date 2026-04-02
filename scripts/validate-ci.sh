@@ -61,7 +61,17 @@ run_check "ESLint" "pnpm lint"
 # 2. Type check
 run_check "TypeScript type check" "pnpm type-check"
 
-# 3. Unit tests (batched to avoid OOM)
+# 3. Ensure Supabase is running (contract tests need a live DB)
+if [ "$IN_DOCKER" = false ]; then
+    if ! docker compose ps supabase-db 2>/dev/null | grep -q "running"; then
+        echo -e "\n${YELLOW}🗄️  Starting Supabase for contract tests...${NC}"
+        ./scripts/supabase-up.sh
+    else
+        echo -e "\n${GREEN}🗄️  Supabase already running${NC}"
+    fi
+fi
+
+# 4. Unit + contract tests (batched to avoid OOM)
 run_check "Unit tests" "./scripts/test-batched-full.sh"
 
 # 4. Test coverage (optional - can be slow)

@@ -6,13 +6,16 @@
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 describe('Supabase Auth OAuth Contract', () => {
-  let supabase: ReturnType<typeof createClient>;
+  let supabase: SupabaseClient;
 
   beforeAll(() => {
-    supabase = createClient();
+    supabase = createClient(url, anonKey, { auth: { persistSession: false } });
   });
 
   it('should return redirect URL for GitHub OAuth', async () => {
@@ -25,7 +28,8 @@ describe('Supabase Auth OAuth Contract', () => {
 
     expect(error).toBeNull();
     expect(data.url).toBeDefined();
-    expect(data.url).toContain('github.com');
+    expect(data.url).toContain('/auth/v1/authorize');
+    expect(data.url).toContain('provider=github');
     expect(data.provider).toBe('github');
   });
 
@@ -39,7 +43,8 @@ describe('Supabase Auth OAuth Contract', () => {
 
     expect(error).toBeNull();
     expect(data.url).toBeDefined();
-    expect(data.url).toContain('google');
+    expect(data.url).toContain('/auth/v1/authorize');
+    expect(data.url).toContain('provider=google');
     expect(data.provider).toBe('google');
   });
 

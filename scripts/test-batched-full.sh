@@ -27,7 +27,7 @@ run_batch() {
     # Memory-efficient flags:
     # --no-file-parallelism: Run test files sequentially to reduce memory
     # --pool forks --poolOptions.forks.singleFork: Use single fork to prevent multiple workers
-    if pnpm exec vitest run "$pattern" --reporter=default --no-file-parallelism --pool forks --poolOptions.forks.singleFork 2>&1 | tee /tmp/batch-output.txt | tail -5; then
+    if pnpm exec vitest run "$pattern" --reporter=default --no-file-parallelism --pool forks 2>&1 | tee /tmp/batch-output.txt | tail -5; then
         # Extract pass/fail counts
         PASSED=$(grep -oP '\d+(?= passed)' /tmp/batch-output.txt | tail -1 || echo "0")
         FAILED_COUNT=$(grep -oP '\d+(?= failed)' /tmp/batch-output.txt | tail -1 || echo "0")
@@ -153,8 +153,24 @@ run_batch "Unit Tests" "tests/unit"
 # Batch 9: Integration tests
 run_batch "Integration Tests" "tests/integration"
 
-# Batch 10: Contract tests
-run_batch "Contract Tests" "tests/contract"
+# Batch 10: Contract tests (offline — no live DB needed)
+run_batch "Contract Tests (offline)" "tests/contract/auth tests/contract/rls/admin-read.contract.test.ts"
+
+# Batch 10b: Contract tests requiring live Supabase — use dedicated config.
+# validate-ci.sh ensures Supabase is up before calling this script.
+echo -e "${YELLOW}=== Contract Tests (live DB) ===${NC}"
+
+if pnpm exec vitest run -c vitest.contract.config.ts --reporter=default --no-file-parallelism 2>&1 | tee /tmp/batch-output.txt | tail -5; then
+    PASSED=$(grep -oP '\d+(?= passed)' /tmp/batch-output.txt | tail -1 || echo "0")
+    FAILED_COUNT=$(grep -oP '\d+(?= failed)' /tmp/batch-output.txt | tail -1 || echo "0")
+    TOTAL_PASSED=$((TOTAL_PASSED + ${PASSED:-0}))
+    TOTAL_FAILED=$((TOTAL_FAILED + ${FAILED_COUNT:-0}))
+    echo -e "${GREEN}✓ Contract Tests (live DB) complete${NC}"
+else
+    echo -e "${RED}✗ Contract Tests (live DB) had failures${NC}"
+    FAILED=1
+fi
+echo ""
 
 # Batch 11: Remaining tests
 run_batch "Other Tests" "src/tests"

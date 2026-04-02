@@ -87,11 +87,18 @@ describe('Employer Team RPCs — Contract', () => {
     }
     employerId = auth.user.id;
 
-    // Look up tertiary user id via admin API (auth.users is not exposed over PostgREST)
-    const { data: tertUsers, error: listErr } =
-      await admin.auth.admin.listUsers();
-    if (listErr) throw listErr;
-    const tert = tertUsers.users.find((u) => u.email === TEST_EMAIL_TERTIARY);
+    // Look up tertiary user id via admin API (paginate to find among ephemeral test users)
+    const allUsers: any[] = [];
+    let page = 1;
+    while (true) {
+      const { data: pageData, error: listErr } =
+        await admin.auth.admin.listUsers({ page, perPage: 100 });
+      if (listErr) throw listErr;
+      allUsers.push(...pageData.users);
+      if (pageData.users.length < 100) break;
+      page++;
+    }
+    const tert = allUsers.find((u: any) => u.email === TEST_EMAIL_TERTIARY);
     if (!tert) {
       throw new Error(
         `Tertiary test user (${TEST_EMAIL_TERTIARY}) not found — run seed-test-users.ts`

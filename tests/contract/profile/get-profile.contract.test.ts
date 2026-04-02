@@ -5,15 +5,18 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { TEST_EMAIL, TEST_PASSWORD } from '../../fixtures/test-user';
 
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
 describe('User Profile GET Contract', () => {
-  let supabase: ReturnType<typeof createClient>;
+  let supabase: SupabaseClient;
   let testUserId: string;
 
   beforeAll(async () => {
-    supabase = createClient();
+    supabase = createClient(url, anonKey, { auth: { persistSession: false } });
 
     // Sign in with pre-confirmed static test user
     const { data } = await supabase.auth.signInWithPassword({

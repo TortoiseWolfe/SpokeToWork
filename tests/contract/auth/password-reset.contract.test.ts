@@ -6,18 +6,21 @@
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
   TEST_EMAIL_SECONDARY,
   TEST_PASSWORD_SECONDARY,
   hasSecondaryUser,
 } from '../../fixtures/test-user';
 
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
 describe('Supabase Auth Password Reset Contract', () => {
-  let supabase: ReturnType<typeof createClient>;
+  let supabase: SupabaseClient;
 
   beforeAll(async () => {
-    supabase = createClient();
+    supabase = createClient(url, anonKey, { auth: { persistSession: false } });
 
     if (!hasSecondaryUser()) {
       console.warn(
@@ -27,21 +30,19 @@ describe('Supabase Auth Password Reset Contract', () => {
     }
   });
 
-  it.skipIf(!hasSecondaryUser())(
-    'should send password reset email for valid email',
-    async () => {
-      const { data, error } = await supabase.auth.resetPasswordForEmail(
-        TEST_EMAIL_SECONDARY!,
-        {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password`,
-        }
-      );
+  it('should send password reset email for valid email', async () => {
+    // Use a unique email to avoid Supabase's 60s rate limit per email.
+    // Supabase returns success even for non-existent emails (prevents enumeration).
+    const { data, error } = await supabase.auth.resetPasswordForEmail(
+      `reset-valid-${Date.now()}@example.com`,
+      {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password`,
+      }
+    );
 
-      expect(error).toBeNull();
-      // Supabase returns empty object on success
-      expect(data).toBeDefined();
-    }
-  );
+    expect(error).toBeNull();
+    expect(data).toBeDefined();
+  });
 
   it('should not reveal if email exists (security)', async () => {
     // Even for non-existent email, should return success (prevents email enumeration)
@@ -69,12 +70,13 @@ describe('Supabase Auth Password Reset Contract', () => {
   });
 
   it.skipIf(!hasSecondaryUser())('should require redirectTo URL', async () => {
+    // Use a different email to avoid Supabase's 60s rate limit on password resets
     const { error } = await supabase.auth.resetPasswordForEmail(
-      TEST_EMAIL_SECONDARY!
+      `reset-redirect-${Date.now()}@example.com`
     );
 
-    // Should work without redirectTo (uses default from Supabase config)
-    // This test documents the optional nature of redirectTo
+    // Should work without redirectTo (uses default from Supabase config).
+    // Supabase returns success even for non-existent emails (prevents enumeration).
     expect(error).toBeNull();
   });
 

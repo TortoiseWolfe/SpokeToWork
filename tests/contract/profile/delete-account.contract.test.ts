@@ -6,15 +6,21 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 describe('Account Deletion Contract', () => {
-  let supabase: ReturnType<typeof createClient>;
+  let supabase: SupabaseClient;
+  let admin: SupabaseClient;
   let testUserId: string;
   let testEmail: string;
 
   beforeEach(async () => {
-    supabase = createClient();
+    supabase = createClient(url, anonKey, { auth: { persistSession: false } });
+    admin = createClient(url, serviceKey, { auth: { persistSession: false } });
     testEmail = `delete-test-${Date.now()}@example.com`;
 
     // Create test user
@@ -50,15 +56,16 @@ describe('Account Deletion Contract', () => {
   });
 
   it('should cascade delete audit logs when user deleted', async () => {
-    // Create audit log entry
-    await supabase.from('auth_audit_logs').insert({
+    // Create audit log entry via service-role (RLS blocks user inserts)
+    const { error: insertErr } = await admin.from('auth_audit_logs').insert({
       user_id: testUserId,
       event_type: 'sign_in_success',
       event_data: { test: true },
     });
+    if (insertErr) throw insertErr;
 
     // Verify audit log exists
-    const { data: beforeLogs } = await supabase
+    const { data: beforeLogs } = await admin
       .from('auth_audit_logs')
       .select('*')
       .eq('user_id', testUserId);
@@ -71,17 +78,18 @@ describe('Account Deletion Contract', () => {
   });
 
   it('should cascade delete payment intents when user deleted', async () => {
-    // Create payment intent for user
-    await supabase.from('payment_intents').insert({
+    // Create payment intent via service-role (RLS blocks user inserts on this table)
+    const { error: insertErr } = await admin.from('payment_intents').insert({
       template_user_id: testUserId,
       amount: 1000,
-      currency: 'USD',
+      currency: 'usd',
       customer_email: testEmail,
       type: 'one_time',
     });
+    if (insertErr) throw insertErr;
 
     // Verify payment intent exists
-    const { data: beforePayments } = await supabase
+    const { data: beforePayments } = await admin
       .from('payment_intents')
       .select('*')
       .eq('template_user_id', testUserId);
