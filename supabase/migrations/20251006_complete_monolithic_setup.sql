@@ -3135,7 +3135,9 @@ CREATE TABLE IF NOT EXISTS team_shifts (
   created_by UUID NOT NULL REFERENCES auth.users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT no_negative_duration CHECK (end_time > start_time)
+  -- Overnight shifts (e.g. 22:00→02:00) are valid; only zero-length is forbidden.
+  -- Downstream RPCs add INTERVAL '1 day' / +1 to shift_date when end_time < start_time.
+  CONSTRAINT no_zero_duration CHECK (end_time <> start_time)
 );
 
 CREATE INDEX IF NOT EXISTS idx_team_shifts_company_date
@@ -3469,6 +3471,398 @@ GRANT EXECUTE ON FUNCTION batch_create_shifts(UUID, UUID, JSONB) TO authenticate
 
 -- ============================================================================
 -- END FEATURE 066: Workforce Scheduling (team_shifts)
+-- ============================================================================
+
+-- ============================================================================
+-- FEATURE 067: Worker Schedule View + Time Tracking
+--
+-- Workers see shifts assigned to them across ALL companies in one view (the
+-- employer grid is single-company). Workers clock in/out of shifts; entries
+-- store the client-stamped instant (offline-first) plus server receipt time.
+--
+-- Timezone source: metro_areas.timezone. A shift's wall-clock time
+-- (shift_date + start_time) is interpreted in the company's metro zone via
+-- Postgres AT TIME ZONE. The RPCs precompute timestamptz boundaries so the
+-- client compares against Date.now() with no tz library.
+--
+-- Validation:
+--   - Clock-in opens 15 min before shift start (no late cutoff).
+--   - One open time_entry per user, enforced by partial unique index. The RPC
+--     checks first to give a clean error; the index catches races.
+--   - Forgotten clock-outs auto-close at shift_end + 1 hr, lazily — both
+--     get_worker_shifts and clock_in sweep stale entries before proceeding.
+-- ============================================================================
+
+-- W001: Metro timezone — IANA tz string. Companies inherit via metro_area_id.
+ALTER TABLE metro_areas
+  ADD COLUMN IF NOT EXISTS timezone TEXT NOT NULL DEFAULT 'America/New_York';
+
+-- W002: Worker can read shifts assigned to them. Additive — RLS policies are
+-- OR'd, so the existing employer_read policy continues to work unchanged.
+DROP POLICY IF EXISTS team_shifts_worker_read_own ON team_shifts;
+CREATE POLICY team_shifts_worker_read_own ON team_shifts
+  FOR SELECT
+  USING (user_id = auth.uid());
+
+-- W003: time_entries — clock-in/out records.
+CREATE TABLE IF NOT EXISTS time_entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- Idempotency key. Client generates crypto.randomUUID() per clock-in event,
+  -- queues to IndexedDB, retries on flaky network. Replays hit the unique
+  -- constraint and the RPC returns the existing row instead of erroring.
+  client_event_id UUID NOT NULL,
+  shift_id UUID NOT NULL REFERENCES team_shifts(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  -- Client-stamped instant (Date.now() at button press). Authoritative for
+  -- "when did the worker actually clock in" since sync may be minutes later.
+  clock_in_at TIMESTAMPTZ NOT NULL,
+  -- Server receipt. clock_in_synced_at − clock_in_at = offline gap.
+  clock_in_synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  clock_out_at TIMESTAMPTZ,
+  clock_out_synced_at TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'confirmed'
+    CHECK (status IN ('confirmed', 'auto_closed')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT time_entries_client_event_unique UNIQUE (user_id, client_event_id),
+  CONSTRAINT time_entries_clock_out_after_in
+    CHECK (clock_out_at IS NULL OR clock_out_at >= clock_in_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_time_entries_shift ON time_entries(shift_id);
+CREATE INDEX IF NOT EXISTS idx_time_entries_user_open
+  ON time_entries(user_id) WHERE clock_out_at IS NULL;
+
+-- W004: One open entry per worker. The clock_in RPC checks this for a
+-- friendly error, but offline-first means two devices could sync at once —
+-- this index is the real guarantee.
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_time_entries_one_open_per_user
+  ON time_entries(user_id) WHERE clock_out_at IS NULL;
+
+-- W005: RLS on time_entries.
+ALTER TABLE time_entries ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS time_entries_worker_read_own ON time_entries;
+CREATE POLICY time_entries_worker_read_own ON time_entries
+  FOR SELECT
+  USING (user_id = auth.uid());
+
+-- Worker can correct an auto_closed clock_out_at within 24 h. Cannot reopen
+-- (clock_out_at NOT NULL gate), cannot touch confirmed entries (those came
+-- from clock_out RPC and represent a deliberate button press).
+DROP POLICY IF EXISTS time_entries_worker_correct_auto_closed ON time_entries;
+CREATE POLICY time_entries_worker_correct_auto_closed ON time_entries
+  FOR UPDATE
+  USING (
+    user_id = auth.uid()
+    AND status = 'auto_closed'
+    AND clock_in_at > NOW() - INTERVAL '24 hours'
+  )
+  WITH CHECK (
+    user_id = auth.uid()
+    AND status = 'auto_closed'
+    AND clock_out_at IS NOT NULL
+  );
+
+DROP POLICY IF EXISTS time_entries_employer_read ON time_entries;
+CREATE POLICY time_entries_employer_read ON time_entries
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM team_shifts ts
+      JOIN employer_company_links ecl ON ecl.shared_company_id = ts.company_id
+      WHERE ts.id = time_entries.shift_id
+        AND ecl.user_id = auth.uid()
+    )
+  );
+
+-- W006: Lazy stale-entry sweep. Closes any of the user's entries that are
+-- still open more than 1 h past the shift's scheduled end. clock_out_at is
+-- set to the scheduled end (not NOW()) so the worker doesn't get paid for
+-- the gap. Returns the count for the caller to surface a banner.
+CREATE OR REPLACE FUNCTION close_stale_time_entries(p_user_id UUID)
+RETURNS INT
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_count INT;
+BEGIN
+  WITH stale AS (
+    SELECT
+      te.id,
+      -- Overnight shift: end_time < start_time means the shift ends on the
+      -- next calendar day. (false::int = 0, true::int = 1)
+      (ts.shift_date + (ts.end_time < ts.start_time)::int + ts.end_time)
+        AT TIME ZONE ma.timezone AS shift_end_at
+    FROM time_entries te
+    JOIN team_shifts ts ON ts.id = te.shift_id
+    JOIN shared_companies sc ON sc.id = ts.company_id
+    JOIN metro_areas ma ON ma.id = sc.metro_area_id
+    WHERE te.user_id = p_user_id
+      AND te.clock_out_at IS NULL
+      AND NOW() > (ts.shift_date + (ts.end_time < ts.start_time)::int + ts.end_time + INTERVAL '1 hour')
+                  AT TIME ZONE ma.timezone
+  )
+  UPDATE time_entries te
+  SET
+    clock_out_at = stale.shift_end_at,
+    clock_out_synced_at = NOW(),
+    status = 'auto_closed',
+    updated_at = NOW()
+  FROM stale
+  WHERE te.id = stale.id;
+
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
+END;
+$$;
+
+-- W007: get_worker_shifts — cross-company schedule for the current user.
+-- Precomputes clock_in_opens_at/shift_end_at as timestamptz so the client
+-- compares against Date.now() with no tz library. Joins company name for
+-- display and joins active time_entry so the UI knows whether to show
+-- "Clock In" vs "Clock Out". Sweeps stale entries first so the worker
+-- never sees yesterday's shift as still open.
+CREATE OR REPLACE FUNCTION get_worker_shifts(
+  p_start_date DATE,
+  p_end_date DATE
+)
+RETURNS TABLE(
+  id UUID,
+  company_id UUID,
+  company_name VARCHAR(255),
+  shift_date DATE,
+  start_time TIME,
+  end_time TIME,
+  shift_type TEXT,
+  notes TEXT,
+  metro_timezone TEXT,
+  clock_in_opens_at TIMESTAMPTZ,
+  shift_end_at TIMESTAMPTZ,
+  active_entry_id UUID,
+  active_clock_in_at TIMESTAMPTZ,
+  active_entry_status TEXT
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  PERFORM close_stale_time_entries(auth.uid());
+
+  RETURN QUERY
+  SELECT
+    ts.id,
+    ts.company_id,
+    sc.name,
+    ts.shift_date,
+    ts.start_time,
+    ts.end_time,
+    ts.shift_type,
+    ts.notes,
+    ma.timezone,
+    (ts.shift_date + ts.start_time - INTERVAL '15 minutes') AT TIME ZONE ma.timezone,
+    -- Overnight shift end falls on the next day:
+    (ts.shift_date + (ts.end_time < ts.start_time)::int + ts.end_time) AT TIME ZONE ma.timezone,
+    te.id,
+    te.clock_in_at,
+    te.status
+  FROM team_shifts ts
+  JOIN shared_companies sc ON sc.id = ts.company_id
+  JOIN metro_areas ma ON ma.id = sc.metro_area_id
+  LEFT JOIN time_entries te ON te.shift_id = ts.id
+    AND te.user_id = auth.uid()
+    AND te.clock_out_at IS NULL
+  WHERE ts.user_id = auth.uid()
+    AND ts.shift_date >= p_start_date
+    AND ts.shift_date <= p_end_date
+  ORDER BY ts.shift_date ASC, ts.start_time ASC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_worker_shifts(DATE, DATE) TO authenticated;
+
+-- W008: clock_in — validate window + open-entry, then insert.
+-- Idempotent on (user_id, client_event_id): a replay returns the existing
+-- row. Client timestamp is informational; validation uses NOW() so the
+-- client clock can't be skewed to defeat the early window.
+CREATE OR REPLACE FUNCTION clock_in(
+  p_client_event_id UUID,
+  p_shift_id UUID,
+  p_client_timestamp TIMESTAMPTZ
+)
+RETURNS time_entries
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_existing time_entries;
+  v_opens_at TIMESTAMPTZ;
+  v_open_company TEXT;
+  v_result time_entries;
+BEGIN
+  -- Idempotency: replay of a synced event returns the existing row.
+  SELECT * INTO v_existing FROM time_entries
+  WHERE user_id = v_uid AND client_event_id = p_client_event_id;
+  IF FOUND THEN
+    RETURN v_existing;
+  END IF;
+
+  PERFORM close_stale_time_entries(v_uid);
+
+  -- Compute the clock-in window from shift + metro tz, and confirm
+  -- this user is the assigned worker.
+  SELECT (ts.shift_date + ts.start_time - INTERVAL '15 minutes') AT TIME ZONE ma.timezone
+  INTO v_opens_at
+  FROM team_shifts ts
+  JOIN shared_companies sc ON sc.id = ts.company_id
+  JOIN metro_areas ma ON ma.id = sc.metro_area_id
+  WHERE ts.id = p_shift_id AND ts.user_id = v_uid;
+
+  IF v_opens_at IS NULL THEN
+    RAISE EXCEPTION 'Shift not found or not assigned to you'
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  IF NOW() < v_opens_at THEN
+    RAISE EXCEPTION 'Too early — clock-in opens at %', v_opens_at
+      USING ERRCODE = 'P0001', HINT = 'early_window';
+  END IF;
+
+  -- Open-entry check (the partial unique index would catch a race, but
+  -- this gives a useful error naming the conflicting company).
+  SELECT sc.name INTO v_open_company
+  FROM time_entries te
+  JOIN team_shifts ts ON ts.id = te.shift_id
+  JOIN shared_companies sc ON sc.id = ts.company_id
+  WHERE te.user_id = v_uid AND te.clock_out_at IS NULL;
+
+  IF v_open_company IS NOT NULL THEN
+    RAISE EXCEPTION 'Already clocked in at %', v_open_company
+      USING ERRCODE = 'P0001', HINT = 'open_entry';
+  END IF;
+
+  INSERT INTO time_entries (client_event_id, shift_id, user_id, clock_in_at)
+  VALUES (p_client_event_id, p_shift_id, v_uid, p_client_timestamp)
+  RETURNING * INTO v_result;
+
+  RETURN v_result;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION clock_in(UUID, UUID, TIMESTAMPTZ) TO authenticated;
+
+-- W009: clock_out — close an open entry.
+CREATE OR REPLACE FUNCTION clock_out(
+  p_time_entry_id UUID,
+  p_client_timestamp TIMESTAMPTZ
+)
+RETURNS time_entries
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_result time_entries;
+BEGIN
+  UPDATE time_entries
+  SET
+    clock_out_at = GREATEST(p_client_timestamp, clock_in_at),
+    clock_out_synced_at = NOW(),
+    updated_at = NOW()
+  WHERE id = p_time_entry_id
+    AND user_id = auth.uid()
+    AND clock_out_at IS NULL
+  RETURNING * INTO v_result;
+
+  IF v_result.id IS NULL THEN
+    RAISE EXCEPTION 'Time entry not found, not yours, or already closed'
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  RETURN v_result;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION clock_out(UUID, TIMESTAMPTZ) TO authenticated;
+
+-- W010: get_worker_week_summary — scheduled vs worked hours, server-side.
+--
+-- "Scheduled" sums (end_time - start_time) over the worker's shifts in range.
+-- "Worked" sums (clock_out_at - clock_in_at) over time_entries for the SAME
+-- shifts — joining through shift_id keeps the two figures comparable. Open
+-- entries contribute live via COALESCE(clock_out_at, NOW()) so the number
+-- ticks while you're on the clock.
+--
+-- Sweeps stale entries first, same as get_worker_shifts. Without that, a
+-- forgotten clock-out from yesterday would balloon worked_hours through the
+-- NOW() branch until something else closed it.
+--
+-- timestamptz subtraction is absolute (epoch difference), so no AT TIME ZONE
+-- gymnastics needed on the worked side. The scheduled side is naive TIME
+-- arithmetic, also tz-free — interval is interval.
+CREATE OR REPLACE FUNCTION get_worker_week_summary(
+  p_start_date DATE,
+  p_end_date DATE
+)
+RETURNS TABLE (
+  scheduled_hours NUMERIC,
+  worked_hours NUMERIC
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid UUID := auth.uid();
+BEGIN
+  PERFORM close_stale_time_entries(v_uid);
+
+  RETURN QUERY
+  WITH my_shifts AS (
+    SELECT ts.id, ts.start_time, ts.end_time
+    FROM team_shifts ts
+    WHERE ts.user_id = v_uid
+      AND ts.shift_date BETWEEN p_start_date AND p_end_date
+  ),
+  scheduled AS (
+    -- TIME subtraction goes negative across midnight (02:00 - 22:00 = -20h).
+    -- Adding 24h when end < start gives the true wrap-around duration.
+    SELECT COALESCE(
+      SUM(EXTRACT(EPOCH FROM (
+        s.end_time - s.start_time
+        + CASE WHEN s.end_time < s.start_time THEN INTERVAL '24 hours' ELSE INTERVAL '0' END
+      )) / 3600.0), 0
+    ) AS hrs
+    FROM my_shifts s
+  ),
+  worked AS (
+    SELECT COALESCE(
+      SUM(
+        EXTRACT(EPOCH FROM (COALESCE(te.clock_out_at, NOW()) - te.clock_in_at))
+        / 3600.0
+      ), 0
+    ) AS hrs
+    FROM time_entries te
+    JOIN my_shifts s ON s.id = te.shift_id
+    WHERE te.user_id = v_uid
+  )
+  SELECT
+    ROUND(scheduled.hrs::NUMERIC, 2),
+    ROUND(worked.hrs::NUMERIC, 2)
+  FROM scheduled, worked;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_worker_week_summary(DATE, DATE) TO authenticated;
+
+-- ============================================================================
+-- END FEATURE 067: Worker Schedule View + Time Tracking
 -- ============================================================================
 
 -- ============================================================================
@@ -4257,8 +4651,12 @@ ALTER TABLE job_applications
 CREATE INDEX IF NOT EXISTS idx_job_applications_resume_id
   ON job_applications (resume_id) WHERE resume_id IS NOT NULL;
 
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('resumes', 'resumes', FALSE)
+-- storage.buckets schema varies across Supabase versions: older self-hosted
+-- images lack the `public` column. Buckets default to non-public on both
+-- schemas, so omit it. (Was: INSERT ... (id, name, public) — failed locally
+-- and rolled back the entire migration transaction.)
+INSERT INTO storage.buckets (id, name)
+VALUES ('resumes', 'resumes')
 ON CONFLICT (id) DO NOTHING;
 
 DROP POLICY IF EXISTS "Workers upload own resumes" ON storage.objects;

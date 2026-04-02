@@ -596,6 +596,36 @@ p:not([class*='text-']) {
     overflow: visible !important;
   }
 
+  /* Worker schedule timeline — same black-on-white treatment */
+  [data-testid='worker-schedule-timeline'] {
+    background: white !important;
+    color: black !important;
+  }
+
+  [data-testid='worker-schedule-timeline'] .loading,
+  [data-testid='worker-schedule-timeline'] .btn,
+  [data-testid='worker-schedule-timeline'] [role='alert'] {
+    display: none !important;
+  }
+
+  [data-testid='worker-schedule-timeline'] [data-testid='worker-shift-card'] {
+    background: white !important;
+    color: black !important;
+    border: 1px solid #ccc !important;
+    page-break-inside: avoid !important;
+  }
+
+  [data-testid='worker-schedule-timeline'] [data-testid='week-summary'] {
+    background: #f0f0f0 !important;
+    color: black !important;
+  }
+
+  [data-testid='worker-schedule-timeline'] .badge {
+    background: white !important;
+    color: black !important;
+    border: 1px solid #999 !important;
+  }
+
   /* Employer page: hide tabs, heading, and non-schedule content */
   [data-print-schedule] [role='tablist'],
   [data-print-schedule] > .container > h1 {
