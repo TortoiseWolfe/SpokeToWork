@@ -51,9 +51,16 @@ function isRLSError(error: unknown): boolean {
   if (err.code === '42501') return true;
   // PostgreSQL 23503 = foreign_key_violation (conversation not on replica)
   if (err.code === '23503') return true;
-  const msg = typeof err.message === 'string' ? err.message : '';
+  const msg = typeof err.message === 'string' ? err.message.toLowerCase() : '';
   if (msg.includes('row-level security')) return true;
   if (msg.includes('violates foreign key constraint')) return true;
+  // Supabase PostgREST returns PGRST116 when .single() gets 0 rows.
+  // This happens when RLS silently blocks an INSERT — the row is never
+  // created, so .select().single() finds nothing.
+  if (err.code === 'PGRST116') return true;
+  // Catch-all: permission denied variants
+  if (msg.includes('permission denied')) return true;
+  if (msg.includes('insufficient_privilege')) return true;
   return false;
 }
 
@@ -298,6 +305,69 @@ export class MessageService {
             });
             await new Promise((r) => setTimeout(r, 50 * (attempt + 1)));
             continue;
+          }
+
+          // RLS/permission errors from read-replica lag — retry with backoff
+          // before giving up. The conversation exists on the primary but the
+          // read replica hasn't caught up yet.
+          if (isRLSError(insertError)) {
+            logger.warn(
+              'RLS error on INSERT (read-replica lag), retrying with backoff',
+              {
+                code: insertError.code,
+                message: insertError.message,
+                conversation_id: input.conversation_id,
+              }
+            );
+
+            let rlsResolved = false;
+            for (let rlsRetry = 0; rlsRetry < 3; rlsRetry++) {
+              await new Promise((r) => setTimeout(r, 2000 * (rlsRetry + 1)));
+              logger.info(`RLS retry ${rlsRetry + 1}/3`);
+
+              const { data: lastMsg } = await msgClient
+                .from('messages')
+                .select('sequence_number')
+                .eq('conversation_id', input.conversation_id)
+                .order('sequence_number', { ascending: false })
+                .limit(1)
+                .single();
+
+              const retrySeq = lastMsg ? lastMsg.sequence_number + 1 : 1;
+
+              const { data: retryData, error: retryErr } = await msgClient
+                .from('messages')
+                .insert({
+                  conversation_id: input.conversation_id,
+                  sender_id: user.id,
+                  encrypted_content: encrypted.ciphertext,
+                  initialization_vector: encrypted.iv,
+                  sequence_number: retrySeq,
+                  deleted: false,
+                  edited: false,
+                })
+                .select()
+                .single();
+
+              if (!retryErr) {
+                message = retryData;
+                rlsResolved = true;
+                logger.info('RLS retry succeeded', { attempt: rlsRetry + 1 });
+                break;
+              }
+
+              if (retryErr.code === '23505') continue;
+              if (!isRLSError(retryErr)) {
+                throw new ConnectionError(
+                  'Failed to send message: ' + retryErr.message
+                );
+              }
+            }
+
+            if (rlsResolved) break;
+            throw new ConnectionError(
+              'Message send failed: conversation not accessible (read-replica lag exceeded retries)'
+            );
           }
 
           // Non-retryable error or retries exhausted
