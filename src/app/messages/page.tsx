@@ -448,8 +448,12 @@ function MessagesContent() {
               : m
           )
         );
-        // Also trigger a background reload to pick up any other new messages
-        loadMessages();
+        // Do NOT call loadMessages() here — the read replica may not have
+        // the new message yet, and the background reload would race with
+        // the setMessages above, dropping the swapped message (the
+        // "preserve optimistic" filter only keeps IDs starting with
+        // "optimistic-", not server UUIDs). Let Realtime or the next
+        // poll cycle handle full sync.
       }
     } catch (err: unknown) {
       // Remove optimistic message on error
