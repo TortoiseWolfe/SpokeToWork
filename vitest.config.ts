@@ -57,6 +57,7 @@ const sharedTestConfig = {
     'tests/contract/auth/oauth.contract.test.ts',
     'tests/contract/auth/password-reset.contract.test.ts',
     'tests/contract/auth/sign-in.contract.test.ts',
+    'tests/contract/auth/sign-out.contract.test.ts',
     'tests/contract/auth/sign-up.contract.test.ts',
     'tests/contract/profile/delete-account.contract.test.ts',
     'tests/contract/profile/get-profile.contract.test.ts',

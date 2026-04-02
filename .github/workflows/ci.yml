@@ -93,8 +93,8 @@ jobs:
       - name: Type check
         run: pnpm type-check
 
-      - name: Run tests (batched to avoid OOM)
-        run: ./scripts/test-batched-full.sh
+      - name: Run unit tests
+        run: pnpm exec vitest run
 
       - name: Build application
         run: pnpm build
