@@ -151,10 +151,9 @@ async function cleanup(client: SupabaseClient) {
   // Remove worker from any employer_company_links
   await client.from('employer_company_links').delete().eq('user_id', workerId);
 
-  // Poll to verify deletion propagated to read replica (Supabase Cloud lag
-  // can be 5-30s+ under 18-shard CI load). Without this, retries hit
-  // "duplicate key" because the old record is still visible on the replica.
-  for (let poll = 0; poll < 20; poll++) {
+  // Brief poll to verify deletion propagated. Keep polls minimal (5×3s)
+  // to avoid rate-limiting Supabase across 18 concurrent shards.
+  for (let poll = 0; poll < 5; poll++) {
     const { data: remaining } = await client
       .from('user_connections')
       .select('id')
@@ -162,10 +161,7 @@ async function cleanup(client: SupabaseClient) {
         `and(requester_id.eq.${employerId},addressee_id.eq.${workerId}),and(requester_id.eq.${workerId},addressee_id.eq.${employerId})`
       );
     if (!remaining || remaining.length === 0) break;
-    if (poll > 0 && poll % 5 === 0) {
-      console.log(`cleanup: still waiting for replica (poll ${poll + 1}/20)`);
-    }
-    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise((r) => setTimeout(r, 3000));
   }
 
   console.log('Cleaned up connections and team links between test users');
@@ -299,8 +295,9 @@ test.describe('Employer Team Workflow', () => {
       // The UPDATE succeeds on the primary, but the read replica can lag
       // 5-30s+ under 18-shard CI load. Without polling, the .single()
       // query returns null (still showing 'pending' on replica).
+      // Brief poll for accepted status — keep minimal to avoid rate-limiting
       let acceptedRec: { id: string } | null = null;
-      for (let poll = 0; poll < 15; poll++) {
+      for (let poll = 0; poll < 5; poll++) {
         const { data } = await client
           .from('user_connections')
           .select('id')
@@ -312,14 +309,11 @@ test.describe('Employer Team Workflow', () => {
           acceptedRec = data;
           break;
         }
-        if (poll > 0 && poll % 3 === 0) {
-          console.log(`verify accepted: poll ${poll + 1}/15 (replica lag)`);
-        }
-        await new Promise((r) => setTimeout(r, 2000));
+        await new Promise((r) => setTimeout(r, 3000));
       }
       if (!acceptedRec) {
         throw new Error(
-          'Accepted connection not found after admin update (replica lag exceeded 30s)'
+          'Accepted connection not found after admin update (replica lag exceeded 15s)'
         );
       }
       console.log(`Admin: created + accepted connection ${acceptedRec.id}`);
