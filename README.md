@@ -1,5 +1,8 @@
 ```
-/loop Fix SpokeToWork E2E tests until ALL 18 shards pass (6 per browser × 3 browsers).
+Fix SpokeToWork E2E tests until ALL 18 shards pass (6 per browser × 3 browsers).
+
+BASELINE: 12/18 pass (run 23955922443 on a96fa22, 2026-04-03).
+Failing: shard 2/6 + 3/6 on all 3 browsers. E2E has NEVER passed all 18.
 
 METHODOLOGY (follow strictly, no guessing):
 
@@ -10,77 +13,90 @@ METHODOLOGY (follow strictly, no guessing):
    If all 18 green → DONE, celebrate.
 
 2. GET FAILURE DETAILS (for each failing shard):
-   gh api repos/TortoiseWolfe/SpokeToWork/actions/jobs/<JOB_ID>/logs 2>&1 | grep -oP "\d+ failed|\d+ passed" | tail -2
    gh api repos/TortoiseWolfe/SpokeToWork/actions/jobs/<JOB_ID>/logs 2>&1 | grep -P "  \d+\) \[" | head -12
+   gh api repos/TortoiseWolfe/SpokeToWork/actions/jobs/<JOB_ID>/logs 2>&1 | grep -E "Failed to fetch|Connection terminated|TypeError|Error:" | head -10
 
-3. CHECK AUTH SETUP (did key seeding work?):
-   gh api repos/TortoiseWolfe/SpokeToWork/actions/jobs/<AUTH_SETUP_JOB_ID>/logs 2>&1 | grep -E "Keys derived|Key derivation|seeded|Missing required"
-   All 3 users must show "seeded" or "derived". If "Missing required" appears, env vars are broken.
+3. CONFIRMED ROOT CAUSES (from deep log analysis 2026-04-03):
 
-4. CHECK KEY INJECTION (do test contexts have correct keys?):
-   gh api repos/TortoiseWolfe/SpokeToWork/actions/jobs/<SHARD_JOB_ID>/logs 2>&1 | grep "injectEncryptionKeys:"
-   Must show matched=true for both users. If aliased=true, auth.setup failed for that user.
+   SHARD 3/6 — sendMessage() fails with "TypeError: Failed to fetch"
+   a. Under 18-shard CI load, the Supabase REST API (/rest/v1/messages) times out.
+   b. The INSERT call throws TypeError("Failed to fetch") — a network-level error.
+   c. isRLSError() doesn't match TypeError, so the RLS retry loop is SKIPPED.
+   d. The error propagates to page.tsx catch block, which REMOVES the optimistic message.
+   e. findMessageBubble() then waits 45s for an element that no longer exists.
+   f. FIX: Add isTransientFetchError() check alongside isRLSError() in the retry loop
+      so fetch timeouts get the same exponential backoff (5 retries, 46s max).
+   g. File: src/services/messaging/message-service.ts (line ~313, the isRLSError check)
 
-5. CHECK MESSAGE DELIVERY (did the INSERT land?):
-   gh api repos/TortoiseWolfe/SpokeToWork/actions/jobs/<SHARD_JOB_ID>/logs 2>&1 | grep "DB diagnostic"
-   dbMessageCount:0 = INSERT blocked by RLS (conversation not on read replica yet)
-   dbMessageCount:1 + "Encrypted with previous keys" = wrong encryption key material
+   SHARD 2/6 — Mixed read-replica lag + test cleanup races
+   a. friend-requests (chromium): "Send Request" button never appears after 10-15 retries.
+      Read replica hasn't replicated user_connections deletion from cleanupConnections().
+      Replica lag exceeds 45s under CI load. Tests already poll but not long enough.
+   b. employer-team (chromium): cleanup() deletes connections but DOESN'T POLL for
+      replication (unlike cleanupConnections() which polls 20×2s). On retry, INSERT
+      hits "duplicate key" because old record is still on replica.
+      File: tests/e2e/employer/employer-team-workflow.spec.ts (cleanup function ~line 139)
+   c. employer-team (chromium): after updating status to 'accepted', the .single() query
+      reads stale 'pending' from replica. Needs polling loop before asserting.
+   d. companies-crud (chromium + webkit): getDrawerApplicationCount() returns stale count
+      after delete. Needs retry loop before assertion.
+   e. encrypted-messaging (firefox): 3 send attempts all fail DB verification (replica lag).
+      waitForMessageDelivery reloads page, but Firefox closes the browser context during
+      reload. page.reload() throws "Target page...has been closed".
+      File: tests/e2e/messaging/test-helpers.ts:449 (wrap reload in try-catch)
+   f. map theme toggle (webkit only): test polls isStyleLoaded() but WebKit fires
+      style.load before React re-renders <BikeRoutesLayer>. Source doesn't exist yet.
+      FIX: poll for getSource('all-bike-routes') !== undefined, not just isStyleLoaded().
+      File: tests/e2e/map.spec.ts:441
 
-6. KNOWN ROOT CAUSES (confirmed by diagnostic data):
-   a. sendMessage() silently queues RLS failures as "offline" (message-service.ts:295-339).
-      The RLS policy checks conversations table on the read replica — if conversation hasn't
-      replicated yet, INSERT is blocked. Error is caught, queued, returned as {queued:true}.
-      Page shows "sent" but dbMessageCount stays 0. Send-retry loop added in test.
-   b. Encryption keys are memory-only (no IndexedDB). Keys in localStorage (stw_keys_*) are
-      restored via restoreKeysFromSession(). Fresh browser contexts need keys injected from
-      auth.setup's storage-state-auth.json.
-   c. Shards now split 6 ways (was 4) to reduce per-shard Supabase contention.
+4. KEY FILES:
+   - src/services/messaging/message-service.ts — isRLSError + retry loop (line ~310-375)
+   - tests/e2e/employer/employer-team-workflow.spec.ts — cleanup() needs replication polling
+   - tests/e2e/companies/companies-crud.spec.ts — count assertion needs retry loop
+   - tests/e2e/messaging/test-helpers.ts:449 — page.reload() crash on Firefox
+   - tests/e2e/map.spec.ts:441 — webkit theme toggle skip
+   - tests/e2e/messaging/friend-requests.spec.ts — retry count tuning
+   - tests/e2e/messaging/message-editing.spec.ts — findMessageBubble (45s wait)
+   - .github/workflows/e2e.yml — shard config, stagger delays
+   - tests/e2e/global-setup.ts — test user creation + key seeding
+   - tests/e2e/auth.setup.ts — encryption key derivation + storage-state-auth.json
+   - src/app/messages/page.tsx — optimistic message lifecycle, 10s polling fallback
 
-7. FIX (only after diagnosis):
+5. WHAT NOT TO DO (lessons from 2026-04-03 session):
+   - Do NOT add storageState to encrypted-messaging browser.newContext() — causes auth
+     token conflicts when loginAndVerify is called for different users afterward.
+   - Do NOT change page.tsx loadMessages() message preservation logic — content-based
+     dedup is fragile. The original optimistic-only filter is correct.
+   - Do NOT use executeSQL as fallback in test DB verification — 18 shards calling
+     Management API causes rate-limit cascades (429 errors, see commit ba0c036).
+   - Do NOT add sendMessageAndVerify() polling to message-editing tests — 30s polling +
+     45s findMessageBubble = 75s, dangerously close to 90s test timeout.
+   - Make ONE targeted change at a time. Push. Verify no regressions. Then next change.
+
+6. FIX (only after diagnosis):
    - Docker must be running: docker compose exec spoketowork echo alive
    - Type check: docker compose exec spoketowork pnpm run type-check
    - Unit test: docker compose exec spoketowork pnpm test
-   - Commit via Docker with descriptive message explaining the ROOT CAUSE
+   - Commit with descriptive message explaining the ROOT CAUSE
    - Push, verify new CI run starts
 
-8. KEY FILES:
-   - .github/workflows/e2e.yml — shard config, env vars, stagger delays
-   - tests/e2e/global-setup.ts — creates test users + seeds encryption keys (Node.js Argon2id)
-   - tests/e2e/auth.setup.ts — derives keys in browser, saves to storage-state-auth.json
-   - tests/e2e/messaging/real-time-delivery.spec.ts — injectEncryptionKeys, send-retry loop
-   - tests/e2e/messaging/test-helpers.ts — ensureConversation, waitForMessageDelivery, dismissReAuthModal
-   - src/services/messaging/message-service.ts:295-339 — silent error swallowing
-   - src/services/messaging/key-service.ts:326-366 — restoreKeysFromSession (localStorage)
-   - src/app/messages/page.tsx:126-183 — checkKeys useEffect
-
-9. CURRENT STATE (run 23913826067 on 3e84296, 2026-04-02):
-   - Supabase upgraded to Pro ($25/mo) — quota no longer blocks auth
-   - CI passes, Accessibility passes, Deploy triggers on CI success
-   - E2E: 12/18 shards pass, 5 fail, 1 running
-   - Failing shards: webkit 1/6, chromium 2/6, chromium 3/6, firefox 2/6, firefox 3/6
-   - Biggest cluster: message-editing tests (chromium 3/6 + firefox 3/6)
-     - findMessageBubble waits 45s for optimistic->server ID swap
-     - Swap never happens because realtime confirmation lost or INSERT silently queued
-     - Tests reload and retry but still fail — the message never reaches DB
-   - webkit 1/6: auth flow GoTrue propagation delay (loginAndVerify exhausts retries)
-   - chromium 2/6: friend-request UI element never appears
-   - firefox 2/6: encrypted messaging delivery check returns false
-   - E2E has NEVER passed all 18 shards — these are pre-existing failures
-
-10. REGRESSION GUARD:
-    - Before pushing any fix, verify passing shards still pass
-    - Track shard-level results per push in this format:
-      PUSH <hash> <date>: <pass>/<total> [<failing shards>]
-    - If a previously passing shard breaks, revert immediately
+7. REGRESSION GUARD:
+   - Before pushing any fix, verify passing shards still pass
+   - Track shard-level results per push in this format:
+     PUSH <hash> <date>: <pass>/<total> [<failing shards>]
+   - If a previously passing shard breaks, revert immediately
+   - Current tracking:
+     PUSH ba0c036 2026-04-02: 12/18 [chromium 2/6,3/6 firefox 2/6,3/6 webkit 2/6,3/6]
+     PUSH a96fa22 2026-04-03: 12/18 [same — baseline confirmed after revert]
 
 RULES:
 - NEVER guess — read logs and code first
 - NEVER increase timeouts without fixing the underlying issue
-- NEVER skip, ignore, bypass, or work around a failing test
+- NEVER skip, ignore, bypass, or work around a failing test — fix the root cause
 - If the same fix doesn't work twice, the diagnosis is WRONG
 - If you've tried 3+ fixes for the same test, do a deeper code review
+- Make ONE change at a time, push, verify. No stacking risky changes.
 - Track: what failed, what the actual error was, what you changed, whether it helped
-- Delete all test users each push for a clean run (paid plan covers it)
 ```
 
 # SpokeToWork - Job Hunting by Bicycle

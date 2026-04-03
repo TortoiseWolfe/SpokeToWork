@@ -461,7 +461,11 @@ test.describe('Geolocation Map Page', () => {
     });
     expect(hasRoutesInitial).toBe(true);
 
-    // Toggle to dark theme and wait for style reload
+    // Toggle to dark theme and wait for style + source reattachment
+    // Poll for the SOURCE, not just isStyleLoaded(), because React's
+    // <Source> component re-attaches asynchronously after style.load.
+    // On WebKit, style.load fires before React finishes rendering,
+    // creating a window where isStyleLoaded()=true but source is gone.
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
@@ -470,20 +474,19 @@ test.describe('Geolocation Map Page', () => {
         async () =>
           page.evaluate(() => {
             const map = (window as any).maplibreMap?.getMap?.();
-            return map ? map.isStyleLoaded() : false;
+            return (
+              map?.isStyleLoaded() &&
+              map?.getSource?.('all-bike-routes') !== undefined
+            );
           }),
-        { message: 'Waiting for dark theme style to load', timeout: 10000 }
+        {
+          message: 'Waiting for dark theme style + bike routes source',
+          timeout: 15000,
+        }
       )
       .toBe(true);
 
-    // Verify bike routes still exist after theme toggle
-    const hasRoutesAfterDark = await page.evaluate(() => {
-      const map = (window as any).maplibreMap?.getMap?.();
-      return map?.getSource?.('all-bike-routes') !== undefined;
-    });
-    expect(hasRoutesAfterDark).toBe(true);
-
-    // Toggle back to light theme and wait for style reload
+    // Toggle back to light theme and wait for source reattachment
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'light');
     });
@@ -492,18 +495,17 @@ test.describe('Geolocation Map Page', () => {
         async () =>
           page.evaluate(() => {
             const map = (window as any).maplibreMap?.getMap?.();
-            return map ? map.isStyleLoaded() : false;
+            return (
+              map?.isStyleLoaded() &&
+              map?.getSource?.('all-bike-routes') !== undefined
+            );
           }),
-        { message: 'Waiting for light theme style to load', timeout: 10000 }
+        {
+          message: 'Waiting for light theme style + bike routes source',
+          timeout: 15000,
+        }
       )
       .toBe(true);
-
-    // Verify bike routes still exist
-    const hasRoutesAfterLight = await page.evaluate(() => {
-      const map = (window as any).maplibreMap?.getMap?.();
-      return map?.getSource?.('all-bike-routes') !== undefined;
-    });
-    expect(hasRoutesAfterLight).toBe(true);
 
     // No console errors during theme switching
     const themeErrors = consoleErrors.filter(

@@ -446,7 +446,22 @@ export async function waitForMessageDelivery(
     console.log(
       `waitForMessageDelivery: Realtime miss, reload attempt ${attempt + 1}/${maxReloads}`
     );
-    await page.reload();
+    // page.reload() can crash on Firefox/WebKit when the browser context
+    // is being torn down due to test timeout. Catch and exit the reload
+    // loop gracefully — the final assertion will report the real failure.
+    try {
+      await page.reload();
+    } catch (reloadErr) {
+      const msg =
+        reloadErr instanceof Error ? reloadErr.message : String(reloadErr);
+      if (msg.includes('Target page') || msg.includes('closed')) {
+        console.warn(
+          'waitForMessageDelivery: page closed during reload, exiting retry loop'
+        );
+        break;
+      }
+      throw reloadErr;
+    }
     await dismissCookieBanner(page);
     await completeEncryptionSetup(page, password);
     // On Firefox/WebKit, the ReAuthModal may take 3-5s to appear after page load.

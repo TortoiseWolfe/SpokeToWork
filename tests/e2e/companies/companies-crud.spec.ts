@@ -237,8 +237,15 @@ test.describe('Companies Page - Application CRUD', () => {
     const deletedApp = sharedPage.getByText(positionToDelete);
     await expect(deletedApp).not.toBeVisible({ timeout: 10000 });
 
-    // Verify app count decreased
-    const afterDeleteCount = await companiesPage.getDrawerApplicationCount();
+    // Verify app count decreased — poll for read-replica propagation.
+    // Under CI load, getDrawerApplicationCount() may return stale count
+    // for several seconds after the UI element disappears.
+    let afterDeleteCount = beforeDeleteCount;
+    for (let poll = 0; poll < 5; poll++) {
+      afterDeleteCount = await companiesPage.getDrawerApplicationCount();
+      if (afterDeleteCount === beforeDeleteCount - 1) break;
+      await sharedPage.waitForTimeout(2000);
+    }
     expect(afterDeleteCount).toBe(beforeDeleteCount - 1);
 
     await companiesPage.closeDrawer();

@@ -65,6 +65,22 @@ function isRLSError(error: unknown): boolean {
 }
 
 /**
+ * Detect transient fetch/network errors that should be retried.
+ * Under CI load, Supabase REST API can timeout with TypeError("Failed to fetch").
+ * These are NOT RLS errors (no .code property) but are equally transient.
+ */
+function isTransientFetchError(error: unknown): boolean {
+  if (error instanceof TypeError) {
+    const msg = error.message.toLowerCase();
+    return msg.includes('fetch') || msg.includes('network');
+  }
+  if (!error || typeof error !== 'object') return false;
+  const err = error as Record<string, unknown>;
+  const msg = typeof err.message === 'string' ? err.message.toLowerCase() : '';
+  return msg.includes('failed to fetch') || msg.includes('networkerror');
+}
+
+/**
  * Detect genuine network/offline errors that warrant offline queuing.
  */
 function isNetworkError(error: unknown): boolean {
@@ -307,19 +323,17 @@ export class MessageService {
             continue;
           }
 
-          // RLS/permission errors from read-replica lag — retry with backoff
-          // before giving up. The conversation exists on the primary but the
-          // read replica hasn't caught up yet. Under 18-shard CI load, replica
-          // lag can exceed 30s, so we use exponential backoff up to 46s total.
-          if (isRLSError(insertError)) {
-            logger.warn(
-              'RLS error on INSERT (read-replica lag), retrying with backoff',
-              {
-                code: insertError.code,
-                message: insertError.message,
-                conversation_id: input.conversation_id,
-              }
-            );
+          // RLS/permission errors OR transient fetch failures — retry with
+          // backoff. Under 18-shard CI load, the Supabase REST API can either:
+          // 1. Return RLS errors (replica lag: conversation not replicated yet)
+          // 2. Timeout with TypeError("Failed to fetch") (API overloaded)
+          // Both are transient and resolve with exponential backoff (46s max).
+          if (isRLSError(insertError) || isTransientFetchError(insertError)) {
+            logger.warn('Transient error on INSERT, retrying with backoff', {
+              code: insertError.code,
+              message: insertError.message,
+              conversation_id: input.conversation_id,
+            });
 
             const MAX_RLS_RETRIES = 5;
             let rlsResolved = false;
