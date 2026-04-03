@@ -115,8 +115,13 @@ test.describe('Encrypted Messaging Flow', () => {
     browser,
   }) => {
     test.setTimeout(180000);
-    const contextA = await browser.newContext();
-    const contextB = await browser.newContext();
+    // Use pre-authenticated storage state to avoid 60-90s Argon2id key
+    // derivation on every context. auth.setup.ts caches session + encryption
+    // keys in storage-state-auth.json. Fresh contexts without this state
+    // burned the entire 180s timeout on Firefox doing key derivation.
+    const AUTH_FILE = './tests/e2e/fixtures/storage-state-auth.json';
+    const contextA = await browser.newContext({ storageState: AUTH_FILE });
+    const contextB = await browser.newContext({ storageState: AUTH_FILE });
 
     const pageA = await contextA.newPage();
     const pageB = await contextB.newPage();
