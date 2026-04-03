@@ -309,7 +309,8 @@ export class MessageService {
 
           // RLS/permission errors from read-replica lag — retry with backoff
           // before giving up. The conversation exists on the primary but the
-          // read replica hasn't caught up yet.
+          // read replica hasn't caught up yet. Under 18-shard CI load, replica
+          // lag can exceed 30s, so we use exponential backoff up to 46s total.
           if (isRLSError(insertError)) {
             logger.warn(
               'RLS error on INSERT (read-replica lag), retrying with backoff',
@@ -320,10 +321,14 @@ export class MessageService {
               }
             );
 
+            const MAX_RLS_RETRIES = 5;
             let rlsResolved = false;
-            for (let rlsRetry = 0; rlsRetry < 3; rlsRetry++) {
-              await new Promise((r) => setTimeout(r, 2000 * (rlsRetry + 1)));
-              logger.info(`RLS retry ${rlsRetry + 1}/3`);
+            for (let rlsRetry = 0; rlsRetry < MAX_RLS_RETRIES; rlsRetry++) {
+              const delay = Math.min(2000 * Math.pow(2, rlsRetry), 16000);
+              await new Promise((r) => setTimeout(r, delay));
+              logger.info(
+                `RLS retry ${rlsRetry + 1}/${MAX_RLS_RETRIES} (waited ${delay}ms)`
+              );
 
               const { data: lastMsg } = await msgClient
                 .from('messages')
@@ -399,71 +404,9 @@ export class MessageService {
           sendError instanceof Error ? sendError.message : sendError
         );
 
-        // RLS/permission errors are transient when caused by read-replica lag.
-        // Retry up to 3 times with increasing delays before giving up.
-        if (isRLSError(sendError)) {
-          logger.warn(
-            'RLS error detected (likely read-replica lag), retrying',
-            {
-              conversation_id: input.conversation_id,
-            }
-          );
-
-          for (let rlsRetry = 0; rlsRetry < 3; rlsRetry++) {
-            await new Promise((r) => setTimeout(r, 2000 * (rlsRetry + 1)));
-            logger.info(`RLS retry ${rlsRetry + 1}/3`, {
-              conversation_id: input.conversation_id,
-            });
-
-            const { data: lastMsg } = await msgClient
-              .from('messages')
-              .select('sequence_number')
-              .eq('conversation_id', input.conversation_id)
-              .order('sequence_number', { ascending: false })
-              .limit(1)
-              .single();
-
-            const nextSeq = lastMsg ? lastMsg.sequence_number + 1 : 1;
-
-            const { data: retryData, error: retryError } = await msgClient
-              .from('messages')
-              .insert({
-                conversation_id: input.conversation_id,
-                sender_id: user.id,
-                encrypted_content: encrypted.ciphertext,
-                initialization_vector: encrypted.iv,
-                sequence_number: nextSeq,
-                deleted: false,
-                edited: false,
-              })
-              .select()
-              .single();
-
-            if (!retryError) {
-              logger.info('RLS retry succeeded', { attempt: rlsRetry + 1 });
-              await msgClient
-                .from('conversations')
-                .update({ last_message_at: new Date().toISOString() })
-                .eq('id', input.conversation_id);
-              return { message: retryData, queued: false };
-            }
-
-            // Sequence conflict during retry — re-read and try again
-            if (retryError.code === '23505') continue;
-
-            // Still RLS error — keep retrying
-            if (!isRLSError(retryError)) {
-              throw new ConnectionError(
-                'Failed to send message: ' + retryError.message
-              );
-            }
-          }
-
-          // All RLS retries exhausted — surface error to UI
-          throw new ConnectionError(
-            'Message send failed: conversation not accessible (read-replica lag exceeded retries)'
-          );
-        }
+        // RLS retries are handled inside the sequence-retry loop above.
+        // If we reach here, either all RLS retries were exhausted (ConnectionError)
+        // or a non-retryable error occurred. Only handle offline queuing below.
 
         // Genuine network/offline errors — queue for later sync
         if (isNetworkError(sendError)) {

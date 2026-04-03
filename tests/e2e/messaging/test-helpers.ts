@@ -568,3 +568,51 @@ export async function waitForMessageDelivery(
     );
   }
 }
+
+/**
+ * Send a message via the UI and verify it persisted to the database.
+ *
+ * Uses the admin client (service-role key) to read from the primary DB,
+ * not the read replica, so this catches silent RLS failures that would
+ * otherwise leave the optimistic message orphaned in the UI.
+ *
+ * @returns The server-side message ID (UUID) once confirmed in DB.
+ */
+export async function sendMessageAndVerify(
+  page: Page,
+  messageText: string,
+  conversationId: string
+): Promise<string> {
+  await page.fill('textarea[aria-label="Message input"]', messageText);
+  await page.click('button[aria-label="Send message"]');
+
+  // Wait for optimistic message to appear in UI
+  await page.waitForSelector(`text=${messageText}`, { timeout: 10000 });
+
+  // Verify message reached DB via admin client (reads from primary)
+  const admin = getAdminClient();
+  if (!admin) {
+    throw new Error(
+      'sendMessageAndVerify: admin client unavailable (missing SUPABASE_SERVICE_ROLE_KEY)'
+    );
+  }
+
+  for (let poll = 0; poll < 15; poll++) {
+    const { data } = await admin
+      .from('messages')
+      .select('id')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data) {
+      return data.id;
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+
+  throw new Error(
+    `sendMessageAndVerify: message "${messageText}" not found in DB after 30s`
+  );
+}

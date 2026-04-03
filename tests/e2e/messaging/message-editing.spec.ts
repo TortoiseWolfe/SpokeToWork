@@ -17,6 +17,7 @@ import {
   completeEncryptionSetup,
   dismissCookieBanner,
   dismissReAuthModal,
+  sendMessageAndVerify,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
 
@@ -62,7 +63,16 @@ async function findMessageBubble(page: Page, text: string) {
   // Wait for the optimistic ID to be replaced with a stable server UUID.
   // Optimistic messages use "optimistic-*" as data-message-id which gets
   // swapped on server confirmation, detaching the old DOM node mid-click.
+  //
+  // Fast-fail: if the bubble was removed entirely (send failed and page.tsx
+  // filtered it out), don't wait 45s for an element that no longer exists.
   try {
+    const initialCount = await byText.count();
+    if (initialCount === 0) {
+      throw new Error(
+        `Message bubble with text "${text}" not found — send likely failed (optimistic message removed)`
+      );
+    }
     await expect(byText).toHaveAttribute(
       'data-message-id',
       /^(?!optimistic-)/,
@@ -129,11 +139,7 @@ test.describe('Message Editing', () => {
     // Send a message (unique per run to avoid accumulation across runs)
     const runId = Date.now();
     const originalMessage = `Original message content ${runId}`;
-    await page.fill('textarea[aria-label="Message input"]', originalMessage);
-    await page.click('button[aria-label="Send message"]');
-
-    // Wait for message to appear
-    await page.waitForSelector(`text=${originalMessage}`, { timeout: 5000 });
+    await sendMessageAndVerify(page, originalMessage, conversationId!);
 
     // Find our specific message bubble (stable through content changes)
     const messageBubble = await findMessageBubble(page, originalMessage);
@@ -178,9 +184,7 @@ test.describe('Message Editing', () => {
     // Send a message (unique text to avoid matching accumulated messages)
     const runId = Date.now();
     const originalMessage = `Cancel edit test ${runId}`;
-    await page.fill('textarea[aria-label="Message input"]', originalMessage);
-    await page.click('button[aria-label="Send message"]');
-    await page.waitForSelector(`text=${originalMessage}`, { timeout: 5000 });
+    await sendMessageAndVerify(page, originalMessage, conversationId!);
 
     // Find our specific message bubble (stable through content changes)
     const messageBubble = await findMessageBubble(page, originalMessage);
@@ -217,9 +221,7 @@ test.describe('Message Editing', () => {
     // Send a message (unique text to avoid matching accumulated messages)
     const runId = Date.now();
     const originalMessage = `Unchanged content test ${runId}`;
-    await page.fill('textarea[aria-label="Message input"]', originalMessage);
-    await page.click('button[aria-label="Send message"]');
-    await page.waitForSelector(`text=${originalMessage}`, { timeout: 5000 });
+    await sendMessageAndVerify(page, originalMessage, conversationId!);
 
     // Find our specific message bubble (stable through content changes)
     const messageBubble = await findMessageBubble(page, originalMessage);
@@ -238,9 +240,7 @@ test.describe('Message Editing', () => {
     // Send a message (unique text to avoid matching accumulated messages)
     const runId = Date.now();
     const originalMessage = `Empty edit test ${runId}`;
-    await page.fill('textarea[aria-label="Message input"]', originalMessage);
-    await page.click('button[aria-label="Send message"]');
-    await page.waitForSelector(`text=${originalMessage}`, { timeout: 5000 });
+    await sendMessageAndVerify(page, originalMessage, conversationId!);
 
     // Find our specific message bubble (stable through content changes)
     const messageBubble = await findMessageBubble(page, originalMessage);
@@ -279,9 +279,7 @@ test.describe('Message Deletion', () => {
     // Send a message (unique text to avoid matching accumulated messages)
     const runId = Date.now();
     const messageToDelete = `Delete target T116 ${runId}`;
-    await page.fill('textarea[aria-label="Message input"]', messageToDelete);
-    await page.click('button[aria-label="Send message"]');
-    await page.waitForSelector(`text=${messageToDelete}`, { timeout: 5000 });
+    await sendMessageAndVerify(page, messageToDelete, conversationId!);
 
     // Find our specific message bubble (stable through deletion)
     const messageBubble = await findMessageBubble(page, messageToDelete);
@@ -325,9 +323,7 @@ test.describe('Message Deletion', () => {
     // Send a message (unique text to avoid matching accumulated messages)
     const runId = Date.now();
     const messageToKeep = `Cancel delete test ${runId}`;
-    await page.fill('textarea[aria-label="Message input"]', messageToKeep);
-    await page.click('button[aria-label="Send message"]');
-    await page.waitForSelector(`text=${messageToKeep}`, { timeout: 5000 });
+    await sendMessageAndVerify(page, messageToKeep, conversationId!);
 
     // Find our specific message bubble (stable through interactions)
     const messageBubble = await findMessageBubble(page, messageToKeep);
@@ -359,9 +355,7 @@ test.describe('Message Deletion', () => {
     // Send and delete a message (unique text to avoid matching accumulated messages)
     const runId = Date.now();
     const messageToDelete = `Delete target ${runId}`;
-    await page.fill('textarea[aria-label="Message input"]', messageToDelete);
-    await page.click('button[aria-label="Send message"]');
-    await page.waitForSelector(`text=${messageToDelete}`, { timeout: 5000 });
+    await sendMessageAndVerify(page, messageToDelete, conversationId!);
 
     // Find our specific message bubble (stable through deletion)
     const messageBubble = await findMessageBubble(page, messageToDelete);
@@ -476,9 +470,7 @@ test.describe('Time Window Restrictions', () => {
     // Send a new message (unique text to avoid matching accumulated messages)
     const runId = Date.now();
     const recentMessage = `Recent message test ${runId}`;
-    await page.fill('textarea[aria-label="Message input"]', recentMessage);
-    await page.click('button[aria-label="Send message"]');
-    await page.waitForSelector(`text=${recentMessage}`, { timeout: 5000 });
+    await sendMessageAndVerify(page, recentMessage, conversationId!);
 
     // Find our specific message bubble (stable through interactions)
     const recentBubble = await findMessageBubble(page, recentMessage);
