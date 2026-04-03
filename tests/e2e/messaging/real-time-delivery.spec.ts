@@ -21,7 +21,6 @@ import {
   waitForMessageDelivery,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
-import { executeSQL, escapeSQL } from '../utils/supabase-admin';
 
 const AUTH_FILE = path.resolve('tests/e2e/fixtures/storage-state-auth.json');
 
@@ -378,17 +377,8 @@ test.describe('Real-time Message Delivery (T098)', () => {
             break;
           }
         }
-        if (!dbConfirmed) {
-          const rows = (await executeSQL(
-            `SELECT id FROM messages WHERE conversation_id = '${escapeSQL(conversationId)}' ORDER BY created_at DESC LIMIT 1`
-          )) as { id: string }[];
-          if (rows && rows.length > 0) {
-            dbConfirmed = true;
-            console.log(
-              'Message found via Management API (primary), not on replica yet'
-            );
-          }
-        }
+        // No Management API fallback — executeSQL calls from 18 shards
+        // overwhelm the rate limit and cause cascading timeouts.
       } else {
         dbConfirmed = false;
       }
