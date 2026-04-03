@@ -1,7 +1,7 @@
 ```
 Fix SpokeToWork E2E tests until ALL 18 shards pass (6 per browser × 3 browsers).
 
-BASELINE: 12/18 pass (run 23955922443 on a96fa22, 2026-04-03).
+BASELINE: 12/18 pass (run 23963311165 on a951619, 2026-04-03).
 Failing: shard 2/6 + 3/6 on all 3 browsers. E2E has NEVER passed all 18.
 
 METHODOLOGY (follow strictly, no guessing):
@@ -18,15 +18,24 @@ METHODOLOGY (follow strictly, no guessing):
 
 3. CONFIRMED ROOT CAUSES (from deep log analysis 2026-04-03):
 
-   SHARD 3/6 — sendMessage() fails with "TypeError: Failed to fetch"
-   a. Under 18-shard CI load, the Supabase REST API (/rest/v1/messages) times out.
-   b. The INSERT call throws TypeError("Failed to fetch") — a network-level error.
-   c. isRLSError() doesn't match TypeError, so the RLS retry loop is SKIPPED.
-   d. The error propagates to page.tsx catch block, which REMOVES the optimistic message.
-   e. findMessageBubble() then waits 45s for an element that no longer exists.
-   f. FIX: Add isTransientFetchError() check alongside isRLSError() in the retry loop
-      so fetch timeouts get the same exponential backoff (5 retries, 46s max).
-   g. File: src/services/messaging/message-service.ts (line ~313, the isRLSError check)
+   SHARD 3/6 — sendMessage() silently fails, optimistic message never swaps
+   a. Message is sent (textarea fill + Send click). Optimistic message appears instantly
+      with data-message-id="optimistic-*". But the ID NEVER swaps to a server UUID.
+   b. After 45s timeout, test reloads page. Message is GONE (never persisted to DB).
+   c. The optimistic message STAYS in the DOM (not removed by page.tsx catch block),
+      which means sendMessage() returned { queued: true } — NOT threw an error.
+   d. Browser console output is NOT captured by Playwright in CI. Cannot see
+      app-level logs (sendMessage errors, RLS retries, etc.) in the job logs.
+   e. The sendMessage() flow before INSERT: getUser() → ensureKeys() →
+      conversations.select() → getUserPublicKey() → importKey() → deriveSharedSecret()
+      → encryptMessage() → INSERT. If any of these hang or fail, INSERT never fires.
+   f. isTransientFetchError() was added to the INSERT retry loop, but the INSERT may
+      not even be reached if earlier steps fail.
+   g. KEY DIAGNOSTIC GAP: No browser console capture in CI. Need to add
+      page.on('console') listener in message-editing tests to capture app-level logs.
+   h. Files: src/services/messaging/message-service.ts (sendMessage flow lines 116-478),
+      src/app/messages/page.tsx (handleSendMessage lines 399-468),
+      tests/e2e/messaging/message-editing.spec.ts (findMessageBubble lines 57-90)
 
    SHARD 2/6 — Mixed read-replica lag + test cleanup races
    a. friend-requests (chromium): "Send Request" button never appears after 10-15 retries.
@@ -71,7 +80,12 @@ METHODOLOGY (follow strictly, no guessing):
      Management API causes rate-limit cascades (429 errors, see commit ba0c036).
    - Do NOT add sendMessageAndVerify() polling to message-editing tests — 30s polling +
      45s findMessageBubble = 75s, dangerously close to 90s test timeout.
+   - Do NOT add aggressive polling loops (20×2s) in test cleanup — 18 shards each
+     polling 20 times overwhelms Supabase rate limits and causes unrelated shards to fail.
+     Keep polls to 5×3s maximum (see commit a951619 regression fix).
    - Make ONE targeted change at a time. Push. Verify no regressions. Then next change.
+   - Add page.on('console') capture in messaging tests — browser console output is NOT
+     visible in Playwright CI logs by default. Without it, you're blind to app-level errors.
 
 6. FIX (only after diagnosis):
    - Docker must be running: docker compose exec spoketowork echo alive
@@ -88,6 +102,8 @@ METHODOLOGY (follow strictly, no guessing):
    - Current tracking:
      PUSH ba0c036 2026-04-02: 12/18 [chromium 2/6,3/6 firefox 2/6,3/6 webkit 2/6,3/6]
      PUSH a96fa22 2026-04-03: 12/18 [same — baseline confirmed after revert]
+     PUSH 7592aa2 2026-04-03: 10/18 [3 regressions from excessive polling rate-limiting]
+     PUSH a951619 2026-04-03: 12/18 [regressions fixed, baseline restored]
 
 RULES:
 - NEVER guess — read logs and code first

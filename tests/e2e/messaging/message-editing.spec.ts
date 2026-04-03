@@ -113,6 +113,30 @@ test.describe('Message Editing', () => {
   test.describe.configure({ timeout: 90000 });
 
   test.beforeEach(async ({ page }) => {
+    // Capture browser console to diagnose sendMessage failures in CI.
+    // Playwright doesn't forward browser console to test output by default,
+    // so app-level errors (RLS retries, encryption failures, fetch timeouts)
+    // are invisible in CI logs without this.
+    page.on('console', (msg) => {
+      const text = msg.text();
+      if (
+        text.includes('sendMessage') ||
+        text.includes('INSERT') ||
+        text.includes('RLS') ||
+        text.includes('Transient') ||
+        text.includes('Failed to fetch') ||
+        text.includes('queued') ||
+        text.includes('EncryptionError') ||
+        text.includes('ensureKeys') ||
+        text.includes('encrypt') ||
+        text.includes('deriveShared') ||
+        text.includes('offline') ||
+        msg.type() === 'error'
+      ) {
+        console.log(`[browser:${msg.type()}] ${text}`);
+      }
+    });
+
     // Sign in as User 1
     await loginAndVerify(page, {
       email: TEST_USER_1.email,
