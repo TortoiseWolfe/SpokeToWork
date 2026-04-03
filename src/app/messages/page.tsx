@@ -354,16 +354,24 @@ function MessagesContent() {
         setMessages((prev) => [...result.messages, ...prev]);
       } else {
         setMessages((prev) => {
-          // Preserve optimistic messages not yet confirmed by server
-          const optimistic = prev.filter((m) => m.id.startsWith('optimistic-'));
-          if (optimistic.length === 0) return result.messages;
-          // Remove optimistic messages whose content already appears in server results
+          // Preserve messages not yet visible on the read replica.
+          // This includes both:
+          // 1. Optimistic messages (ID starts with "optimistic-") awaiting server confirmation
+          // 2. Recently-sent messages whose optimistic ID was already swapped to a
+          //    server UUID, but the read replica hasn't caught up yet. Without this,
+          //    the 10s polling fallback would drop the message from the UI.
+          const serverIds = new Set(result.messages.map((m) => m.id));
           const serverOwnContent = new Set(
             result.messages.filter((m) => m.isOwn).map((m) => m.content)
           );
-          const pending = optimistic.filter(
-            (m) => !serverOwnContent.has(m.content)
-          );
+          const pending = prev.filter((m) => {
+            // Already in server results — no need to preserve
+            if (serverIds.has(m.id)) return false;
+            // Own message not yet on replica (optimistic or recently-swapped UUID)
+            if (m.isOwn && !serverOwnContent.has(m.content)) return true;
+            return false;
+          });
+          if (pending.length === 0) return result.messages;
           return [...result.messages, ...pending];
         });
 
