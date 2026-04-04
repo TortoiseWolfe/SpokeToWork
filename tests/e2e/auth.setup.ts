@@ -109,8 +109,10 @@ function isAuthStateValid(): boolean {
   }
 }
 
-// Increase timeout — derives encryption keys for 3 users (up to 40s each on firefox)
-setup.setTimeout(360000);
+// Increase timeout — derives encryption keys for 3 users. Under CI load
+// with 18 parallel shards hitting Supabase, Argon2id + API calls can take
+// 3+ min per user (vs 40s when Supabase is fast). 600s covers 3 × 3min.
+setup.setTimeout(600000);
 
 setup('authenticate shared test user', async ({ page }) => {
   // Skip login if we already have a valid auth state AND all users' keys are cached
