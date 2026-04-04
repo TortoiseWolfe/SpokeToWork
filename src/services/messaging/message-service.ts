@@ -189,6 +189,13 @@ export class MessageService {
     }
 
     try {
+      // Breadcrumb logging for diagnosing silent sendMessage failures in CI.
+      // Production logger silences warn/info, so use console.error directly.
+      const sendTs = Date.now();
+      const logStep = (step: string) =>
+        console.error(`[sendMessage:${sendTs}] ${step}`);
+
+      logStep('1-ensureKeys');
       // Get sender's derived keys. ensureKeys() restores from localStorage
       // if memory is empty (races with page-mount restore effect).
       const senderKeys = await keyManagementService.ensureKeys(user.id);
@@ -197,17 +204,35 @@ export class MessageService {
           'Your encryption keys are not available. Please sign in again to send messages.'
         );
       }
+      logStep('2-ensureKeys-ok');
 
-      // Get conversation details
-      const { data: conversation, error: convError } = await msgClient
+      // Get conversation details with timeout — under 18-shard CI load,
+      // the Supabase REST API can hang indefinitely instead of returning
+      // an error. Without a timeout, sendMessage() blocks for the full
+      // test timeout (45-90s) while the optimistic message stays in the UI.
+      logStep('3-conversation-query');
+      const QUERY_TIMEOUT = 15000;
+      const conversationQuery = msgClient
         .from('conversations')
         .select('participant_1_id, participant_2_id, is_group')
         .eq('id', input.conversation_id)
         .single();
 
+      const { data: conversation, error: convError } = await Promise.race([
+        conversationQuery,
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Conversation query timed out after 15s')),
+            QUERY_TIMEOUT
+          )
+        ),
+      ]);
+
       if (convError || !conversation) {
+        logStep(`4-conversation-FAIL: ${convError?.message || 'no data'}`);
         throw new ValidationError('Conversation not found', 'conversation_id');
       }
+      logStep('4-conversation-ok');
 
       // For 1-to-1 conversations, determine recipient ID
       // Group conversations use symmetric encryption (handled separately in Phase 4)
@@ -235,11 +260,13 @@ export class MessageService {
         await keyManagementService.getUserPublicKey(recipientId);
 
       if (!recipientPublicKey) {
+        logStep('6-recipientKey-MISSING');
         throw new ValidationError(
           "This person needs to sign in before you can message them. Messages cannot be delivered until they've logged in at least once to set up encryption.",
           'conversation_id'
         );
       }
+      logStep('6-recipientKey-ok');
 
       // Import recipient's public key
       const recipientPublicKeyCrypto = await crypto.subtle.importKey(
@@ -254,16 +281,19 @@ export class MessageService {
       );
 
       // Derive shared secret using sender's derived private key
+      logStep('7-deriveSharedSecret');
       const sharedSecret = await encryptionService.deriveSharedSecret(
         senderKeys.privateKey,
         recipientPublicKeyCrypto
       );
 
       // Encrypt message content
+      logStep('8-encryptMessage');
       const encrypted = await encryptionService.encryptMessage(
         content,
         sharedSecret
       );
+      logStep('9-INSERT');
 
       // Online - attempt to send to database
       // (Offline case is handled at the top of sendMessage, before any network calls)
@@ -306,9 +336,11 @@ export class MessageService {
             .single();
 
           if (!insertError) {
+            logStep(`10-INSERT-ok: ${data?.id}`);
             message = data;
             break;
           }
+          logStep(`10-INSERT-FAIL: ${insertError.code} ${insertError.message}`);
 
           // PostgreSQL 23505 = unique_violation (sequence number conflict)
           if (

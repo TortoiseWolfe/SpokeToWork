@@ -17,19 +17,15 @@ import {
   completeEncryptionSetup,
   dismissCookieBanner,
   dismissReAuthModal,
+  waitForEncryptionKeys,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
+import { getShardUsers } from '../utils/shard-users';
 
-// Test user credentials — PRIMARY + TERTIARY per messaging E2E conventions
-const TEST_USER_1 = {
-  email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
-  password: process.env.TEST_USER_PRIMARY_PASSWORD!,
-};
-
-const TEST_USER_2 = {
-  email: process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com',
-  password: process.env.TEST_USER_TERTIARY_PASSWORD!,
-};
+// Per-shard test users — each shard gets unique users to avoid cross-shard conflicts
+const { primary, tertiary } = getShardUsers();
+const TEST_USER_1 = primary;
+const TEST_USER_2 = tertiary;
 
 /** Module-scoped conversation ID, populated by beforeAll/beforeEach. */
 let conversationId: string | null = null;
@@ -91,8 +87,10 @@ async function findMessageBubble(page: Page, text: string) {
 
 /**
  * Clean up messages and seed connection/conversation before tests.
+ * Timeout increased to cover waitForEncryptionKeys polling (up to 90s).
  */
-test.beforeAll(async () => {
+test.beforeAll(async ({}, testInfo) => {
+  testInfo.setTimeout(120000);
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceKey) return;
@@ -107,6 +105,12 @@ test.beforeAll(async () => {
     TEST_USER_1.email,
     TEST_USER_2.email
   );
+
+  // Wait for BOTH users to have encryption keys in the DB.
+  // auth.setup.ts derives keys in browser and inserts them, but shard 3/6
+  // can start tests before auth.setup finishes for the tertiary user.
+  // Without this, sendMessage() fails at getUserPublicKey() → "recipientKey-MISSING".
+  await waitForEncryptionKeys(supabase, TEST_USER_1.email, TEST_USER_2.email);
 });
 
 test.describe('Message Editing', () => {

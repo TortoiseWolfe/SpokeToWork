@@ -20,6 +20,7 @@ import {
   DEFAULT_TEST_PASSWORD,
 } from './utils/test-user-factory';
 import { ensureTestRoutes } from './utils/supabase-admin';
+import { getShardUsers } from './utils/shard-users';
 
 const AUTH_FILE = 'tests/e2e/fixtures/storage-state-auth.json';
 
@@ -113,11 +114,13 @@ function isAuthStateValid(): boolean {
 setup.setTimeout(360000);
 
 setup('authenticate shared test user', async ({ page }) => {
-  // Skip login if we already have a valid auth state AND all users' keys are cached
-  if (isAuthStateValid()) {
-    // Check if SECONDARY and TERTIARY keys are in the storageState
-    const secondaryEmail2 = process.env.TEST_USER_SECONDARY_EMAIL;
-    const tertiaryEmail2 = process.env.TEST_USER_TERTIARY_EMAIL;
+  // Per-shard users: each shard authenticates its own unique users
+  const shardUsers = getShardUsers();
+  const isShardMode = !!process.env.E2E_SHARD_INDEX;
+
+  // Skip login if we already have a valid auth state AND all users' keys are cached.
+  // In shard mode, always re-authenticate (cached state is for shared user, not shard user).
+  if (!isShardMode && isAuthStateValid()) {
     let allKeysCached = true;
 
     try {
@@ -146,50 +149,54 @@ setup('authenticate shared test user', async ({ page }) => {
     console.log('Auth state valid but missing user keys — deriving...');
   }
 
-  // Use primary test user from env, or create a shared one
-  const email =
-    process.env.TEST_USER_PRIMARY_EMAIL || generateTestEmail('e2e-shared');
-  const password = DEFAULT_TEST_PASSWORD;
+  // Use shard-specific users in CI, or env vars / dynamic user locally
+  const email = isShardMode
+    ? shardUsers.primary.email
+    : process.env.TEST_USER_PRIMARY_EMAIL || generateTestEmail('e2e-shared');
+  const password = shardUsers.primary.password;
 
-  // Ensure user exists with confirmed email (only if using dynamic user)
-  if (!process.env.TEST_USER_PRIMARY_EMAIL) {
+  // Ensure user exists with confirmed email (only if using dynamic user locally)
+  if (!isShardMode && !process.env.TEST_USER_PRIMARY_EMAIL) {
     console.log('Creating dynamic test user...');
     await createTestUser(email, password, { createProfile: true });
   }
 
-  // Ensure secondary and tertiary test users exist (needed for multi-user E2E tests)
-  const secondaryEmail = process.env.TEST_USER_SECONDARY_EMAIL;
-  const secondaryPassword = process.env.TEST_USER_SECONDARY_PASSWORD;
-  const tertiaryEmail = process.env.TEST_USER_TERTIARY_EMAIL;
-  const tertiaryPassword = process.env.TEST_USER_TERTIARY_PASSWORD;
+  // Secondary and tertiary user credentials (shard-specific in CI, env vars locally)
+  const secondaryEmail = shardUsers.secondary.email;
+  const secondaryPassword = shardUsers.secondary.password;
+  const tertiaryEmail = shardUsers.tertiary.email;
+  const tertiaryPassword = shardUsers.tertiary.password;
 
-  if (secondaryEmail && secondaryPassword) {
-    try {
-      const { getUserByEmail } = await import('./utils/test-user-factory');
-      const existing = await getUserByEmail(secondaryEmail);
-      if (!existing) {
-        console.log(`Creating secondary test user: ${secondaryEmail}`);
-        await createTestUser(secondaryEmail, secondaryPassword, {
-          createProfile: true,
-        });
+  // In local dev, ensure secondary/tertiary users exist
+  if (!isShardMode) {
+    if (secondaryEmail && secondaryPassword) {
+      try {
+        const { getUserByEmail } = await import('./utils/test-user-factory');
+        const existing = await getUserByEmail(secondaryEmail);
+        if (!existing) {
+          console.log(`Creating secondary test user: ${secondaryEmail}`);
+          await createTestUser(secondaryEmail, secondaryPassword, {
+            createProfile: true,
+          });
+        }
+      } catch (err) {
+        console.warn(`Failed to ensure secondary user: ${err}`);
       }
-    } catch (err) {
-      console.warn(`Failed to ensure secondary user: ${err}`);
     }
-  }
 
-  if (tertiaryEmail && tertiaryPassword) {
-    try {
-      const { getUserByEmail } = await import('./utils/test-user-factory');
-      const existing = await getUserByEmail(tertiaryEmail);
-      if (!existing) {
-        console.log(`Creating tertiary test user: ${tertiaryEmail}`);
-        await createTestUser(tertiaryEmail, tertiaryPassword, {
-          createProfile: true,
-        });
+    if (tertiaryEmail && tertiaryPassword) {
+      try {
+        const { getUserByEmail } = await import('./utils/test-user-factory');
+        const existing = await getUserByEmail(tertiaryEmail);
+        if (!existing) {
+          console.log(`Creating tertiary test user: ${tertiaryEmail}`);
+          await createTestUser(tertiaryEmail, tertiaryPassword, {
+            createProfile: true,
+          });
+        }
+      } catch (err) {
+        console.warn(`Failed to ensure tertiary user: ${err}`);
       }
-    } catch (err) {
-      console.warn(`Failed to ensure tertiary user: ${err}`);
     }
   }
 

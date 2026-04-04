@@ -88,7 +88,7 @@ export function useReadReceipts({
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           const messageId = entry.target.getAttribute('data-message-id');
-          if (messageId) {
+          if (messageId && !messageId.startsWith('optimistic-')) {
             const message = messages.find((m) => m.id === messageId);
 
             // Only mark unread messages from other users
