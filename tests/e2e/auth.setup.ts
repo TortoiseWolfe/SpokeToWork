@@ -134,6 +134,30 @@ setup('authenticate shared test user', async ({ page }) => {
           `Auth state valid but only ${cachedKeys.length} user key(s) cached — need to derive more`
         );
       }
+
+      // Also verify keys exist in DB — global-setup deletes DB rows but
+      // doesn't clear the storage-state file, so file-only checks are stale.
+      if (allKeysCached) {
+        const { executeSQL, escapeSQL } = await import(
+          './utils/supabase-admin'
+        );
+        const emails = [
+          process.env.TEST_USER_PRIMARY_EMAIL,
+          process.env.TEST_USER_TERTIARY_EMAIL,
+        ].filter(Boolean) as string[];
+        for (const email of emails) {
+          const rows = (await executeSQL(
+            `SELECT COUNT(*) as cnt FROM user_encryption_keys ek JOIN auth.users u ON ek.user_id = u.id WHERE u.email = '${escapeSQL(email)}' AND ek.revoked = false`
+          )) as { cnt: number }[];
+          if (!rows[0]?.cnt) {
+            allKeysCached = false;
+            console.log(
+              `Auth state valid but ${email} has no DB keys — must re-derive`
+            );
+            break;
+          }
+        }
+      }
     } catch {
       allKeysCached = false;
     }
