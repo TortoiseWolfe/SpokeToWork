@@ -1,8 +1,27 @@
 ```
 Fix SpokeToWork E2E tests until ALL 18 shards pass (6 per browser × 3 browsers).
 
-BASELINE: 12/18 pass (run 23963311165 on a951619, 2026-04-03).
-Failing: shard 2/6 + 3/6 on all 3 browsers. E2E has NEVER passed all 18.
+CURRENT: 13/18 (run 23984866152 on 439849b, 2026-04-04). Webkit 2/6 NEW PASS.
+Failing: chromium 2/6+3/6, firefox 2/6+3/6, webkit 3/6.
+
+THE FIX: PER-SHARD TEST USERS — each shard gets unique users to eliminate
+shared-state conflicts. A shard-users.ts helper was built/tested/reverted.
+Implement as ONE commit. See memory: project_e2e_per_shard_progress.md.
+
+DEEPER ROOT CAUSE (from breadcrumb logging 2026-04-04):
+  Shard 3/6: sendMessage fails at step 6 "recipientKey-MISSING" because
+  global-setup (runs per-shard) DELETES keys that auth.setup just derived.
+  Shard 2/6: shared user_connections + companies data races across shards.
+  Both: per-shard users eliminate these because each shard's data is isolated.
+
+DB HEALTH: auth_audit_log_entries accumulated 46,705 rows causing 10s queries.
+  Add cleanup to global-setup: DELETE FROM auth.audit_log_entries WHERE created_at < NOW() - INTERVAL '1 hour'
+
+ADDITIONAL LESSONS (2026-04-04):
+  - Do NOT add executeSQL calls in auth.setup — causes connection timeouts across ALL shards
+  - Do NOT push while a run is in progress — cancel-in-progress: true kills the run
+  - usePaymentButton.ts has flaky unhandled rejection — fix with cancelled flag in useEffect
+  - Browser console capture via page.on('console') was essential for diagnosing shard 3/6
 
 METHODOLOGY (follow strictly, no guessing):
 
@@ -104,6 +123,7 @@ METHODOLOGY (follow strictly, no guessing):
      PUSH a96fa22 2026-04-03: 12/18 [same — baseline confirmed after revert]
      PUSH 7592aa2 2026-04-03: 10/18 [3 regressions from excessive polling rate-limiting]
      PUSH a951619 2026-04-03: 12/18 [regressions fixed, baseline restored]
+     PUSH 439849b 2026-04-04: 13/18 [webkit 2/6 NEW PASS after DB audit log cleanup]
 
 RULES:
 - NEVER guess — read logs and code first
@@ -113,6 +133,7 @@ RULES:
 - If you've tried 3+ fixes for the same test, do a deeper code review
 - Make ONE change at a time, push, verify. No stacking risky changes.
 - Track: what failed, what the actual error was, what you changed, whether it helped
+- Read memory files first: project_e2e_per_shard_progress.md, project_e2e_shard3_diagnosis.md
 ```
 
 # SpokeToWork - Job Hunting by Bicycle
