@@ -137,24 +137,43 @@ setup('authenticate shared test user', async ({ page }) => {
 
       // Also verify keys exist in DB — global-setup deletes DB rows but
       // doesn't clear the storage-state file, so file-only checks are stale.
+      // Use PostgREST (service-role client), NOT executeSQL (Management API),
+      // to avoid rate-limiting when 18 shards all run auth.setup simultaneously.
       if (allKeysCached) {
-        const { executeSQL, escapeSQL } = await import(
-          './utils/supabase-admin'
-        );
-        const emails = [
-          process.env.TEST_USER_PRIMARY_EMAIL,
-          process.env.TEST_USER_TERTIARY_EMAIL,
-        ].filter(Boolean) as string[];
-        for (const email of emails) {
-          const rows = (await executeSQL(
-            `SELECT COUNT(*) as cnt FROM user_encryption_keys ek JOIN auth.users u ON ek.user_id = u.id WHERE u.email = '${escapeSQL(email)}' AND ek.revoked = false`
-          )) as { cnt: number }[];
-          if (!rows[0]?.cnt) {
-            allKeysCached = false;
-            console.log(
-              `Auth state valid but ${email} has no DB keys — must re-derive`
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (supabaseUrl && serviceKey) {
+          const { createClient: createAdminClient } = await import(
+            '@supabase/supabase-js'
+          );
+          const admin = createAdminClient(supabaseUrl, serviceKey);
+          // Extract user IDs from cached key names (stw_keys_<userId>)
+          const state2 = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
+          const ls = state2.origins?.[0]?.localStorage || [];
+          const userIds = ls
+            .filter((item: { name: string }) =>
+              item.name.startsWith('stw_keys_')
+            )
+            .map((item: { name: string }) =>
+              item.name.replace('stw_keys_', '')
             );
-            break;
+          if (userIds.length > 0) {
+            const { data: dbKeys } = await admin
+              .from('user_encryption_keys')
+              .select('user_id')
+              .in('user_id', userIds)
+              .eq('revoked', false);
+            const dbUserIds = new Set(
+              (dbKeys as { user_id: string }[] | null)?.map((k) => k.user_id) ??
+                []
+            );
+            const missing = userIds.filter((id: string) => !dbUserIds.has(id));
+            if (missing.length > 0) {
+              allKeysCached = false;
+              console.log(
+                `Auth state valid but ${missing.length} user(s) have no DB keys — must re-derive`
+              );
+            }
           }
         }
       }
