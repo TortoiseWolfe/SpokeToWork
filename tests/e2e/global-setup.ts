@@ -271,7 +271,7 @@ async function ensureTestUserKeys(): Promise<void> {
         )) as { id: string }[];
         if (rows.length === 0) {
           console.log(`  Creating shard user: ${email}`);
-          const { error } = await adminClient.auth.admin.createUser({
+          const { data, error } = await adminClient.auth.admin.createUser({
             email,
             password,
             email_confirm: true,
@@ -279,18 +279,18 @@ async function ensureTestUserKeys(): Promise<void> {
           if (error && !error.message.includes('already been registered')) {
             console.warn(`  ⚠ Failed to create ${email}: ${error.message}`);
           }
-          // Create identity record for email login
-          const rows2 = (await executeSQL(
-            `SELECT id FROM auth.users WHERE email = '${escapeSQL(email)}'`
-          )) as { id: string }[];
-          if (rows2[0]?.id) {
-            // Ensure user profile exists
+          // Use the returned user ID directly (don't re-query — avoids lag)
+          const userId = data?.user?.id;
+          if (userId) {
             await adminClient.from('user_profiles').upsert(
               {
-                id: rows2[0].id,
+                id: userId,
                 display_name: email.split('@')[0],
               },
               { onConflict: 'id' }
+            );
+            console.log(
+              `  ✓ Created shard user: ${email} (${userId.slice(0, 8)}...)`
             );
           }
         }
@@ -302,18 +302,15 @@ async function ensureTestUserKeys(): Promise<void> {
 
   for (const email of testUsers) {
     try {
-      // 1. Look up user_id — try SQL first, fall back to admin client
+      // 1. Look up user_id — try SQL, retry once for newly created users
       let userId: string | undefined;
-      const rows = (await executeSQL(
-        `SELECT id FROM auth.users WHERE email = '${email}'`
-      )) as { id: string }[];
-      userId = rows[0]?.id;
-
-      if (!userId && adminClient) {
-        const { data } = await adminClient.auth.admin.listUsers({
-          perPage: 1000,
-        });
-        userId = data?.users?.find((u) => u.email === email)?.id;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const rows = (await executeSQL(
+          `SELECT id FROM auth.users WHERE email = '${escapeSQL(email)}'`
+        )) as { id: string }[];
+        userId = rows[0]?.id;
+        if (userId) break;
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 2000));
       }
 
       if (!userId) {
