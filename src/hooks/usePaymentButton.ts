@@ -76,11 +76,15 @@ export function usePaymentButton(
   // Count is loaded once on mount - in practice, users don't stay on payment
   // page long enough for polling to be useful
   useEffect(() => {
+    let cancelled = false;
     const loadQueueCount = async () => {
       const count = await getPendingCount();
-      setQueuedCount(count);
+      if (!cancelled) setQueuedCount(count);
     };
     loadQueueCount();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const selectProvider = (provider: PaymentProvider) => {
