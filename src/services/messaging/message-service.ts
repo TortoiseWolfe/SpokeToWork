@@ -198,12 +198,26 @@ export class MessageService {
         );
       }
 
-      // Get conversation details
-      const { data: conversation, error: convError } = await msgClient
+      // Get conversation details with timeout — under 18-shard CI load,
+      // the Supabase REST API can hang indefinitely instead of returning
+      // an error. Without a timeout, sendMessage() blocks for the full
+      // test timeout (45-90s) while the optimistic message stays in the UI.
+      const QUERY_TIMEOUT = 15000;
+      const conversationQuery = msgClient
         .from('conversations')
         .select('participant_1_id, participant_2_id, is_group')
         .eq('id', input.conversation_id)
         .single();
+
+      const { data: conversation, error: convError } = await Promise.race([
+        conversationQuery,
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Conversation query timed out after 15s')),
+            QUERY_TIMEOUT
+          )
+        ),
+      ]);
 
       if (convError || !conversation) {
         throw new ValidationError('Conversation not found', 'conversation_id');
