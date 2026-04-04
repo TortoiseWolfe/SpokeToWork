@@ -19,6 +19,7 @@ import {
   dismissCookieBanner,
   dismissReAuthModal,
   waitForMessageDelivery,
+  waitForEncryptionKeys,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
 
@@ -292,6 +293,12 @@ test.describe('Real-time Message Delivery (T098)', () => {
     if (adminClient) {
       await ensureConnection(adminClient, TEST_USER_1.email, TEST_USER_2.email);
       conversationId = await ensureConversation(
+        adminClient,
+        TEST_USER_1.email,
+        TEST_USER_2.email
+      );
+      // Wait for both users to have encryption keys before sending messages
+      await waitForEncryptionKeys(
         adminClient,
         TEST_USER_1.email,
         TEST_USER_2.email

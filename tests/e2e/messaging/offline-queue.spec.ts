@@ -17,6 +17,7 @@ import {
   cleanupMessagingData,
   completeEncryptionSetup,
   dismissCookieBanner,
+  waitForEncryptionKeys,
   dismissReAuthModal,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
@@ -77,6 +78,7 @@ test.describe('Offline Message Queue', () => {
         USER_A.email,
         USER_B.email
       );
+      await waitForEncryptionKeys(adminClient, USER_A.email, USER_B.email);
     }
   });
 

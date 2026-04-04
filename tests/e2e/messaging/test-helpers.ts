@@ -583,3 +583,48 @@ export async function waitForMessageDelivery(
     );
   }
 }
+
+/**
+ * Wait for both users to have encryption keys in the database.
+ *
+ * auth.setup.ts derives keys in browser and inserts them into
+ * user_encryption_keys, but shard 3/6 can start tests before
+ * auth.setup finishes for the tertiary user. Without waiting,
+ * sendMessage() fails at getUserPublicKey() with "recipientKey-MISSING".
+ *
+ * Uses PostgREST (admin client), NOT executeSQL, to avoid rate-limiting.
+ * Polls up to 30×3s = 90s max.
+ */
+export async function waitForEncryptionKeys(
+  client: SupabaseClient,
+  email1: string,
+  email2: string
+): Promise<void> {
+  const id1 = await getUserIdByEmail(client, email1);
+  const id2 = await getUserIdByEmail(client, email2);
+  if (!id1 || !id2) {
+    console.warn('waitForEncryptionKeys: could not resolve user IDs');
+    return;
+  }
+
+  for (let poll = 0; poll < 30; poll++) {
+    const result = await client
+      .from('user_encryption_keys')
+      .select('user_id')
+      .in('user_id', [id1, id2])
+      .eq('revoked', false);
+    const rows = (result.data ?? []) as { user_id: string }[];
+    const userIds = new Set(rows.map((k) => k.user_id));
+    if (userIds.has(id1) && userIds.has(id2)) {
+      console.log(`Both users have encryption keys (poll ${poll + 1})`);
+      return;
+    }
+    if (poll % 5 === 0) {
+      console.log(
+        `Waiting for encryption keys: ${userIds.size}/2 users ready (poll ${poll + 1}/30)`
+      );
+    }
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+  console.warn('waitForEncryptionKeys: timed out after 90s');
+}

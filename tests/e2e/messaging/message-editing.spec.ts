@@ -17,6 +17,7 @@ import {
   completeEncryptionSetup,
   dismissCookieBanner,
   dismissReAuthModal,
+  waitForEncryptionKeys,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
 
@@ -107,6 +108,12 @@ test.beforeAll(async () => {
     TEST_USER_1.email,
     TEST_USER_2.email
   );
+
+  // Wait for BOTH users to have encryption keys in the DB.
+  // auth.setup.ts derives keys in browser and inserts them, but shard 3/6
+  // can start tests before auth.setup finishes for the tertiary user.
+  // Without this, sendMessage() fails at getUserPublicKey() → "recipientKey-MISSING".
+  await waitForEncryptionKeys(supabase, TEST_USER_1.email, TEST_USER_2.email);
 });
 
 test.describe('Message Editing', () => {
