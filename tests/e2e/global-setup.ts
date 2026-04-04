@@ -235,7 +235,11 @@ async function generateAndStoreAdminKeys(userId: string): Promise<void> {
  * → initializeKeys (creates new salt + key pair + uploads public key to DB).
  */
 async function ensureTestUserKeys(): Promise<void> {
-  console.log('🔑 Cleaning old encryption keys (browser will re-derive)...');
+  // Only clean keys if they're stale (>10 min old). auth.setup derives
+  // fresh keys, but each shard runs global-setup independently. Without
+  // this check, shard 3/6's global-setup deletes the keys that auth.setup
+  // just derived, causing "recipientKey-MISSING" in sendMessage.
+  const adminClient = getAdminClient();
 
   const testUsers = [
     process.env.TEST_USER_PRIMARY_EMAIL,
@@ -248,7 +252,21 @@ async function ensureTestUserKeys(): Promise<void> {
     return;
   }
 
-  const adminClient = getAdminClient();
+  // Check if keys were recently derived (within last 10 min = this CI run)
+  const recentKeysResult = (await executeSQL(
+    `SELECT COUNT(*) as cnt FROM user_encryption_keys
+     WHERE created_at > NOW() - INTERVAL '10 minutes' AND revoked = false`
+  )) as { cnt: number }[];
+  const recentKeyCount = recentKeysResult[0]?.cnt ?? 0;
+
+  if (recentKeyCount >= 2) {
+    console.log(
+      `🔑 Skipping key cleanup: ${recentKeyCount} recent keys found (derived by auth.setup)`
+    );
+    return;
+  }
+
+  console.log('🔑 Cleaning old encryption keys (browser will re-derive)...');
 
   for (const email of testUsers) {
     try {
