@@ -13,7 +13,7 @@
 import { FullConfig } from '@playwright/test';
 import * as crypto from 'crypto';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { executeSQL } from './utils/supabase-admin';
+import { executeSQL, escapeSQL } from './utils/supabase-admin';
 
 /** Admin Supabase client for local dev (bypasses RLS, works without Management API) */
 function getAdminClient(): SupabaseClient | null {
@@ -235,35 +235,67 @@ async function generateAndStoreAdminKeys(userId: string): Promise<void> {
  * → initializeKeys (creates new salt + key pair + uploads public key to DB).
  */
 async function ensureTestUserKeys(): Promise<void> {
-  // Only clean keys if they're stale (>10 min old). auth.setup derives
-  // fresh keys, but each shard runs global-setup independently. Without
-  // this check, shard 3/6's global-setup deletes the keys that auth.setup
-  // just derived, causing "recipientKey-MISSING" in sendMessage.
   const adminClient = getAdminClient();
+  const shardIndex = process.env.E2E_SHARD_INDEX;
 
-  const testUsers = [
-    process.env.TEST_USER_PRIMARY_EMAIL,
-    process.env.TEST_USER_SECONDARY_EMAIL,
-    process.env.TEST_USER_TERTIARY_EMAIL,
-  ].filter((email): email is string => !!email);
+  // Determine which users to manage based on shard isolation
+  let testUsers: string[];
+  if (shardIndex) {
+    // CI: use per-shard users — each shard only manages its own users
+    testUsers = [
+      `e2e-s${shardIndex}-primary@mailinator.com`,
+      `e2e-s${shardIndex}-secondary@mailinator.com`,
+      `e2e-s${shardIndex}-tertiary@mailinator.com`,
+    ];
+  } else {
+    // Local dev: use standard env vars
+    testUsers = [
+      process.env.TEST_USER_PRIMARY_EMAIL,
+      process.env.TEST_USER_SECONDARY_EMAIL,
+      process.env.TEST_USER_TERTIARY_EMAIL,
+    ].filter((email): email is string => !!email);
+  }
 
   if (testUsers.length === 0) {
-    console.log('  ⚠ No test user emails found in env — skipping key cleanup');
+    console.log('  ⚠ No test user emails found — skipping key cleanup');
     return;
   }
 
-  // Check if keys were recently derived (within last 10 min = this CI run)
-  const recentKeysResult = (await executeSQL(
-    `SELECT COUNT(*) as cnt FROM user_encryption_keys
-     WHERE created_at > NOW() - INTERVAL '10 minutes' AND revoked = false`
-  )) as { cnt: number }[];
-  const recentKeyCount = recentKeysResult[0]?.cnt ?? 0;
-
-  if (recentKeyCount >= 2) {
-    console.log(
-      `🔑 Skipping key cleanup: ${recentKeyCount} recent keys found (derived by auth.setup)`
-    );
-    return;
+  // In CI with per-shard users, create the users if they don't exist
+  if (shardIndex && adminClient) {
+    const password = process.env.TEST_USER_PRIMARY_PASSWORD;
+    if (password) {
+      for (const email of testUsers) {
+        const rows = (await executeSQL(
+          `SELECT id FROM auth.users WHERE email = '${escapeSQL(email)}'`
+        )) as { id: string }[];
+        if (rows.length === 0) {
+          console.log(`  Creating shard user: ${email}`);
+          const { error } = await adminClient.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+          });
+          if (error && !error.message.includes('already been registered')) {
+            console.warn(`  ⚠ Failed to create ${email}: ${error.message}`);
+          }
+          // Create identity record for email login
+          const rows2 = (await executeSQL(
+            `SELECT id FROM auth.users WHERE email = '${escapeSQL(email)}'`
+          )) as { id: string }[];
+          if (rows2[0]?.id) {
+            // Ensure user profile exists
+            await adminClient.from('user_profiles').upsert(
+              {
+                id: rows2[0].id,
+                display_name: email.split('@')[0],
+              },
+              { onConflict: 'id' }
+            );
+          }
+        }
+      }
+    }
   }
 
   console.log('🔑 Cleaning old encryption keys (browser will re-derive)...');

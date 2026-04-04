@@ -17,18 +17,20 @@ import {
   dismissReAuthModal,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
+import { getShardUsers } from '../utils/shard-users';
 
 // Always use localhost for E2E tests - we're testing local development
 const BASE_URL = 'http://localhost:3000';
 
 const adminClient = getAdminClient();
-const TERTIARY_EMAIL =
-  process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com';
 
-// Test users from environment
+// Test users from per-shard fixtures
+const { primary, tertiary } = getShardUsers();
+const TERTIARY_EMAIL = tertiary.email;
+
 const PRIMARY_USER = {
-  email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
-  password: process.env.TEST_USER_PRIMARY_PASSWORD!,
+  email: primary.email,
+  password: primary.password,
 };
 
 /**
@@ -300,13 +302,7 @@ test.describe('Group Chat E2E', () => {
 });
 
 test('contract - test users configured', async () => {
-  console.log(
-    'Primary email:',
-    process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com (default)'
-  );
-  console.log(
-    'Tertiary email:',
-    process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com (default)'
-  );
+  console.log('Primary email:', PRIMARY_USER.email);
+  console.log('Tertiary email:', TERTIARY_EMAIL);
   expect(true).toBe(true);
 });

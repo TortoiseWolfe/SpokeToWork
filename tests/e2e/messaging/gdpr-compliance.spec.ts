@@ -8,12 +8,13 @@
 
 import { test, expect } from '@playwright/test';
 import { loginAndVerify } from '../utils/auth-helpers';
+import { getShardUsers } from '../utils/shard-users';
 
-// Test user - use PRIMARY from standardized test fixtures (Feature 026)
-// No fallbacks allowed per security requirements (047-test-security)
+// Test user - use PRIMARY from per-shard test fixtures
+const { primary } = getShardUsers();
 const TEST_USER = {
-  email: process.env.TEST_USER_PRIMARY_EMAIL!,
-  password: process.env.TEST_USER_PRIMARY_PASSWORD!,
+  email: primary.email,
+  password: primary.password,
 };
 
 test.describe('GDPR Data Export', () => {

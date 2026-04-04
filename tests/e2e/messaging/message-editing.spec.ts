@@ -20,17 +20,12 @@ import {
   waitForEncryptionKeys,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
+import { getShardUsers } from '../utils/shard-users';
 
-// Test user credentials — PRIMARY + TERTIARY per messaging E2E conventions
-const TEST_USER_1 = {
-  email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
-  password: process.env.TEST_USER_PRIMARY_PASSWORD!,
-};
-
-const TEST_USER_2 = {
-  email: process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com',
-  password: process.env.TEST_USER_TERTIARY_PASSWORD!,
-};
+// Per-shard test users — each shard gets unique users to avoid cross-shard conflicts
+const { primary, tertiary } = getShardUsers();
+const TEST_USER_1 = primary;
+const TEST_USER_2 = tertiary;
 
 /** Module-scoped conversation ID, populated by beforeAll/beforeEach. */
 let conversationId: string | null = null;

@@ -22,6 +22,7 @@ import {
   waitForEncryptionKeys,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
+import { getShardUsers } from '../utils/shard-users';
 
 const AUTH_FILE = path.resolve('tests/e2e/fixtures/storage-state-auth.json');
 
@@ -93,15 +94,17 @@ async function injectEncryptionKeys(page: Page): Promise<void> {
 
 const adminClient = getAdminClient();
 
-// Test user credentials (from .env or defaults)
+// Test user credentials (per-shard)
+const { primary, secondary } = getShardUsers();
+
 const TEST_USER_1 = {
-  email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
-  password: process.env.TEST_USER_PRIMARY_PASSWORD!,
+  email: primary.email,
+  password: primary.password,
 };
 
 const TEST_USER_2 = {
-  email: process.env.TEST_USER_SECONDARY_EMAIL || 'test2@example.com',
-  password: process.env.TEST_USER_SECONDARY_PASSWORD!,
+  email: secondary.email,
+  password: secondary.password,
 };
 
 /**
