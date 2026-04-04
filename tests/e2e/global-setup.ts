@@ -33,6 +33,13 @@ const ADMIN_USER = {
 };
 
 async function cleanupOrphanedE2EUsers(): Promise<void> {
+  // In shard mode, skip global e2e-* cleanup — it would delete other shards'
+  // freshly created users. Each shard manages its own users via ensureTestUserKeys.
+  if (process.env.E2E_SHARD_INDEX) {
+    console.log('🧹 Shard mode — skipping global e2e-* user cleanup');
+    return;
+  }
+
   console.log('🧹 Cleaning up orphaned e2e-* test users...');
 
   try {
