@@ -161,11 +161,21 @@ setup('authenticate shared test user', async ({ page }) => {
     await createTestUser(email, password, { createProfile: true });
   }
 
-  // Secondary and tertiary user credentials (shard-specific in CI, env vars locally)
-  const secondaryEmail = shardUsers.secondary.email;
-  const secondaryPassword = shardUsers.secondary.password;
-  const tertiaryEmail = shardUsers.tertiary.email;
-  const tertiaryPassword = shardUsers.tertiary.password;
+  // Secondary and tertiary user credentials.
+  // In shard mode: always set (shard-specific emails).
+  // In local dev: only set if env vars are configured (smoke tests skip these).
+  const secondaryEmail = isShardMode
+    ? shardUsers.secondary.email
+    : process.env.TEST_USER_SECONDARY_EMAIL;
+  const secondaryPassword = isShardMode
+    ? shardUsers.secondary.password
+    : process.env.TEST_USER_SECONDARY_PASSWORD;
+  const tertiaryEmail = isShardMode
+    ? shardUsers.tertiary.email
+    : process.env.TEST_USER_TERTIARY_EMAIL;
+  const tertiaryPassword = isShardMode
+    ? shardUsers.tertiary.password
+    : process.env.TEST_USER_TERTIARY_PASSWORD;
 
   // In local dev, ensure secondary/tertiary users exist
   if (!isShardMode) {
