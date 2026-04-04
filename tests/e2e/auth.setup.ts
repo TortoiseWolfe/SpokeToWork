@@ -109,10 +109,8 @@ function isAuthStateValid(): boolean {
   }
 }
 
-// Increase timeout — derives encryption keys for 3 users. Under CI load
-// with 18 parallel shards hitting Supabase, Argon2id + API calls can take
-// 3+ min per user (vs 40s when Supabase is fast). 600s covers 3 × 3min.
-setup.setTimeout(600000);
+// Increase timeout — derives encryption keys for 3 users (up to 40s each on firefox)
+setup.setTimeout(360000);
 
 setup('authenticate shared test user', async ({ page }) => {
   // Skip login if we already have a valid auth state AND all users' keys are cached
@@ -136,13 +134,6 @@ setup('authenticate shared test user', async ({ page }) => {
           `Auth state valid but only ${cachedKeys.length} user key(s) cached — need to derive more`
         );
       }
-
-      // NOTE: Do NOT check DB for keys here. global-setup deletes DB rows
-      // but the file cache is still valid for session auth. Re-derivation
-      // takes 3+ min per user under CI load and exceeds the 360s timeout
-      // when 18 shards all derive simultaneously. Instead, messaging tests
-      // use waitForEncryptionKeys() in their beforeAll to poll for DB keys
-      // before sending messages.
     } catch {
       allKeysCached = false;
     }
@@ -435,9 +426,7 @@ setup('authenticate shared test user', async ({ page }) => {
         await p.locator('#setup-password').fill(userPwd);
         await p.locator('#setup-confirm').fill(userPwd);
         await setupBtn2.click();
-        // Argon2id derivation takes 60-90s normally, but 3+ min under
-        // 18-shard CI load when Supabase is slow. 300s covers worst case.
-        await p.waitForURL(/\/messages(?!\/setup)/, { timeout: 300000 });
+        await p.waitForURL(/\/messages(?!\/setup)/, { timeout: 180000 });
       }
 
       // Handle ReAuth modal

@@ -13,7 +13,7 @@
 import { FullConfig } from '@playwright/test';
 import * as crypto from 'crypto';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { executeSQL, escapeSQL } from './utils/supabase-admin';
+import { executeSQL } from './utils/supabase-admin';
 
 /** Admin Supabase client for local dev (bypasses RLS, works without Management API) */
 function getAdminClient(): SupabaseClient | null {
@@ -235,82 +235,35 @@ async function generateAndStoreAdminKeys(userId: string): Promise<void> {
  * → initializeKeys (creates new salt + key pair + uploads public key to DB).
  */
 async function ensureTestUserKeys(): Promise<void> {
-  const adminClient = getAdminClient();
-  const shardIndex = process.env.E2E_SHARD_INDEX;
+  console.log('🔑 Cleaning old encryption keys (browser will re-derive)...');
 
-  // Determine which users to manage based on shard isolation
-  let testUsers: string[];
-  if (shardIndex) {
-    // CI: use per-shard users — each shard only manages its own users
-    testUsers = [
-      `e2e-s${shardIndex}-primary@mailinator.com`,
-      `e2e-s${shardIndex}-secondary@mailinator.com`,
-      `e2e-s${shardIndex}-tertiary@mailinator.com`,
-    ];
-  } else {
-    // Local dev: use standard env vars
-    testUsers = [
-      process.env.TEST_USER_PRIMARY_EMAIL,
-      process.env.TEST_USER_SECONDARY_EMAIL,
-      process.env.TEST_USER_TERTIARY_EMAIL,
-    ].filter((email): email is string => !!email);
-  }
+  const testUsers = [
+    process.env.TEST_USER_PRIMARY_EMAIL,
+    process.env.TEST_USER_SECONDARY_EMAIL,
+    process.env.TEST_USER_TERTIARY_EMAIL,
+  ].filter((email): email is string => !!email);
 
   if (testUsers.length === 0) {
-    console.log('  ⚠ No test user emails found — skipping key cleanup');
+    console.log('  ⚠ No test user emails found in env — skipping key cleanup');
     return;
   }
 
-  // In CI with per-shard users, create the users if they don't exist
-  if (shardIndex && adminClient) {
-    const password = process.env.TEST_USER_PRIMARY_PASSWORD;
-    if (password) {
-      for (const email of testUsers) {
-        const rows = (await executeSQL(
-          `SELECT id FROM auth.users WHERE email = '${escapeSQL(email)}'`
-        )) as { id: string }[];
-        if (rows.length === 0) {
-          console.log(`  Creating shard user: ${email}`);
-          const { data, error } = await adminClient.auth.admin.createUser({
-            email,
-            password,
-            email_confirm: true,
-          });
-          if (error && !error.message.includes('already been registered')) {
-            console.warn(`  ⚠ Failed to create ${email}: ${error.message}`);
-          }
-          // Use the returned user ID directly (don't re-query — avoids lag)
-          const userId = data?.user?.id;
-          if (userId) {
-            await adminClient.from('user_profiles').upsert(
-              {
-                id: userId,
-                display_name: email.split('@')[0],
-              },
-              { onConflict: 'id' }
-            );
-            console.log(
-              `  ✓ Created shard user: ${email} (${userId.slice(0, 8)}...)`
-            );
-          }
-        }
-      }
-    }
-  }
-
-  console.log('🔑 Cleaning old encryption keys (browser will re-derive)...');
+  const adminClient = getAdminClient();
 
   for (const email of testUsers) {
     try {
-      // 1. Look up user_id — try SQL, retry once for newly created users
+      // 1. Look up user_id — try SQL first, fall back to admin client
       let userId: string | undefined;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const rows = (await executeSQL(
-          `SELECT id FROM auth.users WHERE email = '${escapeSQL(email)}'`
-        )) as { id: string }[];
-        userId = rows[0]?.id;
-        if (userId) break;
-        if (attempt < 2) await new Promise((r) => setTimeout(r, 2000));
+      const rows = (await executeSQL(
+        `SELECT id FROM auth.users WHERE email = '${email}'`
+      )) as { id: string }[];
+      userId = rows[0]?.id;
+
+      if (!userId && adminClient) {
+        const { data } = await adminClient.auth.admin.listUsers({
+          perPage: 1000,
+        });
+        userId = data?.users?.find((u) => u.email === email)?.id;
       }
 
       if (!userId) {

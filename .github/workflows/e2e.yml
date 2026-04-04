@@ -279,12 +279,6 @@ jobs:
             fi
           fi
 
-      - name: Extract shard index
-        id: shard-index
-        env:
-          MATRIX_SHARD_VAL: ${{ matrix.shard }}
-        run: echo "index=$(echo "$MATRIX_SHARD_VAL" | cut -d/ -f1)" >> "$GITHUB_OUTPUT"
-
       - name: Run E2E tests (shard ${{ matrix.shard }})
         run: |
           pnpm exec playwright test \
@@ -298,7 +292,6 @@ jobs:
           BASE_URL: http://localhost:3000
           DEBUG: pw:api
           NEXT_PUBLIC_E2E_TEST_MODE: 'true'
-          E2E_SHARD_INDEX: ${{ steps.shard-index.outputs.index }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TEST_USER_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}

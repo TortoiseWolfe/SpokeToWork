@@ -23,25 +23,24 @@ import {
   dismissReAuthModal,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
-import { getShardUsers } from '../utils/shard-users';
 
 const BASE_URL = process.env.NEXT_PUBLIC_DEPLOY_URL || 'http://localhost:3000';
 
-// Test users - use PRIMARY and TERTIARY from per-shard test fixtures
-const { primary, tertiary } = getShardUsers();
-
-const USER_A_EMAIL = primary.email;
+// Test users - use PRIMARY and TERTIARY from standardized test fixtures (Feature 026)
+const USER_A_EMAIL = process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com';
 const USER_A = {
   displayName: USER_A_EMAIL.split('@')[0],
   email: USER_A_EMAIL,
-  password: primary.password,
+  password: process.env.TEST_USER_PRIMARY_PASSWORD!,
 };
 
+const USER_B_EMAIL =
+  process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com';
 const USER_B = {
   // display_name is derived from email prefix (see test-user-factory.ts)
-  displayName: tertiary.email.split('@')[0],
-  email: tertiary.email,
-  password: tertiary.password,
+  displayName: USER_B_EMAIL.split('@')[0],
+  email: USER_B_EMAIL,
+  password: process.env.TEST_USER_TERTIARY_PASSWORD!,
 };
 
 // Supabase admin client for database verification

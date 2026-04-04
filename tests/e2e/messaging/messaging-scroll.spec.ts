@@ -9,7 +9,6 @@ import {
   dismissCookieBanner,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
-import { getShardUsers } from '../utils/shard-users';
 
 /**
  * Messaging Scroll E2E Tests
@@ -22,9 +21,9 @@ import { getShardUsers } from '../utils/shard-users';
  */
 
 const adminClient = getAdminClient();
-const { primary, tertiary } = getShardUsers();
-const USER_A_EMAIL = primary.email;
-const USER_B_EMAIL = tertiary.email;
+const USER_A_EMAIL = process.env.TEST_USER_PRIMARY_EMAIL!;
+const USER_B_EMAIL =
+  process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com';
 
 // Test configuration for viewports
 const VIEWPORTS = {
@@ -81,8 +80,8 @@ test.describe('Messaging Scroll - User Story 1: View Message Input', () => {
 
     // Login as test user
     await loginAndVerify(page, {
-      email: USER_A_EMAIL,
-      password: primary.password,
+      email: process.env.TEST_USER_PRIMARY_EMAIL!,
+      password: process.env.TEST_USER_PRIMARY_PASSWORD!,
     });
   });
 
@@ -183,8 +182,8 @@ test.describe('Messaging Scroll - User Story 2: Scroll Through Messages', () => 
     }
 
     await loginAndVerify(page, {
-      email: USER_A_EMAIL,
-      password: primary.password,
+      email: process.env.TEST_USER_PRIMARY_EMAIL!,
+      password: process.env.TEST_USER_PRIMARY_PASSWORD!,
     });
   });
 
@@ -244,8 +243,8 @@ test.describe('Messaging Scroll - User Story 3: Jump to Bottom Button', () => {
     }
 
     await loginAndVerify(page, {
-      email: USER_A_EMAIL,
-      password: primary.password,
+      email: process.env.TEST_USER_PRIMARY_EMAIL!,
+      password: process.env.TEST_USER_PRIMARY_PASSWORD!,
     });
   });
 

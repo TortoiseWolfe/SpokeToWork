@@ -26,21 +26,20 @@ import {
   dismissReAuthModal,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
-import { getShardUsers } from '../utils/shard-users';
 
-// Test users - use PRIMARY and TERTIARY from per-shard test fixtures
-const { primary, tertiary } = getShardUsers();
-
+// Test users - use PRIMARY and TERTIARY from standardized test fixtures
 const USER_A = {
-  email: primary.email,
-  password: primary.password,
+  email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
+  password: process.env.TEST_USER_PRIMARY_PASSWORD!,
 };
 
+const USER_B_EMAIL =
+  process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com';
 const USER_B = {
   // display_name is derived from email prefix (see test-user-factory.ts)
-  displayName: tertiary.email.split('@')[0],
-  email: tertiary.email,
-  password: tertiary.password,
+  displayName: USER_B_EMAIL.split('@')[0],
+  email: USER_B_EMAIL,
+  password: process.env.TEST_USER_TERTIARY_PASSWORD!,
 };
 
 // Admin client for cleanup

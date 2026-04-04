@@ -17,20 +17,19 @@
 import { test, expect } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { executeSQL, escapeSQL } from '../utils/supabase-admin';
-import { getShardUsers } from '../utils/shard-users';
 
-// Test users from per-shard fixtures
-const { primary, tertiary } = getShardUsers();
-
+// Test users from .env
 const EMPLOYER = {
-  email: primary.email,
-  password: primary.password,
+  email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
+  password: process.env.TEST_USER_PRIMARY_PASSWORD!,
 };
 
+const WORKER_EMAIL =
+  process.env.TEST_USER_TERTIARY_EMAIL || 'test-user-b@example.com';
 const WORKER = {
-  displayName: tertiary.email.split('@')[0],
-  email: tertiary.email,
-  password: tertiary.password,
+  displayName: WORKER_EMAIL.split('@')[0],
+  email: WORKER_EMAIL,
+  password: process.env.TEST_USER_TERTIARY_PASSWORD!,
 };
 
 let adminClient: SupabaseClient | null = null;

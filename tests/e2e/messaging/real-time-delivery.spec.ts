@@ -19,10 +19,8 @@ import {
   dismissCookieBanner,
   dismissReAuthModal,
   waitForMessageDelivery,
-  waitForEncryptionKeys,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
-import { getShardUsers } from '../utils/shard-users';
 
 const AUTH_FILE = path.resolve('tests/e2e/fixtures/storage-state-auth.json');
 
@@ -94,17 +92,15 @@ async function injectEncryptionKeys(page: Page): Promise<void> {
 
 const adminClient = getAdminClient();
 
-// Test user credentials (per-shard)
-const { primary, secondary } = getShardUsers();
-
+// Test user credentials (from .env or defaults)
 const TEST_USER_1 = {
-  email: primary.email,
-  password: primary.password,
+  email: process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com',
+  password: process.env.TEST_USER_PRIMARY_PASSWORD!,
 };
 
 const TEST_USER_2 = {
-  email: secondary.email,
-  password: secondary.password,
+  email: process.env.TEST_USER_SECONDARY_EMAIL || 'test2@example.com',
+  password: process.env.TEST_USER_SECONDARY_PASSWORD!,
 };
 
 /**
@@ -296,12 +292,6 @@ test.describe('Real-time Message Delivery (T098)', () => {
     if (adminClient) {
       await ensureConnection(adminClient, TEST_USER_1.email, TEST_USER_2.email);
       conversationId = await ensureConversation(
-        adminClient,
-        TEST_USER_1.email,
-        TEST_USER_2.email
-      );
-      // Wait for both users to have encryption keys before sending messages
-      await waitForEncryptionKeys(
         adminClient,
         TEST_USER_1.email,
         TEST_USER_2.email

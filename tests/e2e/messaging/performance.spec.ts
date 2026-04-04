@@ -19,16 +19,15 @@ import {
   dismissCookieBanner,
   dismissReAuthModal,
 } from './test-helpers';
-import { getShardUsers } from '../utils/shard-users';
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 
-const { primary, secondary } = getShardUsers();
-
-const TEST_USER_PRIMARY_EMAIL = primary.email;
-const TEST_USER_PRIMARY_PASSWORD = primary.password;
-const TEST_USER_SECONDARY_EMAIL = secondary.email;
-const TEST_USER_SECONDARY_PASSWORD = secondary.password;
+const TEST_USER_PRIMARY_EMAIL =
+  process.env.TEST_USER_PRIMARY_EMAIL || 'test@example.com';
+const TEST_USER_PRIMARY_PASSWORD = process.env.TEST_USER_PRIMARY_PASSWORD!;
+const TEST_USER_SECONDARY_EMAIL =
+  process.env.TEST_USER_SECONDARY_EMAIL || 'test-user-b@example.com';
+const TEST_USER_SECONDARY_PASSWORD = process.env.TEST_USER_SECONDARY_PASSWORD!;
 
 /** Total messages seeded into the performance conversation. */
 const SEED_COUNT = 1000;
