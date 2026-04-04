@@ -92,8 +92,10 @@ async function findMessageBubble(page: Page, text: string) {
 
 /**
  * Clean up messages and seed connection/conversation before tests.
+ * Timeout increased to cover waitForEncryptionKeys polling (up to 90s).
  */
-test.beforeAll(async () => {
+test.beforeAll(async ({}, testInfo) => {
+  testInfo.setTimeout(120000);
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceKey) return;
