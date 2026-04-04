@@ -135,48 +135,12 @@ setup('authenticate shared test user', async ({ page }) => {
         );
       }
 
-      // Also verify keys exist in DB — global-setup deletes DB rows but
-      // doesn't clear the storage-state file, so file-only checks are stale.
-      // Use PostgREST (service-role client), NOT executeSQL (Management API),
-      // to avoid rate-limiting when 18 shards all run auth.setup simultaneously.
-      if (allKeysCached) {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        if (supabaseUrl && serviceKey) {
-          const { createClient: createAdminClient } = await import(
-            '@supabase/supabase-js'
-          );
-          const admin = createAdminClient(supabaseUrl, serviceKey);
-          // Extract user IDs from cached key names (stw_keys_<userId>)
-          const state2 = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
-          const ls = state2.origins?.[0]?.localStorage || [];
-          const userIds = ls
-            .filter((item: { name: string }) =>
-              item.name.startsWith('stw_keys_')
-            )
-            .map((item: { name: string }) =>
-              item.name.replace('stw_keys_', '')
-            );
-          if (userIds.length > 0) {
-            const { data: dbKeys } = await admin
-              .from('user_encryption_keys')
-              .select('user_id')
-              .in('user_id', userIds)
-              .eq('revoked', false);
-            const dbUserIds = new Set(
-              (dbKeys as { user_id: string }[] | null)?.map((k) => k.user_id) ??
-                []
-            );
-            const missing = userIds.filter((id: string) => !dbUserIds.has(id));
-            if (missing.length > 0) {
-              allKeysCached = false;
-              console.log(
-                `Auth state valid but ${missing.length} user(s) have no DB keys — must re-derive`
-              );
-            }
-          }
-        }
-      }
+      // NOTE: Do NOT check DB for keys here. global-setup deletes DB rows
+      // but the file cache is still valid for session auth. Re-derivation
+      // takes 3+ min per user under CI load and exceeds the 360s timeout
+      // when 18 shards all derive simultaneously. Instead, messaging tests
+      // use waitForEncryptionKeys() in their beforeAll to poll for DB keys
+      // before sending messages.
     } catch {
       allKeysCached = false;
     }
