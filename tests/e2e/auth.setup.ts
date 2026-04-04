@@ -435,7 +435,9 @@ setup('authenticate shared test user', async ({ page }) => {
         await p.locator('#setup-password').fill(userPwd);
         await p.locator('#setup-confirm').fill(userPwd);
         await setupBtn2.click();
-        await p.waitForURL(/\/messages(?!\/setup)/, { timeout: 180000 });
+        // Argon2id derivation takes 60-90s normally, but 3+ min under
+        // 18-shard CI load when Supabase is slow. 300s covers worst case.
+        await p.waitForURL(/\/messages(?!\/setup)/, { timeout: 300000 });
       }
 
       // Handle ReAuth modal
