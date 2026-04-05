@@ -311,8 +311,9 @@ jobs:
           BASE_URL: http://localhost:3000
           DEBUG: pw:api
           NEXT_PUBLIC_E2E_TEST_MODE: 'true'
-          E2E_SHARD_INDEX: ${{ steps.shard-index.outputs.index }}
-          E2E_ENCRYPTION_KEYS: ${{ secrets.E2E_ENCRYPTION_KEYS }}
+          # Only set shard index for messaging shards — gen shards use shared auth state
+          E2E_SHARD_INDEX: ${{ matrix.group == 'msg-' && steps.shard-index.outputs.index || '' }}
+          E2E_ENCRYPTION_KEYS: ${{ matrix.group == 'msg-' && secrets.E2E_ENCRYPTION_KEYS || '' }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TEST_USER_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
