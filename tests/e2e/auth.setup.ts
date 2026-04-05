@@ -148,13 +148,23 @@ setup('authenticate shared test user', async ({ page }) => {
         const prebaked = getPrebakedKeysForUser(user.email);
         if (!prebaked) continue;
 
-        const { data, error } = await client.auth.signInWithPassword({
-          email: user.email,
-          password: user.password,
-        });
+        // Retry sign-in — newly created users may take a moment to be available
+        let data: Awaited<ReturnType<typeof client.auth.signInWithPassword>>['data'] | null = null;
+        for (let attempt = 0; attempt < 5; attempt++) {
+          const result = await client.auth.signInWithPassword({
+            email: user.email,
+            password: user.password,
+          });
+          if (!result.error && result.data.session) {
+            data = result.data;
+            break;
+          }
+          console.log(`  Sign-in attempt ${attempt + 1}/5 for ${user.email}: ${result.error?.message}`);
+          await new Promise((r) => setTimeout(r, 3000));
+        }
 
-        if (error || !data.session) {
-          console.warn(`⚠ Programmatic sign-in failed for ${user.email}: ${error?.message}`);
+        if (!data?.session) {
+          console.warn(`⚠ Programmatic sign-in failed for ${user.email} after 5 attempts`);
           continue;
         }
 
