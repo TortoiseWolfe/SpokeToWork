@@ -360,31 +360,22 @@ async function ensureTestUserKeys(): Promise<void> {
       // 2. Upsert pre-baked keys (if available) or delete old keys for re-derivation.
       const prebaked = getPrebakedKeysForUser(email);
       if (prebaked) {
-        // Pre-baked keys: upsert the public key + salt into user_encryption_keys.
-        // Keys are generated once (scripts/generate-e2e-keys.ts) and stored as
-        // GitHub secret E2E_ENCRYPTION_KEYS. Same key every run = messages stay
-        // decryptable, no Argon2id in CI, no key-mismatch errors.
+        // Pre-baked keys: delete ALL existing keys then insert the pre-baked one.
+        // Must be the ONLY key in the DB so getUserPublicKey returns it.
+        // Old Argon2id-derived keys from previous runs would have a newer
+        // created_at, causing the app to read the wrong public key.
         const pubKeyJson = JSON.stringify(prebaked.db.public_key).replace(
           /'/g,
           "''"
         );
+        await executeSQL(
+          `DELETE FROM user_encryption_keys WHERE user_id = '${userId}'`
+        );
         await executeSQL(`
           INSERT INTO user_encryption_keys (user_id, public_key, encryption_salt, revoked)
           VALUES ('${userId}', '${pubKeyJson}'::jsonb, '${prebaked.db.encryption_salt}', false)
-          ON CONFLICT (user_id) WHERE revoked = false
-          DO UPDATE SET public_key = EXCLUDED.public_key,
-                        encryption_salt = EXCLUDED.encryption_salt
-        `).catch(async () => {
-          // ON CONFLICT clause may not match — try delete + insert
-          await executeSQL(
-            `DELETE FROM user_encryption_keys WHERE user_id = '${userId}'`
-          );
-          await executeSQL(`
-            INSERT INTO user_encryption_keys (user_id, public_key, encryption_salt, revoked)
-            VALUES ('${userId}', '${pubKeyJson}'::jsonb, '${prebaked.db.encryption_salt}', false)
-          `);
-        });
-        console.log(`  ✓ Pre-baked keys upserted for ${email}`);
+        `);
+        console.log(`  ✓ Pre-baked keys set for ${email} (old keys deleted)`);
       } else {
         // No pre-baked keys (local dev): delete old keys, browser will re-derive
         console.log(
