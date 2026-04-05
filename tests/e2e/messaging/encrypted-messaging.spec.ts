@@ -148,6 +148,14 @@ test.describe('Encrypted Messaging Flow', () => {
       await completeEncryptionSetup(pageA);
       await dismissReAuthModal(pageA);
 
+      // Wait for textarea to be enabled (app needs to restore keys from localStorage)
+      await pageA
+        .locator('textarea[aria-label="Message input"]')
+        .waitFor({ state: 'visible', timeout: 15000 });
+      await expect(
+        pageA.locator('textarea[aria-label="Message input"]')
+      ).toBeEnabled({ timeout: 15000 });
+
       // ===== STEP 4: User A sends an encrypted message =====
       // Send with retry: sendMessage() silently queues RLS failures as "offline"
       // when the conversation hasn't replicated to the read replica yet.
