@@ -287,7 +287,19 @@ jobs:
         id: shard-index
         env:
           MATRIX_SHARD_VAL: ${{ matrix.shard }}
-        run: echo "index=$(echo "$MATRIX_SHARD_VAL" | cut -d/ -f1)" >> "$GITHUB_OUTPUT"
+          MATRIX_BROWSER: ${{ matrix.browser }}
+        run: |
+          SHARD_NUM=$(echo "$MATRIX_SHARD_VAL" | cut -d/ -f1)
+          # Make shard index unique per browser to prevent cross-browser user conflicts.
+          # chromium: shards 1-4, firefox: shards 5-8, webkit: shards 9-12
+          if [ "$MATRIX_BROWSER" = "firefox" ]; then
+            INDEX=$((SHARD_NUM + 4))
+          elif [ "$MATRIX_BROWSER" = "webkit" ]; then
+            INDEX=$((SHARD_NUM + 8))
+          else
+            INDEX=$SHARD_NUM
+          fi
+          echo "index=$INDEX" >> "$GITHUB_OUTPUT"
 
       - name: Run E2E tests (${{ matrix.group }}${{ matrix.shard }})
         run: |

@@ -79,11 +79,12 @@ export function getShardUsers(): ShardUsers {
 
 /**
  * Get all shard user emails (for global-setup user creation).
- * Returns emails for all 6 shards × 3 roles = 18 users.
+ * Returns emails for all 12 shards × 3 roles = 36 users.
+ * 12 shards: 4 per browser × 3 browsers (chromium 1-4, firefox 5-8, webkit 9-12).
  */
 export function getAllShardEmails(): string[] {
   const emails: string[] = [];
-  for (let shard = 1; shard <= 6; shard++) {
+  for (let shard = 1; shard <= 12; shard++) {
     emails.push(
       `e2e-s${shard}-primary@mailinator.com`,
       `e2e-s${shard}-secondary@mailinator.com`,

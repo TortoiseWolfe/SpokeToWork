@@ -78,7 +78,8 @@ async function generateKeysForUser(email: string): Promise<ShardUserKeys> {
 async function main() {
   const allKeys: Record<string, ShardUserKeys> = {};
 
-  for (let shard = 1; shard <= 6; shard++) {
+  // 12 shards: 4 per browser × 3 browsers (chromium 1-4, firefox 5-8, webkit 9-12)
+  for (let shard = 1; shard <= 12; shard++) {
     for (const role of ['primary', 'secondary', 'tertiary']) {
       const email = `e2e-s${shard}-${role}@mailinator.com`;
       allKeys[email] = await generateKeysForUser(email);
