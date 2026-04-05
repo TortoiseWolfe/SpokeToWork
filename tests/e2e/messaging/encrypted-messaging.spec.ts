@@ -22,6 +22,7 @@ import {
   dismissCookieBanner,
   dismissReAuthModal,
   waitForEncryptionKeys,
+  injectPrebakedKeys,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
 import { getShardUsers } from '../utils/shard-users';
@@ -132,12 +133,14 @@ test.describe('Encrypted Messaging Flow', () => {
         email: USER_A.email,
         password: USER_A.password,
       });
+      await injectPrebakedKeys(pageA, USER_A.email);
 
       // ===== STEP 2: User B signs in (in separate context) =====
       await loginAndVerify(pageB, {
         email: USER_B.email,
         password: USER_B.password,
       });
+      await injectPrebakedKeys(pageB, USER_B.email);
 
       // ===== STEP 3: User A navigates directly to conversation =====
       await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
@@ -294,6 +297,7 @@ test.describe('Encrypted Messaging Flow', () => {
         email: USER_A.email,
         password: USER_A.password,
       });
+      await injectPrebakedKeys(pageA, USER_A.email);
 
       // Navigate directly to conversation
       await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
@@ -370,6 +374,7 @@ test.describe('Encrypted Messaging Flow', () => {
         email: USER_A.email,
         password: USER_A.password,
       });
+      await injectPrebakedKeys(pageA, USER_A.email);
 
       await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
       await dismissCookieBanner(pageA);
@@ -414,6 +419,7 @@ test.describe('Encrypted Messaging Flow', () => {
         email: USER_B.email,
         password: USER_B.password,
       });
+      await injectPrebakedKeys(pageB, USER_B.email);
 
       await pageB.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
       await dismissCookieBanner(pageB);
@@ -501,6 +507,7 @@ test.describe('Encrypted Messaging Flow', () => {
       email: USER_A.email,
       password: USER_A.password,
     });
+    await injectPrebakedKeys(page, USER_A.email);
 
     await page.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
     await dismissCookieBanner(page);

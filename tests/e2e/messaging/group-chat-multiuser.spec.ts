@@ -16,6 +16,7 @@ import {
   dismissCookieBanner,
   dismissReAuthModal,
   waitForEncryptionKeys,
+  injectPrebakedKeys,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
 import { getShardUsers } from '../utils/shard-users';
@@ -43,6 +44,7 @@ async function signInAndNavigateToMessages(page: Page) {
     email: PRIMARY_USER.email,
     password: PRIMARY_USER.password,
   });
+  await injectPrebakedKeys(page, PRIMARY_USER.email);
 
   await page.goto(BASE_URL + '/messages');
   await dismissCookieBanner(page);

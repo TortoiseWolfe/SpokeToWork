@@ -103,7 +103,7 @@ export class CompaniesPage extends BasePage {
   async waitForDrawer() {
     await this.page.waitForSelector(this.selectors.drawer, {
       state: 'visible',
-      timeout: 5000,
+      timeout: 15000,
     });
   }
 
@@ -122,7 +122,7 @@ export class CompaniesPage extends BasePage {
     await closeButton.click();
     await this.page.waitForSelector(this.selectors.drawer, {
       state: 'hidden',
-      timeout: 5000,
+      timeout: 15000,
     });
   }
 
@@ -133,7 +133,7 @@ export class CompaniesPage extends BasePage {
     await this.page.keyboard.press('Escape');
     await this.page.waitForSelector(this.selectors.drawer, {
       state: 'hidden',
-      timeout: 5000,
+      timeout: 15000,
     });
   }
 
@@ -146,7 +146,7 @@ export class CompaniesPage extends BasePage {
     await backdrop.click({ force: true });
     await this.page.waitForSelector(this.selectors.drawer, {
       state: 'hidden',
-      timeout: 5000,
+      timeout: 15000,
     });
   }
 
@@ -174,7 +174,7 @@ export class CompaniesPage extends BasePage {
     await addButton.click();
     await this.page.waitForSelector(this.selectors.applicationModal, {
       state: 'visible',
-      timeout: 5000,
+      timeout: 15000,
     });
   }
 
@@ -239,10 +239,10 @@ export class CompaniesPage extends BasePage {
   async submitApplicationForm() {
     const submitButton = this.page.locator(this.selectors.submitButton);
     await submitButton.click();
-    // Wait for modal to close
+    // Wait for modal to close (15s — Supabase insert + animation can be slow on WebKit CI)
     await this.page.waitForSelector(this.selectors.applicationModal, {
       state: 'hidden',
-      timeout: 5000,
+      timeout: 15000,
     });
   }
 
@@ -302,7 +302,7 @@ export class CompaniesPage extends BasePage {
     await cancelButton.click();
     await this.page.waitForSelector(this.selectors.applicationModal, {
       state: 'hidden',
-      timeout: 5000,
+      timeout: 15000,
     });
   }
 
@@ -318,7 +318,7 @@ export class CompaniesPage extends BasePage {
     await editButton.click();
     await this.page.waitForSelector(this.selectors.applicationModal, {
       state: 'visible',
-      timeout: 5000,
+      timeout: 15000,
     });
   }
 

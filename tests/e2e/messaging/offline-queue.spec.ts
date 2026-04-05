@@ -19,6 +19,7 @@ import {
   dismissCookieBanner,
   waitForEncryptionKeys,
   dismissReAuthModal,
+  injectPrebakedKeys,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
 import { getShardUsers } from '../utils/shard-users';
@@ -92,6 +93,7 @@ test.describe('Offline Message Queue', () => {
         email: USER_A.email,
         password: USER_A.password,
       });
+      await injectPrebakedKeys(page, USER_A.email);
 
       // ===== STEP 2: Navigate directly to conversation =====
       await page.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
@@ -151,6 +153,7 @@ test.describe('Offline Message Queue', () => {
         email: USER_A.email,
         password: USER_A.password,
       });
+      await injectPrebakedKeys(page, USER_A.email);
 
       await page.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
       await dismissCookieBanner(page);
@@ -210,6 +213,7 @@ test.describe('Offline Message Queue', () => {
         email: USER_A.email,
         password: USER_A.password,
       });
+      await injectPrebakedKeys(page, USER_A.email);
 
       await page.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
       await dismissCookieBanner(page);
@@ -275,10 +279,12 @@ test.describe('Offline Message Queue', () => {
         email: USER_A.email,
         password: USER_A.password,
       });
+      await injectPrebakedKeys(pageA, USER_A.email);
       await loginAndVerify(pageB, {
         email: USER_B.email,
         password: USER_B.password,
       });
+      await injectPrebakedKeys(pageB, USER_B.email);
 
       // ===== STEP 2: Both navigate directly to same conversation =====
       await pageA.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
@@ -427,6 +433,7 @@ test.describe('Offline Message Queue', () => {
         email: USER_A.email,
         password: USER_A.password,
       });
+      await injectPrebakedKeys(page, USER_A.email);
 
       await page.goto(`${BASE_URL}/messages?conversation=${conversationId}`);
       await dismissCookieBanner(page);

@@ -20,6 +20,7 @@ import {
   dismissReAuthModal,
   waitForMessageDelivery,
   waitForEncryptionKeys,
+  injectPrebakedKeys,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
 import { getShardUsers } from '../utils/shard-users';
@@ -329,8 +330,11 @@ test.describe('Real-time Message Delivery (T098)', () => {
       }),
     ]);
 
-    // Inject pre-derived encryption keys into both pages' localStorage.
-    // This avoids running Argon2id from scratch (60-90s per user on Firefox/WebKit CI).
+    // Inject pre-baked keys first (instant), then fall back to file-based injection
+    await Promise.all([
+      injectPrebakedKeys(page1, TEST_USER_1.email),
+      injectPrebakedKeys(page2, TEST_USER_2.email),
+    ]);
     await Promise.all([
       injectEncryptionKeys(page1),
       injectEncryptionKeys(page2),
@@ -556,7 +560,11 @@ test.describe('Typing Indicators (T099)', () => {
       }),
     ]);
 
-    // Inject pre-derived encryption keys (avoids 60-90s Argon2id per user on CI)
+    // Inject pre-baked keys first (instant), then fall back to file-based injection
+    await Promise.all([
+      injectPrebakedKeys(page1, TEST_USER_1.email),
+      injectPrebakedKeys(page2, TEST_USER_2.email),
+    ]);
     await Promise.all([
       injectEncryptionKeys(page1),
       injectEncryptionKeys(page2),

@@ -6,6 +6,7 @@
 import { Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { executeSQL, escapeSQL } from '../utils/supabase-admin';
+import { getPrebakedKeysForUser } from '../utils/prebaked-keys';
 
 export const getAdminClient = (): SupabaseClient | null => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -595,6 +596,42 @@ export async function waitForMessageDelivery(
  * Uses PostgREST (admin client), NOT executeSQL, to avoid rate-limiting.
  * Polls up to 30×3s = 90s max.
  */
+export async function injectPrebakedKeys(
+  page: Page,
+  email: string
+): Promise<void> {
+  const prebaked = getPrebakedKeysForUser(email);
+  if (!prebaked) return; // No pre-baked keys (local dev) — app will derive via Argon2id
+
+  // Get userId from the page's Supabase auth session in localStorage
+  const userId = await page.evaluate(() => {
+    const storageKeys = Object.keys(localStorage);
+    const authKey = storageKeys.find(
+      (k) => k.startsWith('sb-') && k.endsWith('-auth-token')
+    );
+    if (!authKey) return null;
+    try {
+      const session = JSON.parse(localStorage.getItem(authKey) || '{}');
+      return session?.user?.id || null;
+    } catch {
+      return null;
+    }
+  });
+
+  if (!userId) {
+    console.warn(`injectPrebakedKeys: no userId in localStorage for ${email}`);
+    return;
+  }
+
+  await page.evaluate(
+    ({ uid, keys }) => {
+      localStorage.setItem(`stw_keys_${uid}`, JSON.stringify(keys));
+    },
+    { uid: userId, keys: prebaked.localStorage }
+  );
+  console.log(`Injected pre-baked keys for ${email} (${userId.slice(0, 8)}...)`);
+}
+
 export async function waitForEncryptionKeys(
   client: SupabaseClient,
   email1: string,
