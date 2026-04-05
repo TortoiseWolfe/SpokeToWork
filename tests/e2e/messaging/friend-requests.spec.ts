@@ -24,6 +24,7 @@ import {
   completeEncryptionSetup,
   dismissCookieBanner,
   dismissReAuthModal,
+  injectPrebakedKeys,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
 import { getShardUsers } from '../utils/shard-users';
@@ -202,6 +203,7 @@ test.describe('Friend Request Flow', () => {
         email: USER_A.email,
         password: USER_A.password,
       });
+      await injectPrebakedKeys(pageA, USER_A.email);
 
       // ===== STEP 2: User A navigates to connections page =====
       await pageA.goto('/messages?tab=connections');
@@ -283,6 +285,22 @@ test.describe('Friend Request Flow', () => {
         email: USER_B.email,
         password: USER_B.password,
       });
+      await injectPrebakedKeys(pageB, USER_B.email);
+
+      // Verify connection exists in DB before polling UI (bypasses read replica)
+      const adminClient = getAdminClient();
+      if (adminClient) {
+        const { userAId, userBId } = await getUserIds(adminClient);
+        for (let poll = 0; poll < 15; poll++) {
+          const { data } = await adminClient
+            .from('user_connections')
+            .select('id')
+            .eq('requester_id', userAId!)
+            .eq('addressee_id', userBId!);
+          if (data && data.length > 0) break;
+          await new Promise((r) => setTimeout(r, 2000));
+        }
+      }
 
       // ===== STEP 6: User B navigates to connections page =====
       await pageB.goto('/messages?tab=connections');
@@ -367,6 +385,7 @@ test.describe('Friend Request Flow', () => {
         email: USER_B.email,
         password: USER_B.password,
       });
+      await injectPrebakedKeys(pageB, USER_B.email);
 
       // Multi-attempt polling for "Send Request" (read replica lag after cleanup)
       const displayNameA = USER_A.email.split('@')[0];
@@ -423,10 +442,26 @@ test.describe('Friend Request Flow', () => {
         email: USER_A.email,
         password: USER_A.password,
       });
+      await injectPrebakedKeys(pageA, USER_A.email);
+
+      // Verify connection exists in DB before polling UI (bypasses read replica)
+      const adminVerify = getAdminClient();
+      if (adminVerify) {
+        const { userAId, userBId } = await getUserIds(adminVerify);
+        for (let poll = 0; poll < 15; poll++) {
+          const { data } = await adminVerify
+            .from('user_connections')
+            .select('id')
+            .eq('requester_id', userBId!)
+            .eq('addressee_id', userAId!);
+          if (data && data.length > 0) break;
+          await new Promise((r) => setTimeout(r, 2000));
+        }
+      }
 
       // Multi-attempt polling for connection-request visibility (read replica lag)
       let requestVisible = false;
-      for (let attempt = 0; attempt < 8; attempt++) {
+      for (let attempt = 0; attempt < 15; attempt++) {
         await pageA.goto('/messages?tab=connections');
         await pageA.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageA);
@@ -452,7 +487,7 @@ test.describe('Friend Request Flow', () => {
       }
       if (!requestVisible) {
         throw new Error(
-          'Connection request never appeared after 8 reload attempts'
+          'Connection request never appeared after 15 reload attempts'
         );
       }
 
@@ -480,6 +515,7 @@ test.describe('Friend Request Flow', () => {
       email: USER_A.email,
       password: USER_A.password,
     });
+    await injectPrebakedKeys(page, USER_A.email);
 
     // Send friend request to User B — multi-attempt for read replica lag
     let cancelSendVisible = false;
@@ -552,6 +588,7 @@ test.describe('Friend Request Flow', () => {
       email: USER_A.email,
       password: USER_A.password,
     });
+    await injectPrebakedKeys(page, USER_A.email);
 
     await page.goto('/messages?tab=connections');
     await dismissCookieBanner(page);
@@ -634,6 +671,7 @@ test.describe('Accessibility', () => {
       email: USER_A.email,
       password: USER_A.password,
     });
+    await injectPrebakedKeys(page, USER_A.email);
 
     await page.goto('/messages?tab=connections');
     await dismissCookieBanner(page);
@@ -668,6 +706,7 @@ test.describe('Accessibility', () => {
       email: USER_A.email,
       password: USER_A.password,
     });
+    await injectPrebakedKeys(page, USER_A.email);
 
     await page.goto('/messages?tab=connections');
     await dismissCookieBanner(page);
