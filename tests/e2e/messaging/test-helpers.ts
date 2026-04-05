@@ -6,7 +6,7 @@
 import { Page } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { executeSQL, escapeSQL } from '../utils/supabase-admin';
-import { getPrebakedKeysForUser } from '../utils/prebaked-keys';
+import { getPrebakedKeysForUser, hasPrebakedKeys } from '../utils/prebaked-keys';
 
 export const getAdminClient = (): SupabaseClient | null => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -113,6 +113,13 @@ export async function completeEncryptionSetup(
   page: Page,
   password?: string
 ): Promise<void> {
+  // When pre-baked keys are available, skip entirely — running the setup flow
+  // triggers Argon2id which produces different keys than the pre-baked ones,
+  // breaking cross-user decryption ("Encrypted with previous keys").
+  if (hasPrebakedKeys()) {
+    return;
+  }
+
   const testPassword = password || process.env.TEST_USER_PRIMARY_PASSWORD!;
   if (!testPassword) {
     console.warn(
@@ -236,6 +243,14 @@ export async function dismissReAuthModal(
   password?: string,
   quickCheck = false
 ): Promise<void> {
+  // When pre-baked keys are available, skip — the app should read keys from
+  // localStorage without showing ReAuth. If ReAuth appears, the keys weren't
+  // properly injected, and filling the password would trigger Argon2id which
+  // overwrites the pre-baked keys.
+  if (hasPrebakedKeys()) {
+    return;
+  }
+
   const pw = password || process.env.TEST_USER_PRIMARY_PASSWORD!;
 
   // Quick check path for retry loops — keys already derived, modal won't appear
