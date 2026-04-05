@@ -279,27 +279,57 @@ async function ensureTestUserKeys(): Promise<void> {
         )) as { id: string }[];
         if (rows.length === 0) {
           console.log(`  Creating shard user: ${email}`);
-          const { data, error } = await adminClient.auth.admin.createUser({
-            email,
-            password,
-            email_confirm: true,
-          });
-          if (error && !error.message.includes('already been registered')) {
-            console.warn(`  ⚠ Failed to create ${email}: ${error.message}`);
-          }
-          // Use the returned user ID directly (don't re-query — avoids lag)
-          const userId = data?.user?.id;
+          // Create via SQL (not auth.admin.createUser) — the admin API
+          // doesn't reliably create users that can sign in on Supabase Cloud.
+          // SQL with crypt() + identity record matches how the shared test
+          // users were originally created (and they sign in fine).
+          const displayName = escapeSQL(email.split('@')[0]);
+          const escapedEmail = escapeSQL(email);
+          const escapedPwd = escapeSQL(password);
+          const createResult = (await executeSQL(`
+            INSERT INTO auth.users (
+              id, email, encrypted_password, email_confirmed_at,
+              created_at, updated_at, instance_id, aud, role,
+              raw_app_meta_data, raw_user_meta_data,
+              confirmation_token, email_change, email_change_token_new, recovery_token
+            ) VALUES (
+              gen_random_uuid(),
+              '${escapedEmail}',
+              crypt('${escapedPwd}', gen_salt('bf')),
+              NOW(), NOW(), NOW(),
+              '00000000-0000-0000-0000-000000000000',
+              'authenticated', 'authenticated',
+              '{"provider":"email","providers":["email"]}'::jsonb,
+              '{}'::jsonb,
+              '', '', '', ''
+            )
+            RETURNING id
+          `)) as { id: string }[];
+          const userId = createResult[0]?.id;
           if (userId) {
+            // Create identity record (required for GoTrue sign-in)
+            await executeSQL(`
+              INSERT INTO auth.identities (
+                id, user_id, provider_id, provider, identity_data,
+                last_sign_in_at, created_at, updated_at
+              ) VALUES (
+                gen_random_uuid(),
+                '${userId}',
+                '${escapedEmail}',
+                'email',
+                '{"sub":"${userId}","email":"${escapedEmail}","email_verified":true}'::jsonb,
+                NOW(), NOW(), NOW()
+              )
+              ON CONFLICT DO NOTHING
+            `);
+            // Create user profile
             await adminClient.from('user_profiles').upsert(
-              {
-                id: userId,
-                display_name: email.split('@')[0],
-              },
+              { id: userId, display_name: displayName },
               { onConflict: 'id' }
             );
-            console.log(
-              `  ✓ Created shard user: ${email} (${userId.slice(0, 8)}...)`
-            );
+            console.log(`  ✓ Created shard user: ${email} (${userId.slice(0, 8)}...)`);
+          } else {
+            console.warn(`  ⚠ Failed to create ${email} — no ID returned`);
           }
         }
       }
