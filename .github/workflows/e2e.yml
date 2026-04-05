@@ -210,10 +210,16 @@ jobs:
         # Split into messaging (heavy, needs encryption+admin) and general (lightweight).
         # Playwright shards alphabetically, so messaging/* files clump into 1-2 shards
         # regardless of shard count. Grep-based split distributes them evenly.
-        # Messaging: 76 tests in 11 files → 4 shards (17-23 each)
+        # Messaging: 76 tests in 11 files → 2 shards (38 each)
         # General:  442 tests in 69 files → 4 shards (~110 each)
+        # Kept msg shards at 2 to avoid GoTrue rate limiting (12 concurrent sign-ins fail)
         group: [msg-, gen-]
         shard: [1/4, 2/4, 3/4, 4/4]
+        exclude:
+          - group: msg-
+            shard: 3/4
+          - group: msg-
+            shard: 4/4
 
     steps:
       - name: Checkout code
