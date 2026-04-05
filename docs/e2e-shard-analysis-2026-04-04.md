@@ -3,12 +3,29 @@
 > Root cause analysis of 7/18 failing E2E shards after per-shard user migration.
 > Based on CI run 23988942410 (commit 6c038c7).
 
-## Current Status: 11/18 pass
+## Current Status: 13/18 pass (run 24005489785, 2026-04-05)
 
 ```
 PUSH 439849b 2026-04-04: 13/18 [baseline before per-shard]
-PUSH 6c038c7 2026-04-04: 11/18 [per-shard users working, but timeout/distribution issues]
+PUSH 6c038c7 2026-04-04: 11/18 [per-shard users, missing timeouts]
+PUSH 4ea39fa 2026-04-05: 14/18 [persist shard users across runs]
+PUSH 1384046 2026-04-05: 13/18 [skip setup/reauth with pre-baked keys]
 ```
+
+### Remaining 5 failures (all msg-1/4 + webkit gen-2/4)
+
+| Shard | Tests | Error | Root Cause |
+|-------|-------|-------|------------|
+| chromium msg-1/4 | encrypted-messaging:120 | "Encrypted with previous keys" | Pre-baked key mismatch between DB and localStorage |
+| firefox msg-1/4 | encrypted-messaging:120, complete-user-workflow:692 | "Encrypted with previous keys" | Same |
+| webkit msg-1/4 | encrypted-messaging:120, employer-team:373 | "Encrypted with previous keys", sign-in timeout | Same + WebKit slow |
+| firefox gen-1/4 | resume-upload:37 | Flaky assertion | Supabase 406 under load |
+| webkit gen-2/4 | companies-status:223, map-visual:143 | 5s timeout, render mismatch | WebKit CI timing |
+
+The core issue: messages show "Encrypted with previous keys" because the ECDH shared
+secret derivation fails at decryption time. The pre-baked keys are in both DB and
+localStorage, but the decryption still fails. Investigation needed into whether old
+DB keys from previous runs are persisting alongside the pre-baked ones.
 
 ## The Shard Distribution Problem
 
