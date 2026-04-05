@@ -18,6 +18,7 @@ import {
   completeEncryptionSetup,
   dismissCookieBanner,
   dismissReAuthModal,
+  waitForEncryptionKeys,
 } from './test-helpers';
 import { getShardUsers } from '../utils/shard-users';
 
@@ -197,7 +198,8 @@ test.beforeAll(async ({}, testInfo) => {
     { onConflict: 'id', ignoreDuplicates: true }
   );
 
-  // ── 3. Ensure SECONDARY has encryption keys ────────────────────────
+  // ── 3. Wait for auth.setup to derive keys, then check ─────────────
+  await waitForEncryptionKeys(supabase, TEST_USER_PRIMARY_EMAIL, TEST_USER_SECONDARY_EMAIL);
   const { data: secKey } = await supabase
     .from('user_encryption_keys')
     .select('public_key, encryption_salt')

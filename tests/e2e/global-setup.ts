@@ -14,6 +14,7 @@ import { FullConfig } from '@playwright/test';
 import * as crypto from 'crypto';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { executeSQL, escapeSQL } from './utils/supabase-admin';
+import { getPrebakedKeysForUser, hasPrebakedKeys } from './utils/prebaked-keys';
 
 /** Admin Supabase client for local dev (bypasses RLS, works without Management API) */
 function getAdminClient(): SupabaseClient | null {
@@ -325,54 +326,72 @@ async function ensureTestUserKeys(): Promise<void> {
         continue;
       }
 
-      // 2. Delete old keys and messages.
-      //    Node.js @noble/curves produces ECDH keys incompatible with Firefox
-      //    WebCrypto (confirmed: deriveKeys verifyPublicKey throws KeyMismatchError).
-      //    DO NOT seed Node-derived keys into the DB — let the browser create
-      //    keys via completeEncryptionSetup → initializeKeys during auth.setup.ts.
-      //    Browser-derived keys are compatible across all engines.
-      console.log(
-        `  Deleting existing keys for ${email} to force browser re-derivation...`
-      );
-      await executeSQL(
-        `DELETE FROM user_encryption_keys WHERE user_id = '${userId}'`
-      );
-      if (adminClient) {
-        await adminClient
-          .from('user_encryption_keys')
-          .delete()
-          .eq('user_id', userId);
-      }
-
-      // Delete ALL messages (old keys can't decrypt them)
-      await executeSQL(`
-        DELETE FROM messages WHERE conversation_id IN (
-          SELECT id FROM conversations
-          WHERE participant_1_id = '${userId}' OR participant_2_id = '${userId}'
-        )
-      `);
-      if (adminClient) {
-        await adminClient.from('messages').delete().eq('sender_id', userId);
-        const { data: convos } = await adminClient
-          .from('conversations')
-          .select('id')
-          .or(`participant_1_id.eq.${userId},participant_2_id.eq.${userId}`);
-        if (convos) {
-          for (const c of convos) {
-            await adminClient
-              .from('messages')
-              .delete()
-              .eq('conversation_id', c.id);
-          }
-          console.log(
-            `  ✓ Deleted messages from ${convos.length} conversations for ${email}`
+      // 2. Upsert pre-baked keys (if available) or delete old keys for re-derivation.
+      const prebaked = getPrebakedKeysForUser(email);
+      if (prebaked) {
+        // Pre-baked keys: upsert the public key + salt into user_encryption_keys.
+        // Keys are generated once (scripts/generate-e2e-keys.ts) and stored as
+        // GitHub secret E2E_ENCRYPTION_KEYS. Same key every run = messages stay
+        // decryptable, no Argon2id in CI, no key-mismatch errors.
+        const pubKeyJson = JSON.stringify(prebaked.db.public_key).replace(
+          /'/g,
+          "''"
+        );
+        await executeSQL(`
+          INSERT INTO user_encryption_keys (user_id, public_key, encryption_salt, revoked)
+          VALUES ('${userId}', '${pubKeyJson}'::jsonb, '${prebaked.db.encryption_salt}', false)
+          ON CONFLICT (user_id) WHERE revoked = false
+          DO UPDATE SET public_key = EXCLUDED.public_key,
+                        encryption_salt = EXCLUDED.encryption_salt
+        `).catch(async () => {
+          // ON CONFLICT clause may not match — try delete + insert
+          await executeSQL(
+            `DELETE FROM user_encryption_keys WHERE user_id = '${userId}'`
           );
+          await executeSQL(`
+            INSERT INTO user_encryption_keys (user_id, public_key, encryption_salt, revoked)
+            VALUES ('${userId}', '${pubKeyJson}'::jsonb, '${prebaked.db.encryption_salt}', false)
+          `);
+        });
+        console.log(`  ✓ Pre-baked keys upserted for ${email}`);
+      } else {
+        // No pre-baked keys (local dev): delete old keys, browser will re-derive
+        console.log(
+          `  Deleting existing keys for ${email} (no pre-baked keys, browser will re-derive)...`
+        );
+        await executeSQL(
+          `DELETE FROM user_encryption_keys WHERE user_id = '${userId}'`
+        );
+        if (adminClient) {
+          await adminClient
+            .from('user_encryption_keys')
+            .delete()
+            .eq('user_id', userId);
         }
+        // Delete messages too (old keys can't decrypt them)
+        await executeSQL(`
+          DELETE FROM messages WHERE conversation_id IN (
+            SELECT id FROM conversations
+            WHERE participant_1_id = '${userId}' OR participant_2_id = '${userId}'
+          )
+        `);
+        if (adminClient) {
+          await adminClient.from('messages').delete().eq('sender_id', userId);
+          const { data: convos } = await adminClient
+            .from('conversations')
+            .select('id')
+            .or(`participant_1_id.eq.${userId},participant_2_id.eq.${userId}`);
+          if (convos) {
+            for (const c of convos) {
+              await adminClient
+                .from('messages')
+                .delete()
+                .eq('conversation_id', c.id);
+            }
+          }
+        }
+        console.log(`  ✓ Keys cleaned for ${email} (browser will re-derive)`);
       }
-
-      console.log(
-        `  ✓ Encryption keys cleaned for ${email} (browser will re-derive)`
-      );
     } catch (error) {
       console.warn(`  ⚠ Key seeding failed for ${email}:`, error);
       // Don't fail other users if one fails

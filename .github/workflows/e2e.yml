@@ -178,6 +178,7 @@ jobs:
           BASE_URL: http://localhost:3000
           NEXT_PUBLIC_E2E_TEST_MODE: 'true'
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          E2E_ENCRYPTION_KEYS: ${{ secrets.E2E_ENCRYPTION_KEYS }}
           TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
           TEST_USER_PRIMARY_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
           TEST_USER_SECONDARY_EMAIL: ${{ vars.TEST_USER_SECONDARY_EMAIL }}
@@ -197,7 +198,7 @@ jobs:
   # STEP 4: Full E2E tests (sharded, parallel)
   # ============================================
   e2e:
-    name: E2E (${{ matrix.browser }} ${{ matrix.shard }})
+    name: E2E (${{ matrix.browser }} ${{ matrix.group }}${{ matrix.shard }})
     runs-on: ubuntu-latest
     needs: [smoke, auth-setup]
     timeout-minutes: 120
@@ -206,10 +207,13 @@ jobs:
       matrix:
         # Only run chromium on PRs, all browsers on main/develop
         browser: ${{ github.event_name == 'pull_request' && fromJSON('["chromium"]') || fromJSON('["chromium", "firefox", "webkit"]') }}
-        # 6 shards per browser — spreads messaging-heavy tests thinner,
-        # reducing Supabase Cloud contention per shard (was 4, shard 2/4
-        # consistently failed with 1715 tests and 40-55min runtime)
-        shard: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+        # Split into messaging (heavy, needs encryption+admin) and general (lightweight).
+        # Playwright shards alphabetically, so messaging/* files clump into 1-2 shards
+        # regardless of shard count. Grep-based split distributes them evenly.
+        # Messaging: 76 tests in 11 files → 4 shards (17-23 each)
+        # General:  442 tests in 69 files → 4 shards (~110 each)
+        group: [msg-, gen-]
+        shard: [1/4, 2/4, 3/4, 4/4]
 
     steps:
       - name: Checkout code
@@ -285,20 +289,30 @@ jobs:
           MATRIX_SHARD_VAL: ${{ matrix.shard }}
         run: echo "index=$(echo "$MATRIX_SHARD_VAL" | cut -d/ -f1)" >> "$GITHUB_OUTPUT"
 
-      - name: Run E2E tests (shard ${{ matrix.shard }})
+      - name: Run E2E tests (${{ matrix.group }}${{ matrix.shard }})
         run: |
+          # messaging group: tests/e2e/messaging/ + tests/e2e/employer/
+          # general group: everything else
+          if [ "$E2E_GROUP" = "msg-" ]; then
+            GREP_FLAG="--grep=messaging/|employer/"
+          else
+            GREP_FLAG="--grep-invert=messaging/|employer/"
+          fi
           pnpm exec playwright test \
             --project=${{ matrix.browser }} \
             --shard=${{ matrix.shard }} \
+            $GREP_FLAG \
             --reporter=blob \
             --trace=on-first-retry
         env:
+          E2E_GROUP: ${{ matrix.group }}
           CI: true
           SKIP_WEBSERVER: true
           BASE_URL: http://localhost:3000
           DEBUG: pw:api
           NEXT_PUBLIC_E2E_TEST_MODE: 'true'
           E2E_SHARD_INDEX: ${{ steps.shard-index.outputs.index }}
+          E2E_ENCRYPTION_KEYS: ${{ secrets.E2E_ENCRYPTION_KEYS }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TEST_USER_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
@@ -314,7 +328,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: blob-report-${{ matrix.browser }}-${{ strategy.job-index }}
+          name: blob-report-${{ matrix.browser }}-${{ matrix.group }}${{ strategy.job-index }}
           path: blob-report/
           retention-days: 1
 

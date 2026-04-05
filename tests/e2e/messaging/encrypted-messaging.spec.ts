@@ -21,6 +21,7 @@ import {
   waitForMessageDelivery,
   dismissCookieBanner,
   dismissReAuthModal,
+  waitForEncryptionKeys,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
 import { getShardUsers } from '../utils/shard-users';
@@ -70,7 +71,8 @@ test.describe('Encrypted Messaging Flow', () => {
 
   let conversationId: string | null = null;
 
-  test.beforeAll(async () => {
+  test.beforeAll(async ({}, testInfo) => {
+    testInfo.setTimeout(120000);
     if (adminClient) {
       await cleanupMessagingData(adminClient, USER_A.email, USER_B.email);
       // Also delete ALL messages (not just >2min old) to avoid ghost messages
@@ -101,7 +103,8 @@ test.describe('Encrypted Messaging Flow', () => {
     }
   });
 
-  test.beforeEach(async () => {
+  test.beforeEach(async ({}, testInfo) => {
+    testInfo.setTimeout(120000);
     if (adminClient) {
       await ensureConnection(adminClient, USER_A.email, USER_B.email);
       conversationId = await ensureConversation(
@@ -109,6 +112,7 @@ test.describe('Encrypted Messaging Flow', () => {
         USER_A.email,
         USER_B.email
       );
+      await waitForEncryptionKeys(adminClient, USER_A.email, USER_B.email);
     }
   });
 
@@ -562,7 +566,8 @@ test.describe('Encrypted Messaging Flow', () => {
 test.describe('Encryption Key Security', () => {
   let conversationId: string | null = null;
 
-  test.beforeEach(async () => {
+  test.beforeEach(async ({}, testInfo) => {
+    testInfo.setTimeout(120000);
     if (adminClient) {
       await ensureConnection(adminClient, USER_A.email, USER_B.email);
       conversationId = await ensureConversation(
@@ -570,6 +575,7 @@ test.describe('Encryption Key Security', () => {
         USER_A.email,
         USER_B.email
       );
+      await waitForEncryptionKeys(adminClient, USER_A.email, USER_B.email);
     }
   });
 

@@ -275,7 +275,8 @@ test.describe('Real-time Message Delivery (T098)', () => {
   let page2: Page;
   let conversationId: string | null = null;
 
-  test.beforeAll(async () => {
+  test.beforeAll(async ({}, testInfo) => {
+    testInfo.setTimeout(120000);
     if (adminClient) {
       await cleanupMessagingData(
         adminClient,
@@ -285,7 +286,8 @@ test.describe('Real-time Message Delivery (T098)', () => {
     }
   });
 
-  test.beforeEach(async ({ browser }) => {
+  test.beforeEach(async ({ browser }, testInfo) => {
+    testInfo.setTimeout(120000);
     // These tests require two authenticated users with encryption keys.
     test.skip(
       !TEST_USER_1.password || !TEST_USER_2.password,
@@ -519,7 +521,8 @@ test.describe('Typing Indicators (T099)', () => {
   let page2: Page;
   let conversationId: string | null = null;
 
-  test.beforeEach(async ({ browser }) => {
+  test.beforeEach(async ({ browser }, testInfo) => {
+    testInfo.setTimeout(120000);
     test.skip(
       !TEST_USER_1.password || !TEST_USER_2.password,
       'Missing PRIMARY or SECONDARY test user credentials'

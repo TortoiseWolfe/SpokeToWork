@@ -15,6 +15,7 @@ import {
   completeEncryptionSetup,
   dismissCookieBanner,
   dismissReAuthModal,
+  waitForEncryptionKeys,
 } from './test-helpers';
 import { loginAndVerify } from '../utils/auth-helpers';
 import { getShardUsers } from '../utils/shard-users';
@@ -57,9 +58,11 @@ test.describe('Group Chat E2E', () => {
     ({ browserName }) => browserName === 'firefox' || browserName === 'webkit',
     'Firefox/WebKit: slow Argon2id + Realtime on CI'
   );
-  test.beforeEach(async () => {
+  test.beforeEach(async ({}, testInfo) => {
+    testInfo.setTimeout(120000);
     if (adminClient) {
       await ensureConnection(adminClient, PRIMARY_USER.email, TERTIARY_EMAIL);
+      await waitForEncryptionKeys(adminClient, PRIMARY_USER.email, TERTIARY_EMAIL);
     }
   });
 

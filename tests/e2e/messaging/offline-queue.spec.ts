@@ -59,13 +59,15 @@ test.describe('Offline Message Queue', () => {
 
   let conversationId: string | null = null;
 
-  test.beforeAll(async () => {
+  test.beforeAll(async ({}, testInfo) => {
+    testInfo.setTimeout(120000);
     if (adminClient) {
       await cleanupMessagingData(adminClient, USER_A.email, USER_B.email);
     }
   });
 
-  test.beforeEach(async () => {
+  test.beforeEach(async ({}, testInfo) => {
+    testInfo.setTimeout(120000);
     if (adminClient) {
       await ensureConnection(adminClient, USER_A.email, USER_B.email);
       conversationId = await ensureConversation(

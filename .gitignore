@@ -2,6 +2,9 @@
 
 # CI logs
 /logs
+
+# Pre-baked E2E encryption keys (contains private keys — stored in GitHub secrets)
+e2e-keys.json
 debug-storybook.log
 prompt_log.md
 

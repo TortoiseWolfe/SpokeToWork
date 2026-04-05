@@ -21,6 +21,10 @@ import {
 } from './utils/test-user-factory';
 import { ensureTestRoutes } from './utils/supabase-admin';
 import { getShardUsers } from './utils/shard-users';
+import {
+  hasPrebakedKeys,
+  getPrebakedKeysForUser,
+} from './utils/prebaked-keys';
 
 const AUTH_FILE = 'tests/e2e/fixtures/storage-state-auth.json';
 
@@ -350,56 +354,87 @@ setup('authenticate shared test user', async ({ page }) => {
     );
   }
 
-  // Pre-derive encryption keys so all tests start with cached keys in localStorage.
-  // Without this, every messaging test triggers a ReAuth modal + argon2id
-  // (90s on firefox, causing shard 2/4 timeout).
-  console.log('Pre-deriving encryption keys for messaging tests...');
-  await page.goto('/messages');
-  await page.waitForLoadState('domcontentloaded');
-  await page.waitForTimeout(3000); // Let React hydrate
+  // Inject encryption keys into localStorage.
+  // With pre-baked keys: inject directly (no Argon2id, no /messages navigation).
+  // Without pre-baked keys (local dev): navigate to /messages and derive via UI.
+  const primaryPrebaked = getPrebakedKeysForUser(email);
+  if (primaryPrebaked) {
+    // Pre-baked keys: inject into localStorage via page.evaluate
+    // The app reads stw_keys_{userId} on load and skips ReAuth if present.
+    await page.goto('/'); // Need a page loaded to access localStorage
+    await page.waitForLoadState('domcontentloaded');
 
-  // Handle encryption setup page if keys haven't been initialized.
-  // global-setup.ts deletes all keys from the DB, so the app must query Supabase
-  // Cloud, discover no keys exist, and redirect to /messages/setup. Under 18-shard
-  // contention this round-trip can take 5-10s, so wait up to 15s for the button.
-  const setupBtn = page.locator(
-    'button:has-text("Set Up Encrypted Messaging")'
-  );
-  if (await setupBtn.isVisible({ timeout: 15000 }).catch(() => false)) {
-    const pwd = process.env.TEST_USER_PRIMARY_PASSWORD || password;
-    await page.locator('#setup-password').fill(pwd);
-    await page.locator('#setup-confirm').fill(pwd);
-    await setupBtn.click();
-    await page.waitForURL(/\/messages(?!\/setup)/, { timeout: 120000 });
-    console.log('✓ Encryption keys initialized');
+    // Get the user ID from the auth session
+    const userId = await page.evaluate(() => {
+      const storageKeys = Object.keys(localStorage);
+      const authKey = storageKeys.find(
+        (k) => k.startsWith('sb-') && k.endsWith('-auth-token')
+      );
+      if (!authKey) return null;
+      try {
+        const session = JSON.parse(localStorage.getItem(authKey) || '{}');
+        return session?.user?.id || null;
+      } catch {
+        return null;
+      }
+    });
+
+    if (userId) {
+      await page.evaluate(
+        ({ uid, keys }) => {
+          localStorage.setItem(`stw_keys_${uid}`, JSON.stringify(keys));
+        },
+        { uid: userId, keys: primaryPrebaked.localStorage }
+      );
+      console.log(`✓ Pre-baked encryption keys injected for ${email} (${userId.slice(0, 8)}...)`);
+    } else {
+      console.warn('⚠ Could not extract userId from auth session — falling back to UI derivation');
+    }
   }
 
-  // Handle ReAuth modal (derives keys via argon2id, caches to localStorage)
-  const reAuthInput = page.locator('#reauth-password');
-  if (await reAuthInput.isVisible({ timeout: 15000 }).catch(() => false)) {
-    const pwd = process.env.TEST_USER_PRIMARY_PASSWORD || password;
-    await reAuthInput.fill(pwd);
-    const unlockBtn = page.getByRole('button', { name: /unlock/i });
-    if (await unlockBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await unlockBtn.click();
-      // Wait for argon2id to complete (up to 120s on firefox)
-      await page
-        .locator('[role="presentation"], [role="dialog"]')
-        .first()
-        .waitFor({ state: 'hidden', timeout: 120000 });
-      console.log('✓ Encryption keys derived and cached to localStorage');
+  // Fall back to UI-based key derivation if no pre-baked keys or injection failed
+  if (!primaryPrebaked) {
+    console.log('Pre-deriving encryption keys via UI (no pre-baked keys)...');
+    await page.goto('/messages');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
+
+    const setupBtn = page.locator(
+      'button:has-text("Set Up Encrypted Messaging")'
+    );
+    if (await setupBtn.isVisible({ timeout: 15000 }).catch(() => false)) {
+      const pwd = process.env.TEST_USER_PRIMARY_PASSWORD || password;
+      await page.locator('#setup-password').fill(pwd);
+      await page.locator('#setup-confirm').fill(pwd);
+      await setupBtn.click();
+      await page.waitForURL(/\/messages(?!\/setup)/, { timeout: 120000 });
+      console.log('✓ Encryption keys initialized');
     }
-  } else {
-    console.log('✓ No ReAuth modal (keys already available)');
+
+    const reAuthInput = page.locator('#reauth-password');
+    if (await reAuthInput.isVisible({ timeout: 15000 }).catch(() => false)) {
+      const pwd = process.env.TEST_USER_PRIMARY_PASSWORD || password;
+      await reAuthInput.fill(pwd);
+      const unlockBtn = page.getByRole('button', { name: /unlock/i });
+      if (await unlockBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await unlockBtn.click();
+        await page
+          .locator('[role="presentation"], [role="dialog"]')
+          .first()
+          .waitFor({ state: 'hidden', timeout: 120000 });
+        console.log('✓ Encryption keys derived and cached to localStorage');
+      }
+    } else {
+      console.log('✓ No ReAuth modal (keys already available)');
+    }
   }
 
   // Save authenticated state WITH encryption key cache in localStorage
   await page.context().storageState({ path: AUTH_FILE });
 
-  // Pre-derive encryption keys for SECONDARY and TERTIARY test users.
-  // Each needs its own browser context (different auth session).
-  // The browser-derived keys are compatible with all browser engines
-  // (Node.js @noble/curves keys are NOT compatible with firefox WebCrypto).
+  // Inject encryption keys for SECONDARY and TERTIARY test users.
+  // With pre-baked keys: inject directly into the storageState file (no browser needed).
+  // Without pre-baked keys (local dev): derive via UI in separate browser contexts.
   const additionalUsers = [
     { email: secondaryEmail, password: secondaryPassword },
     { email: tertiaryEmail, password: tertiaryPassword },
@@ -407,92 +442,156 @@ setup('authenticate shared test user', async ({ page }) => {
     (u): u is { email: string; password: string } => !!u.email && !!u.password
   );
 
-  for (const { email: userEmail, password: userPwd } of additionalUsers) {
-    console.log(`Pre-deriving encryption keys for ${userEmail}...`);
-    const browser = page.context().browser();
-    if (!browser) continue;
+  if (hasPrebakedKeys()) {
+    // Pre-baked keys path: inject into storageState file directly.
+    // We need user IDs for the localStorage key names (stw_keys_{userId}).
+    // Log in each user briefly just to get their userId, then inject keys.
+    const state = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
 
-    const ctx = await browser.newContext();
-    const p = await ctx.newPage();
+    for (const { email: userEmail } of additionalUsers) {
+      const prebaked = getPrebakedKeysForUser(userEmail);
+      if (!prebaked) continue;
 
-    try {
-      // Log in as this user
-      await p.goto('/sign-in');
-      await p.waitForLoadState('domcontentloaded');
-      const emailInput = p.locator('input[type="email"], input[name="email"]');
-      await emailInput.waitFor({ state: 'visible', timeout: 10000 });
-      await emailInput.fill(userEmail);
-      await p.fill('input[type="password"], input[name="password"]', userPwd);
-      await p.click('button[type="submit"]');
-      await p
-        .waitForURL((url) => !url.pathname.includes('/sign-in'), {
-          timeout: 15000,
-        })
-        .catch(() => {});
+      const browser = page.context().browser();
+      if (!browser) continue;
+      const ctx = await browser.newContext();
+      const p = await ctx.newPage();
 
-      // Navigate to /messages and handle encryption setup + ReAuth
-      await p.goto('/messages');
-      await p.waitForLoadState('domcontentloaded');
-      await p.waitForTimeout(3000);
+      try {
+        // Quick login to get userId
+        await p.goto('/sign-in');
+        await p.waitForLoadState('domcontentloaded');
+        const emailInput = p.locator('input[type="email"], input[name="email"]');
+        await emailInput.waitFor({ state: 'visible', timeout: 10000 });
+        await emailInput.fill(userEmail);
+        await p.fill(
+          'input[type="password"], input[name="password"]',
+          additionalUsers.find((u) => u.email === userEmail)?.password || ''
+        );
+        await p.click('button[type="submit"]');
+        await p
+          .waitForURL((url) => !url.pathname.includes('/sign-in'), {
+            timeout: 15000,
+          })
+          .catch(() => {});
 
-      // Handle encryption setup page
-      const setupBtn2 = p.locator(
-        'button:has-text("Set Up Encrypted Messaging")'
-      );
-      if (await setupBtn2.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await p.locator('#setup-password').fill(userPwd);
-        await p.locator('#setup-confirm').fill(userPwd);
-        await setupBtn2.click();
-        await p.waitForURL(/\/messages(?!\/setup)/, { timeout: 180000 });
-      }
+        // Extract userId from auth session
+        const userId = await p.evaluate(() => {
+          const storageKeys = Object.keys(localStorage);
+          const authKey = storageKeys.find(
+            (k) => k.startsWith('sb-') && k.endsWith('-auth-token')
+          );
+          if (!authKey) return null;
+          try {
+            const session = JSON.parse(localStorage.getItem(authKey) || '{}');
+            return session?.user?.id || null;
+          } catch {
+            return null;
+          }
+        });
 
-      // Handle ReAuth modal
-      const reAuth2 = p.locator('#reauth-password');
-      if (await reAuth2.isVisible({ timeout: 15000 }).catch(() => false)) {
-        await reAuth2.fill(userPwd);
-        const unlock2 = p.getByRole('button', { name: /unlock/i });
-        if (await unlock2.isVisible({ timeout: 3000 }).catch(() => false)) {
-          await unlock2.click();
-          // Argon2id key derivation takes 60-90s on chromium, up to 180s on
-          // Firefox/WebKit under CI contention (12 parallel shards).
-          await p
-            .locator('[role="presentation"], [role="dialog"]')
-            .first()
-            .waitFor({ state: 'hidden', timeout: 180000 });
+        if (userId && state.origins?.[0]?.localStorage) {
+          const entry = {
+            name: `stw_keys_${userId}`,
+            value: JSON.stringify(prebaked.localStorage),
+          };
+          state.origins[0].localStorage = state.origins[0].localStorage.filter(
+            (item: { name: string }) => item.name !== entry.name
+          );
+          state.origins[0].localStorage.push(entry);
+          console.log(`✓ Pre-baked keys injected for ${userEmail} (${userId.slice(0, 8)}...)`);
+        } else {
+          console.warn(`⚠ Could not get userId for ${userEmail}`);
         }
+      } catch (err) {
+        console.warn(`⚠ Key injection failed for ${userEmail}:`, err);
+      } finally {
+        await ctx.close();
       }
+    }
 
-      // Extract stw_keys_* entries from this context's localStorage
-      const keys = await p.evaluate(() => {
-        const entries: { name: string; value: string }[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (k?.startsWith('stw_keys_')) {
-            entries.push({ name: k, value: localStorage.getItem(k)! });
+    fs.writeFileSync(AUTH_FILE, JSON.stringify(state, null, 2));
+  } else {
+    // No pre-baked keys (local dev): derive via UI in separate browser contexts.
+    for (const { email: userEmail, password: userPwd } of additionalUsers) {
+      console.log(`Pre-deriving encryption keys for ${userEmail}...`);
+      const browser = page.context().browser();
+      if (!browser) continue;
+
+      const ctx = await browser.newContext();
+      const p = await ctx.newPage();
+
+      try {
+        await p.goto('/sign-in');
+        await p.waitForLoadState('domcontentloaded');
+        const emailInput = p.locator('input[type="email"], input[name="email"]');
+        await emailInput.waitFor({ state: 'visible', timeout: 10000 });
+        await emailInput.fill(userEmail);
+        await p.fill('input[type="password"], input[name="password"]', userPwd);
+        await p.click('button[type="submit"]');
+        await p
+          .waitForURL((url) => !url.pathname.includes('/sign-in'), {
+            timeout: 15000,
+          })
+          .catch(() => {});
+
+        await p.goto('/messages');
+        await p.waitForLoadState('domcontentloaded');
+        await p.waitForTimeout(3000);
+
+        const setupBtn2 = p.locator(
+          'button:has-text("Set Up Encrypted Messaging")'
+        );
+        if (await setupBtn2.isVisible({ timeout: 5000 }).catch(() => false)) {
+          await p.locator('#setup-password').fill(userPwd);
+          await p.locator('#setup-confirm').fill(userPwd);
+          await setupBtn2.click();
+          await p.waitForURL(/\/messages(?!\/setup)/, { timeout: 180000 });
+        }
+
+        const reAuth2 = p.locator('#reauth-password');
+        if (await reAuth2.isVisible({ timeout: 15000 }).catch(() => false)) {
+          await reAuth2.fill(userPwd);
+          const unlock2 = p.getByRole('button', { name: /unlock/i });
+          if (await unlock2.isVisible({ timeout: 3000 }).catch(() => false)) {
+            await unlock2.click();
+            await p
+              .locator('[role="presentation"], [role="dialog"]')
+              .first()
+              .waitFor({ state: 'hidden', timeout: 180000 });
           }
         }
-        return entries;
-      });
 
-      // Merge into the saved storageState file
-      if (keys.length > 0) {
-        const state = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
-        if (state.origins?.[0]?.localStorage) {
-          for (const entry of keys) {
-            state.origins[0].localStorage =
-              state.origins[0].localStorage.filter(
-                (item: { name: string }) => item.name !== entry.name
-              );
-            state.origins[0].localStorage.push(entry);
+        const keys = await p.evaluate(() => {
+          const entries: { name: string; value: string }[] = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k?.startsWith('stw_keys_')) {
+              entries.push({ name: k, value: localStorage.getItem(k)! });
+            }
           }
-          fs.writeFileSync(AUTH_FILE, JSON.stringify(state, null, 2));
-          console.log(`✓ Keys derived and cached for ${userEmail}`);
+          return entries;
+        });
+
+        if (keys.length > 0) {
+          const state2 = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
+          if (state2.origins?.[0]?.localStorage) {
+            for (const entry of keys) {
+              state2.origins[0].localStorage =
+                state2.origins[0].localStorage.filter(
+                  (item: { name: string }) => item.name !== entry.name
+                );
+              state2.origins[0].localStorage.push(entry);
+            }
+            fs.writeFileSync(AUTH_FILE, JSON.stringify(state2, null, 2));
+            console.log(`✓ Keys derived and cached for ${userEmail}`);
+          }
         }
+      } catch (err) {
+        console.warn(`⚠ Key derivation failed for ${userEmail}:`, err);
+      } finally {
+        await ctx.close();
       }
-    } catch (err) {
-      console.warn(`⚠ Key derivation failed for ${userEmail}:`, err);
-    } finally {
-      await ctx.close();
     }
   }
 
