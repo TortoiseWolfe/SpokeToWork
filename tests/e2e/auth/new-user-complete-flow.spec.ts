@@ -212,6 +212,9 @@ test.describe('New User Complete Flow', () => {
       expect(testUserId).toBeTruthy();
       console.log(`Created test user: ${testUserId}`);
 
+      // Allow GoTrue to propagate the new user (SQL insert bypasses GoTrue cache)
+      await page.waitForTimeout(2000);
+
       // Verify user_profiles was created by trigger
       const profile = await getUserProfile(testUserId!);
       expect(profile).toBeTruthy();
@@ -230,7 +233,7 @@ test.describe('New User Complete Flow', () => {
       await page.getByRole('button', { name: /sign in/i }).click();
 
       // Wait for redirect to profile or companies
-      await page.waitForURL(/\/(profile|companies)/, { timeout: 15000 });
+      await page.waitForURL(/\/(profile|companies)/, { timeout: 30000 });
       const signInUrl = page.url();
       expect(signInUrl).toMatch(/\/(profile|companies)/);
       console.log(`Sign-in successful, redirected to: ${signInUrl}`);

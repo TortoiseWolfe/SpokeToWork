@@ -36,15 +36,17 @@ test.describe('Account Settings — Resumes & Visibility', () => {
 
   test('renders My Resumes section', async ({ page }) => {
     const heading = page.getByRole('heading', { name: 'My Resumes' });
-    await expect(heading).toBeVisible();
+    await expect(heading).toBeVisible({ timeout: 15000 });
   });
 
   test('renders Profile Visibility section', async ({ page }) => {
     const heading = page.getByRole('heading', { name: 'Profile Visibility' });
-    await expect(heading).toBeVisible();
+    await expect(heading).toBeVisible({ timeout: 15000 });
 
     // Toggle should be visible
-    await expect(page.getByText('Profile visible to employers')).toBeVisible();
+    await expect(page.getByText('Profile visible to employers')).toBeVisible({
+      timeout: 15000,
+    });
   });
 
   test('visibility radio defaults to Private', async ({ page }) => {

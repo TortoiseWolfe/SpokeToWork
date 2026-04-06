@@ -102,7 +102,7 @@ async function setTheme(page: Page, theme: 'light' | 'dark') {
       },
       {
         message: 'Waiting for bike routes source after theme change',
-        timeout: 10000,
+        timeout: 20000,
       }
     )
     .toBe(true);
@@ -148,18 +148,25 @@ test.describe('Map Visual Regression Tests', () => {
     const theme = await page.locator('html').getAttribute('data-theme');
     expect(theme).toBe('dark');
 
-    // Cycleway layers exist in dark mode
-    const layers = await page.evaluate(() => {
-      const map = (window as any).maplibreMap;
-      return {
-        hasCycleway: !!map?.getLayer('cycleway'),
-        hasCasingLayer: !!map?.getLayer('cycleway-casing'),
-        hasSource: !!map?.getSource('all-bike-routes'),
-      };
-    });
-    expect(layers.hasCycleway).toBe(true);
-    expect(layers.hasCasingLayer).toBe(true);
-    expect(layers.hasSource).toBe(true);
+    // Cycleway layers exist in dark mode (poll — webkit briefly destroys sources during style reload)
+    await expect
+      .poll(
+        async () => {
+          return page.evaluate(() => {
+            const map = (window as any).maplibreMap;
+            return {
+              hasCycleway: !!map?.getLayer('cycleway'),
+              hasCasingLayer: !!map?.getLayer('cycleway-casing'),
+              hasSource: !!map?.getSource('all-bike-routes'),
+            };
+          });
+        },
+        {
+          message: 'Waiting for bike route layers in dark theme',
+          timeout: 15000,
+        }
+      )
+      .toEqual({ hasCycleway: true, hasCasingLayer: true, hasSource: true });
   });
 
   test('should maintain layer consistency after theme toggle', async ({
@@ -177,17 +184,29 @@ test.describe('Map Visual Regression Tests', () => {
     const finalTheme = await page.locator('html').getAttribute('data-theme');
     expect(finalTheme).toBe('light');
 
-    const layers = await page.evaluate(() => {
-      const map = (window as any).maplibreMap;
-      return {
-        cyclewayExists: !!map?.getLayer('cycleway'),
-        cyclewayCasingExists: !!map?.getLayer('cycleway-casing'),
-        sourceExists: !!map?.getSource('all-bike-routes'),
-      };
-    });
-    expect(layers.cyclewayExists).toBe(true);
-    expect(layers.cyclewayCasingExists).toBe(true);
-    expect(layers.sourceExists).toBe(true);
+    // Poll — webkit briefly destroys sources during style reload
+    await expect
+      .poll(
+        async () => {
+          return page.evaluate(() => {
+            const map = (window as any).maplibreMap;
+            return {
+              cyclewayExists: !!map?.getLayer('cycleway'),
+              cyclewayCasingExists: !!map?.getLayer('cycleway-casing'),
+              sourceExists: !!map?.getSource('all-bike-routes'),
+            };
+          });
+        },
+        {
+          message: 'Waiting for bike route layers after theme toggle',
+          timeout: 15000,
+        }
+      )
+      .toEqual({
+        cyclewayExists: true,
+        cyclewayCasingExists: true,
+        sourceExists: true,
+      });
   });
 
   test('bike routes have sufficient color contrast - light theme', async ({

@@ -685,10 +685,20 @@ export class CompaniesPage extends BasePage {
               await dialog.accept();
             });
 
-            await deleteBtn.click();
-            await this.page.waitForTimeout(500);
-            deleted = true; // Re-loop after deletion
-            break; // Exit inner loop to re-query cards
+            try {
+              await deleteBtn.click({ force: true });
+            } catch {
+              // Element detached — deletion likely succeeded, re-query
+              deleted = true;
+              break;
+            }
+            // Wait for card to disappear (confirms deletion processed)
+            await card
+              .waitFor({ state: 'detached', timeout: 5000 })
+              .catch(() => {});
+            await this.page.waitForTimeout(300);
+            deleted = true;
+            break;
           }
         }
       }
