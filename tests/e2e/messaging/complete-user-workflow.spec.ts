@@ -690,6 +690,9 @@ test.describe('Conversations Page Loading (Feature 029)', () => {
 
 test.describe('Test Idempotency Verification', () => {
   test('should complete cleanup successfully', async () => {
+    // cleanupTestData polls 10×2s (20s) for replica propagation + getUserIds + verification.
+    // Default 30s timeout is too tight under 18-shard CI load where Supabase replica lag peaks.
+    test.setTimeout(60000);
     const client = getAdminClient();
     if (!client) {
       test.skip(true, 'SUPABASE_SERVICE_ROLE_KEY not configured');
