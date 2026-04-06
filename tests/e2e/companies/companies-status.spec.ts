@@ -22,6 +22,8 @@ test.describe('Companies Page - Status Changes', () => {
   const testPositionPrefix = 'E2E Status Test';
 
   test.beforeAll(async ({ browser }) => {
+    // cleanupTestApplications iterates companies, opens drawers, deletes test apps — can exceed 30s under CI load
+    test.setTimeout(60000);
     // Create context with pre-authenticated state - NO login needed
     sharedContext = await browser.newContext({
       storageState: AUTH_FILE,
@@ -34,6 +36,7 @@ test.describe('Companies Page - Status Changes', () => {
   });
 
   test.afterAll(async () => {
+    test.setTimeout(60000);
     // Clean up test applications using authenticated session
     if (companiesPage) {
       await companiesPage.cleanupTestApplications([testPositionPrefix]);
