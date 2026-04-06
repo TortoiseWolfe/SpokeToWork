@@ -10,6 +10,12 @@ import { executeSQL, escapeSQL } from '../utils/supabase-admin';
  */
 
 test.describe('Account Settings — Resumes & Visibility', () => {
+  // beforeEach runs executeSQL + Supabase update + page.goto + networkidle — can exceed 30s on Firefox/WebKit CI
+  test.slow(
+    ({ browserName }) => browserName === 'firefox' || browserName === 'webkit',
+    'Firefox/WebKit: slow executeSQL + networkidle under 18-shard CI load'
+  );
+
   test.beforeEach(async ({ page }) => {
     // Ensure user role is 'worker' (may have been changed by employer tests in another shard)
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

@@ -636,8 +636,15 @@ export class CompaniesPage extends BasePage {
     const rowCount = await this.getCompanyRowCount();
     if (rowCount === 0) return;
 
-    // Go through each company and delete test applications
-    for (let i = 0; i < Math.min(rowCount, 20); i++) {
+    // Go through first few companies only — test apps are created in the first rows.
+    // Limit to 5 to stay well within beforeAll timeout under CI load.
+    const startTime = Date.now();
+    for (let i = 0; i < Math.min(rowCount, 5); i++) {
+      // Bail out if cleanup is taking too long (leave 10s margin for beforeAll timeout)
+      if (Date.now() - startTime > 40000) {
+        console.log('Cleanup: time budget exceeded, stopping early');
+        break;
+      }
       // Always click the first row since we may have deleted from previous
       const rows = this.page.locator('[data-testid^="company-row-"]');
       const currentRowCount = await rows.count();
