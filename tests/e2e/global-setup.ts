@@ -700,6 +700,83 @@ async function ensureDiscoverableWorker(): Promise<void> {
   }
 }
 
+/**
+ * Seed enough private_companies for the primary test user that the
+ * companies-* spec suite has data to operate on.
+ *
+ * The companies-sort tests need rowCount >= 2; companies-basic-flow,
+ * companies-crud, companies-status need rowCount >= 1. Seeding 5 gives
+ * comfortable headroom and allows tests to delete rows without going to 0.
+ *
+ * Throws on failure (does NOT swallow errors) so a broken seed surfaces
+ * as a global-setup failure rather than as silent test.skip()s.
+ */
+const SEEDED_COMPANY_IDS = [
+  'e2e00000-0000-4000-c000-000000000001',
+  'e2e00000-0000-4000-c000-000000000002',
+  'e2e00000-0000-4000-c000-000000000003',
+  'e2e00000-0000-4000-c000-000000000004',
+  'e2e00000-0000-4000-c000-000000000005',
+];
+
+async function ensureCompaniesForTestUser(): Promise<void> {
+  const adminClient = getAdminClient();
+  if (!adminClient) {
+    throw new Error(
+      'ensureCompaniesForTestUser: SUPABASE_SERVICE_ROLE_KEY not set — cannot seed required test data'
+    );
+  }
+
+  const testEmail = process.env.TEST_USER_PRIMARY_EMAIL;
+  if (!testEmail) {
+    throw new Error(
+      'ensureCompaniesForTestUser: TEST_USER_PRIMARY_EMAIL not set'
+    );
+  }
+
+  console.log('🏢 Seeding private_companies for', testEmail, '...');
+
+  const { data: users, error: userErr } =
+    await adminClient.auth.admin.listUsers({ perPage: 1000 });
+  if (userErr) throw new Error(`listUsers failed: ${userErr.message}`);
+  const testUser = users?.users?.find((u) => u.email === testEmail);
+  if (!testUser) {
+    throw new Error(`ensureCompaniesForTestUser: user ${testEmail} not found`);
+  }
+
+  const seedRows = SEEDED_COMPANY_IDS.map((id, i) => ({
+    id,
+    user_id: testUser.id,
+    name: `E2E Seed Company ${i + 1}`,
+    address: `${100 + i} Test Ave, Portland, OR`,
+    latitude: 45.5152 + i * 0.001,
+    longitude: -122.6784 - i * 0.001,
+  }));
+
+  const { error: upsertErr } = await adminClient
+    .from('private_companies')
+    .upsert(seedRows, { onConflict: 'id' });
+  if (upsertErr) {
+    throw new Error(
+      `ensureCompaniesForTestUser upsert failed: ${upsertErr.message}`
+    );
+  }
+
+  // Verify the rows actually exist after upsert (catches RLS / trigger issues)
+  const { data: verify, error: verifyErr } = await adminClient
+    .from('private_companies')
+    .select('id')
+    .eq('user_id', testUser.id);
+  if (verifyErr) throw new Error(`Verify failed: ${verifyErr.message}`);
+  const count = verify?.length ?? 0;
+  if (count < SEEDED_COMPANY_IDS.length) {
+    throw new Error(
+      `ensureCompaniesForTestUser: expected >=${SEEDED_COMPANY_IDS.length} companies for ${testEmail}, got ${count}`
+    );
+  }
+  console.log(`✓ ${count} private_companies present for ${testEmail}`);
+}
+
 export default async function globalSetup(config: FullConfig): Promise<void> {
   if (process.env.SMOKE_ONLY === 'true') {
     console.log('🚀 SMOKE_ONLY mode — running lightweight cleanup only');
@@ -711,6 +788,7 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   await ensureAdminUser();
   await ensureTestUserKeys();
   await ensureModerationTestData();
+  await ensureCompaniesForTestUser();
   await ensureWorkerRole();
   await ensurePublicProfileCompany();
   await ensureDiscoverableWorker();
