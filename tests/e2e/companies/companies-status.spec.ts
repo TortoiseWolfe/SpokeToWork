@@ -53,10 +53,7 @@ test.describe('Companies Page - Status Changes', () => {
 
   test('should change application status via dropdown', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Create a test application
     await companiesPage.clickFirstCompanyRow();
@@ -91,10 +88,7 @@ test.describe('Companies Page - Status Changes', () => {
 
   test('should change application outcome via dropdown', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Create a test application
     await companiesPage.clickFirstCompanyRow();
@@ -130,10 +124,7 @@ test.describe('Companies Page - Status Changes', () => {
 
   test('should persist status change after page refresh', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Create a test application
     await companiesPage.clickFirstCompanyRow();
@@ -188,10 +179,7 @@ test.describe('Companies Page - Status Changes', () => {
 
   test('should allow multiple status changes in sequence', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Create a test application
     await companiesPage.clickFirstCompanyRow();
@@ -225,10 +213,7 @@ test.describe('Companies Page - Status Changes', () => {
 
   test('should display status dropdowns with correct options', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Create a test application
     await companiesPage.clickFirstCompanyRow();
@@ -279,10 +264,7 @@ test.describe('Companies Page - Status Changes', () => {
 
   test('should update status and outcome independently', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Create a test application
     await companiesPage.clickFirstCompanyRow();

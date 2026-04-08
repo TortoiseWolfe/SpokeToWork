@@ -74,10 +74,7 @@ test.describe('Companies Page - Basic Flow', () => {
     const rowCount = await companiesPage.getCompanyRowCount();
 
     // Skip test if no companies exist
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Click on the first company row
     await companiesPage.clickFirstCompanyRow();
@@ -96,10 +93,7 @@ test.describe('Companies Page - Basic Flow', () => {
 
   test('should close drawer with close button', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Open drawer
     await companiesPage.clickFirstCompanyRow();
@@ -114,10 +108,7 @@ test.describe('Companies Page - Basic Flow', () => {
 
   test('should close drawer with Escape key', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Open drawer
     await companiesPage.clickFirstCompanyRow();
@@ -139,10 +130,7 @@ test.describe('Companies Page - Basic Flow', () => {
     }
 
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Open drawer
     await companiesPage.clickFirstCompanyRow();
@@ -157,10 +145,7 @@ test.describe('Companies Page - Basic Flow', () => {
 
   test('should display applications list in drawer', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Open drawer for first company
     await companiesPage.clickFirstCompanyRow();
@@ -181,10 +166,7 @@ test.describe('Companies Page - Basic Flow', () => {
 
   test('should display company info in drawer', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Open drawer
     await companiesPage.clickFirstCompanyRow();
@@ -203,10 +185,7 @@ test.describe('Companies Page - Basic Flow', () => {
 
   test('should show add application button in drawer', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Open drawer
     await companiesPage.clickFirstCompanyRow();
@@ -222,10 +201,7 @@ test.describe('Companies Page - Basic Flow', () => {
 
   test('should have accessible drawer with proper ARIA attributes', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Open drawer
     await companiesPage.clickFirstCompanyRow();

@@ -55,10 +55,7 @@ test.describe('Companies Page - Application CRUD', () => {
 
   test('should open application form modal when clicking Add', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Open drawer
     await companiesPage.clickFirstCompanyRow();
@@ -83,10 +80,7 @@ test.describe('Companies Page - Application CRUD', () => {
 
   test('should create new application from drawer', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Open drawer and wait for application list to load from Supabase
     await companiesPage.clickFirstCompanyRow();
@@ -130,10 +124,7 @@ test.describe('Companies Page - Application CRUD', () => {
 
   test('should cancel application creation', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Open drawer and wait for application list to load (previous create test
     // may have added an app that's still being fetched asynchronously)
@@ -161,10 +152,7 @@ test.describe('Companies Page - Application CRUD', () => {
 
   test('should edit existing application', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // First create an application to edit
     await companiesPage.clickFirstCompanyRow();
@@ -208,10 +196,7 @@ test.describe('Companies Page - Application CRUD', () => {
 
   test('should delete application with confirmation', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // First create an application to delete
     await companiesPage.clickFirstCompanyRow();
@@ -256,10 +241,7 @@ test.describe('Companies Page - Application CRUD', () => {
 
   test('should cancel delete when declined', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // First create an application
     await companiesPage.clickFirstCompanyRow();
@@ -298,10 +280,7 @@ test.describe('Companies Page - Application CRUD', () => {
 
   test('should persist new application after page refresh', async () => {
     const rowCount = await companiesPage.getCompanyRowCount();
-    if (rowCount === 0) {
-      test.skip();
-      return;
-    }
+    expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
     // Create an application
     await companiesPage.clickFirstCompanyRow();

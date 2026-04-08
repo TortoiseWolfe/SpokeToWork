@@ -700,6 +700,87 @@ async function ensureDiscoverableWorker(): Promise<void> {
   }
 }
 
+/**
+ * Seed enough private_companies for the primary test user that the
+ * companies-* spec suite has data to operate on.
+ *
+ * companies-sort needs rowCount >= 2; companies-basic-flow, companies-crud,
+ * companies-status need rowCount >= 1. Seed 5 for headroom and to survive
+ * tests that delete rows.
+ *
+ * No-op when env vars are missing (other workflows like accessibility share
+ * globalSetup and legitimately don't need companies seed). When the env IS
+ * configured, any failure throws so a broken seed surfaces as a setup error
+ * rather than silent test.skip() calls.
+ */
+const SEEDED_PRIVATE_COMPANY_IDS = [
+  'e2e00000-0000-4000-c000-000000000001',
+  'e2e00000-0000-4000-c000-000000000002',
+  'e2e00000-0000-4000-c000-000000000003',
+  'e2e00000-0000-4000-c000-000000000004',
+  'e2e00000-0000-4000-c000-000000000005',
+];
+
+async function ensureCompaniesForTestUser(): Promise<void> {
+  const adminClient = getAdminClient();
+  const testEmail = process.env.TEST_USER_PRIMARY_EMAIL;
+
+  // Soft preconditions: silently skip when this run isn't doing companies-* tests.
+  if (!adminClient || !testEmail) {
+    console.log(
+      '  ⊘ ensureCompaniesForTestUser: env not configured for companies-* tests, skipping'
+    );
+    return;
+  }
+
+  console.log('🏢 Seeding private_companies for', testEmail, '...');
+
+  const { data: users, error: userErr } =
+    await adminClient.auth.admin.listUsers({ perPage: 1000 });
+  if (userErr) {
+    throw new Error(`ensureCompaniesForTestUser listUsers: ${userErr.message}`);
+  }
+  const testUser = users?.users?.find((u) => u.email === testEmail);
+  if (!testUser) {
+    throw new Error(
+      `ensureCompaniesForTestUser: user ${testEmail} not found in auth.users`
+    );
+  }
+
+  const seedRows = SEEDED_PRIVATE_COMPANY_IDS.map((id, i) => ({
+    id,
+    user_id: testUser.id,
+    name: `E2E Seed Company ${i + 1}`,
+    address: `${100 + i} Test Ave, Portland, OR`,
+    latitude: 45.5152 + i * 0.001,
+    longitude: -122.6784 - i * 0.001,
+  }));
+
+  const { error: upsertErr } = await adminClient
+    .from('private_companies')
+    .upsert(seedRows, { onConflict: 'id' });
+  if (upsertErr) {
+    throw new Error(
+      `ensureCompaniesForTestUser upsert: ${upsertErr.message}`
+    );
+  }
+
+  const { data: verify, error: verifyErr } = await adminClient
+    .from('private_companies')
+    .select('id')
+    .eq('user_id', testUser.id);
+  if (verifyErr) {
+    throw new Error(`ensureCompaniesForTestUser verify: ${verifyErr.message}`);
+  }
+  const count = verify?.length ?? 0;
+  if (count < SEEDED_PRIVATE_COMPANY_IDS.length) {
+    throw new Error(
+      `ensureCompaniesForTestUser: expected >=${SEEDED_PRIVATE_COMPANY_IDS.length} companies for ${testEmail}, got ${count}`
+    );
+  }
+  console.log(`✓ ${count} private_companies present for ${testEmail}`);
+}
+
 export default async function globalSetup(config: FullConfig): Promise<void> {
   if (process.env.SMOKE_ONLY === 'true') {
     console.log('🚀 SMOKE_ONLY mode — running lightweight cleanup only');
@@ -711,6 +792,7 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   await ensureAdminUser();
   await ensureTestUserKeys();
   await ensureModerationTestData();
+  await ensureCompaniesForTestUser();
   await ensureWorkerRole();
   await ensurePublicProfileCompany();
   await ensureDiscoverableWorker();
