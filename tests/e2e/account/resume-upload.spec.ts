@@ -17,6 +17,11 @@ test.describe('Account Settings — Resumes & Visibility', () => {
   );
 
   test.beforeEach(async ({ page }) => {
+    // Hook does executeSQL (cloud roundtrip) + admin update + page.goto + networkidle.
+    // Default 30s hook timeout is too tight on firefox/webkit under 22-shard CI load
+    // (executeSQL alone can take 10-15s on Supabase free tier when contended).
+    test.setTimeout(120_000);
+
     // Ensure user role is 'worker' (may have been changed by employer tests in another shard)
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;

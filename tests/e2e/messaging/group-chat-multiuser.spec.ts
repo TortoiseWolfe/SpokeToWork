@@ -69,7 +69,10 @@ test.describe('Group Chat E2E', () => {
   });
 
   test('should show New Group link in sidebar', async ({ browser }) => {
-    test.setTimeout(60000);
+    // 60000 was overriding the test.slow() multiplier from describe scope and
+    // forcing webkit (where Argon2id + Realtime is slow) to fit in 60s — it
+    // can't. Raise to 180000 so webkit has the same headroom as other slow tests.
+    test.setTimeout(180000);
 
     const context = await browser.newContext();
     const page = await context.newPage();

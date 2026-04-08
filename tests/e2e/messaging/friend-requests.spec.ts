@@ -372,8 +372,11 @@ test.describe('Friend Request Flow', () => {
   test('User A can decline a friend request from User B', async ({
     browser,
   }) => {
-    // 2 logins (~40s) + send request retry (~30s) + DB poll (~30s) + UI poll (~90s) = ~190s worst case
-    test.setTimeout(180000);
+    // 2 logins (~40s) + send request retry (~30s) + DB poll (~30s) + UI poll
+    // (15 attempts × ~16s each = ~240s worst case). Total worst-case ≈ 340s.
+    // Was 180000 — overran on busy CI when realtime missed the INSERT and the
+    // test fell back to reload polling.
+    test.setTimeout(360000);
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
 
