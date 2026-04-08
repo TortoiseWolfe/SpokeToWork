@@ -335,19 +335,22 @@ export class CompaniesPage extends BasePage {
   }
 
   /**
-   * Handle browser confirm dialog
+   * Handle browser confirm dialog (one-shot).
+   * Uses page.once so the handler auto-removes after firing — page.on
+   * registered a permanent listener that collided with cleanupTestApplications'
+   * own page.once handler ("Cannot accept dialog which is already handled").
    */
   async acceptDeleteConfirmation() {
-    this.page.on('dialog', async (dialog) => {
+    this.page.once('dialog', async (dialog) => {
       await dialog.accept();
     });
   }
 
   /**
-   * Handle browser confirm dialog - decline
+   * Handle browser confirm dialog - decline (one-shot, see acceptDeleteConfirmation).
    */
   async declineDeleteConfirmation() {
-    this.page.on('dialog', async (dialog) => {
+    this.page.once('dialog', async (dialog) => {
       await dialog.dismiss();
     });
   }
