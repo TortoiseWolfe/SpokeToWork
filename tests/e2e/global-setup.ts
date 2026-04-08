@@ -785,6 +785,14 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   if (process.env.SMOKE_ONLY === 'true') {
     console.log('🚀 SMOKE_ONLY mode — running lightweight cleanup only');
     await cleanupOrphanedE2EUsers();
+    // Also clear stale encryption keys for the primary test user. Without
+    // this, SMOKE_ONLY mode leaves keys from a previous failed run in the DB
+    // and auth.setup.ts gets stuck on the re-auth modal when Argon2id
+    // derives a key that doesn't match the stored public key.
+    // Observed on run 24124278014: auth.setup.ts:424 waited 120s for the
+    // key-derivation modal to hide, never did. Clearing keys here lets
+    // auth.setup derive fresh ones on every smoke run.
+    await ensureTestUserKeys();
     return;
   }
 
