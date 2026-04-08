@@ -68,7 +68,10 @@ jobs:
     name: Smoke Tests
     runs-on: ubuntu-latest
     needs: build
-    timeout-minutes: 5
+    # 10 min: 5 wasn't enough when SMOKE_ONLY cleanup (SQL deletes) runs on
+    # a busy Supabase free tier — observed 4.5min stuck in cleanup alone on
+    # run 24123867863. Cleanup + auth tests fit comfortably in 10 min.
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
