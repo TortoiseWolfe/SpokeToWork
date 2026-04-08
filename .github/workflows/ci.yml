@@ -63,8 +63,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Security audit
-        # Only fail on high/critical - low severity elliptic has no patch available
-        run: pnpm audit --audit-level=high
+        # Only fail on high/critical - low severity elliptic has no patch available.
+        # Ignored advisories (dev-server-only vite CVEs, app ships as static export):
+        #   GHSA-v2wj-q39q-566r — Vite server.fs.deny bypass (dev only)
+        #   GHSA-p9ff-h696-f583 — Vite arbitrary file read via dev WebSocket (dev only)
+        # Bumping vite to 7.3.2+ cascades a postcss bump that breaks Next.js build,
+        # so we ignore these dev-only CVEs until a non-cascading upgrade is available.
+        run: pnpm audit --audit-level=high --ignore GHSA-v2wj-q39q-566r --ignore GHSA-p9ff-h696-f583
 
       - name: Check for SQL injection patterns
         run: |
