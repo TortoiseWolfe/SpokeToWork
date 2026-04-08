@@ -466,6 +466,21 @@ test.describe('Friend Request Flow', () => {
       // Multi-attempt polling for connection-request visibility (read replica lag)
       let requestVisible = false;
       for (let attempt = 0; attempt < 15; attempt++) {
+        // Set up a promise to wait for the user_connections GET response
+        // BEFORE navigating. Without this, chromium's useConnections hook
+        // fires but the test's visibility check runs before the hook's
+        // state update lands in the DOM. Race: debug instrumentation that
+        // attached a response listener accidentally "fixed" this by yielding
+        // to the event loop after each response; this makes the wait explicit.
+        const connectionsResponsePromise = pageA
+          .waitForResponse(
+            (resp) =>
+              resp.url().includes('/rest/v1/user_connections') &&
+              resp.request().method() === 'GET',
+            { timeout: 15000 }
+          )
+          .catch(() => null);
+
         await pageA.goto('/messages?tab=connections');
         await pageA.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageA);
@@ -479,6 +494,14 @@ test.describe('Friend Request Flow', () => {
           name: /pending received|received/i,
         });
         await receivedTab.click({ force: true });
+
+        // Wait for the GET /rest/v1/user_connections response before checking
+        // the UI. This ensures React has committed the useConnections state
+        // update by the time we look for the locator.
+        await connectionsResponsePromise;
+        // Give React one tick to flush the state update into the DOM.
+        await pageA.waitForTimeout(200);
+
         requestVisible = await pageA
           .locator('[data-testid="connection-request"]')
           .isVisible({ timeout: 8000 })
@@ -681,6 +704,11 @@ test.describe('Accessibility', () => {
     await dismissCookieBanner(page);
     await completeEncryptionSetup(page);
     await dismissReAuthModal(page);
+
+    // Wait for the page's search input to exist before testing Tab navigation.
+    // On webkit, pressing Tab before interactive elements are mounted left
+    // focus on BODY and failed the assertion.
+    await page.locator('#user-search-input').waitFor({ state: 'attached', timeout: 15000 });
 
     // Verify keyboard navigation
     await page.keyboard.press('Tab');
