@@ -108,7 +108,10 @@ test.describe('Group Chat E2E', () => {
   test('should navigate to new-group page and show connections', async ({
     browser,
   }) => {
-    test.setTimeout(60000);
+    // 60000 overrides describe-level test.slow() multiplier. Same bug as
+    // the "should show New Group link" test fixed in f3ab301 — firefox/webkit
+    // with Argon2id + Realtime need more than 60s for login + page load.
+    test.setTimeout(180000);
 
     const context = await browser.newContext();
     const page = await context.newPage();
@@ -276,7 +279,9 @@ test.describe('Group Chat E2E', () => {
   test('should navigate back to messages when clicking back button', async ({
     browser,
   }) => {
-    test.setTimeout(60000);
+    // 60000 overrides describe-level test.slow() multiplier. Same bug as
+    // the "should show New Group link" test fixed in f3ab301.
+    test.setTimeout(180000);
 
     const context = await browser.newContext();
     const page = await context.newPage();

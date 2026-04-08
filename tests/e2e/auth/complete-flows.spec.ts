@@ -600,6 +600,11 @@ test.describe('Flow 4: Account Deletion', () => {
   });
 
   test('Cannot sign in with deleted account', async ({ page }) => {
+    // 2x createTestUserDirect/deleteTestUserDirect SQL (~10s each on cloud
+    // Supabase) + page.goto /sign-in with networkidle (~10s) + form fill +
+    // click + 3s wait = ~35s worst case on webkit. Default 30s is too tight.
+    test.setTimeout(90000);
+
     const testEmail = `e2e-deleted-${Date.now()}@mailinator.com`;
     let testUserId: string | null = null;
 

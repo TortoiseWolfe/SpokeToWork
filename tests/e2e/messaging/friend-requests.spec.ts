@@ -383,36 +383,6 @@ test.describe('Friend Request Flow', () => {
     const pageA = await contextA.newPage();
     const pageB = await contextB.newPage();
 
-    // DEBUG: capture pageA console + network for user_connections
-    // Temporary instrumentation to diagnose chromium-specific failure where
-    // poll loop completes 15 attempts without ever seeing the connection
-    // request in the UI. Passing on firefox + webkit, failing only chromium.
-    pageA.on('console', (msg) => {
-      const type = msg.type();
-      if (type === 'error' || type === 'warning') {
-        console.log(`[pageA ${type}] ${msg.text()}`);
-      }
-    });
-    pageA.on('pageerror', (err) => {
-      console.log(`[pageA pageerror] ${err.message}`);
-    });
-    pageA.on('response', async (resp) => {
-      const url = resp.url();
-      if (url.includes('/rest/v1/user_connections')) {
-        const status = resp.status();
-        let bodyPreview = '';
-        try {
-          const text = await resp.text();
-          bodyPreview = text.slice(0, 300);
-        } catch {
-          bodyPreview = '<body unreadable>';
-        }
-        console.log(
-          `[pageA NET] ${resp.request().method()} ${status} ${url.slice(url.indexOf('/rest/v1/'))} body=${bodyPreview}`
-        );
-      }
-    });
-
     try {
       // User B sends request to User A (searching by username of A)
       await loginAndVerify(pageB, {
@@ -514,48 +484,8 @@ test.describe('Friend Request Flow', () => {
           .isVisible({ timeout: 8000 })
           .catch(() => false);
         if (requestVisible) break;
-        // DEBUG: on first 2 attempts + last attempt, dump diagnostic state
-        // to the test log. Temporary until chromium-specific failure diagnosed.
-        if (attempt === 0 || attempt === 1 || attempt === 14) {
-          try {
-            const tabPanelHtml = await pageA
-              .locator('[role="tabpanel"]')
-              .first()
-              .innerHTML({ timeout: 2000 })
-              .catch(() => '<tabpanel not found>');
-            const currentUrl = pageA.url();
-            const cookies = await pageA
-              .context()
-              .cookies()
-              .then((cs) =>
-                cs
-                  .filter((c) => c.name.startsWith('sb-'))
-                  .map((c) => `${c.name}=${c.value.slice(0, 20)}...`)
-                  .join(';')
-              );
-            const localStorageAuth = await pageA.evaluate(() => {
-              const keys = Object.keys(localStorage).filter((k) =>
-                k.startsWith('sb-')
-              );
-              return keys.map((k) => {
-                const v = localStorage.getItem(k) || '';
-                try {
-                  const parsed = JSON.parse(v);
-                  return `${k}: user=${parsed?.user?.id?.slice(0, 8) || 'none'}/expires=${parsed?.expires_at || 'none'}`;
-                } catch {
-                  return `${k}: <unparseable>`;
-                }
-              });
-            });
-            console.log(
-              `[DEBUG attempt ${attempt + 1}] url=${currentUrl}\n  cookies=${cookies}\n  localStorage=${JSON.stringify(localStorageAuth)}\n  tabPanel(first 500 chars)=${tabPanelHtml.slice(0, 500).replace(/\n/g, ' ')}`
-            );
-          } catch (e) {
-            console.log(`[DEBUG attempt ${attempt + 1}] diagnostic dump failed: ${e}`);
-          }
-        }
         console.log(
-          `Connection request not visible (attempt ${attempt + 1}/8), reloading...`
+          `Connection request not visible (attempt ${attempt + 1}/15), reloading...`
         );
         await pageA.waitForTimeout(5000);
       }
