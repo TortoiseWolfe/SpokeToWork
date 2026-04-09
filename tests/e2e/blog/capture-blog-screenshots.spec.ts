@@ -269,7 +269,8 @@ test.describe.serial('Blog Screenshot Capture with Accuracy Audit', () => {
     await page.click('button[type="submit"]');
 
     // Wait for redirect (should go to profile, not verify-email)
-    await page.waitForURL(/\/profile/, { timeout: 15000 });
+    // WebKit is slower on auth redirects — 15s wasn't enough on CI
+    await page.waitForURL(/\/profile/, { timeout: 30000 });
 
     console.log('✅ Signed in as test user');
 

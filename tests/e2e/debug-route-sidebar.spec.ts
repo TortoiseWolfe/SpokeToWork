@@ -33,6 +33,13 @@ test.describe('Debug Route Sidebar', () => {
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000);
 
+    // Open the route drawer (closed by default — fixed position off-screen)
+    const openBtn = page.getByRole('button', { name: 'Open routes sidebar' });
+    if (await openBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await openBtn.click();
+      await expect(openBtn).toBeHidden({ timeout: 5000 });
+    }
+
     // Find the route with the "Planning" badge and click it
     const planningRoute = page
       .locator('[role="listitem"]')
