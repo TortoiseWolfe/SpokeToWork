@@ -30,7 +30,7 @@ test.describe('Debug Route Sidebar', () => {
 
     // Navigate to companies page
     await page.goto('/companies');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000);
 
     // Find the route with the "Planning" badge and click it
