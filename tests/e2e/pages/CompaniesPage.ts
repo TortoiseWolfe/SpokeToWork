@@ -64,10 +64,22 @@ export class CompaniesPage extends BasePage {
    * Wait for the companies table to load
    */
   async waitForTable() {
+    // Wait for the table container to appear
     await this.page.waitForSelector(this.selectors.table, {
       state: 'visible',
       timeout: 30000,
     });
+    // CompanyTable renders the same data-testid on both the loading spinner
+    // and the loaded table. Wait for the loading spinner inside the table to
+    // disappear — that means the Supabase query completed and real rows are
+    // rendered (or "No companies yet" if the user has zero companies).
+    await this.page
+      .locator(`${this.selectors.table} .loading`)
+      .first()
+      .waitFor({ state: 'hidden', timeout: 30000 })
+      .catch(() => {
+        // Spinner may never appear if data loads before the selector check
+      });
     await this.waitForLoad();
   }
 
