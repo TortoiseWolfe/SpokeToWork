@@ -239,20 +239,29 @@ test.describe('Map Visual Regression Tests', () => {
   }) => {
     await setTheme(page, 'dark');
 
-    // Check that bike route layers exist with dark theme styling
-    const routeColors = await page.evaluate(() => {
-      const map = (window as any).maplibreMap;
-      if (!map) return null;
-
-      return {
-        hasLayers:
-          !!map.getLayer('cycleway') && !!map.getLayer('cycleway-casing'),
-        hasSource: !!map.getSource('all-bike-routes'),
-      };
-    });
-
-    expect(routeColors?.hasLayers).toBe(true);
-    expect(routeColors?.hasSource).toBe(true);
+    // Wait for bike route layers to load after theme toggle (WebKit is slower)
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const map = (window as any).maplibreMap;
+            if (!map) return null;
+            return {
+              cyclewayExists: !!map.getLayer('cycleway'),
+              cyclewayCasingExists: !!map.getLayer('cycleway-casing'),
+              sourceExists: !!map.getSource('all-bike-routes'),
+            };
+          }),
+        {
+          message: 'Waiting for bike route layers after dark theme toggle',
+          timeout: 15000,
+        }
+      )
+      .toEqual({
+        cyclewayExists: true,
+        cyclewayCasingExists: true,
+        sourceExists: true,
+      });
   });
 
   test('markers have ARIA labels for accessibility', async ({ page }) => {

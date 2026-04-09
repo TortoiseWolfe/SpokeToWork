@@ -631,7 +631,7 @@ test.describe('Friend Request Flow', () => {
       if (attempt === 0) await completeEncryptionSetup(page);
       await dismissReAuthModal(page, undefined, attempt > 0);
       const searchInput = page.locator('#user-search-input');
-      await expect(searchInput).toBeVisible({ timeout: 5000 });
+      await expect(searchInput).toBeVisible({ timeout: 15000 });
       await searchInput.fill(USER_B.displayName);
       await searchInput.press('Enter');
       await page.waitForSelector(
