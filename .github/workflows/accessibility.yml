@@ -19,6 +19,12 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
       TEST_USER_PRIMARY_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
+      # Pre-baked encryption keys so auth.setup.ts skips the slow UI-based
+      # Argon2id derivation path. Without this, auth.setup falls back to
+      # clicking "Unlock" on the re-auth modal and waiting up to 120s for
+      # the modal to hide — and production-mode Argon2id (64MB, 3 iters,
+      # 4 lanes) routinely exceeds that under headless CI load.
+      E2E_ENCRYPTION_KEYS: ${{ secrets.E2E_ENCRYPTION_KEYS }}
 
     steps:
       - uses: actions/checkout@v5
@@ -37,6 +43,13 @@ jobs:
 
       - name: Build application
         run: pnpm run build
+        env:
+          # Inline fast-mode Argon2id into the bundle (1MB, 1 iter, 1 lane
+          # instead of prod 64MB/3/4). NEXT_PUBLIC_* vars are baked at build
+          # time, so this must be set on the build step, not the test step.
+          # Without this flag, production Argon2id runs in the browser and
+          # exceeds the 120s auth.setup re-auth modal timeout under CI load.
+          NEXT_PUBLIC_E2E_TEST_MODE: 'true'
 
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
