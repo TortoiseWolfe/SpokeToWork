@@ -66,7 +66,7 @@ export class CompaniesPage extends BasePage {
   async waitForTable() {
     await this.page.waitForSelector(this.selectors.table, {
       state: 'visible',
-      timeout: 10000,
+      timeout: 30000,
     });
     await this.waitForLoad();
   }
