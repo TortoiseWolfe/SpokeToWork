@@ -28,22 +28,24 @@ export class BasePage {
    * Waits for network idle and ensures no loading spinners
    */
   async waitForLoad() {
-    // Wait for the network to be idle
-    await this.page.waitForLoadState('networkidle');
+    // Wait for DOM content — reliable, doesn't require zero network activity.
+    // (Replaces the previous networkidle wait, which became unreliable when
+    //  Supabase Realtime subscriptions + duplicate parallel GETs kept the
+    //  network busy beyond the 500ms idle window.  Evidence: run 24164285830
+    //  on byte-identical 52e704a code showed 55+ requests in 15s on /companies/
+    //  with no 500ms gap, causing 11/90 test failures in chromium gen-2/4.)
+    await this.page.waitForLoadState('domcontentloaded');
 
-    // Wait for any loading indicators to disappear
+    // Wait for any loading indicators to disappear — this is the real
+    // "page is ready" signal for pages that render a skeleton/spinner.
     const loadingIndicators = this.page.locator(
       '.loading, .spinner, [aria-busy="true"]'
     );
     const count = await loadingIndicators.count();
 
     if (count > 0) {
-      // Wait for all loading indicators to be hidden (30s for parallel execution)
       await expect(loadingIndicators.first()).toBeHidden({ timeout: 30000 });
     }
-
-    // Ensure the page is interactive
-    await this.page.waitForLoadState('domcontentloaded');
   }
 
   /**
@@ -187,7 +189,7 @@ export class BasePage {
    */
   async waitForNavigation(action: () => Promise<void>) {
     await Promise.all([
-      this.page.waitForNavigation({ waitUntil: 'networkidle' }),
+      this.page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
       action(),
     ]);
   }
