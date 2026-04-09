@@ -22,11 +22,10 @@ test.describe('Companies Page - Status Changes', () => {
   const testPositionPrefix = 'E2E Status Test';
 
   test.beforeAll(async ({ browser }) => {
-    // cleanupTestApplications budget: ~20s for first goto + waitForTable (Supabase
-    // cold query) + 40s internal cleanup loop bailout = 60s baseline. Need ≥90s
-    // to fit context/page creation overhead and retry margins. Observed failing
-    // at 60s on run 24128505008 chromium gen-2/4.
-    test.setTimeout(90000);
+    // cleanupTestApplications budget: goto + waitForTable (up to 30s with current
+    // Supabase latency) + 40s cleanup loop bailout + context/page creation overhead.
+    // 90s was failing on run 24206101848; bumped to 120s.
+    test.setTimeout(120000);
     // Create context with pre-authenticated state - NO login needed
     sharedContext = await browser.newContext({
       storageState: AUTH_FILE,
@@ -39,7 +38,7 @@ test.describe('Companies Page - Status Changes', () => {
   });
 
   test.afterAll(async () => {
-    test.setTimeout(90000);
+    test.setTimeout(120000);
     // Clean up test applications using authenticated session
     if (companiesPage) {
       await companiesPage.cleanupTestApplications([testPositionPrefix]);
