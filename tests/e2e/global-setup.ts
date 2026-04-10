@@ -805,6 +805,13 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   await ensurePublicProfileCompany();
   await ensureDiscoverableWorker();
 
+  // Clear rate_limit_attempts to prevent cross-run lockout accumulation.
+  // 18 parallel shards each calling check_rate_limit RPC with row-level
+  // locks caused 478 rows and DB connection timeouts (2026-04-09).
+  await executeSQL(`DELETE FROM rate_limit_attempts`).catch((err: unknown) =>
+    console.warn('⚠ Rate limit cleanup warning:', err)
+  );
+
   // Clean old audit log entries to prevent DB bloat under 18-shard load
   // (46k+ rows were observed causing 10s queries on 2026-04-04)
   await executeSQL(
