@@ -61,13 +61,19 @@ export default function SignInForm({
       allowed: true,
       remaining: 5,
     };
-    try {
-      rateLimit = await checkRateLimit(email, 'sign_in');
-    } catch (rateLimitError) {
-      logger.warn('Rate limit check failed, allowing sign-in attempt', {
-        error: rateLimitError,
-      });
-      // Continue with sign-in (fail-open for UX)
+    // Skip rate limit check in E2E test mode — 18 parallel CI shards all
+    // calling check_rate_limit simultaneously causes row-level lock contention
+    // on rate_limit_attempts, database connection timeouts, and cascading
+    // auth failures across shards.
+    if (process.env.NEXT_PUBLIC_E2E_TEST_MODE !== 'true') {
+      try {
+        rateLimit = await checkRateLimit(email, 'sign_in');
+      } catch (rateLimitError) {
+        logger.warn('Rate limit check failed, allowing sign-in attempt', {
+          error: rateLimitError,
+        });
+        // Continue with sign-in (fail-open for UX)
+      }
     }
 
     if (!rateLimit.allowed) {
@@ -118,7 +124,10 @@ export default function SignInForm({
       }
 
       // Record failed attempt on server (REQ-SEC-003)
-      await recordFailedAttempt(email, 'sign_in');
+      // Skip in E2E test mode (same reason as checkRateLimit skip above)
+      if (process.env.NEXT_PUBLIC_E2E_TEST_MODE !== 'true') {
+        await recordFailedAttempt(email, 'sign_in');
+      }
 
       // Log failed sign-in attempt (T033)
       await logAuthEvent({
