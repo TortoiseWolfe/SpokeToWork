@@ -361,8 +361,8 @@ test.describe('Offline Message Queue', () => {
       await completeEncryptionSetup(pageB, USER_B.password);
       await dismissReAuthModal(pageB, USER_B.password);
 
-      await pageA.waitForLoadState('networkidle');
-      await pageB.waitForLoadState('networkidle');
+      await pageA.waitForLoadState('domcontentloaded');
+      await pageB.waitForLoadState('domcontentloaded');
 
       const threadLocator =
         '[data-testid*="message"], textarea[aria-label="Message input"]';

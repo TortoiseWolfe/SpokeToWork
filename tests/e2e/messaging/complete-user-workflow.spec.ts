@@ -436,7 +436,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
           name: /pending received|received/i,
         });
         await receivedTab.click({ force: true });
-        await pageB.waitForLoadState('networkidle');
+        await pageB.waitForLoadState('domcontentloaded');
         requestVisible = await pageB
           .locator('[data-testid="connection-request"]')
           .isVisible({ timeout: 8000 })
@@ -488,7 +488,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
           'Step 7: connection-request not visible, reloading pageB...'
         );
         await pageB.reload();
-        await pageB.waitForLoadState('networkidle');
+        await pageB.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageB);
         await dismissReAuthModal(pageB, USER_B.password, true);
 
@@ -677,7 +677,7 @@ test.describe('Conversations Page Loading (Feature 029)', () => {
     await page.goto('/messages?tab=chats');
     await dismissCookieBanner(page);
     await completeEncryptionSetup(page);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await dismissReAuthModal(page);
 
     // If error is shown, verify retry button exists

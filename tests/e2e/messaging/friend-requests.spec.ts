@@ -744,7 +744,7 @@ test.describe('Accessibility', () => {
     await dismissCookieBanner(page);
     await completeEncryptionSetup(page);
     await dismissReAuthModal(page);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Verify all tabs exist with correct roles and are clickable
     const sentTab = page.getByRole('tab', { name: /pending sent|sent/i });

@@ -87,7 +87,7 @@ export async function loginAndVerify(
       });
       break; // Success — URL changed
     } catch {
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       if (!page.url().includes('/sign-in')) {
         break; // WebKit fallback — URL did change
       }

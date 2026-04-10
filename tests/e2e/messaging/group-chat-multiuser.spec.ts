@@ -49,7 +49,7 @@ async function signInAndNavigateToMessages(page: Page) {
   await page.goto(BASE_URL + '/messages');
   await dismissCookieBanner(page);
   await completeEncryptionSetup(page);
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
   await dismissReAuthModal(page);
 }
 
@@ -173,7 +173,7 @@ test.describe('Group Chat E2E', () => {
       // Wait for new-group page
       await page.waitForURL(/.*\/messages\/new-group/, { timeout: 10000 });
       await dismissCookieBanner(page);
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Enter group name
       const groupNameInput = page.locator('#group-name');
