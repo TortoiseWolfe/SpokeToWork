@@ -407,6 +407,20 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       }
       console.log('Step 4: Friend request sent');
 
+      // STEP 4b: Verify friend request exists in database (bypass UI/RLS)
+      const verifyClient = getAdminClient();
+      const { userAId, userBId } = verifyClient ? await getUserIds(verifyClient) : { userAId: null, userBId: null };
+      if (userAId && userBId) {
+        const rows = (await executeSQL(
+          `SELECT id, status, requester_id, addressee_id FROM connections WHERE requester_id = '${userAId}' AND addressee_id = '${userBId}' ORDER BY created_at DESC LIMIT 1`
+        )) as { id: string; status: string; requester_id: string; addressee_id: string }[];
+        if (rows.length === 0) {
+          console.log(`Step 4b: WARNING — no connection row found for ${userAId} → ${userBId}`);
+        } else {
+          console.log(`Step 4b: DB confirmed connection ${rows[0].id} status=${rows[0].status}`);
+        }
+      }
+
       // STEP 5: User B signs in
       console.log('Step 5: User B signing in...');
       await loginAndVerify(pageB, {
