@@ -693,9 +693,10 @@ export class CompaniesPage extends BasePage {
           // Find and click delete button
           const deleteBtn = card.locator('button[aria-label*="Delete"]');
           if (await deleteBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-            // Set up dialog handler
+            // Set up dialog handler — catch "already handled" race when
+            // multiple iterations register handlers before a dialog fires
             this.page.once('dialog', async (dialog) => {
-              await dialog.accept();
+              await dialog.accept().catch(() => {});
             });
 
             try {
