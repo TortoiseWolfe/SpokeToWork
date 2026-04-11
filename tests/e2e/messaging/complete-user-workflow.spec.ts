@@ -439,13 +439,13 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
         await pageB.waitForLoadState('domcontentloaded');
         requestVisible = await pageB
           .locator('[data-testid="connection-request"]')
-          .isVisible({ timeout: 8000 })
+          .isVisible({ timeout: 15000 })
           .catch(() => false);
         if (requestVisible) break;
         console.log(
           `Step 6: Connection request not visible (attempt ${attempt + 1}/10), waiting for read replica...`
         );
-        await pageB.waitForTimeout(3000);
+        await pageB.waitForTimeout(5000);
       }
       if (!requestVisible) {
         throw new Error(
