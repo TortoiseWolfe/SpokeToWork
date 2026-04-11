@@ -442,12 +442,22 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
           .isVisible({ timeout: 15000 })
           .catch(() => false);
         if (requestVisible) break;
+        // Log diagnostic info on failure
+        const tabState = await receivedTab.getAttribute('aria-selected').catch(() => 'unknown');
+        const managerVisible = await pageB.locator('[data-testid="connection-manager"]').isVisible().catch(() => false);
+        const pageUrl = pageB.url();
         console.log(
-          `Step 6: Connection request not visible (attempt ${attempt + 1}/10), waiting for read replica...`
+          `Step 6: attempt ${attempt + 1}/10 — tab selected=${tabState}, manager visible=${managerVisible}, url=${pageUrl}`
         );
         await pageB.waitForTimeout(5000);
       }
       if (!requestVisible) {
+        // Final diagnostic: screenshot + connection manager HTML
+        const managerHtml = await pageB
+          .locator('[data-testid="connection-manager"]')
+          .innerHTML()
+          .catch(() => 'not found');
+        console.log('Step 6 FAILED — connection-manager HTML:', managerHtml.substring(0, 500));
         throw new Error(
           'Step 6: Connection request never appeared after 10 reload attempts'
         );
