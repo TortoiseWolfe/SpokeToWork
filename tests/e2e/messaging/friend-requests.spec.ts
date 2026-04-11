@@ -705,12 +705,16 @@ test.describe('Accessibility', () => {
     await completeEncryptionSetup(page);
     await dismissReAuthModal(page);
 
-    // Wait for the page's search input to exist before testing Tab navigation.
-    // On webkit, pressing Tab before interactive elements are mounted left
-    // focus on BODY and failed the assertion.
-    await page.locator('#user-search-input').waitFor({ state: 'attached', timeout: 15000 });
+    // Wait for the page's search input to be visible and interactive before
+    // testing Tab navigation. 'attached' wasn't enough — webkit needs the
+    // element to be fully rendered and focusable.
+    const searchInputEl = page.locator('#user-search-input');
+    await expect(searchInputEl).toBeVisible({ timeout: 15000 });
 
-    // Verify keyboard navigation
+    // Click the search input first to establish focus within the page,
+    // then Tab to the next element. Without this, Tab from a fresh page
+    // load goes to the browser chrome or BODY on webkit.
+    await searchInputEl.click();
     await page.keyboard.press('Tab');
     const activeTag = await page.evaluate(
       () => document.activeElement?.tagName

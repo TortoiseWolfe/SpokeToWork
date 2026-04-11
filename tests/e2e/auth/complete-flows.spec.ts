@@ -454,8 +454,9 @@ test.describe('Flow 1: Email/Password Signup → Welcome Message', () => {
 
 test.describe('Flow 4: Account Deletion', () => {
   test('Account deletion removes all user data', async ({ page }) => {
-    // Test body includes 2s sleep + sign-in (~30s) + 3s wait + 10s edge function wait
-    test.setTimeout(90000);
+    // Test body: create user + sign-in (~30-45s) + delete + verify cleanup.
+    // WebKit is 2-3× slower on CI — 90s wasn't enough (run 24257898228).
+    test.setTimeout(150000);
     const testEmail = `e2e-flow4-${Date.now()}@mailinator.com`;
     let testUserId: string | null = null;
 

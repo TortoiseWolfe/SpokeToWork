@@ -173,10 +173,11 @@ export class CompaniesPage extends BasePage {
    */
   async clickAddApplication() {
     const addButton = this.page.locator(this.selectors.addAppButton);
+    await addButton.scrollIntoViewIfNeeded();
     await addButton.click();
     await this.page.waitForSelector(this.selectors.applicationModal, {
       state: 'visible',
-      timeout: 15000,
+      timeout: 30000,
     });
   }
 

@@ -187,8 +187,9 @@ test.describe('Message Editing', () => {
     // Click Save
     await messageBubble.locator('button', { hasText: 'Save' }).click();
 
-    // Wait for save to complete (edit mode closes)
-    await expect(editTextarea).not.toBeVisible({ timeout: 5000 });
+    // Wait for save to complete (edit mode closes) — Supabase UPDATE +
+    // realtime event + UI re-render can take >5s under CI load
+    await expect(editTextarea).not.toBeVisible({ timeout: 15000 });
 
     // Verify edited content is displayed
     await expect(messageBubble.locator('p')).toContainText(editedMessage);
