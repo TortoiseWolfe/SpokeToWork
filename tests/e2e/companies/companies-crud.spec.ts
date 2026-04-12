@@ -126,11 +126,17 @@ test.describe('Companies Page - Application CRUD', () => {
     const rowCount = await companiesPage.getCompanyRowCount();
     expect(rowCount, "seeded private_companies missing — check globalSetup ensureCompaniesForTestUser").toBeGreaterThan(0);
 
-    // Open drawer and wait for application list to load (previous create test
-    // may have added an app that's still being fetched asynchronously)
+    // Open drawer and wait for application list to fully load — a 1s timeout
+    // was unreliable (saw 0 initially then 194 after cancel because the list
+    // hadn't rendered yet). Poll until count stabilizes.
     await companiesPage.clickFirstCompanyRow();
-    await sharedPage.waitForTimeout(1000);
-    const initialAppCount = await companiesPage.getDrawerApplicationCount();
+    let initialAppCount = 0;
+    for (let i = 0; i < 5; i++) {
+      await sharedPage.waitForTimeout(1000);
+      initialAppCount = await companiesPage.getDrawerApplicationCount();
+      // If count is >0 or we've waited 3s, accept it
+      if (initialAppCount > 0 || i >= 2) break;
+    }
 
     // Click Add Application
     await companiesPage.clickAddApplication();
