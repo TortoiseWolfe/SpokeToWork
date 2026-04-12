@@ -807,11 +807,11 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 
   // Clear rate_limit_attempts for known test users to prevent cross-run
   // lockout accumulation (478 rows observed on 2026-04-09 causing DB
-  // connection timeouts). Exclude brute-force-test-* rows — those are
-  // created and consumed within a single brute-force.spec.ts test run
-  // and would race with a concurrent shard's global-setup DELETE.
+  // connection timeouts). Exclude ALL brute-force.spec.ts patterns:
+  //   brute-force-test-* (tests 79, 104)
+  //   user-a-* / user-b-* (test 152 — "track different users")
   await executeSQL(
-    `DELETE FROM rate_limit_attempts WHERE identifier NOT LIKE 'brute-force-test-%'`
+    `DELETE FROM rate_limit_attempts WHERE identifier NOT LIKE 'brute-force-test-%' AND identifier NOT LIKE 'user-a-%' AND identifier NOT LIKE 'user-b-%'`
   ).catch((err: unknown) =>
     console.warn('⚠ Rate limit cleanup warning:', err)
   );
