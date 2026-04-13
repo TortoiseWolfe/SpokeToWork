@@ -159,8 +159,7 @@ const cleanupConnections = async (): Promise<void> => {
 };
 
 test.describe('Friend Request Flow', () => {
-  // Serial: multi-user tests create 2 browser contexts each with Supabase connections.
-  test.describe.configure({ mode: 'serial' });
+  test.describe.configure({ retries: 0, mode: 'serial' });
   test.slow(
     ({ browserName }) => browserName === 'firefox' || browserName === 'webkit',
     'Firefox/WebKit: slow Argon2id + Realtime on CI'
@@ -684,7 +683,7 @@ test.describe('Friend Request Flow', () => {
 });
 
 test.describe('Accessibility', () => {
-  test.describe.configure({ timeout: 90000 }); // webkit login ~45s, need margin
+  test.describe.configure({ retries: 0, timeout: 90000 }); // webkit login ~45s, need margin
 
   test.beforeEach(async () => {
     const client = getAdminClient();

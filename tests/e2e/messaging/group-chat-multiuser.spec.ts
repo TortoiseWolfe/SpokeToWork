@@ -55,7 +55,7 @@ async function signInAndNavigateToMessages(page: Page) {
 
 test.describe('Group Chat E2E', () => {
   // Serial: group chat tests create connections and conversations via Supabase.
-  test.describe.configure({ mode: 'serial' });
+  test.describe.configure({ retries: 0, mode: 'serial' });
   test.slow(
     ({ browserName }) => browserName === 'firefox' || browserName === 'webkit',
     'Firefox/WebKit: slow Argon2id + Realtime on CI'

@@ -198,6 +198,8 @@ async function getUserCompanyCount(userId: string): Promise<number> {
 }
 
 test.describe('New User Complete Flow', () => {
+  test.describe.configure({ retries: 0 });
+
   test('Complete new user journey: signup -> companies -> signout', async ({
     page,
   }) => {

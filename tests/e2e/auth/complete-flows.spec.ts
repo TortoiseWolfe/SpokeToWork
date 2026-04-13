@@ -359,6 +359,8 @@ async function dismissFloatingUI(
 // =============================================================================
 
 test.describe('Flow 1: Email/Password Signup → Welcome Message', () => {
+  test.describe.configure({ retries: 0 });
+
   test('New user sign-in triggers key initialization and welcome message', async ({
     page,
     browserName,
@@ -453,6 +455,8 @@ test.describe('Flow 1: Email/Password Signup → Welcome Message', () => {
 });
 
 test.describe('Flow 4: Account Deletion', () => {
+  test.describe.configure({ retries: 0 });
+
   test('Account deletion removes all user data', async ({ page }) => {
     // Test body: create user + sign-in (~30-45s) + delete + verify cleanup.
     // WebKit is 2-3× slower on CI — 90s wasn't enough (run 24257898228).
@@ -661,6 +665,8 @@ test.describe('Flow 4: Account Deletion', () => {
 });
 
 test.describe('Flow 5: Sign Out and Sign Back In', () => {
+  test.describe.configure({ retries: 0 });
+
   test('Sign out clears session, sign in restores access', async ({
     page,
     browserName,
@@ -795,6 +801,8 @@ test.describe('Flow 5: Sign Out and Sign Back In', () => {
 // =============================================================================
 
 test.describe('OAuth Flows (Manual Verification)', () => {
+  test.describe.configure({ retries: 0 });
+
   test.skip('Flow 2: OAuth Signup → Setup → Welcome (requires manual OAuth)', async () => {
     // This flow requires:
     // 1. Sign in via GitHub OAuth

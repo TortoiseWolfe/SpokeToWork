@@ -216,7 +216,7 @@ const createConversation = async (
 
 test.describe('Complete User Messaging Workflow (Feature 024)', () => {
   // Serial: multi-user workflow creates 2 browser contexts with Supabase connections.
-  test.describe.configure({ mode: 'serial' });
+  test.describe.configure({ retries: 0, mode: 'serial' });
   test.slow(
     ({ browserName }) => browserName === 'firefox' || browserName === 'webkit',
     'Firefox/WebKit: slow Argon2id + Realtime on CI'
@@ -652,6 +652,8 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
 });
 
 test.describe('Conversations Page Loading (Feature 029)', () => {
+  test.describe.configure({ retries: 0 });
+
   test('should load conversations page within 5 seconds (SC-001)', async ({
     page,
   }) => {
@@ -713,6 +715,8 @@ test.describe('Conversations Page Loading (Feature 029)', () => {
 });
 
 test.describe('Test Idempotency Verification', () => {
+  test.describe.configure({ retries: 0 });
+
   test('should complete cleanup successfully', async () => {
     // cleanupTestData polls 10×2s (20s) for replica propagation + getUserIds + verification.
     // Default 30s timeout is too tight under 18-shard CI load where Supabase replica lag peaks.

@@ -93,6 +93,8 @@ async function getAdminUserId(): Promise<string> {
 }
 
 test.describe('Welcome Message Flow', () => {
+  test.describe.configure({ retries: 0 });
+
   // Allow extra time for the beforeEach SQL calls — with 12 CI shards the
   // Supabase Management API rate-limits (429) and retries eat into the
   // default 30 s test timeout.

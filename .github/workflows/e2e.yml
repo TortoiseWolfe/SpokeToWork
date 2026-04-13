@@ -210,18 +210,27 @@ jobs:
       matrix:
         # Only run chromium on PRs, all browsers on main/develop
         browser: ${{ github.event_name == 'pull_request' && fromJSON('["chromium"]') || fromJSON('["chromium", "firefox", "webkit"]') }}
-        # Split into messaging (heavy, needs encryption+admin) and general (lightweight).
-        # Playwright shards alphabetically, so messaging/* files clump into 1-2 shards
-        # regardless of shard count. Grep-based split distributes them evenly.
-        # Messaging: 76 tests in 11 files → 2 shards (38 each)
-        # General:  442 tests in 69 files → 4 shards (~110 each)
-        # Kept msg shards at 2 to avoid GoTrue rate limiting (12 concurrent sign-ins fail)
-        group: [msg-, gen-]
+        # Three groups: messaging (encryption + admin), heavy (long auth flows),
+        # and general (everything else). Alphabetical sharding overloads gen-1/4
+        # with all auth/* files (90-150s timeouts x retries = 31 min vs 3 min
+        # for gen-4/4). The heavy group isolates these into a single shard.
+        #
+        # Messaging: 76 tests in 11 files, 2 shards
+        # Heavy: ~20 tests in 4 files (complete-flows, new-user-complete-flow,
+        #        welcome-message, resume-upload), 1 shard
+        # General: remaining ~420 tests, 4 shards
+        group: [msg-, gen-, heavy-]
         shard: [1/4, 2/4, 3/4, 4/4]
         exclude:
           - group: msg-
             shard: 3/4
           - group: msg-
+            shard: 4/4
+          - group: heavy-
+            shard: 2/4
+          - group: heavy-
+            shard: 3/4
+          - group: heavy-
             shard: 4/4
 
     steps:
@@ -313,11 +322,15 @@ jobs:
       - name: Run E2E tests (${{ matrix.group }}${{ matrix.shard }})
         run: |
           # messaging group: tests/e2e/messaging/ + tests/e2e/employer/
+          # heavy group: long-running auth flows + resume upload (90-150s timeouts)
           # general group: everything else
+          HEAVY_PATTERN="complete-flows|new-user-complete-flow|welcome-message|resume-upload"
           if [ "$E2E_GROUP" = "msg-" ]; then
             GREP_FLAG="--grep=messaging/|employer/"
+          elif [ "$E2E_GROUP" = "heavy-" ]; then
+            GREP_FLAG="--grep=$HEAVY_PATTERN"
           else
-            GREP_FLAG="--grep-invert=messaging/|employer/"
+            GREP_FLAG="--grep-invert=messaging/|employer/|$HEAVY_PATTERN"
           fi
           pnpm exec playwright test \
             --project=${{ matrix.browser }} \
