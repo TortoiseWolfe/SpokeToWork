@@ -411,10 +411,10 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       const verifyClient = getAdminClient();
       const { userAId, userBId } = verifyClient ? await getUserIds(verifyClient) : { userAId: null, userBId: null };
       if (userAId && userBId) {
-        const safeA = escapeSQL(userAId);
-        const safeB = escapeSQL(userBId);
+        const safeUserId = escapeSQL(userAId);
+        const safeAdminId = escapeSQL(userBId);
         const rows = (await executeSQL(
-          `SELECT id, status, requester_id, addressee_id FROM connections WHERE requester_id = '${safeA}' AND addressee_id = '${safeB}' ORDER BY created_at DESC LIMIT 1`
+          `SELECT id, status, requester_id, addressee_id FROM connections WHERE requester_id = '${safeUserId}' AND addressee_id = '${safeAdminId}' ORDER BY created_at DESC LIMIT 1`
         )) as { id: string; status: string; requester_id: string; addressee_id: string }[];
         if (rows.length === 0) {
           console.log(`Step 4b: WARNING — no connection row found for ${userAId} → ${userBId}`);
