@@ -9,7 +9,10 @@ on:
 
 concurrency:
   group: e2e-${{ github.ref }}
-  cancel-in-progress: true
+  # cancel-in-progress disabled: sequential browser execution takes ~45 min.
+  # With cancel-in-progress, any push within that window kills the running
+  # E2E mid-flight, cascading auth-setup cancellation to all browser batches.
+  cancel-in-progress: false
 
 env:
   # Shared env vars for all jobs
