@@ -253,6 +253,9 @@ test.describe('Encrypted Messaging Flow', () => {
       }
       await dismissReAuthModal(pageB, USER_B.password);
 
+      // Convergence: wait for messaging UI to be fully interactive
+      await pageB.waitForSelector('textarea[aria-label="Message input"]', { timeout: 30000 });
+
       // ===== STEP 7: User B sees the decrypted message =====
       await waitForMessageDelivery(pageB, testMessage, {
         password: USER_B.password,

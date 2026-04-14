@@ -397,7 +397,7 @@ test.describe('Friend Request Flow', () => {
         .first();
       let sendVisible = false;
 
-      for (let attempt = 0; attempt < 10; attempt++) {
+      for (let attempt = 0; attempt < 15; attempt++) {
         await pageB.goto('/messages?tab=connections');
         await pageB.waitForLoadState('domcontentloaded');
         await dismissCookieBanner(pageB);
@@ -423,14 +423,15 @@ test.describe('Friend Request Flow', () => {
           .isVisible({ timeout: 8000 })
           .catch(() => false);
         if (sendVisible) break;
+        const waitTime = attempt > 5 ? 10000 : 5000;
         console.log(
-          `Send Request not visible (attempt ${attempt + 1}/10), waiting for read replica...`
+          `Send Request not visible (attempt ${attempt + 1}/15), waiting ${waitTime}ms for read replica...`
         );
-        await pageB.waitForTimeout(3000);
+        await pageB.waitForTimeout(waitTime);
       }
       if (!sendVisible) {
         throw new Error(
-          '"Send Request" button never appeared after 10 reload attempts'
+          '"Send Request" button never appeared after 15 reload attempts'
         );
       }
       await sendReqBtn.click({ force: true });
@@ -624,7 +625,7 @@ test.describe('Friend Request Flow', () => {
     // Send first request — multi-attempt polling for read replica lag.
     // Supabase Cloud read replicas can lag 5-30s after cleanup DELETEs.
     let dupSendVisible = false;
-    for (let attempt = 0; attempt < 10; attempt++) {
+    for (let attempt = 0; attempt < 15; attempt++) {
       await page.goto('/messages?tab=connections');
       await dismissCookieBanner(page);
       if (attempt === 0) await completeEncryptionSetup(page);
@@ -645,14 +646,15 @@ test.describe('Friend Request Flow', () => {
         await sendBtn.click({ force: true });
         break;
       }
+      const waitTime = attempt > 5 ? 10000 : 5000;
       console.log(
-        `Duplicate test: Send Request not visible (attempt ${attempt + 1}/10), waiting for read replica...`
+        `Duplicate test: Send Request not visible (attempt ${attempt + 1}/15), waiting ${waitTime}ms for read replica...`
       );
-      await page.waitForTimeout(3000);
+      await page.waitForTimeout(waitTime);
     }
     if (!dupSendVisible) {
       throw new Error(
-        '"Send Request" button never appeared after 10 reload attempts (duplicate test)'
+        '"Send Request" button never appeared after 15 reload attempts (duplicate test)'
       );
     }
     await expect(page.getByText(/friend request sent/i)).toBeVisible({

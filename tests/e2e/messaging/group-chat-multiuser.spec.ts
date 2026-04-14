@@ -51,6 +51,9 @@ async function signInAndNavigateToMessages(page: Page) {
   await completeEncryptionSetup(page);
   await page.waitForLoadState('domcontentloaded');
   await dismissReAuthModal(page);
+
+  // Convergence: wait for messaging UI to be fully interactive
+  await page.waitForSelector('textarea[aria-label="Message input"], [data-testid="unified-sidebar"]', { timeout: 30000 });
 }
 
 test.describe('Group Chat E2E', () => {

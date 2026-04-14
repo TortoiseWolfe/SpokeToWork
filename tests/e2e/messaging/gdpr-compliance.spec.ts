@@ -55,7 +55,7 @@ test.describe('GDPR Data Export', () => {
     context,
   }) => {
     // Setup download listener
-    const downloadPromise = page.waitForEvent('download');
+    const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
 
     // Click export button
     const exportButton = page
@@ -105,7 +105,7 @@ test.describe('GDPR Data Export', () => {
     // This test requires existing conversations with messages
     // Skip if no messages exist
 
-    const downloadPromise = page.waitForEvent('download');
+    const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
 
     const exportButton = page
       .locator('button:has-text("Download My Data")')
@@ -203,6 +203,9 @@ test.describe('GDPR Account Deletion', () => {
       .first();
     await deleteButton.click();
 
+    // Allow React re-render before checking modal
+    await page.waitForTimeout(500);
+
     // Modal should be visible (use specific aria-labelledby to avoid matching crop modal)
     const modal = page.locator('[aria-labelledby="delete-modal-title"]');
     await expect(modal).toBeVisible();
@@ -221,6 +224,9 @@ test.describe('GDPR Account Deletion', () => {
       .locator('button:has-text("Delete Account")')
       .first();
     await deleteButton.click();
+
+    // Allow React re-render before checking modal
+    await page.waitForTimeout(500);
 
     const modal = page.locator('[aria-labelledby="delete-modal-title"]');
     const confirmInput = modal.locator('input[placeholder="DELETE"]');
