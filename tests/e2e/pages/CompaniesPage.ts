@@ -172,6 +172,11 @@ export class CompaniesPage extends BasePage {
    * Click the "Add Application" button in the drawer
    */
   async clickAddApplication() {
+    // Ensure drawer state is hydrated before clicking Add
+    await this.page.waitForSelector(
+      '[data-testid="company-detail-drawer"] h2, [data-testid="company-detail-drawer"] h3',
+      { state: 'visible', timeout: 10000 }
+    );
     const addButton = this.page.locator(this.selectors.addAppButton);
     await addButton.scrollIntoViewIfNeeded();
     await addButton.click();

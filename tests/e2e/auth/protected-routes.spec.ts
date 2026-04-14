@@ -77,7 +77,7 @@ test.describe('Protected Routes E2E', () => {
         email: testUser.email,
         password: testUser.password,
       },
-      { urlTimeout: 45000 }
+      { urlTimeout: 45000, elementTimeout: 45000 }
     );
 
     // Access protected routes
