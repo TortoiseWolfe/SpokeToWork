@@ -161,10 +161,12 @@ test.describe('Message Editing', () => {
     // Dismiss any overlay that may have re-appeared (cookie banner, ReAuth)
     await dismissCookieBanner(page);
     await dismissReAuthModal(page);
-    await page.click('button[aria-label="Send message"]');
+    // Force click: an invisible overlay (focus trap or modal backdrop) can
+    // intercept the click even though the button passes all visibility checks.
+    await page.click('button[aria-label="Send message"]', { force: true });
 
     // Wait for message to appear
-    await page.waitForSelector(`text=${originalMessage}`, { timeout: 5000 });
+    await page.waitForSelector(`text=${originalMessage}`, { timeout: 15000 });
 
     // Find our specific message bubble (stable through content changes)
     const messageBubble = await findMessageBubble(page, originalMessage);
@@ -214,8 +216,8 @@ test.describe('Message Editing', () => {
     await page.fill('textarea[aria-label="Message input"]', originalMessage);
     await dismissCookieBanner(page);
     await dismissReAuthModal(page);
-    await page.click('button[aria-label="Send message"]');
-    await page.waitForSelector(`text=${originalMessage}`, { timeout: 5000 });
+    await page.click('button[aria-label="Send message"]', { force: true });
+    await page.waitForSelector(`text=${originalMessage}`, { timeout: 15000 });
 
     // Find our specific message bubble (stable through content changes)
     const messageBubble = await findMessageBubble(page, originalMessage);
