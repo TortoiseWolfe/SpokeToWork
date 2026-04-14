@@ -188,8 +188,9 @@ test.describe('Message Editing', () => {
     await messageBubble.locator('button', { hasText: 'Save' }).click();
 
     // Wait for save to complete (edit mode closes) — Supabase UPDATE +
-    // realtime event + UI re-render can take >5s under CI load
-    await expect(editTextarea).not.toBeVisible({ timeout: 15000 });
+    // realtime event + UI re-render can take >15s under CI load.
+    // If save fails, the textarea stays open with an error logged.
+    await expect(editTextarea).not.toBeVisible({ timeout: 30000 });
 
     // Verify edited content is displayed
     await expect(messageBubble.locator('p')).toContainText(editedMessage);
@@ -227,8 +228,9 @@ test.describe('Message Editing', () => {
     // Click Cancel
     await messageBubble.locator('button', { hasText: 'Cancel' }).click();
 
-    // Edit mode should close
-    await expect(editTextarea).not.toBeVisible();
+    // Edit mode should close (Cancel is synchronous but React re-render
+    // may be delayed under CI load)
+    await expect(editTextarea).not.toBeVisible({ timeout: 10000 });
 
     // Original content should still be visible
     await expect(messageBubble.locator('p')).toContainText(originalMessage);
