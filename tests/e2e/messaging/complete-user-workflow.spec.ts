@@ -710,7 +710,9 @@ test.describe('Conversations Page Loading (Feature 029)', () => {
 
     // Verify spinner is NOT visible (SC-002) — wait for ConversationList
     // loading to complete; the h1 appears before data loads.
-    const spinner = page.locator('.loading-spinner');
+    // Use .first() because multiple spinners may exist (conversation list +
+    // message thread), causing strict mode violation.
+    const spinner = page.locator('.loading-spinner').first();
     await expect(spinner).toBeHidden({ timeout: 30000 });
   });
 

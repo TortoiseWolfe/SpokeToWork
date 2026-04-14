@@ -158,6 +158,9 @@ test.describe('Message Editing', () => {
     const runId = Date.now();
     const originalMessage = `Original message content ${runId}`;
     await page.fill('textarea[aria-label="Message input"]', originalMessage);
+    // Dismiss any overlay that may have re-appeared (cookie banner, ReAuth)
+    await dismissCookieBanner(page);
+    await dismissReAuthModal(page);
     await page.click('button[aria-label="Send message"]');
 
     // Wait for message to appear
@@ -209,6 +212,8 @@ test.describe('Message Editing', () => {
     const runId = Date.now();
     const originalMessage = `Cancel edit test ${runId}`;
     await page.fill('textarea[aria-label="Message input"]', originalMessage);
+    await dismissCookieBanner(page);
+    await dismissReAuthModal(page);
     await page.click('button[aria-label="Send message"]');
     await page.waitForSelector(`text=${originalMessage}`, { timeout: 5000 });
 
