@@ -475,10 +475,10 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
           : { userAId: null, userBId: null };
         let dbExists = false;
         if (reqId && addrId) {
-          const safeReq = escapeSQL(reqId);
-          const safeAddr = escapeSQL(addrId);
+          const safeUserId = escapeSQL(reqId);
+          const safeAdminId = escapeSQL(addrId);
           const dbRows = (await executeSQL(
-            `SELECT id, status FROM connections WHERE requester_id = '${safeReq}' AND addressee_id = '${safeAddr}' LIMIT 1`
+            `SELECT id, status FROM connections WHERE requester_id = '${safeUserId}' AND addressee_id = '${safeAdminId}' LIMIT 1`
           )) as { id: string; status: string }[];
           dbExists = dbRows.length > 0;
           console.log(
