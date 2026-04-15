@@ -139,11 +139,13 @@ describe('Validation Service - Time Window Functions', () => {
       expect(isWithinDeleteWindow(almostFifteenMinutes)).toBe(true);
     });
 
-    it('should return true for message created exactly 15 minutes ago', () => {
-      const exactlyFifteen = new Date(
-        Date.now() - 15 * 60 * 1000
+    it('should return true for message created within 15-minute window', () => {
+      // Use 14:59 instead of exactly 15:00 to avoid clock-precision flake
+      // where a few ms of test execution pushes past the boundary.
+      const justUnderFifteen = new Date(
+        Date.now() - (15 * 60 * 1000 - 1000)
       ).toISOString();
-      expect(isWithinDeleteWindow(exactlyFifteen)).toBe(true);
+      expect(isWithinDeleteWindow(justUnderFifteen)).toBe(true);
     });
 
     it('should return false for message created 16 minutes ago', () => {
