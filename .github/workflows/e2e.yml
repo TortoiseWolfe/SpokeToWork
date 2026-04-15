@@ -363,7 +363,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps firefox
+        run: |
+          pnpm exec playwright install --with-deps firefox
+          # msg shards omit --no-deps so auth.setup.ts runs per-shard.
+          # auth.setup uses the 'setup' project which requires chromium.
+          pnpm exec playwright install --with-deps chromium
       - name: Download build
         uses: actions/download-artifact@v5
         with:
@@ -485,7 +489,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps webkit
+        run: |
+          pnpm exec playwright install --with-deps webkit
+          # msg shards omit --no-deps so auth.setup.ts runs per-shard.
+          # auth.setup uses the 'setup' project which requires chromium.
+          pnpm exec playwright install --with-deps chromium
       - name: Download build
         uses: actions/download-artifact@v5
         with:
