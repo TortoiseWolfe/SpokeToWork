@@ -12,6 +12,7 @@
 
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { CompaniesPage } from '../pages/CompaniesPage';
+import { executeSQL, escapeSQL } from '../utils/supabase-admin';
 // Uses shared auth state - no test user creation needed
 
 const AUTH_FILE = 'tests/e2e/fixtures/storage-state-auth.json';
@@ -24,25 +25,36 @@ test.describe('Companies Page - Application CRUD', () => {
   const testPositionPrefix = 'E2E Test Position';
 
   test.beforeAll(async ({ browser }) => {
-    // cleanupTestApplications iterates companies, opens drawers, deletes test apps — can exceed 30s under CI load
     test.setTimeout(120000);
+
+    // SQL cleanup: instant deletion of accumulated test applications.
+    // The UI-based cleanupTestApplications was timing out at 120s when
+    // 194+ test apps accumulated across runs (each needs drawer open +
+    // delete + confirm dialog). SQL bypasses the death spiral.
+    const safeEmail = escapeSQL(
+      process.env.TEST_USER_PRIMARY_EMAIL || 'stw-e2e-primary@mailinator.com'
+    );
+    await executeSQL(
+      `DELETE FROM job_applications WHERE position_title LIKE 'E2E Test Position%' AND user_id = (SELECT id FROM auth.users WHERE email = '${safeEmail}' LIMIT 1)`
+    ).catch((err: unknown) => console.warn('SQL cleanup warning:', err));
+
     // Create context with pre-authenticated state - NO login needed
     sharedContext = await browser.newContext({
       storageState: AUTH_FILE,
     });
     sharedPage = await sharedContext.newPage();
     companiesPage = new CompaniesPage(sharedPage);
-
-    // Clean up test applications from previous runs using authenticated session
-    await companiesPage.cleanupTestApplications([testPositionPrefix]);
   });
 
   test.afterAll(async () => {
     test.setTimeout(120000);
-    // Clean up test applications using authenticated session
-    if (companiesPage) {
-      await companiesPage.cleanupTestApplications([testPositionPrefix]);
-    }
+    // SQL cleanup after tests
+    const safeEmail = escapeSQL(
+      process.env.TEST_USER_PRIMARY_EMAIL || 'stw-e2e-primary@mailinator.com'
+    );
+    await executeSQL(
+      `DELETE FROM job_applications WHERE position_title LIKE 'E2E Test Position%' AND user_id = (SELECT id FROM auth.users WHERE email = '${safeEmail}' LIMIT 1)`
+    ).catch((err: unknown) => console.warn('SQL cleanup warning:', err));
 
     await sharedContext?.close();
   });
