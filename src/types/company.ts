@@ -100,6 +100,9 @@ export interface JobApplication {
   priority: Priority;
   notes: string | null;
 
+  // Attached resume (optional; only workers with resumes on file)
+  resume_id?: string | null;
+
   // State
   is_active: boolean;
 
@@ -128,6 +131,7 @@ export interface JobApplicationCreate {
   follow_up_date?: string;
   priority?: Priority;
   notes?: string;
+  resume_id?: string | null;
 }
 
 /**
@@ -147,6 +151,7 @@ export interface JobApplicationUpdate {
   follow_up_date?: string | null;
   priority?: Priority;
   notes?: string | null;
+  resume_id?: string | null;
   is_active?: boolean;
 }
 

@@ -15,6 +15,10 @@ import {
   OUTCOME_LABELS,
   WORK_LOCATION_LABELS,
 } from '@/types/company';
+import { useAuth } from '@/contexts/AuthContext';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { useWorkerResumes } from '@/hooks/useWorkerResumes';
+import { ResumePicker } from '@/components/molecular/ResumePicker';
 
 /**
  * Company type for multi-tenant support
@@ -130,11 +134,22 @@ function ApplicationForm({
     application?.priority || 3
   );
   const [notes, setNotes] = useState(application?.notes || '');
+  const [resumeId, setResumeId] = useState<string | null>(
+    application?.resume_id ?? null
+  );
 
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [urlError, setUrlError] = useState<string | null>(null);
+
+  // Resume picker is worker-only and requires ≥1 resume on file. Read the
+  // current user + profile to gate rendering, then pull their resumes.
+  const { user } = useAuth();
+  const { profile } = useUserProfile();
+  const { resumes } = useWorkerResumes(user?.id);
+  const isWorker = profile?.role === 'worker';
+  const showResumePicker = isWorker && resumes.length > 0;
 
   // Update form when application prop changes (edit mode)
   useEffect(() => {
@@ -151,6 +166,7 @@ function ApplicationForm({
       setFollowUpDate(application.follow_up_date || '');
       setPriority(application.priority);
       setNotes(application.notes || '');
+      setResumeId(application.resume_id ?? null);
     }
   }, [application]);
 
@@ -207,6 +223,9 @@ function ApplicationForm({
           follow_up_date: followUpDate || undefined,
           priority,
           notes: notes.trim() || undefined,
+          // Null is meaningful here (explicit "None" selection in edit mode),
+          // so pass through exactly what's in state rather than || undefined.
+          resume_id: showResumePicker ? resumeId : undefined,
         };
 
         // Feature 014: Use correct company FK based on companyType
@@ -245,6 +264,8 @@ function ApplicationForm({
       followUpDate,
       priority,
       notes,
+      resumeId,
+      showResumePicker,
       urlError,
       isEditMode,
       application,
@@ -475,6 +496,22 @@ function ApplicationForm({
             onChange={(e) => setNotes(e.target.value)}
           />
         </div>
+
+        {/* Resume — only shown when the current user is a worker with at
+            least one uploaded resume. Picker supports "None" to clear. */}
+        {showResumePicker && (
+          <div className="form-control" data-testid="application-resume-picker">
+            <label className="label">
+              <span className="label-text">Attach Resume</span>
+            </label>
+            <ResumePicker
+              resumes={resumes}
+              selectedId={resumeId}
+              onSelect={setResumeId}
+              disabled={isSubmitting}
+            />
+          </div>
+        )}
 
         {/* Submit Error */}
         {submitError && (

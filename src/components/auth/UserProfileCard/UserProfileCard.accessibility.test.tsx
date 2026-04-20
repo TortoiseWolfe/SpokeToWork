@@ -11,12 +11,37 @@ vi.mock('@/hooks/useUserProfile', () => ({
       display_name: 'Test User',
       bio: 'Test bio',
       avatar_url: null,
+      role: 'worker',
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z',
     },
     loading: false,
     error: null,
     refetch: vi.fn(),
+  }),
+}));
+
+// Keep the skills row empty in a11y so axe sees the base card shape.
+// Integration tests cover the populated path elsewhere.
+vi.mock('@/hooks/useMySkills', () => ({
+  useMySkills: () => ({
+    skills: [],
+    addSkill: vi.fn(),
+    removeSkill: vi.fn(),
+    setPrimary: vi.fn(),
+    isLoading: false,
+    error: null,
+  }),
+}));
+
+vi.mock('@/hooks/useSkills', () => ({
+  useSkills: () => ({
+    skills: [],
+    rows: [],
+    tree: [],
+    resolve: () => null,
+    isLoading: false,
+    error: null,
   }),
 }));
 

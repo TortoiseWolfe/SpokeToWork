@@ -21,6 +21,7 @@ const createApp = (
   follow_up_date: null,
   priority: 3,
   notes: null,
+  resume_id: null,
   is_active: true,
   created_at: '2026-01-15T00:00:00Z',
   updated_at: '2026-01-15T00:00:00Z',
