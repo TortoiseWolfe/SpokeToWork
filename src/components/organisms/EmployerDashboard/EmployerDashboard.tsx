@@ -41,8 +41,10 @@ export interface EmployerDashboardProps {
 }
 
 /** Sortable column definitions. */
+// No 'priority' column: that is the job seeker's own 1-5 ranking of THIS
+// employer, part of their private tracker. It is not in the
+// employer_applications view and must not be surfaced here.
 const SORT_COLUMNS: { field: SortField; label: string }[] = [
-  { field: 'priority', label: 'P' },
   { field: 'status', label: 'Status' },
   { field: 'interview_date', label: 'Interview' },
   { field: 'date_applied', label: 'Applied' },
@@ -138,9 +140,6 @@ export default function EmployerDashboard({
     arr.sort((a, b) => {
       let cmp = 0;
       switch (field) {
-        case 'priority':
-          cmp = a.priority - b.priority;
-          break;
         case 'status':
           cmp =
             JOB_STATUS_ORDER.indexOf(a.status) -

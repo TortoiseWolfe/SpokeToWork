@@ -15,14 +15,39 @@ const PAGE_SIZE = 25;
 /** Hard cap on in-memory applications to prevent unbounded growth. */
 const MAX_LOADED = 500;
 
-/** Shared select string with applicant profile + company name joins. */
+/**
+ * Shared select string with applicant profile + company name joins.
+ *
+ * Reads go through the `employer_applications` VIEW, never the
+ * `job_applications` table. The view is the allowlist: it omits the job
+ * seeker's private `notes` and `priority` and their tracking URLs, and it
+ * filters to companies this employer is actually linked to.
+ *
+ * `*` is safe here precisely because it expands to the view's columns —
+ * widening what employers can see requires deliberately editing the view in
+ * the migration, rather than a client-side column list silently drifting.
+ */
 const APP_SELECT = `
   *,
   user_profiles!job_applications_user_id_profile_fkey(display_name, username),
   shared_companies!job_applications_shared_company_id_fkey(name)
 `;
 
-export interface EmployerApplication extends JobApplication {
+/**
+ * Columns of job_applications that belong to the JOB SEEKER and are never
+ * shown to an employer. The `employer_applications` view omits them; this
+ * type makes the compiler enforce the same boundary, so a component cannot
+ * reference `app.notes` and quietly prompt someone to widen the view.
+ */
+type SeekerPrivateFields =
+  | 'notes'
+  | 'priority'
+  | 'job_link'
+  | 'position_url'
+  | 'status_url';
+
+export interface EmployerApplication
+  extends Omit<JobApplication, SeekerPrivateFields> {
   applicant_name: string;
   company_name: string;
 }
@@ -165,7 +190,7 @@ export function useEmployerApplications(): UseEmployerApplicationsReturn {
       // Drives funnel counts + repeat-applicant detection. NOT paginated so
       // the stats bar reflects all applications regardless of loaded page(s).
       const { data: meta, error: metaError } = await supabase
-        .from('job_applications')
+        .from('employer_applications')
         .select('status, user_id')
         .in('shared_company_id', ids);
 
@@ -196,7 +221,7 @@ export function useEmployerApplications(): UseEmployerApplicationsReturn {
       // --- Page query: first PAGE_SIZE rows with joins --------------------
       offsetRef.current = 0;
       const { data: apps, error: appsError } = await supabase
-        .from('job_applications')
+        .from('employer_applications')
         .select(APP_SELECT)
         .in('shared_company_id', ids)
         .order('created_at', { ascending: false })
@@ -227,7 +252,7 @@ export function useEmployerApplications(): UseEmployerApplicationsReturn {
     try {
       const from = offsetRef.current;
       const { data: apps, error: appsError } = await getClient()
-        .from('job_applications')
+        .from('employer_applications')
         .select(APP_SELECT)
         .in('shared_company_id', ids)
         .order('created_at', { ascending: false })
@@ -256,10 +281,20 @@ export function useEmployerApplications(): UseEmployerApplicationsReturn {
   const updateStatus = useCallback(
     async (applicationId: string, status: JobApplicationStatus) => {
       const supabase = getClient();
-      const { error: updateError } = await supabase
-        .from('job_applications')
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', applicationId);
+
+      // Employers have no write access to job_applications. This RPC is the
+      // only sanctioned path: it re-verifies the employer_company_links row
+      // server-side and touches only status/outcome, so an employer cannot
+      // reach the seeker's private notes.
+      //
+      // It also removes a silent-failure mode (#83): the previous direct
+      // .update() had no .select(), so an RLS-filtered 0-row write returned
+      // no error and the UI advanced the card and the funnel count anyway.
+      // The RPC raises instead of quietly matching nothing.
+      const { error: updateError } = await supabase.rpc(
+        'employer_update_application_status',
+        { p_application_id: applicationId, p_status: status }
+      );
 
       if (updateError) {
         throw new Error(updateError.message);

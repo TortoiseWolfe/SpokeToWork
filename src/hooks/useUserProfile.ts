@@ -2,7 +2,13 @@
  * useUserProfile Hook
  * Feature: 034-fix-broken-user
  *
- * Fetches current user's profile from user_profiles table
+ * Fetches current user's profile from user_profiles, merged with their private
+ * home location from user_home_locations.
+ *
+ * The two live in separate tables on purpose: user_profiles is readable by any
+ * authenticated user (friend search / worker discovery) and RLS cannot restrict
+ * columns, so a home address stored there would be world-readable. The merge
+ * here is for the CURRENT user only — both queries are scoped to their own id.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -19,7 +25,8 @@ export interface UserProfile {
   avatar_url: string | null;
   bio: string | null;
   role: string | null;
-  // Home location fields (Feature 041 - Route Planning)
+  // Home location (Feature 041 - Route Planning). Sourced from
+  // user_home_locations, not user_profiles — see the file header.
   home_address: string | null;
   home_latitude: number | null;
   home_longitude: number | null;
@@ -68,7 +75,33 @@ export function useUserProfile(): UseUserProfileReturn {
           setError('Failed to load profile');
         }
       } else {
-        setProfile(data as unknown as UserProfile);
+        // Own home location, from its own table. A missing row is normal
+        // (the user simply has not set one), so PGRST116 is not an error.
+        const { data: home, error: homeError } = await supabase
+          .from('user_home_locations')
+          .select(
+            'home_address, home_latitude, home_longitude, distance_radius_miles'
+          )
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (homeError) {
+          logger.error('Error fetching home location', { error: homeError });
+        }
+
+        setProfile({
+          ...(data as unknown as Omit<
+            UserProfile,
+            | 'home_address'
+            | 'home_latitude'
+            | 'home_longitude'
+            | 'distance_radius_miles'
+          >),
+          home_address: home?.home_address ?? null,
+          home_latitude: home?.home_latitude ?? null,
+          home_longitude: home?.home_longitude ?? null,
+          distance_radius_miles: home?.distance_radius_miles ?? null,
+        });
       }
     } catch (err) {
       logger.error('Error in useUserProfile', { error: err });

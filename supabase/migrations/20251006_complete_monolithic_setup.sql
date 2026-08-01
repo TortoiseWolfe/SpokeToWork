@@ -561,7 +561,25 @@ GRANT SELECT, INSERT, UPDATE ON payment_intents TO authenticated;
 GRANT SELECT ON payment_results TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON subscriptions TO authenticated;
 GRANT SELECT ON payment_provider_config TO authenticated;
-GRANT SELECT, INSERT, UPDATE ON user_profiles TO authenticated;
+-- user_profiles: column-scoped writes.
+--
+-- RLS is ROW-level. The "Users update own profile" policy correctly confines a
+-- user to their own row, and says nothing about which COLUMNS of that row they
+-- may write. Column authorization is the GRANT's job.
+--
+-- With a blanket `GRANT ... UPDATE ON user_profiles`, is_admin and role are
+-- ordinary columns on the user's own row, so any authenticated user could run
+--   .update({ is_admin: true }).eq('id', <their own id>)
+-- and become an administrator. Enumerating the writable columns is what
+-- actually prevents that; the guard trigger below is defence in depth.
+--
+-- role is changed only through set_own_role(), which is SECURITY DEFINER and
+-- refuses 'admin'. metro_area_id is assigned only by assign_user_metro_area().
+-- Both are SECURITY DEFINER and so are unaffected by these grants.
+REVOKE UPDATE, INSERT ON user_profiles FROM authenticated;
+GRANT SELECT ON user_profiles TO authenticated;
+GRANT INSERT (id, username, display_name, avatar_url, bio) ON user_profiles TO authenticated;
+GRANT UPDATE (username, display_name, avatar_url, bio, welcome_message_sent, updated_at) ON user_profiles TO authenticated;
 GRANT SELECT, INSERT ON auth_audit_logs TO authenticated;
 
 -- Service role (full access)
@@ -1446,18 +1464,58 @@ GRANT ALL ON companies TO service_role;
 
 COMMENT ON TABLE companies IS 'Job seeker company tracking for route planning (Feature 011)';
 
--- Add home location columns to user_profiles for distance validation
-ALTER TABLE user_profiles
-  ADD COLUMN IF NOT EXISTS home_address TEXT CHECK (length(home_address) <= 500),
-  ADD COLUMN IF NOT EXISTS home_latitude DECIMAL(10, 8) CHECK (home_latitude >= -90 AND home_latitude <= 90),
-  ADD COLUMN IF NOT EXISTS home_longitude DECIMAL(11, 8) CHECK (home_longitude >= -180 AND home_longitude <= 180),
-  ADD COLUMN IF NOT EXISTS distance_radius_miles INTEGER DEFAULT 20 CHECK (distance_radius_miles >= 1 AND distance_radius_miles <= 100);
--- Note: metro_area_id column added later after metro_areas table is created
+-- Home location lives in its OWN table, deliberately not on user_profiles.
+--
+-- user_profiles carries a "search profiles" SELECT policy of USING (true) so
+-- friend search and worker discovery can find other people. RLS is row-level
+-- and CANNOT restrict columns, so every column on that table is readable by
+-- every authenticated user. Home address and exact coordinates must therefore
+-- not live there — a residential address is the most sensitive field this
+-- product holds, and this is a bicycle-commute app whose users are job seekers.
+--
+-- Splitting the table is what makes the restriction enforceable, rather than
+-- relying on every caller remembering to pass an explicit column list.
+CREATE TABLE IF NOT EXISTS user_home_locations (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  home_address TEXT CHECK (length(home_address) <= 500),
+  home_latitude DECIMAL(10, 8) CHECK (home_latitude >= -90 AND home_latitude <= 90),
+  home_longitude DECIMAL(11, 8) CHECK (home_longitude >= -180 AND home_longitude <= 180),
+  distance_radius_miles INTEGER DEFAULT 20 CHECK (distance_radius_miles >= 1 AND distance_radius_miles <= 100),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-COMMENT ON COLUMN user_profiles.home_address IS 'User home address for distance calculations';
-COMMENT ON COLUMN user_profiles.home_latitude IS 'User home latitude for distance calculations';
-COMMENT ON COLUMN user_profiles.home_longitude IS 'User home longitude for distance calculations';
-COMMENT ON COLUMN user_profiles.distance_radius_miles IS 'Configurable radius for extended_range warning (default 20)';
+ALTER TABLE user_home_locations ENABLE ROW LEVEL SECURITY;
+
+-- Own row only. There is no cross-user read path, by design.
+DROP POLICY IF EXISTS "Users view own home location" ON user_home_locations;
+CREATE POLICY "Users view own home location" ON user_home_locations
+  FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users insert own home location" ON user_home_locations;
+CREATE POLICY "Users insert own home location" ON user_home_locations
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users update own home location" ON user_home_locations;
+CREATE POLICY "Users update own home location" ON user_home_locations
+  FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users delete own home location" ON user_home_locations;
+CREATE POLICY "Users delete own home location" ON user_home_locations
+  FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON user_home_locations TO authenticated;
+GRANT ALL ON user_home_locations TO service_role;
+
+DROP TRIGGER IF EXISTS update_user_home_locations_updated_at ON user_home_locations;
+CREATE TRIGGER update_user_home_locations_updated_at
+  BEFORE UPDATE ON user_home_locations
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+COMMENT ON TABLE user_home_locations IS
+  'Private home location, one row per user. Separate from user_profiles because that table is world-readable to authenticated users and RLS cannot restrict columns.';
+-- Note: metro_area_id column is added to user_profiles later, after metro_areas exists
 
 -- ============================================================================
 -- PART 11b: JOB APPLICATIONS (Feature 011 Evolution)
@@ -1562,7 +1620,13 @@ CREATE TRIGGER update_job_applications_updated_at
   EXECUTE FUNCTION update_updated_at_column();
 
 -- Grant permissions
-GRANT ALL ON job_applications TO authenticated;
+-- Owner-only table. RLS confines `authenticated` to their own rows, and the
+-- only holders of these privileges are job seekers acting on their own tracker.
+-- Employers do NOT reach this table — they use the employer_applications view
+-- and employer_update_application_status() (see Feature 063). GRANT ALL also
+-- carried TRUNCATE/REFERENCES/TRIGGER, which no client ever needs.
+REVOKE ALL ON job_applications FROM authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON job_applications TO authenticated;
 GRANT ALL ON job_applications TO service_role;
 
 COMMENT ON TABLE job_applications IS 'Job applications tracking - multiple per company (Feature 011b)';
@@ -2203,17 +2267,21 @@ GRANT ALL ON private_companies TO service_role;
 GRANT ALL ON company_contributions TO service_role;
 GRANT ALL ON company_edit_suggestions TO service_role;
 
--- Auto-assign metro_area_id to user_profiles based on home coordinates
+-- Auto-assign user_profiles.metro_area_id from the user's home coordinates.
+-- Home coordinates live on user_home_locations (see PART 11), so this fires
+-- there and writes across to user_profiles. SECURITY DEFINER, so it can set
+-- metro_area_id even though `authenticated` has no UPDATE grant on that column.
 CREATE OR REPLACE FUNCTION assign_user_metro_area()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+  v_metro_area_id UUID;
 BEGIN
-  -- Auto-assign metro area based on home coordinates
   IF NEW.home_latitude IS NOT NULL AND NEW.home_longitude IS NOT NULL THEN
-    SELECT id INTO NEW.metro_area_id
+    SELECT id INTO v_metro_area_id
     FROM metro_areas
     WHERE ST_DWithin(
       CAST(ST_SetSRID(ST_Point(NEW.home_longitude, NEW.home_latitude), 4326) AS geography),
@@ -2225,19 +2293,53 @@ BEGIN
       CAST(ST_SetSRID(ST_Point(center_lng, center_lat), 4326) AS geography)
     )
     LIMIT 1;
+
+    IF v_metro_area_id IS NOT NULL THEN
+      UPDATE user_profiles
+      SET metro_area_id = v_metro_area_id
+      WHERE id = NEW.user_id
+        AND metro_area_id IS DISTINCT FROM v_metro_area_id;
+    END IF;
   END IF;
   RETURN NEW;
 END;
 $$;
 
-COMMENT ON FUNCTION assign_user_metro_area() IS 'Auto-assign metro_area_id based on user home coordinates (Feature 012)';
+COMMENT ON FUNCTION assign_user_metro_area() IS 'Auto-assign user_profiles.metro_area_id from home coordinates (Feature 012)';
 
--- Trigger to auto-assign metro area when user sets home location
+-- AFTER, not BEFORE: this writes to a different table than the one it fires on.
 DROP TRIGGER IF EXISTS trg_assign_user_metro_area ON user_profiles;
+DROP TRIGGER IF EXISTS trg_assign_user_metro_area ON user_home_locations;
 CREATE TRIGGER trg_assign_user_metro_area
-  BEFORE INSERT OR UPDATE OF home_latitude, home_longitude ON user_profiles
+  AFTER INSERT OR UPDATE OF home_latitude, home_longitude ON user_home_locations
   FOR EACH ROW
   EXECUTE FUNCTION assign_user_metro_area();
+
+-- Migrate any pre-existing home data off user_profiles, then drop the columns.
+-- Guarded so this is a no-op on a fresh database and idempotent on re-run.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'user_profiles'
+      AND column_name = 'home_address'
+  ) THEN
+    INSERT INTO user_home_locations (user_id, home_address, home_latitude, home_longitude, distance_radius_miles)
+    SELECT id, home_address, home_latitude, home_longitude, distance_radius_miles
+    FROM user_profiles
+    WHERE home_address IS NOT NULL
+       OR home_latitude IS NOT NULL
+       OR home_longitude IS NOT NULL
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+END $$;
+
+ALTER TABLE user_profiles
+  DROP COLUMN IF EXISTS home_address,
+  DROP COLUMN IF EXISTS home_latitude,
+  DROP COLUMN IF EXISTS home_longitude,
+  DROP COLUMN IF EXISTS distance_radius_miles;
 
 -- T091: Create seed_user_companies function to auto-create tracking for new users
 -- Updated: Also fires on UPDATE when metro_area_id is set for the first time
@@ -2768,31 +2870,30 @@ END $$;
 GRANT SELECT ON employer_company_links TO authenticated;
 GRANT ALL ON employer_company_links TO service_role;
 
--- T003: RLS policy for employers to view applications for their linked companies
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'job_applications'
-                 AND policyname = 'Employers can view applications for linked companies') THEN
-    CREATE POLICY "Employers can view applications for linked companies" ON job_applications
-      FOR SELECT USING (
-        shared_company_id IN (
-          SELECT ecl.shared_company_id FROM employer_company_links ecl
-          WHERE ecl.user_id = auth.uid()
-        )
-      );
-  END IF;
+-- T003: Employer access to applications.
+--
+-- job_applications is the JOB SEEKER's private hunt tracker. `notes` is their
+-- own free text about the employer ("manager seemed sketchy, this is my backup
+-- option"), and `priority` is their private ranking of it.
+--
+-- Employers used to reach this table through two row-level policies. That was
+-- wrong in both directions:
+--   * SELECT — RLS is row-level, so "employers may see applications to their
+--     company" necessarily exposed EVERY column of those rows, including notes.
+--     Nothing in the worker UI disclosed that.
+--   * UPDATE — with no WITH CHECK and a table-wide GRANT ALL, an employer could
+--     rewrite or blank any column of a seeker's row, not just advance status.
+--
+-- Employers and job seekers are both the `authenticated` role, so column-level
+-- GRANTs cannot separate them. The fix is to take employers off the base table
+-- entirely: a view for reads (notes excluded by construction) and a narrow
+-- SECURITY DEFINER function for the one write they legitimately need.
+DROP POLICY IF EXISTS "Employers can view applications for linked companies" ON job_applications;
+DROP POLICY IF EXISTS "Employers can update applications for linked companies" ON job_applications;
 
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'job_applications'
-                 AND policyname = 'Employers can update applications for linked companies') THEN
-    CREATE POLICY "Employers can update applications for linked companies" ON job_applications
-      FOR UPDATE USING (
-        shared_company_id IN (
-          SELECT ecl.shared_company_id FROM employer_company_links ecl
-          WHERE ecl.user_id = auth.uid()
-        )
-      );
-  END IF;
-END $$;
+-- The employer view and status RPC are defined near the END of this file,
+-- after job_applications.resume_id exists (Feature: worker resumes).
+-- Search: 'FEATURE 063 (continued): employer access objects'.
 
 COMMENT ON TABLE employer_company_links IS 'Links employer users to shared companies they manage (Feature 063)';
 
@@ -2835,6 +2936,50 @@ GRANT EXECUTE ON FUNCTION set_own_role(TEXT) TO authenticated;
 
 COMMENT ON FUNCTION set_own_role(TEXT) IS
   'Self-service role switch for OAuth callback. Rejects admin; worker/employer only (Feature 063b).';
+
+-- Defence in depth for the privilege columns.
+--
+-- The column-scoped GRANT in PART 7 is the actual control. This trigger exists
+-- so that if someone later re-adds a blanket `GRANT UPDATE ON user_profiles`,
+-- privilege escalation does not silently become possible again — the grant is
+-- easy to widen by accident, and nothing else would notice.
+--
+-- current_user is the discriminator: under PostgREST it is 'authenticated',
+-- while inside a SECURITY DEFINER function (set_own_role, assign_user_metro_area)
+-- it is the function owner, so the sanctioned paths still work.
+CREATE OR REPLACE FUNCTION enforce_user_profile_privileged_columns()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF current_user IN ('authenticated', 'anon') THEN
+    IF NEW.is_admin IS DISTINCT FROM OLD.is_admin THEN
+      RAISE EXCEPTION 'is_admin cannot be set by the account it belongs to'
+        USING ERRCODE = 'insufficient_privilege';
+    END IF;
+    IF NEW.role IS DISTINCT FROM OLD.role THEN
+      RAISE EXCEPTION 'role must be changed via set_own_role(), which refuses admin'
+        USING ERRCODE = 'insufficient_privilege';
+    END IF;
+    IF NEW.metro_area_id IS DISTINCT FROM OLD.metro_area_id THEN
+      RAISE EXCEPTION 'metro_area_id is derived from home location, not user-writable'
+        USING ERRCODE = 'insufficient_privilege';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+COMMENT ON FUNCTION enforce_user_profile_privileged_columns() IS
+  'Blocks direct client writes to is_admin/role/metro_area_id. Backstop for the column-scoped GRANT in PART 7.';
+
+DROP TRIGGER IF EXISTS trg_enforce_user_profile_privileged_columns ON user_profiles;
+CREATE TRIGGER trg_enforce_user_profile_privileged_columns
+  BEFORE UPDATE ON user_profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION enforce_user_profile_privileged_columns();
 
 -- ============================================================================
 -- END FEATURE 063b: Role Persistence Through Signup
@@ -4650,6 +4795,104 @@ ALTER TABLE job_applications
 
 CREATE INDEX IF NOT EXISTS idx_job_applications_resume_id
   ON job_applications (resume_id) WHERE resume_id IS NOT NULL;
+
+-- ============================================================================
+-- FEATURE 063 (continued): employer access objects
+-- Defined here, not with the rest of Feature 063, because the view projects
+-- job_applications.resume_id which is not added until just above.
+-- ============================================================================
+
+-- security_invoker is left at its default (false) so the view runs as its owner
+-- and is not filtered by the owner-only RLS on the base table. That makes the
+-- WHERE clause below the ONLY authorization gate — treat it as security code.
+-- DROP first: CREATE OR REPLACE VIEW cannot remove or reorder columns, so
+-- narrowing this projection later would fail against an existing view.
+DROP VIEW IF EXISTS employer_applications;
+CREATE VIEW employer_applications AS
+SELECT
+  ja.id,
+  ja.user_id,
+  ja.shared_company_id,
+  ja.position_title,
+  ja.work_location_type,
+  ja.status,
+  ja.outcome,
+  ja.date_applied,
+  ja.interview_date,
+  ja.follow_up_date,
+  ja.resume_id,
+  ja.is_active,
+  ja.created_at,
+  ja.updated_at
+  -- DELIBERATELY OMITTED: notes, priority, job_link, position_url, status_url.
+  -- These belong to the job seeker's private tracking, not to the employer.
+  -- Adding a column here exposes it to every employer linked to the company.
+FROM job_applications ja
+WHERE ja.shared_company_id IN (
+  SELECT ecl.shared_company_id FROM employer_company_links ecl
+  WHERE ecl.user_id = auth.uid()
+);
+
+REVOKE ALL ON employer_applications FROM anon;
+GRANT SELECT ON employer_applications TO authenticated;
+
+COMMENT ON VIEW employer_applications IS
+  'Employer-facing projection of job_applications. Excludes the job seekers private notes/priority/tracking URLs. Authorization is the WHERE clause, not RLS.';
+
+-- The only write an employer needs: advance the pipeline. Validates the link
+-- itself rather than trusting the caller, and touches only status/outcome.
+CREATE OR REPLACE FUNCTION employer_update_application_status(
+  p_application_id UUID,
+  p_status TEXT,
+  p_outcome TEXT DEFAULT NULL
+)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_company_id UUID;
+BEGIN
+  IF p_status IS NOT NULL AND p_status NOT IN
+     ('not_applied','applied','screening','interviewing','offer','closed') THEN
+    RAISE EXCEPTION 'Invalid status: %', p_status;
+  END IF;
+
+  IF p_outcome IS NOT NULL AND p_outcome NOT IN
+     ('pending','hired','rejected','withdrawn','ghosted','offer_declined') THEN
+    RAISE EXCEPTION 'Invalid outcome: %', p_outcome;
+  END IF;
+
+  SELECT ja.shared_company_id INTO v_company_id
+  FROM job_applications ja
+  WHERE ja.id = p_application_id;
+
+  IF v_company_id IS NULL THEN
+    RAISE EXCEPTION 'Application not found or not linked to a shared company';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM employer_company_links ecl
+    WHERE ecl.user_id = auth.uid() AND ecl.shared_company_id = v_company_id
+  ) THEN
+    RAISE EXCEPTION 'Not authorized for this company'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  UPDATE job_applications
+  SET status = COALESCE(p_status, status),
+      outcome = COALESCE(p_outcome, outcome),
+      updated_at = NOW()
+  WHERE id = p_application_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION employer_update_application_status(UUID, TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION employer_update_application_status(UUID, TEXT, TEXT) TO authenticated;
+
+COMMENT ON FUNCTION employer_update_application_status(UUID, TEXT, TEXT) IS
+  'Only sanctioned employer write to job_applications: status/outcome, after verifying the employer_company_links row.';
 
 -- storage.buckets schema varies across Supabase versions: older self-hosted
 -- images lack the `public` column. Buckets default to non-public on both

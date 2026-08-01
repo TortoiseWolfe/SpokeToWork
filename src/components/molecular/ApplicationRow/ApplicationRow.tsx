@@ -1,5 +1,4 @@
 import StatusBadge from '@/components/atomic/StatusBadge';
-import PriorityIndicator from '@/components/atomic/PriorityIndicator';
 import DateChip from '@/components/atomic/DateChip';
 import {
   getStatusStyle,
@@ -7,7 +6,7 @@ import {
   WORK_LOCATION_LABELS,
 } from '@/types/company';
 import type { EmployerApplication } from '@/hooks/useEmployerApplications';
-import type { Priority, WorkLocationType } from '@/types/company';
+import type { WorkLocationType } from '@/types/company';
 
 export interface ApplicationRowProps {
   application: EmployerApplication;
@@ -23,7 +22,7 @@ export interface ApplicationRowProps {
 /**
  * ApplicationRow - Enhanced table row for the employer dashboard.
  *
- * Shows: Applicant, Position, Priority, Status, Interview Date,
+ * Shows: Applicant, Position, Status, Interview Date,
  * Applied Date, Work Location, and Actions.
  *
  * @category molecular
@@ -61,11 +60,6 @@ export default function ApplicationRow({
 
       {/* Position */}
       <td>{app.position_title || 'Not specified'}</td>
-
-      {/* Priority */}
-      <td>
-        <PriorityIndicator priority={app.priority as Priority} />
-      </td>
 
       {/* Status */}
       <td>

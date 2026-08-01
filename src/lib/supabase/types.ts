@@ -308,10 +308,6 @@ export type Database = {
           bio: string | null;
           created_at: string;
           display_name: string | null;
-          distance_radius_miles: number | null;
-          home_address: string | null;
-          home_latitude: number | null;
-          home_longitude: number | null;
           id: string;
           updated_at: string;
           username: string | null;
@@ -322,10 +318,6 @@ export type Database = {
           bio?: string | null;
           created_at?: string;
           display_name?: string | null;
-          distance_radius_miles?: number | null;
-          home_address?: string | null;
-          home_latitude?: number | null;
-          home_longitude?: number | null;
           id: string;
           updated_at?: string;
           username?: string | null;
@@ -336,10 +328,6 @@ export type Database = {
           bio?: string | null;
           created_at?: string;
           display_name?: string | null;
-          distance_radius_miles?: number | null;
-          home_address?: string | null;
-          home_latitude?: number | null;
-          home_longitude?: number | null;
           id?: string;
           updated_at?: string;
           username?: string | null;
@@ -349,6 +337,44 @@ export type Database = {
           {
             foreignKeyName: 'user_profiles_id_fkey';
             columns: ['id'];
+            isOneToOne: true;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      user_home_locations: {
+        Row: {
+          created_at: string;
+          distance_radius_miles: number | null;
+          home_address: string | null;
+          home_latitude: number | null;
+          home_longitude: number | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          distance_radius_miles?: number | null;
+          home_address?: string | null;
+          home_latitude?: number | null;
+          home_longitude?: number | null;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          distance_radius_miles?: number | null;
+          home_address?: string | null;
+          home_latitude?: number | null;
+          home_longitude?: number | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'user_home_locations_user_id_fkey';
+            columns: ['user_id'];
             isOneToOne: true;
             referencedRelation: 'users';
             referencedColumns: ['id'];
@@ -713,9 +739,56 @@ export type Database = {
       };
     };
     Views: {
-      [_ in never]: never;
+      /**
+       * Employer-facing projection of job_applications.
+       * Deliberately omits the job seeker's private notes, priority and
+       * tracking URLs, and filters to the caller's linked companies.
+       * Widening this requires editing the view in the migration.
+       */
+      employer_applications: {
+        Row: {
+          created_at: string | null;
+          date_applied: string | null;
+          follow_up_date: string | null;
+          id: string | null;
+          interview_date: string | null;
+          is_active: boolean | null;
+          outcome: string | null;
+          position_title: string | null;
+          resume_id: string | null;
+          shared_company_id: string | null;
+          status: string | null;
+          updated_at: string | null;
+          user_id: string | null;
+          work_location_type: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'job_applications_user_id_profile_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'user_profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'job_applications_shared_company_id_fkey';
+            columns: ['shared_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'shared_companies';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Functions: {
+      employer_update_application_status: {
+        Args: {
+          p_application_id: string;
+          p_status?: string;
+          p_outcome?: string;
+        };
+        Returns: undefined;
+      };
       delete_user: {
         Args: Record<PropertyKey, never>;
         Returns: void;

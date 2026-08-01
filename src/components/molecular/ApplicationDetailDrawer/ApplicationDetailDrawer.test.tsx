@@ -11,17 +11,12 @@ const makeApp = (
   private_company_id: null,
   user_id: 'user-1',
   position_title: 'Frontend Developer',
-  job_link: null,
-  position_url: null,
-  status_url: null,
   work_location_type: 'remote',
   status: 'applied',
   outcome: 'pending',
   date_applied: '2026-02-10T00:00:00Z',
   interview_date: null,
   follow_up_date: null,
-  priority: 2,
-  notes: 'Strong portfolio',
   is_active: true,
   created_at: '2026-02-10T00:00:00Z',
   updated_at: '2026-02-10T00:00:00Z',
@@ -65,15 +60,30 @@ describe('ApplicationDetailDrawer', () => {
     expect(screen.getByText('Frontend Developer')).toBeInTheDocument();
   });
 
-  it('renders notes', () => {
+  // Regression guard, replacing a test that asserted notes DID render.
+  //
+  // `notes` is the job seeker's own private free text about this employer,
+  // written in their personal hunt tracker with no indication an employer would
+  // ever see it. It is no longer returned by the employer_applications view and
+  // is omitted from the EmployerApplication type. This asserts the drawer never
+  // renders it even if a caller hands it a fixture that still carries the field.
+  it('does not render the job seeker private notes', () => {
+    const leaky = {
+      ...makeApp(),
+      notes: 'manager seemed sketchy, this is my backup option',
+    } as unknown as Parameters<
+      typeof ApplicationDetailDrawer
+    >[0]['application'];
+
     render(
       <ApplicationDetailDrawer
-        application={makeApp()}
+        application={leaky}
         onClose={vi.fn()}
         onAdvance={vi.fn()}
       />
     );
-    expect(screen.getByText('Strong portfolio')).toBeInTheDocument();
+    expect(screen.queryByText(/backup option/i)).toBeNull();
+    expect(screen.queryByText(/^Notes$/i)).toBeNull();
   });
 
   it('renders advance button for non-closed status', () => {

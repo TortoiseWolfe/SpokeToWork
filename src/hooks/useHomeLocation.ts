@@ -3,9 +3,14 @@
 /**
  * useHomeLocation
  *
- * Loads the user's home location from user_profiles and exposes a
+ * Loads the user's home location from user_home_locations and exposes a
  * persisting `save`. Extracted from CompaniesPageInner profile-load
  * effect + handleSaveHomeLocation.
+ *
+ * Home location is deliberately NOT on user_profiles: that table carries a
+ * `USING (true)` SELECT policy for friend search, and RLS cannot restrict
+ * columns, so anything stored there is readable by every authenticated user.
+ * user_home_locations is own-row only.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -36,11 +41,11 @@ export function useHomeLocation(
     (async () => {
       try {
         const { data, error } = await supabase
-          .from('user_profiles')
+          .from('user_home_locations')
           .select(
             'home_address, home_latitude, home_longitude, distance_radius_miles'
           )
-          .eq('id', user.id)
+          .eq('user_id', user.id)
           .single();
         if (error && error.code !== 'PGRST116') throw error;
         if (
@@ -70,8 +75,8 @@ export function useHomeLocation(
   const save = useCallback(
     async (location: HomeLocation) => {
       if (!user) return;
-      const { error } = await supabase.from('user_profiles').upsert({
-        id: user.id,
+      const { error } = await supabase.from('user_home_locations').upsert({
+        user_id: user.id,
         home_address: location.address,
         home_latitude: location.latitude,
         home_longitude: location.longitude,

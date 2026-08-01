@@ -6,20 +6,29 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 
-// Mock profile data
-const mockProfile = {
+// Home location now lives in its own table (user_home_locations) because
+// user_profiles is readable by every authenticated user and RLS cannot restrict
+// columns. useUserProfile merges the two for the CURRENT user, so the shape the
+// hook returns is unchanged — that is what mockProfile below represents.
+const mockProfileRow = {
   id: 'user-123',
   username: 'testuser',
   display_name: 'Test User',
   avatar_url: 'https://example.com/avatar.png',
   bio: 'Test bio',
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
+};
+
+const mockHomeRow = {
   home_address: '123 Test St',
   home_latitude: 33.7,
   home_longitude: -84.4,
   distance_radius_miles: 10,
-  created_at: '2024-01-01T00:00:00Z',
-  updated_at: '2024-01-01T00:00:00Z',
 };
+
+/** The merged shape callers observe. */
+const mockProfile = { ...mockProfileRow, ...mockHomeRow };
 
 // Mock logger
 vi.mock('@/lib/logger', () => ({
@@ -33,17 +42,31 @@ vi.mock('@/lib/logger', () => ({
 
 // Create mock response holder
 let mockSupabaseResponse: {
-  data: typeof mockProfile | null;
+  data: typeof mockProfileRow | null;
   error: object | null;
-} = { data: mockProfile, error: null };
+} = { data: mockProfileRow, error: null };
+
+let mockHomeResponse: {
+  data: typeof mockHomeRow | null;
+  error: object | null;
+} = { data: mockHomeRow, error: null };
 
 // Mock Supabase client
 vi.mock('@/lib/supabase/client', () => ({
   createClient: vi.fn(() => ({
-    from: vi.fn(() => ({
+    from: vi.fn((table: string) => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
           single: vi.fn(() => Promise.resolve(mockSupabaseResponse)),
+          // The home-location read uses maybeSingle(): a user with no home
+          // location set is normal, not an error.
+          maybeSingle: vi.fn(() =>
+            Promise.resolve(
+              table === 'user_home_locations'
+                ? mockHomeResponse
+                : mockSupabaseResponse
+            )
+          ),
         })),
       })),
     })),
@@ -70,7 +93,8 @@ describe('useUserProfile', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     // Reset to default successful response
-    mockSupabaseResponse = { data: mockProfile, error: null };
+    mockSupabaseResponse = { data: mockProfileRow, error: null };
+    mockHomeResponse = { data: mockHomeRow, error: null };
 
     // Reset useAuth mock to return a valid user
     const { useAuth } = await import('@/contexts/AuthContext');

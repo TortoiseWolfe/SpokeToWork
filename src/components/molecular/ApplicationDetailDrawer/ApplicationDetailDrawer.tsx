@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useCallback } from 'react';
 import StatusBadge from '@/components/atomic/StatusBadge';
-import PriorityIndicator from '@/components/atomic/PriorityIndicator';
 import DateChip from '@/components/atomic/DateChip';
 import {
   getStatusStyle,
@@ -10,7 +9,6 @@ import {
   WORK_LOCATION_LABELS,
   OUTCOME_LABELS,
   type JobApplicationStatus,
-  type Priority,
   type WorkLocationType,
   type ApplicationOutcome,
 } from '@/types/company';
@@ -34,7 +32,8 @@ export interface ApplicationDetailDrawerProps {
 /**
  * ApplicationDetailDrawer - Slide-out panel with full application context.
  *
- * Shows applicant details, timeline, status actions, notes, and links.
+ * Shows applicant details, timeline and status actions. Deliberately excludes
+ * the job seeker's private notes, priority and tracking links.
  *
  * @category molecular
  */
@@ -104,10 +103,10 @@ export default function ApplicationDetailDrawer({
 
         {/* Body */}
         <div className="flex-1 space-y-6 overflow-y-auto px-6 py-4">
-          {/* Status + Priority row */}
+          {/* Status row. No PriorityIndicator: `priority` is the job seeker's
+              private ranking of this employer, not employer-facing. */}
           <div className="flex items-center gap-4">
             <StatusBadge status={app.status} />
-            <PriorityIndicator priority={app.priority as Priority} />
             <span className="badge badge-sm badge-ghost">
               {WORK_LOCATION_LABELS[
                 app.work_location_type as WorkLocationType
@@ -162,58 +161,18 @@ export default function ApplicationDetailDrawer({
             </div>
           </div>
 
-          {/* Notes */}
-          {app.notes && (
-            <div>
-              <label className="text-base-content/50 text-xs font-medium uppercase">
-                Notes
-              </label>
-              <p className="text-base-content/85 mt-1 text-sm whitespace-pre-wrap">
-                {app.notes}
-              </p>
-            </div>
-          )}
+          {/* No Notes section, deliberately.
+              `notes` is the job seeker's own private free text about this
+              employer, kept in their personal hunt tracker. It used to render
+              here verbatim, with nothing in the worker UI disclosing that an
+              employer would ever read it. The employer_applications view no
+              longer returns the column and EmployerApplication omits it from
+              the type. Do not add it back. */}
 
-          {/* Links */}
-          {(app.job_link || app.position_url || app.status_url) && (
-            <div>
-              <label className="text-base-content/50 mb-1 block text-xs font-medium uppercase">
-                Links
-              </label>
-              <div className="flex flex-col gap-1">
-                {app.job_link && (
-                  <a
-                    href={app.job_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="link link-primary text-sm"
-                  >
-                    Job Posting
-                  </a>
-                )}
-                {app.position_url && (
-                  <a
-                    href={app.position_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="link link-primary text-sm"
-                  >
-                    Position Details
-                  </a>
-                )}
-                {app.status_url && (
-                  <a
-                    href={app.status_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="link link-primary text-sm"
-                  >
-                    Application Status Portal
-                  </a>
-                )}
-              </div>
-            </div>
-          )}
+          {/* No Links section, deliberately.
+              job_link / position_url / status_url are the job seeker's own
+              tracking links, not employer-facing. Removed with `notes` and
+              `priority` — see employer_applications in the migration. */}
         </div>
 
         {/* Footer actions */}
