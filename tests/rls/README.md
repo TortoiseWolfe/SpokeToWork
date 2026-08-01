@@ -43,3 +43,25 @@ does not depend on seeded test accounts.
 The rule of thumb that produced these: for any table where one role's rows are
 visible to another role, ask _which columns_ that implies — not whether the row
 filter is right. If the answer is "all of them", the grant is the bug.
+
+## Known limitation: `spatial_ref_sys` on hosted Supabase
+
+`spatial_ref_sys` (PostGIS reference data) is the one `public` table with RLS
+disabled, and Supabase's default privileges grant `anon` full access to it. An
+unauthenticated `DELETE` against it succeeds on the hosted project.
+
+It is **not fixable from the project role**. The table is owned by
+`supabase_admin`; migrations run as `postgres`. Postgres treats a `REVOKE` by a
+non-owner without grant option as a silent no-op, and
+`ALTER TABLE ... ENABLE ROW LEVEL SECURITY` fails with
+`must be owner of table spatial_ref_sys`. Both were confirmed against the live
+project.
+
+The hardening in the migration is kept because it _does_ work locally and
+self-hosted, where migrations run as the owner. That is also the trap: **this
+suite's `spatial_ref_sys` check passes locally for a reason that does not hold
+in production.** Do not read it as coverage for the hosted project.
+
+Impact if exercised: SRID rows are reference data, so damage is restorable, but
+every geography comparison — including `assign_user_metro_area()` — breaks until
+it is restored.

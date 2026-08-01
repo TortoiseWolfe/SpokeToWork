@@ -82,11 +82,16 @@ WH=$(curl -s -o /dev/null -X POST "$API/rest/v1/webhook_events" -H "apikey: $ANO
   -d '{"provider":"stripe","provider_event_id":"evt_boundary_probe","event_type":"checkout.session.completed","signature":"x","signature_verified":true,"processed":false}' -w "%{http_code}")
 [ "$WH" = "201" ] && bad "anon FORGED a payment webhook event" || ok "anon cannot insert webhook_events (idempotency ledger)"
 
-SRS_BEFORE=$(psqlq "SELECT count(*) FROM spatial_ref_sys")
-curl -s -o /dev/null -X DELETE "$API/rest/v1/spatial_ref_sys?srid=eq.2000" -H "apikey: $ANON" -H "Authorization: Bearer $ANON"
-SRS_AFTER=$(psqlq "SELECT count(*) FROM spatial_ref_sys")
-[ "$SRS_BEFORE" = "$SRS_AFTER" ] && ok "anon cannot delete PostGIS reference data" \
-  || bad "anon DELETED spatial_ref_sys rows ($SRS_BEFORE -> $SRS_AFTER)"
+# Assert on the GRANT, not by deleting a row.
+#
+# The obvious probe — DELETE srid=2000 and compare counts — false-passes on the
+# second run, because the row is already gone and the count no longer changes.
+# That is the same "test that cannot fail" shape this repo has been cleaning up,
+# and it bit this very check. The privilege is the thing being asserted, so
+# assert the privilege.
+SRS_PRIV=$(psqlq "SELECT coalesce(string_agg(privilege_type,','),'(none)') FROM information_schema.table_privileges WHERE table_name='spatial_ref_sys' AND grantee='anon' AND privilege_type IN ('INSERT','UPDATE','DELETE','TRUNCATE')")
+[ "$SRS_PRIV" = "(none)" ] && ok "anon holds no write privileges on PostGIS reference data (local/self-hosted only — see note)" \
+  || bad "anon still holds write privileges on spatial_ref_sys: $SRS_PRIV"
 
 
 echo "== E. encryption salt (salt + public_key is an offline password oracle) =="

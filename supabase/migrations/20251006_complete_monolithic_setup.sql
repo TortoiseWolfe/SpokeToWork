@@ -2540,11 +2540,22 @@ DROP INDEX IF EXISTS idx_job_applications_company;
 COMMENT ON COLUMN job_applications.shared_company_id IS 'FK to shared_companies for community companies (Feature 014)';
 COMMENT ON COLUMN job_applications.private_company_id IS 'FK to private_companies for user-created companies (Feature 014)';
 
--- PostgREST needs a FK to user_profiles (not just auth.users) for join queries
-ALTER TABLE job_applications
-  ADD CONSTRAINT job_applications_user_id_profile_fkey
-  FOREIGN KEY (user_id) REFERENCES public.user_profiles(id)
-  NOT VALID;  -- NOT VALID: don't block if orphan rows exist; enforce on new inserts only
+-- PostgREST needs a FK to user_profiles (not just auth.users) for join queries.
+-- Guarded: a bare ADD CONSTRAINT is not idempotent, so re-applying this file to
+-- an existing database failed here with 42710 (constraint already exists).
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'job_applications_user_id_profile_fkey'
+      AND conrelid = 'public.job_applications'::regclass
+  ) THEN
+    ALTER TABLE job_applications
+      ADD CONSTRAINT job_applications_user_id_profile_fkey
+      FOREIGN KEY (user_id) REFERENCES public.user_profiles(id)
+      NOT VALID;  -- NOT VALID: don't block on orphan rows; enforce on new inserts
+  END IF;
+END $$;
 
 -- T005: Update RLS policies for job_applications (ensure they work with new schema)
 -- Policies already exist from original table creation, just verify they use user_id correctly
@@ -4339,7 +4350,7 @@ INSERT INTO industries (id, parent_id, slug, name, icon, color, sort_order) VALU
   ('10000000-0000-4000-a000-000000000004', NULL, 'services', 'Services', 'briefcase', 'secondary', 4),
   ('10000000-0000-4000-a000-000000000005', NULL, 'trades', 'Trades & Construction', 'hammer', 'error', 5),
   ('10000000-0000-4000-a000-000000000006', NULL, 'health-and-wellness', 'Health & Wellness', 'heart-pulse', 'success', 6)
-ON CONFLICT (slug) DO NOTHING;
+ON CONFLICT DO NOTHING;  -- untargeted: these seeds supply explicit ids, so a PK collision must be absorbed too
 
 -- Level 2
 INSERT INTO industries (id, parent_id, slug, name, sort_order) VALUES
@@ -4361,7 +4372,7 @@ INSERT INTO industries (id, parent_id, slug, name, sort_order) VALUES
   ('20000000-0000-4000-a000-000000000053', '10000000-0000-4000-a000-000000000005', 'hvac', 'HVAC', 3),
   ('20000000-0000-4000-a000-000000000061', '10000000-0000-4000-a000-000000000006', 'fitness', 'Fitness & Gyms', 1),
   ('20000000-0000-4000-a000-000000000062', '10000000-0000-4000-a000-000000000006', 'clinics', 'Clinics', 2)
-ON CONFLICT (slug) DO NOTHING;
+ON CONFLICT DO NOTHING;  -- untargeted: these seeds supply explicit ids, so a PK collision must be absorbed too
 
 -- Level 3
 INSERT INTO industries (id, parent_id, slug, name, sort_order) VALUES
@@ -4370,7 +4381,7 @@ INSERT INTO industries (id, parent_id, slug, name, sort_order) VALUES
   ('30000000-0000-4000-a000-000000000113', '20000000-0000-4000-a000-000000000011', 'package-delivery', 'Package Delivery', 3),
   ('30000000-0000-4000-a000-000000000211', '20000000-0000-4000-a000-000000000021', 'quick-service', 'Quick Service', 1),
   ('30000000-0000-4000-a000-000000000212', '20000000-0000-4000-a000-000000000021', 'full-service', 'Full Service', 2)
-ON CONFLICT (slug) DO NOTHING;
+ON CONFLICT DO NOTHING;  -- untargeted: these seeds supply explicit ids, so a PK collision must be absorbed too
 
 -- Update unified view to include primary_industry_id
 DROP VIEW IF EXISTS user_companies_unified;
@@ -4468,6 +4479,7 @@ CREATE TABLE IF NOT EXISTS skills (
 CREATE INDEX IF NOT EXISTS idx_skills_parent ON skills(parent_id);
 
 ALTER TABLE skills ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can view skills" ON skills;
 CREATE POLICY "Anyone can view skills" ON skills FOR SELECT USING (true);
 -- No INSERT/UPDATE policy: RLS denies writes by default. Admin-only via service role.
 
@@ -4496,7 +4508,9 @@ CREATE INDEX IF NOT EXISTS idx_user_skills_user ON user_skills(user_id);
 
 ALTER TABLE user_skills ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view user_skills" ON user_skills;
 CREATE POLICY "Anyone can view user_skills" ON user_skills FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users manage own skills" ON user_skills;
 CREATE POLICY "Users manage own skills" ON user_skills
   FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
 
@@ -4577,7 +4591,7 @@ INSERT INTO skills (id, parent_id, slug, name, icon, color, sort_order) VALUES
   ('b0000000-0000-4000-a000-000000000021', 'a0000000-0000-4000-a000-000000000007', 'mover',               'Mover',             NULL, NULL, 1),
   ('b0000000-0000-4000-a000-000000000022', 'a0000000-0000-4000-a000-000000000007', 'landscaper',          'Landscaper',        NULL, NULL, 2),
   ('b0000000-0000-4000-a000-000000000023', 'a0000000-0000-4000-a000-000000000007', 'cleaner',             'Cleaner',           NULL, NULL, 3)
-ON CONFLICT (slug) DO NOTHING;
+ON CONFLICT DO NOTHING;  -- untargeted: these seeds supply explicit ids, so a PK collision must be absorbed too
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- END FEATURE: Worker Skills Taxonomy
@@ -5029,8 +5043,27 @@ USING (
 -- ST_SetSRID(..., 4326), so losing SRID rows breaks home-location handling and
 -- every geography comparison the product depends on.
 --
--- Guarded and placed last so it runs after CREATE EXTENSION postgis, and is a
--- no-op if PostGIS is not installed.
+-- ⚠️ THIS ONLY TAKES EFFECT WHERE WE OWN THE TABLE (local / self-hosted).
+--
+-- On hosted Supabase, spatial_ref_sys is owned by `supabase_admin` and the
+-- migration runs as `postgres`. Postgres treats a REVOKE issued by a non-owner
+-- without grant option as a SILENT NO-OP — it returns success and changes
+-- nothing — and ALTER TABLE ... ENABLE ROW LEVEL SECURITY fails outright with
+-- "must be owner of table spatial_ref_sys".
+--
+-- Verified on the live project: after running this, anon still holds
+-- arwdDxtm and an unauthenticated DELETE still removes rows. Locally it does
+-- work, because the dev image runs migrations as the owner — which means the
+-- local test passes for a reason that does not hold in production. Do not read
+-- a green local run as proof for the hosted project.
+--
+-- This is a Supabase platform limitation, not something the project role can
+-- fix. Tracked separately; the practical exposure is that a client can damage
+-- PostGIS SRID reference data, which is restorable but would break every
+-- geography comparison until it is.
+--
+-- Kept because it is correct and effective on local and self-hosted.
+-- Guarded so it runs after CREATE EXTENSION postgis and no-ops without PostGIS.
 DO $$
 BEGIN
   IF EXISTS (
@@ -5039,8 +5072,11 @@ BEGIN
   ) THEN
     -- Everything except SELECT. TRIGGER would let a client attach a trigger to
     -- PostGIS reference data; REFERENCES lets them wire foreign keys into it.
-    -- Neither is something a browser client should be able to do.
-    EXECUTE 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE, TRIGGER, REFERENCES ON public.spatial_ref_sys FROM anon, authenticated';
+    BEGIN
+      EXECUTE 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE, TRIGGER, REFERENCES ON public.spatial_ref_sys FROM anon, authenticated';
+    EXCEPTION WHEN insufficient_privilege THEN
+      RAISE NOTICE 'spatial_ref_sys hardening skipped: not the table owner (expected on hosted Supabase)';
+    END;
   END IF;
 END $$;
 
