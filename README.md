@@ -1,449 +1,95 @@
-```
-Fix the LAST flaky E2E shard: msg-1/4 rotates failures across browsers.
-17/18 passing. Do NOT regress the other 17.
+# SpokeToWork — Job Hunting by Bicycle
 
-CURRENT: 17/18 (run 24007115122 on 906b2bb, 2026-04-05).
-Failing: msg-1/4 — flaky across all 3 browsers (not always the same one).
-  Run 24007115122: firefox msg-1/4 failed (chromium+webkit passed)
-  Run 24006485810: chromium msg-1/4 failed (firefox+webkit passed)
-  Run 24005982574: all 3 msg-1/4 failed
-
-THE FLAKY TESTS IN msg-1/4:
-  1. complete-user-workflow.spec.ts:692 "should complete cleanup successfully"
-     - cleanupTestData() polls 10×2s (20s) for replica propagation
-     - Test timeout is 30s — leaves only 10s for getUserIds + 4 DELETE queries
-     - Under CI load, Supabase replica lag eats the entire budget
-     - FIX: Increase test timeout to 60s (test.setTimeout(60000)) — this is a
-       cleanup/verification test, not a UI test. The underlying issue IS replica
-       lag, and the cleanup poll is the correct approach, just needs more time.
-
-  2. friend-requests.spec.ts:354 "User A can decline a friend request"
-     friend-requests.spec.ts:187 "User A sends friend request and User B accepts"
-     - Same replica lag pattern: cleanup deletes connections, but read replica
-       still shows old data when test starts UI assertions
-     - Already has retry logic but 30s timeout is too tight under 18-shard load
-
-KEY FILES:
-  - tests/e2e/messaging/complete-user-workflow.spec.ts (line 692, cleanupTestData ~110)
-  - tests/e2e/messaging/friend-requests.spec.ts (lines 187, 354)
-
-METHODOLOGY:
-1. PULL LOGS:
-   gh run list --limit 1 --workflow e2e.yml
-   If in_progress → report and wait.
-   If completed → gh run view <ID> 2>&1 | grep -E "(✓|X) E2E"
-   If all 18 green → DONE.
-
-2. GET FAILURE DETAILS:
-   gh api repos/TortoiseWolfe/SpokeToWork/actions/jobs/<JOB_ID>/logs 2>&1 | grep -P "  \d+\) \[" | head -12
-
-3. FIX (only after diagnosis):
-   - Docker must be running: docker compose exec spoketowork echo alive
-   - Type check: docker compose exec spoketowork pnpm run type-check
-   - Unit test: docker compose exec spoketowork pnpm test
-   - Commit with descriptive message explaining the ROOT CAUSE
-   - Push, verify new CI run starts
-
-4. REGRESSION GUARD:
-   - If ANY of the 17 passing shards break, revert IMMEDIATELY
-   - Track results:
-     PUSH ba0c036 2026-04-02: 12/18 [chromium 2/6,3/6 firefox 2/6,3/6 webkit 2/6,3/6]
-     PUSH 439849b 2026-04-04: 13/18 [webkit 2/6 NEW PASS]
-     PUSH ca8aa36 2026-04-05: 15/18 [all 3 msg-1/4 failed]
-     PUSH 2420904 2026-04-05: 17/18 [chromium msg-1/4 only]
-     PUSH 906b2bb 2026-04-05: 17/18 [firefox msg-1/4 only]
-
-WHAT NOT TO DO:
-  - Do NOT add aggressive polling loops (20×2s) — overwhelms Supabase rate limits
-  - Do NOT use executeSQL as fallback — 18 shards cause rate-limit cascades
-  - Do NOT push while a run is in progress — cancel-in-progress: true kills it
-  - Do NOT stack multiple changes — ONE fix, push, verify, then next
-
-RULES:
-- NEVER guess — read logs and code first
-- NEVER skip or work around a failing test — fix the root cause
-- NEVER regress the 17 passing shards
-- Make ONE change at a time, push, verify
-```
-
-# SpokeToWork - Job Hunting by Bicycle
-
-Track companies, plan bicycle routes, find work locally.
+Track employers, plan bicycle routes, find work locally.
 
 **[Try it →](https://SpokeToWork.com/)**
 
+Most job platforms assume you own a car. Their commute filters are built for drivers, so the jobs you can actually reach never surface. SpokeToWork starts from the other end: where you can get to under your own power.
+
 ## What It Does
 
-| Feature            | Description                                               |
-| ------------------ | --------------------------------------------------------- |
-| 🏢 Track Companies | Maintain target employers with status, priority, contacts |
-| 🚴 Plan Routes     | Optimized bicycle routes connecting multiple companies    |
-| 💬 Secure Messages | End-to-end encrypted communication                        |
-| 📅 Schedule        | Calendar integration for interviews                       |
-| 📱 Works Offline   | PWA that syncs when back online                           |
+### For job seekers
+
+| Feature            | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| 🏢 Track employers | Maintain target companies with status, priority, and contacts                     |
+| 🚴 Plan routes     | Road-network bicycle routing across multiple stops, ordered by a 2-opt TSP solver |
+| 🗺️ Map nearby      | Geocoded employer locations with viewport and radius search                       |
+| 💬 Secure messages | End-to-end encrypted direct and group chat (ECDH P-256 + AES-GCM-256)             |
+| 📅 Schedule        | Shift schedule and time clock                                                     |
+| 📱 Works offline   | Installable PWA that syncs when back online                                       |
+
+### For employers
+
+| Feature               | Description                                                      |
+| --------------------- | ---------------------------------------------------------------- |
+| 📥 Applicant pipeline | Table and kanban views with realtime updates and a status funnel |
+| 👥 Team roster        | Add and remove members, including employees without accounts     |
+| 🗓️ Shift scheduling   | Week grid, business hours, copy-last-week                        |
+| ⏱️ Time clock         | Server-authoritative clock in/out with offline gap tracking      |
+
+> **Note:** the employer side is an applicant-pipeline and workforce-ops console, not a job-posting surface. There are no job listings in the product — the unit of supply is an employer with a geocoded address. Employers also cannot yet link themselves to a company without operator help. See [#68](https://github.com/TortoiseWolfe/SpokeToWork/issues/68).
 
 ## Quick Links
 
-- **App**: [SpokeToWork.com](https://SpokeToWork.com/)
-- **Storybook**: [SpokeToWork.com/storybook](https://SpokeToWork.com/storybook/)
-- **Status**: [SpokeToWork.com/status](https://SpokeToWork.com/status)
+- **App** — [SpokeToWork.com](https://SpokeToWork.com/)
+- **Storybook** — [SpokeToWork.com/storybook](https://SpokeToWork.com/storybook/)
+- **Status** — [SpokeToWork.com/status](https://SpokeToWork.com/status)
 
 ## Tech Stack
 
-Next.js 15 • React 19 • TypeScript • Tailwind CSS 4 • Supabase • PWA
+Next.js 15 · React 19 · TypeScript · Tailwind CSS 4 + DaisyUI · Supabase · PWA
+
+Routing via OSRM (bike profile) and OpenRouteService. Geocoding via Nominatim. Maps rendered with MapLibre GL. Deployed to GitHub Pages as a static export, so all server-side logic lives in Supabase.
+
+## Project Scale
+
+|                  |        |
+| ---------------- | ------ |
+| Source files     | 638    |
+| Test files       | 551    |
+| Test cases       | ~5,200 |
+| SpecKit features | 35     |
+
+> The file counts include roughly 75 files belonging to orphaned components that nothing imports ([#82](https://github.com/TortoiseWolfe/SpokeToWork/issues/82)), and the test-case count is not a coverage claim — see [#76](https://github.com/TortoiseWolfe/SpokeToWork/issues/76).
+
+Vitest for unit and component tests, Playwright across Chromium/Firefox/WebKit for E2E, axe-core (via `axe-playwright`) and `@storybook/addon-a11y` for accessibility.
 
 ## For Contributors
 
-Docker required. All commands run inside container.
+Docker required. All commands run inside the container.
 
 ```bash
-docker compose up                           # Start dev
-docker compose exec spoketowork pnpm test   # Run tests
+docker compose up                                    # Start dev
+docker compose exec spoketowork pnpm test            # Unit tests
+docker compose exec spoketowork pnpm run type-check  # Type check
+docker compose exec spoketowork pnpm storybook       # Storybook
 ```
 
-See [CLAUDE.md](./CLAUDE.md) for full development documentation.
+See [CLAUDE.md](./CLAUDE.md) for architecture, Supabase workflow, and project conventions.
 
-## Lighthouse Scores
+## Active Work
 
-Performance 92 • Accessibility 98 • Best Practices 95 • SEO 100 • PWA 92
+Tracked as GitHub issues rather than in this file.
 
-## Technical Debt
+| Area                                    | Issue                                                         |
+| --------------------------------------- | ------------------------------------------------------------- |
+| Flaky `msg-1/4` E2E shard (replica lag) | [#65](https://github.com/TortoiseWolfe/SpokeToWork/issues/65) |
+| E2E remediation backlog                 | [#66](https://github.com/TortoiseWolfe/SpokeToWork/issues/66) |
+| Design system redesign                  | [#67](https://github.com/TortoiseWolfe/SpokeToWork/issues/67) |
+| Employer surface gaps                   | [#68](https://github.com/TortoiseWolfe/SpokeToWork/issues/68) |
+| Message reliability                     | [#69](https://github.com/TortoiseWolfe/SpokeToWork/issues/69) |
+| Accessibility suite                     | [#70](https://github.com/TortoiseWolfe/SpokeToWork/issues/70) |
+| Approved contributions land at (0,0)    | [#71](https://github.com/TortoiseWolfe/SpokeToWork/issues/71) |
+| Private notes visible to employers      | [#72](https://github.com/TortoiseWolfe/SpokeToWork/issues/72) |
+| Measure real Lighthouse scores          | [#73](https://github.com/TortoiseWolfe/SpokeToWork/issues/73) |
 
-~~**053 - Unified Browser Event Hooks**~~ ✅ **COMPLETE**
+Longer-range items live in [docs/TECHNICAL-DEBT.md](./docs/TECHNICAL-DEBT.md) and [docs/future-features/HR-FEATURE-ROADMAP.md](./docs/future-features/HR-FEATURE-ROADMAP.md).
 
-> ~~Duplicate event listeners (online/offline, click-outside, visibility). Consolidate into hooks.~~ Created `useOnlineStatus`, `useClickOutside`, `useVisibilityChange` hooks. Migrated 3 components.
-> [View Spec](specs/053-unified-event-hooks/spec.md)
+## Template
 
-~~**054 - Code Consolidation**~~ ✅ **COMPLETE**
-
-> ~~Duplicate implementations (offline queue, audit logger, email validation, rate limiter).~~ All consolidated: offline queue has adapters, email validation delegates to auth, dead code removed.
-> [View Spec](specs/054-code-consolidation/spec.md)
-
-~~**055 - Test Coverage Expansion**~~ ✅ **COMPLETE**
-
-> ```54% coverage in lib/services/hooks. Critical payment and auth files untested.~~ Audit found 68% file ratio (297 test files, 3631 tests). Critical files already tested.
-> [View Spec](specs/055-test-coverage/spec.md)
-> ```
-
----
-
-All P1/P2 technical debt specs complete. See [docs/TECHNICAL-DEBT.md](./docs/TECHNICAL-DEBT.md) for future items.
-
-## E2E Test Remediation
-
-**Status**: 125 unique failures (27 CRITICAL, 65 HIGH, 24 MEDIUM, 9 LOW)
-
-**Root Causes**:
-
-- AUTH_FAILURE (51%): Tests show "Sign In" link when authenticated state expected
-- STATE_DEPENDENT (26%): Tests assume data from previous runs
-- OVERLAY_BLOCKING (16%): Cookie consent banner visible in 95% of failures
-
-**Analysis Report**: [docs/specs/e2e-remediation/analysis-report.md](./docs/specs/e2e-remediation/analysis-report.md)
-
-To start the remediation workflow:
-
-```bash
-/speckit.workflow Fix E2E test failures: 27 CRITICAL (auth failures blocking 51% of tests), 65 HIGH (feature-specific). Primary root cause is authentication not persisting - tests show "Sign In" link when auth expected. Secondary issue is cookie banner blocking 95% of tests. See docs/specs/e2e-remediation/analysis-report.md
-```
-
-## Design System Redesign
-
-Custom SpokeToWork theme (dark default + light variant) built on the existing DaisyUI/Tailwind stack. Storybook upgrade to v10, then bottom-up component reskin.
-
-**Design doc**: [docs/plans/2026-02-13-design-system-redesign.md](./docs/plans/2026-02-13-design-system-redesign.md)
-**Implementation plan**: [docs/plans/2026-02-13-design-system-implementation.md](./docs/plans/2026-02-13-design-system-implementation.md)
-
-### Session Continuation Prompt
-
-```
-Read these files to pick up the design system redesign:
-
-1. CLAUDE.md - Project rules, Docker setup, coding standards
-2. docs/plans/2026-02-13-design-system-redesign.md - Approved design (colors, aesthetic, constraints)
-3. docs/plans/2026-02-13-design-system-implementation.md - Task-by-task plan
-4. docs/STORYBOOK_NOTES.md - Current Storybook state (needs v10 upgrade)
-5. src/app/globals.css - Current theme config, DaisyUI plugin block, typography system
-
-Use superpowers:executing-plans to work through the implementation plan.
-Start at Phase 1 Task 1 (or wherever the plan left off).
-
-Key context:
-- Everything runs inside Docker: docker compose exec spoketowork <command>
-- pnpm, not npm
-- DaisyUI beta with Tailwind v4 CSS-first config (@plugin syntax)
-- Brand colors: orange #E67E22 (primary), cyan #00d9ff (secondary), green #22c55e (accent), navy #132a4e (base)
-- Dark theme default, light variant available
-- Preserve all existing accessibility work (WCAG touch targets, ARIA patterns, colorblind filters)
-- Aesthetic: mission with personality. Headspace-like. Not silly, not corporate.
-```
-
-## Development Tasks
-
-### Codebase Polish (Complete)
-
-All items completed in commit `a93fbdb` and surrounding work.
-
-<details>
-<summary>Checklist</summary>
-
-- [x] Read CLAUDE.md before starting
-- [x] Found prior work documentation at repo root
-- [x] Identified all 5 tab-pattern components (not just 2-3)
-
-**Keyboard Navigation** — `useRovingTabIndex` hook, ARIA roles, tests verify focus movement
-
-- [x] ConversationList (3 tabs: All, Unread, Archived)
-- [x] UnifiedSidebar (2 tabs: Chats, Connections)
-- [x] ConnectionManager (4 tabs: Received, Sent, Accepted, Blocked)
-- [x] PaymentButton (2 tabs: Stripe, PayPal)
-- [x] TileLayerSelector (variable tiles, some disabled)
-- [x] Arrow key navigation between tabs works
-- [x] Home/End jump to first/last tab
-- [x] TileLayerSelector: arrow keys skip disabled options
-- [x] Tests verify actual focus movement (not just handler existence)
-
-**Message Edit/Delete** — Services wired through MessageBubble, deleted messages show placeholder
-
-- [x] Traced chain: service -> page handlers -> component props -> UI
-- [x] Edit handler calls service and updates conversation
-- [x] Delete handler shows placeholder (not filtered out)
-- [x] Tests for both operations
-
-**Real-time Notifications** — `useEmployerApplications` hook + `ApplicationToast`
-
-- [x] Subscription hook for employer dashboard
-- [x] Toast on new application (no page refresh)
-- [x] Hook cleans up on unmount
-
-**Dockerfile.e2e Cleanup**
-
-- [x] Base URL no longer references old repo name
-- [x] Unnecessary build step removed or conditional
-- [x] Default CMD matches actual invocation
-
-**Cross-Browser Reliability** — Browser-specific timeouts in auth helpers
-
-- [x] Firefox auth tests pass (no navigation abort during sign-out)
-- [x] Webkit auth tests pass consistently (no intermittent timeouts)
-- [x] All three browser projects green
-
-**Admin User Seeding (Cloud CI)** — `global-setup.ts` seeds via Management API
-
-- [x] Admin user seeded in cloud Supabase
-- [x] Encryption keys exist for admin
-- [x] welcome-message and complete-flows specs pass in CI
-
-**Map Snapshot Baselines** — 8 snapshots across themes and browsers
-
-- [x] Baselines regenerated after auth fixes
-- [x] Stable across consecutive runs
-
-</details>
-
----
-
-### Employer Redesign
-
-```
-Read CLAUDE.md first. SpokeToWork has two problems: it doesn't look like a product, and it doesn't work like one for employers.
-
-The landing page looks like a stock DaisyUI template. Emoji icons on the feature cards, a text-only hero with no visual weight, and nothing that says this is a job-hunting app for cyclists. The accessibility tooling and theme system are solid, but the page has no personality. Start with the hero section. It needs a visual anchor that communicates the core concept. Give it structure, visual hierarchy, and a reason to keep scrolling. Then rework the feature cards. Which feature matters most? Make that decision visible.
-
-There are no employer-facing pages at all. Employers sign up the same as job seekers and land on the same dashboard. Build an employer dashboard that shows incoming applications with status highlighting. The mapping between status values and visual styles needs to live in one place. If a new status shows up that the code doesn't recognize, it should fall back gracefully. Seed the database with realistic test data, not three placeholder rows.
-
-The design language you establish on the landing page carries through to the employer dashboard. Both need to feel like the same app when you switch themes. Every color uses DaisyUI semantic tokens. Hardcoded hex values will break 31 of 32 themes. Check your work against at least 3: light, dark, and one high-contrast like dracula or synthwave.
-
-The existing accessibility features are load-bearing. The skip-to-content link, the font scaling toolbar, the colorblind filters, the 44px touch targets. Read what's there before you move things around. Keep pages under 150 lines. Use the component generator for new components. Tests first, then implementation.
-```
-
-<details>
-<summary>Checklist</summary>
-
-**Design Quality**
-
-- [ ] Read CLAUDE.md before starting
-- [ ] Understood the existing design system (DaisyUI, Tailwind v4, Geist fonts)
-- [ ] Hero has visual weight and clear hierarchy (not just floating text)
-- [ ] Hero communicates what the app does without reading a paragraph
-- [ ] Call-to-action buttons feel intentional, not afterthoughts
-- [ ] Feature cards have visual differentiation and scanning rhythm
-- [ ] At least one feature card is visually prioritized over others
-- [ ] Page feels like a product, not a template
-
-**Theme Compatibility**
-
-- [ ] ALL colors use DaisyUI semantic tokens (primary, secondary, accent, base-\*)
-- [ ] Zero hardcoded hex values or Tailwind color utilities (bg-blue-500, text-gray-700, etc.)
-- [ ] Verified against light theme (no broken contrast)
-- [ ] Verified against dark theme (no invisible elements)
-- [ ] Verified against a high-contrast theme like dracula or synthwave
-- [ ] Visual design holds across all 3 tested themes
-- [ ] Landing page and employer dashboard feel like the same app across themes
-
-**Accessibility Preservation**
-
-- [ ] Skip-to-content link still works (Tab reveals, Enter jumps)
-- [ ] Font scaling toolbar works at all sizes (S through XL)
-- [ ] Touch targets remain 44px minimum
-- [ ] Focus order is logical top-to-bottom
-- [ ] Colorblind filters don't break the new layout
-- [ ] No new axe-core violations introduced
-
-**Auth Pages**
-
-- [ ] Sign-in page has visual identity, not just a centered form
-- [ ] Sign-up page matches sign-in design language
-- [ ] OAuth buttons (Google, GitHub) feel like first-class options
-- [ ] Form validation states styled consistently
-
-**Employer Dashboard**
-
-- [ ] Dashboard page exists with incoming applications
-- [ ] Status highlighting with centralized status-to-style mapping
-- [ ] Unknown status values fall back gracefully (not broken layout)
-- [ ] Seeded with realistic test data (varied statuses, not 3 placeholder rows)
-- [ ] Visual design matches the landing page's design language
-
-**Sign-Up Routing**
-
-- [ ] Sign-up flow asks user type (employer vs job seeker)
-- [ ] Proper routing based on user type selection
-- [ ] Both paths work end-to-end
-
-**Employee Management**
-
-- [ ] Employee list with add/remove
-- [ ] Updates without page refresh
-- [ ] Tests written first
-
-**Application Lifecycle**
-
-- [ ] Application tracking (list, view, accept/reject)
-- [ ] Status transitions work and update the dashboard
-
-**Profile and Account**
-
-- [ ] Profile page feels like a destination after sign-in
-- [ ] Avatar is prominent, auth provider visible
-- [ ] Page has enough structure to grow without redesign
-
-**Architecture**
-
-- [ ] Services created in src/lib/employer/ (not inline in pages)
-- [ ] Custom hooks in src/hooks/ for data fetching
-- [ ] Pages are thin (<150 lines)
-- [ ] 5-file component structure followed (index, component, test, stories, a11y)
-- [ ] Used component generator (not manual creation)
-- [ ] Shared design components reused across pages
-
-**Testing (TDD)**
-
-- [ ] Tests written BEFORE implementation (TDD approach)
-- [ ] Unit tests for services and hooks
-- [ ] Component tests for new components
-- [ ] E2E tests for new user flows
-- [ ] All new tests passing
-
-</details>
-
----
-
-### Message Reliability
-
-```
-Read CLAUDE.md first. The encrypted messaging system has reliability issues that users are reporting but nobody's diagnosed yet.
-
-After going offline and coming back online, some messages show up twice in the conversation. Separately, sometimes a message just doesn't appear at all on the recipient's side even though the sender sees it fine. And occasionally the first message someone sends right after logging in fails silently, no error, just gone.
-
-There are also two UX problems. The typing indicator shows someone as typing long after they've stopped or closed the tab. And after reconnecting from an offline period, messages appear out of order even though they have sequence numbers.
-
-Start by reading the messaging quickstart doc and tracing the decryption pipeline end to end. The system uses end-to-end encryption, so understand the key management and caching layers before you start changing anything. Diagnose each symptom, find the root cause, fix it, and write tests that prove the fix works.
-```
-
-<details>
-<summary>Checklist</summary>
-
-**Diagnosis**
-
-- [ ] Read CLAUDE.md before starting
-- [ ] Read messaging quickstart doc
-- [ ] Traced the full decryption pipeline (message -> cache lookup -> key derivation -> decrypt -> UI)
-- [ ] Identified all three module-level caches in the realtime hook
-- [ ] Understood encryption scheme (ECDH P-256 + AES-GCM-256) before making changes
-
-**Duplicate Messages**
-
-- [ ] Diagnosed: offline queue sync has no dedup by message ID
-- [ ] Fix: Messages deduplicated during offline sync (not just suppressed in UI)
-- [ ] Test: Send messages offline, reconnect, verify no duplicates
-
-**Silent Message Loss**
-
-- [ ] Diagnosed: decryption failure returns null, message silently dropped from conversation
-- [ ] Fix: Failed decryption shows placeholder (user knows message exists but can't be read)
-- [ ] Fix: Root cause of decryption failure addressed (stale shared secret cache)
-- [ ] Test: Simulated decryption failure shows placeholder, not empty gap
-
-**First-Message-After-Login Failure**
-
-- [ ] Diagnosed: message send doesn't wait for key derivation to complete
-- [ ] Fix: Send waits for keys to be ready before encrypting
-- [ ] Test: Message sent immediately after login succeeds
-
-**Typing Indicator Cleanup**
-
-- [ ] Diagnosed: no cleanup on disconnect or tab close
-- [ ] Fix: Typing status cleared on disconnect, tab close, and session end
-- [ ] Fix: Stale typing records cleaned up (not orphaned forever)
-- [ ] Test: Close tab while typing, indicator disappears within timeout
-
-**Cache Invalidation**
-
-- [ ] Shared secret cache invalidated on key rotation or re-authentication
-- [ ] Private key cache invalidated on re-authentication
-- [ ] Profile cache has TTL or invalidation strategy
-- [ ] No thundering herd on concurrent decryption of many messages
-
-**Message Ordering**
-
-- [ ] Diagnosed: no sequence number re-ordering after offline sync
-- [ ] Fix: Messages sorted by sequence number after sync completes
-- [ ] Test: Offline messages interleaved with online messages appear in correct order
-
-**Encryption Constraint**
-
-- [ ] Did NOT attempt to log or display decrypted message content for debugging
-- [ ] Verified fixes using metadata (message IDs, timestamps, sequence numbers) not plaintext
-
-**Architecture**
-
-- [ ] Realtime hook stays under 400 lines (extract cache/sync if needed)
-- [ ] New modules follow existing patterns
-
-**Testing**
-
-- [ ] Messaging E2E specs pass
-- [ ] Encryption unit tests pass
-- [ ] Offline queue tests pass
-- [ ] No regressions in existing test suite
-
-</details>
-
----
-
-### Accessibility Suite
-
-```
-Read CLAUDE.md first. Run the accessibility tests and figure out what's failing. These are real component bugs, not environment issues. Don't touch the test assertions, fix the actual components. Some of these are straightforward but at least one has a structural decision that'll break other pages if you get it wrong. Read the test expectations carefully before you start changing things.
-
-There's also an orientation problem on mobile viewports. Run those tests and you'll see something in the CSS isn't respecting the viewport width after a rotation. The test output shows the numbers.
-
-Start with those two areas. Once both specs are green, show me the results before moving on.
-```
-
----
+SpokeToWork is built on [ScriptHammer](https://github.com/TortoiseWolfe/ScriptHammer). The friction of this fork produced `scripts/rebrand.sh` upstream — see [docs/FORKING-FEEDBACK.md](./docs/FORKING-FEEDBACK.md).
 
 ## License
 
-MIT - See [LICENSE](./LICENSE)
+MIT — see [LICENSE](./LICENSE)
