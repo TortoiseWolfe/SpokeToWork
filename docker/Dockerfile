@@ -2,9 +2,12 @@
 FROM node:22-slim AS base
 
 # Install pnpm and configure store
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Pin to the same version as package.json packageManager and CI (pnpm/action-setup).
+# `pnpm@latest` drifted into a release that refuses to run when the global bin
+# directory ($PNPM_HOME/bin) is missing from PATH, which broke this build.
+RUN corepack enable && corepack prepare pnpm@10.16.1 --activate
 ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
+ENV PATH="$PNPM_HOME:$PNPM_HOME/bin:$PATH"
 RUN pnpm config set store-dir /pnpm/store --global
 
 # Install dependencies only when needed
