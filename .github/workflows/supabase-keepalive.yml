@@ -1,10 +1,14 @@
 name: Supabase Keep-Alive
 
-# Runs every 6 days to prevent Supabase Cloud free tier from auto-pausing (pauses after 7 days)
+# Keeps the Supabase Cloud free-tier project awake (it auto-pauses after 7 days idle).
 on:
   schedule:
-    # Runs at 3:00 AM UTC every 6 days
-    - cron: '0 3 */6 * *'
+    # 3:00 AM UTC every 3rd day of the month.
+    # NOTE: day-of-month steps restart each month, they do not roll over.
+    # The previous '*/6' fired on days 1,7,13,19,25 — leaving a 7-day gap from
+    # the 25th to the 1st in any 31-day month, which is exactly the auto-pause
+    # threshold. '*/3' fires 1,4,...,28, so the worst-case gap is 4 days.
+    - cron: '0 3 */3 * *'
   workflow_dispatch: # Allows manual trigger from Actions tab
 
 env:
@@ -18,15 +22,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: '22'
-
+      # pnpm MUST be installed before setup-node: setup-node@v5 defaults to
+      # package-manager-cache: true, which shells out to pnpm to resolve the
+      # store path. With the old order it died with "Unable to locate
+      # executable file: pnpm" before ever reaching Supabase — and the
+      # "Notify on failure" step below then blamed a paused instance.
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10.16.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -41,6 +51,8 @@ jobs:
         if: failure()
         run: |
           echo "❌ Supabase priming failed!"
-          echo "The instance may be paused or the URL/keys may be incorrect."
-          echo "Check the workflow logs and verify your Supabase project is active."
+          echo "Check WHICH step failed before assuming the instance is paused —"
+          echo "a setup/toolchain failure never reaches Supabase at all."
+          echo "If 'Prime Supabase instance' itself failed, then verify the"
+          echo "project is active and NEXT_PUBLIC_SUPABASE_URL/ANON_KEY are correct."
           exit 1
