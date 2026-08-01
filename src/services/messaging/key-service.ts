@@ -208,16 +208,32 @@ export class KeyManagementService {
     }
 
     try {
-      // Step 1: Fetch salt and public key from Supabase
-      // Use maybeSingle() instead of single() to handle case where user has no keys yet
-      const { data, error } = await msgClient
-        .from('user_encryption_keys')
-        .select('encryption_salt, public_key')
-        .eq('user_id', user.id)
-        .eq('revoked', false)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // Step 1: Fetch salt and public key.
+      //
+      // encryption_salt is NOT selectable by clients: salt + public_key is an
+      // offline password oracle (same password + salt always derives the same
+      // P-256 keypair, so an attacker can verify password guesses against the
+      // stored public key). It comes back through a SECURITY DEFINER RPC that
+      // only ever returns the caller's own salt.
+      const [{ data: saltData, error: saltError }, { data, error }] =
+        await Promise.all([
+          msgClient.rpc('get_own_encryption_salt'),
+          msgClient
+            .from('user_encryption_keys')
+            .select('public_key')
+            .eq('user_id', user.id)
+            .eq('revoked', false)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            // Use maybeSingle() to handle the case where the user has no keys yet
+            .maybeSingle(),
+        ]);
+
+      if (saltError) {
+        throw new ConnectionError(
+          'Failed to fetch encryption salt: ' + saltError.message
+        );
+      }
 
       // Only throw connection error for actual database errors, not "no rows" errors
       if (error && error.code !== 'PGRST116') {
@@ -226,16 +242,22 @@ export class KeyManagementService {
         );
       }
 
-      if (!data?.encryption_salt) {
+      if (!saltData) {
         throw new KeyDerivationError(
           'No salt found. User may need migration or initialization.'
         );
       }
 
+      // Salt and public key come from two round-trips now, so the public key
+      // row is checked on its own rather than being implied by the salt guard.
+      if (!data?.public_key) {
+        throw new KeyDerivationError(
+          'No stored public key found. User may need migration or initialization.'
+        );
+      }
+
       // Decode base64 salt
-      const saltBytes = Uint8Array.from(atob(data.encryption_salt), (c) =>
-        c.charCodeAt(0)
-      );
+      const saltBytes = Uint8Array.from(atob(saltData), (c) => c.charCodeAt(0));
 
       // Step 2: Derive key pair from password
       const keyPair = await this.keyDerivationService.deriveKeyPair({
@@ -330,9 +352,7 @@ export class KeyManagementService {
       const storageKey = userId
         ? `${KeyManagementService.STORAGE_PREFIX}${userId}`
         : null;
-      const cached = storageKey
-        ? localStorage.getItem(storageKey)
-        : null;
+      const cached = storageKey ? localStorage.getItem(storageKey) : null;
       if (!cached) {
         console.log('[key-cache] No cached keys for user', userId || 'unknown');
         return false;

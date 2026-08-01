@@ -120,6 +120,11 @@ describe('KeyManagementService', () => {
 
     mockMsgClient = {
       from: vi.fn(),
+      // encryption_salt is no longer SELECTable by clients (salt + public_key
+      // is an offline password oracle). The owner's salt comes back through a
+      // SECURITY DEFINER RPC instead. Individual tests override this when they
+      // need a specific salt or an error.
+      rpc: vi.fn().mockResolvedValue({ data: mockSalt, error: null }),
     };
 
     vi.mocked(createClient).mockReturnValue(mockSupabase);

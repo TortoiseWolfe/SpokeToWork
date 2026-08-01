@@ -67,6 +67,42 @@ UNAUTH=$(curl -s -X POST "$API/rest/v1/rpc/employer_update_application_status" -
   -H "Content-Type: application/json" -d "{\"p_application_id\":\"$AID\",\"p_status\":\"offer\"}")
 echo "$UNAUTH" | grep -qi "Not authorized" && ok "RPC rejects a non-linked caller" || bad "RPC allowed non-linked caller: $UNAUTH"
 
+echo "== D. anonymous writes (Supabase grants ALL to anon by default; RLS is the only gate) =="
+FORGED=$(curl -s -X POST "$API/rest/v1/auth_audit_logs" -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" -d "{\"user_id\":\"$UA\",\"event_type\":\"sign_in\",\"success\":true}" -w "%{http_code}")
+echo "$FORGED" | grep -qE "(201|204)$" && bad "anon FORGED an audit log against another user" \
+  || ok "anon cannot forge audit logs against another user"
+# Logging anonymously (user_id NULL) must still work: failed sign-ins have no session.
+ANONLOG=$(curl -s -o /dev/null -X POST "$API/rest/v1/auth_audit_logs" -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" -d '{"event_type":"sign_in","success":false}' -w "%{http_code}")
+[ "$ANONLOG" = "201" ] && ok "pre-session audit logging still works" || bad "pre-session audit logging BROKEN ($ANONLOG)"
+
+WH=$(curl -s -o /dev/null -X POST "$API/rest/v1/webhook_events" -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" \
+  -d '{"provider":"stripe","provider_event_id":"evt_boundary_probe","event_type":"checkout.session.completed","signature":"x","signature_verified":true,"processed":false}' -w "%{http_code}")
+[ "$WH" = "201" ] && bad "anon FORGED a payment webhook event" || ok "anon cannot insert webhook_events (idempotency ledger)"
+
+SRS_BEFORE=$(psqlq "SELECT count(*) FROM spatial_ref_sys")
+curl -s -o /dev/null -X DELETE "$API/rest/v1/spatial_ref_sys?srid=eq.2000" -H "apikey: $ANON" -H "Authorization: Bearer $ANON"
+SRS_AFTER=$(psqlq "SELECT count(*) FROM spatial_ref_sys")
+[ "$SRS_BEFORE" = "$SRS_AFTER" ] && ok "anon cannot delete PostGIS reference data" \
+  || bad "anon DELETED spatial_ref_sys rows ($SRS_BEFORE -> $SRS_AFTER)"
+
+
+echo "== E. encryption salt (salt + public_key is an offline password oracle) =="
+psqlq "INSERT INTO user_encryption_keys (user_id, public_key, encryption_salt, revoked) VALUES ('$UA','{\"kty\":\"EC\"}'::jsonb,'c2FsdHktc2FsdA==',false) ON CONFLICT DO NOTHING" >/dev/null
+SALT_ANON=$(curl -s "$API/rest/v1/user_encryption_keys?select=encryption_salt" -H "apikey: $ANON" -H "Authorization: Bearer $ANON")
+echo "$SALT_ANON" | grep -q "does not exist\|permission denied" && ok "anon cannot select encryption_salt" || bad "anon READ encryption_salt: $SALT_ANON"
+SALT_OTHER=$(curl -s "$API/rest/v1/user_encryption_keys?select=encryption_salt" -H "apikey: $ANON" -H "Authorization: Bearer $TB")
+echo "$SALT_OTHER" | grep -q "does not exist\|permission denied" && ok "another user cannot select encryption_salt" || bad "user READ encryption_salt: $SALT_OTHER"
+PUB=$(curl -s "$API/rest/v1/user_encryption_keys?select=user_id,public_key&limit=1" -H "apikey: $ANON" -H "Authorization: Bearer $TB")
+echo "$PUB" | grep -q "public_key" && ok "peers can still read public keys" || bad "public key read BROKEN: $PUB"
+OWNSALT=$(curl -s -X POST "$API/rest/v1/rpc/get_own_encryption_salt" -H "apikey: $ANON" -H "Authorization: Bearer $TA" -H "Content-Type: application/json" -d '{}')
+echo "$OWNSALT" | grep -q "c2FsdHktc2FsdA" && ok "owner can fetch own salt via RPC" || bad "own-salt RPC BROKEN: $OWNSALT"
+OTHERSALT=$(curl -s -X POST "$API/rest/v1/rpc/get_own_encryption_salt" -H "apikey: $ANON" -H "Authorization: Bearer $TB" -H "Content-Type: application/json" -d '{}')
+echo "$OTHERSALT" | grep -q "c2FsdHktc2FsdA" && bad "RPC leaked ANOTHER user's salt" || ok "RPC returns only the caller's own salt"
+
+
 echo
 echo "passed=$PASS failed=$FAIL"
 [ "$FAIL" -eq 0 ]

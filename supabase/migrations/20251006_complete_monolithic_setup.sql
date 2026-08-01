@@ -505,13 +505,26 @@ CREATE POLICY "Users update own subscriptions" ON subscriptions
   FOR UPDATE USING (auth.uid() = template_user_id);
 
 -- Webhook events
+--
+-- These are named "Service ..." but had no TO clause, so they applied to
+-- PUBLIC — which includes `anon`. Supabase grants ALL on every table in this
+-- schema to anon and authenticated by default, so RLS is the only gate, and an
+-- unconditional WITH CHECK (true) meant an UNAUTHENTICATED request could insert
+-- webhook_events rows, including `signature_verified: true`.
+--
+-- That is not just noise: stripe-webhook/index.ts uses this table as its
+-- IDEMPOTENCY LEDGER. It looks up (provider, provider_event_id) and, on a hit,
+-- returns "already processed" without fulfilling. Pre-inserted rows therefore
+-- suppress real payments.
+--
+-- Only Edge Functions write here, and they use the service role key.
 DROP POLICY IF EXISTS "Service creates webhook events" ON webhook_events;
 CREATE POLICY "Service creates webhook events" ON webhook_events
-  FOR INSERT WITH CHECK (true);
+  FOR INSERT TO service_role WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Service updates webhook events" ON webhook_events;
 CREATE POLICY "Service updates webhook events" ON webhook_events
-  FOR UPDATE WITH CHECK (true);
+  FOR UPDATE TO service_role USING (true) WITH CHECK (true);
 
 -- Payment provider config
 DROP POLICY IF EXISTS "Users view provider config" ON payment_provider_config;
@@ -534,9 +547,15 @@ DROP POLICY IF EXISTS "Users update own profile" ON user_profiles;
 CREATE POLICY "Users update own profile" ON user_profiles
   FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
+-- Scoped to service_role. Without a TO clause this applied to PUBLIC, letting
+-- an unauthenticated caller insert user_profiles rows (in practice the FK to
+-- auth.users blocked forged ids, but the policy was still wider than intended).
+-- The normal signup path is the create_user_profile trigger, which is
+-- SECURITY DEFINER and unaffected; client upserts use "Users insert own
+-- profile" below.
 DROP POLICY IF EXISTS "Service creates profiles" ON user_profiles;
 CREATE POLICY "Service creates profiles" ON user_profiles
-  FOR INSERT WITH CHECK (true);
+  FOR INSERT TO service_role WITH CHECK (true);
 
 -- Allow users to insert their own profile (needed for upsert operations)
 DROP POLICY IF EXISTS "Users insert own profile" ON user_profiles;
@@ -548,9 +567,19 @@ DROP POLICY IF EXISTS "Users can view own audit logs" ON auth_audit_logs;
 CREATE POLICY "Users can view own audit logs" ON auth_audit_logs
   FOR SELECT USING (auth.uid() = user_id);
 
+-- Anti-forgery clause. This cannot be narrowed to service_role: the client
+-- writes here directly (src/lib/auth/audit-logger.ts), including for events
+-- that happen BEFORE a session exists — a failed sign-in has no auth.uid().
+--
+-- What it must prevent is one account writing audit entries attributed to
+-- ANOTHER account. Previously WITH CHECK (true) applied to PUBLIC, so any
+-- unauthenticated caller could forge "sign_in success" rows against any
+-- user_id — poisoning the very table you would use to investigate a breach.
+--
+-- So: you may log for yourself, or anonymously, and never as someone else.
 DROP POLICY IF EXISTS "Service role can insert audit logs" ON auth_audit_logs;
 CREATE POLICY "Service role can insert audit logs" ON auth_audit_logs
-  FOR INSERT WITH CHECK (true);
+  FOR INSERT WITH CHECK (user_id IS NULL OR user_id = auth.uid());
 
 -- ============================================================================
 -- PART 7: GRANT PERMISSIONS
@@ -1083,7 +1112,54 @@ COMMENT ON FUNCTION assign_sequence_number() IS 'Auto-increment message sequence
 GRANT ALL ON user_connections TO authenticated, service_role;
 GRANT ALL ON conversations TO authenticated, service_role;
 GRANT ALL ON messages TO authenticated, service_role;
-GRANT ALL ON user_encryption_keys TO authenticated, service_role;
+-- user_encryption_keys: everyone may read PUBLIC keys, nobody may read SALTS.
+--
+-- "Anyone can view public keys" is USING (true), because peers genuinely need
+-- each other's public keys to derive a shared secret. But RLS is row-level, so
+-- that policy also exposed `encryption_salt` — and key-derivation.ts states:
+-- "Same password + salt always produces the same ECDH P-256 key pair"
+-- (password + salt -> Argon2id -> seed -> private key -> public key).
+--
+-- Salt plus public key is therefore an OFFLINE PASSWORD ORACLE: derive a
+-- keypair from each guessed password and compare the result to the stored
+-- public key. A hit yields both the password and the private key that decrypts
+-- that user's messages. Argon2id makes each guess expensive, which is a real
+-- mitigation, but this turns a rate-limited online attack into an unbounded
+-- offline one.
+--
+-- Column-scoped SELECT removes the salt from every client read path. The owner
+-- still needs their own salt to re-derive keys on another device; that goes
+-- through get_own_encryption_salt() below. INSERT keeps full column access —
+-- writing your own salt is fine, reading someone else's is not.
+-- NOTE the `anon` in this REVOKE. Supabase's default privileges grant ALL to
+-- BOTH anon and authenticated on every table in this schema, so revoking from
+-- `authenticated` alone leaves the anon role holding the exact privilege you
+-- just removed. Messaging requires a session, so anon gets nothing here.
+REVOKE ALL ON user_encryption_keys FROM anon, authenticated;
+GRANT SELECT (id, user_id, public_key, device_id, expires_at, revoked, created_at)
+  ON user_encryption_keys TO authenticated;
+GRANT INSERT, UPDATE, DELETE ON user_encryption_keys TO authenticated;
+GRANT ALL ON user_encryption_keys TO service_role;
+
+CREATE OR REPLACE FUNCTION get_own_encryption_salt()
+RETURNS TEXT
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT encryption_salt
+  FROM user_encryption_keys
+  WHERE user_id = auth.uid() AND revoked = false
+  ORDER BY created_at DESC
+  LIMIT 1;
+$$;
+
+REVOKE ALL ON FUNCTION get_own_encryption_salt() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION get_own_encryption_salt() TO authenticated;
+
+COMMENT ON FUNCTION get_own_encryption_salt() IS
+  'Returns the callers own encryption salt. The salt column is not SELECTable by clients because salt+public_key is an offline password oracle.';
 GRANT ALL ON conversation_keys TO authenticated, service_role;
 GRANT ALL ON typing_indicators TO authenticated, service_role;
 
@@ -4938,6 +5014,35 @@ USING (
 -- ═══════════════════════════════════════════════════════════════════════════
 -- END FEATURE: Resume Upload & Profile Visibility
 -- ═══════════════════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- HARDENING: PostGIS reference data is read-only to clients
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- spatial_ref_sys is the only table in this schema with RLS disabled — it is
+-- PostGIS-owned reference data, not application data. Supabase's default
+-- privileges still grant ALL on it to anon and authenticated, and with no RLS
+-- there is nothing else in the way: an unauthenticated DELETE against it
+-- succeeds and removes SRID definitions.
+--
+-- That is load-bearing here. assign_user_metro_area() casts through
+-- ST_SetSRID(..., 4326), so losing SRID rows breaks home-location handling and
+-- every geography comparison the product depends on.
+--
+-- Guarded and placed last so it runs after CREATE EXTENSION postgis, and is a
+-- no-op if PostGIS is not installed.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'spatial_ref_sys' AND relnamespace = 'public'::regnamespace
+  ) THEN
+    -- Everything except SELECT. TRIGGER would let a client attach a trigger to
+    -- PostGIS reference data; REFERENCES lets them wire foreign keys into it.
+    -- Neither is something a browser client should be able to do.
+    EXECUTE 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE, TRIGGER, REFERENCES ON public.spatial_ref_sys FROM anon, authenticated';
+  END IF;
+END $$;
 
 -- Commit the transaction - everything succeeded
 COMMIT;

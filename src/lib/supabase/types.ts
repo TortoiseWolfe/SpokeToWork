@@ -781,6 +781,10 @@ export type Database = {
       };
     };
     Functions: {
+      get_own_encryption_salt: {
+        Args: Record<PropertyKey, never>;
+        Returns: string | null;
+      };
       employer_update_application_status: {
         Args: {
           p_application_id: string;
