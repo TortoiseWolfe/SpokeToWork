@@ -221,6 +221,8 @@ jobs:
           - { group: gen-, shard: 4/4 }
           - { group: msg-, shard: 1/4 }
           - { group: msg-, shard: 2/4 }
+          - { group: msg-, shard: 3/4 }
+          - { group: msg-, shard: 4/4 }
           - { group: heavy-, shard: 1/4 }
 
     steps:
@@ -346,6 +348,8 @@ jobs:
           - { group: gen-, shard: 4/4 }
           - { group: msg-, shard: 1/4 }
           - { group: msg-, shard: 2/4 }
+          - { group: msg-, shard: 3/4 }
+          - { group: msg-, shard: 4/4 }
           - { group: heavy-, shard: 1/4 }
 
     steps:
@@ -472,6 +476,8 @@ jobs:
           - { group: gen-, shard: 4/4 }
           - { group: msg-, shard: 1/4 }
           - { group: msg-, shard: 2/4 }
+          - { group: msg-, shard: 3/4 }
+          - { group: msg-, shard: 4/4 }
           - { group: heavy-, shard: 1/4 }
 
     steps:

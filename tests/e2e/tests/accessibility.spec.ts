@@ -66,8 +66,15 @@ test.describe('Accessibility', () => {
       const img = images.nth(i);
       const alt = await img.getAttribute('alt');
 
-      // Images should have alt attribute (can be empty for decorative)
-      expect(alt).toBeDefined();
+      // The alt ATTRIBUTE must be present; an empty value is valid and means
+      // "decorative". getAttribute() returns null when the attribute is absent,
+      // so assert against null — toBeDefined() passes for null and could never
+      // fail, which is why an <img> with no alt at all used to slip through.
+      const outerHTML = await img.evaluate((el) => el.outerHTML.slice(0, 200));
+      expect(
+        alt,
+        `<img> is missing an alt attribute: ${outerHTML}`
+      ).not.toBeNull();
     }
   });
 
@@ -79,24 +86,36 @@ test.describe('Accessibility', () => {
       .filter({ hasNot: page.locator('[type="hidden"]') });
     const inputCount = await inputs.count();
 
+    expect(
+      inputCount,
+      'expected /contact to render form inputs'
+    ).toBeGreaterThan(0);
+
     for (let i = 0; i < inputCount; i++) {
       const input = inputs.nth(i);
       const inputId = await input.getAttribute('id');
 
-      if (inputId) {
-        // Check for associated label
-        const label = page.locator(`label[for="${inputId}"]`);
-        const labelCount = await label.count();
+      // NOTE: every assertion below used to sit inside `if (inputId)`, so the
+      // most likely real defect — an unlabelled input with no id — was skipped
+      // entirely. An input with no id must still satisfy one of the other
+      // labelling mechanisms.
+      const labelCount = inputId
+        ? await page.locator(`label[for="${inputId}"]`).count()
+        : 0;
+      const ariaLabel = await input.getAttribute('aria-label');
+      const ariaLabelledBy = await input.getAttribute('aria-labelledby');
+      // A wrapping <label> is also a valid association.
+      const wrappedInLabel = await input.evaluate(
+        (el) => el.closest('label') !== null
+      );
 
-        // Or check for aria-label
-        const ariaLabel = await input.getAttribute('aria-label');
-
-        // Or check for aria-labelledby
-        const ariaLabelledBy = await input.getAttribute('aria-labelledby');
-
-        // At least one labeling method should be present
-        expect(labelCount > 0 || ariaLabel || ariaLabelledBy).toBeTruthy();
-      }
+      const outerHTML = await input.evaluate((el) =>
+        el.outerHTML.slice(0, 200)
+      );
+      expect(
+        labelCount > 0 || !!ariaLabel || !!ariaLabelledBy || wrappedInLabel,
+        `form control has no accessible label: ${outerHTML}`
+      ).toBe(true);
     }
   });
 
@@ -106,20 +125,37 @@ test.describe('Accessibility', () => {
       'a, button, input, select, textarea, [tabindex="0"]'
     );
     const elementCount = await interactiveElements.count();
+    expect(
+      elementCount,
+      'expected the page to render interactive elements'
+    ).toBeGreaterThan(0);
 
-    if (elementCount > 0) {
-      // Focus first element
-      await interactiveElements.first().focus();
+    const focusedElement = interactiveElements.first();
+    await focusedElement.focus();
 
-      // Check focus is visible (has outline or border change)
-      const focusedElement = interactiveElements.first();
-      const outline = await focusedElement.evaluate((el) => {
-        const styles = window.getComputedStyle(el);
-        return styles.outline || styles.border;
-      });
+    // `styles.outline || styles.border` is ALWAYS a non-empty string (an
+    // unfocused element reports e.g. "rgb(0, 0, 0) none 0px"), so the previous
+    // toBeTruthy() could never fail. Assert that a visible focus affordance is
+    // actually rendered: a real outline, or a box-shadow ring.
+    const indicator = await focusedElement.evaluate((el) => {
+      const s = window.getComputedStyle(el);
+      return {
+        outlineStyle: s.outlineStyle,
+        outlineWidth: s.outlineWidth,
+        boxShadow: s.boxShadow,
+      };
+    });
 
-      expect(outline).toBeTruthy();
-    }
+    const hasOutline =
+      indicator.outlineStyle !== 'none' &&
+      parseFloat(indicator.outlineWidth) > 0;
+    const hasRing =
+      indicator.boxShadow !== 'none' && indicator.boxShadow !== '';
+
+    expect(
+      hasOutline || hasRing,
+      `focused element has no visible focus indicator: ${JSON.stringify(indicator)}`
+    ).toBe(true);
   });
 
   test('page has proper heading hierarchy', async ({ page }) => {

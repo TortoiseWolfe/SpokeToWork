@@ -72,17 +72,26 @@ See [CLAUDE.md](./CLAUDE.md) for architecture, Supabase workflow, and project co
 
 Tracked as GitHub issues rather than in this file.
 
-| Area                                    | Issue                                                         |
-| --------------------------------------- | ------------------------------------------------------------- |
-| Flaky `msg-1/4` E2E shard (replica lag) | [#65](https://github.com/TortoiseWolfe/SpokeToWork/issues/65) |
-| E2E remediation backlog                 | [#66](https://github.com/TortoiseWolfe/SpokeToWork/issues/66) |
-| Design system redesign                  | [#67](https://github.com/TortoiseWolfe/SpokeToWork/issues/67) |
-| Employer surface gaps                   | [#68](https://github.com/TortoiseWolfe/SpokeToWork/issues/68) |
-| Message reliability                     | [#69](https://github.com/TortoiseWolfe/SpokeToWork/issues/69) |
-| Accessibility suite                     | [#70](https://github.com/TortoiseWolfe/SpokeToWork/issues/70) |
-| Approved contributions land at (0,0)    | [#71](https://github.com/TortoiseWolfe/SpokeToWork/issues/71) |
-| Private notes visible to employers      | [#72](https://github.com/TortoiseWolfe/SpokeToWork/issues/72) |
-| Measure real Lighthouse scores          | [#73](https://github.com/TortoiseWolfe/SpokeToWork/issues/73) |
+| Area                                     | Issue                                                         |
+| ---------------------------------------- | ------------------------------------------------------------- |
+| **CI reports green on unfailable tests** | [#76](https://github.com/TortoiseWolfe/SpokeToWork/issues/76) |
+| **Column-level authorization audit**     | [#75](https://github.com/TortoiseWolfe/SpokeToWork/issues/75) |
+| ScriptHammer upstream sync (461 commits) | [#77](https://github.com/TortoiseWolfe/SpokeToWork/issues/77) |
+| Unstyled site for minutes after deploy   | [#78](https://github.com/TortoiseWolfe/SpokeToWork/issues/78) |
+| Accessibility + layout batch             | [#79](https://github.com/TortoiseWolfe/SpokeToWork/issues/79) |
+| Messaging RLS gap                        | [#80](https://github.com/TortoiseWolfe/SpokeToWork/issues/80) |
+| `field_name` has no allowlist            | [#81](https://github.com/TortoiseWolfe/SpokeToWork/issues/81) |
+| Dead code sweep                          | [#82](https://github.com/TortoiseWolfe/SpokeToWork/issues/82) |
+| `updateStatus` silent no-op              | [#83](https://github.com/TortoiseWolfe/SpokeToWork/issues/83) |
+| E2E remediation backlog                  | [#66](https://github.com/TortoiseWolfe/SpokeToWork/issues/66) |
+| Design system redesign                   | [#67](https://github.com/TortoiseWolfe/SpokeToWork/issues/67) |
+| Employer surface gaps                    | [#68](https://github.com/TortoiseWolfe/SpokeToWork/issues/68) |
+| Message reliability                      | [#69](https://github.com/TortoiseWolfe/SpokeToWork/issues/69) |
+| Accessibility suite                      | [#70](https://github.com/TortoiseWolfe/SpokeToWork/issues/70) |
+| Approved contributions land at (0,0)     | [#71](https://github.com/TortoiseWolfe/SpokeToWork/issues/71) |
+| Private notes visible to employers       | [#72](https://github.com/TortoiseWolfe/SpokeToWork/issues/72) |
+| Measure real Lighthouse scores           | [#73](https://github.com/TortoiseWolfe/SpokeToWork/issues/73) |
+| Roadmap / session priming                | [#74](https://github.com/TortoiseWolfe/SpokeToWork/issues/74) |
 
 Longer-range items live in [docs/TECHNICAL-DEBT.md](./docs/TECHNICAL-DEBT.md) and [docs/future-features/HR-FEATURE-ROADMAP.md](./docs/future-features/HR-FEATURE-ROADMAP.md).
 
