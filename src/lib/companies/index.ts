@@ -75,7 +75,6 @@ export {
 export type { MetroAreaValidationResult } from './geocoding';
 
 // Offline sync service
-export { OfflineSyncService, offlineSyncService } from './offline-sync';
 
 // Job application service
 export {

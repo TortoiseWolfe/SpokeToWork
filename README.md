@@ -44,14 +44,21 @@ Routing via OSRM (bike profile) and OpenRouteService. Geocoding via Nominatim. M
 
 ## Project Scale
 
-|                  |        |
-| ---------------- | ------ |
-| Source files     | 638    |
-| Test files       | 551    |
-| Test cases       | ~5,200 |
-| SpecKit features | 35     |
+|                                              |       |
+| -------------------------------------------- | ----- |
+| Source files (`src/`, excl. tests & stories) | 582   |
+| Test & spec files                            | 502   |
+| Unit test cases                              | 4,047 |
+| SpecKit features                             | 35    |
 
-> The file counts include roughly 75 files belonging to orphaned components that nothing imports ([#82](https://github.com/TortoiseWolfe/SpokeToWork/issues/82)), and the test-case count is not a coverage claim — see [#76](https://github.com/TortoiseWolfe/SpokeToWork/issues/76).
+> Each row states how it is counted, because the previous figures were unlabelled and no longer reproducible. Regenerate with:
+>
+> ```bash
+> find src -type f \( -name '*.ts' -o -name '*.tsx' \) ! -name '*.test.*' ! -name '*.stories.*' | wc -l
+> find src tests -type f \( -name '*.test.ts' -o -name '*.test.tsx' -o -name '*.spec.ts' \) | wc -l
+> ```
+>
+> A test-case count is not a coverage claim — see [#76](https://github.com/TortoiseWolfe/SpokeToWork/issues/76).
 
 Vitest for unit and component tests, Playwright across Chromium/Firefox/WebKit for E2E, axe-core (via `axe-playwright`) and `@storybook/addon-a11y` for accessibility.
 

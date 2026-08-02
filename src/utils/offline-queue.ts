@@ -6,9 +6,20 @@
  * Feature 050 - Code Consolidation
  */
 
-console.warn(
-  '[@deprecated] src/utils/offline-queue.ts is deprecated. Use @/lib/offline-queue instead.'
-);
+// Dev-only. This module is still LIVE in production — background-sync.ts
+// imports it and is reachable from /contact via ContactForm -> useWeb3Forms —
+// so a module-scope warn was printing in the console of every visitor to the
+// contact page. A deprecation notice is for developers; gate it accordingly.
+//
+// Migrating background-sync.ts off this module is tracked separately: both this
+// and lib/offline-queue/form-adapter.ts open the same IndexedDB name
+// ('OfflineFormSubmissions'), so swapping them needs schema verification rather
+// than a straight import change.
+if (process.env.NODE_ENV !== 'production') {
+  console.warn(
+    '[@deprecated] src/utils/offline-queue.ts is deprecated. Use @/lib/offline-queue instead.'
+  );
+}
 
 /**
  * Offline queue management for form submissions using IndexedDB

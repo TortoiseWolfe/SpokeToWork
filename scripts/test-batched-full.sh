@@ -91,8 +91,8 @@ run_batch "Atomic Components" "src/components/atomic"
 run_batch "Molecular Components" "src/components/molecular"
 
 # Batch 4: Organism components - explicit directories (vitest doesn't expand globs)
-run_batch "Organisms (A-C)" "src/components/organisms/AdminModerationQueue src/components/organisms/ApplicationForm src/components/organisms/ChatWindow src/components/organisms/CompanyDetailDrawer src/components/organisms/CompanyForm src/components/organisms/CompanyImport src/components/organisms/CompanyTable src/components/organisms/ConnectionManager src/components/organisms/ConversationList src/components/organisms/CreateGroupModal"
-run_batch "Organisms (H-U)" "src/components/organisms/HomeLocationSettings src/components/organisms/NextRidePanel src/components/organisms/RouteBuilder src/components/organisms/RouteCompanyList src/components/organisms/RouteDetailDrawer src/components/organisms/RouteSidebar src/components/organisms/UnifiedSidebar"
+run_batch "Organisms (A-C)" "src/components/organisms/AdminModerationQueue src/components/organisms/ApplicationForm src/components/organisms/ChatWindow src/components/organisms/CompanyDetailDrawer src/components/organisms/CompanyForm src/components/organisms/CompanyImport src/components/organisms/CompanyTable src/components/organisms/ConnectionManager src/components/organisms/ConversationList"
+run_batch "Organisms (H-U)" "src/components/organisms/HomeLocationSettings src/components/organisms/RouteBuilder src/components/organisms/RouteDetailDrawer src/components/organisms/RouteSidebar src/components/organisms/UnifiedSidebar"
 
 # Batch 5: Other component directories
 run_batch "Auth Components" "src/components/auth"

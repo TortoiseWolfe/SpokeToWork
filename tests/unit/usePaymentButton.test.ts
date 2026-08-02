@@ -22,10 +22,6 @@ vi.mock('@/lib/payments/paypal', () => ({
   createPayPalOrder: vi.fn(() => Promise.resolve()),
 }));
 
-vi.mock('@/lib/payments/offline-queue', () => ({
-  getPendingCount: vi.fn(() => Promise.resolve(0)),
-}));
-
 describe('usePaymentButton', () => {
   const defaultOptions = {
     amount: 2000,

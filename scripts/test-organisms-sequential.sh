@@ -24,8 +24,7 @@ echo -e "${YELLOW}=== Route Components ===${NC}"
 
 # Skip list for tests that cause OOM or have infrastructure issues
 # RouteBuilder/RouteSidebar: OOM in Docker/WSL2
-# RouteCompanyList: mock setup issues (test logic needs fixing)
-SKIP_LIST="RouteBuilder RouteSidebar RouteCompanyList"
+SKIP_LIST="RouteBuilder RouteSidebar"
 
 for file in src/components/organisms/Route*/*.test.tsx; do
   if [ -f "$file" ]; then

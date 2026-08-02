@@ -192,11 +192,16 @@ export class MessageService {
     }
 
     try {
-      // Breadcrumb logging for diagnosing silent sendMessage failures in CI.
-      // Production logger silences warn/info, so use console.error directly.
+      // Breadcrumbs for diagnosing silent sendMessage failures.
+      //
+      // These used to call console.error directly, deliberately bypassing the
+      // logger because "production logger silences warn/info" — which meant 13
+      // console.error lines in every user's console on every successful send.
+      // Diagnostics are a debug concern; if they need to be visible in CI, raise
+      // the logger's level there rather than shouting at users.
       const sendTs = Date.now();
       const logStep = (step: string) =>
-        console.error(`[sendMessage:${sendTs}] ${step}`);
+        logger.debug(`[sendMessage:${sendTs}] ${step}`);
 
       logStep('1-ensureKeys');
       // Get sender's derived keys. ensureKeys() restores from localStorage
@@ -447,11 +452,11 @@ export class MessageService {
           queued: false, // Not queued (successful send)
         };
       } catch (sendError) {
-        // Log the actual error so E2E diagnostics can see what failed
-        console.error(
-          '[sendMessage] INSERT failed:',
-          sendError instanceof Error ? sendError.message : sendError
-        );
+        // A genuine failure, so error level is right — but through the logger,
+        // not raw console.
+        logger.error('[sendMessage] INSERT failed', {
+          error: sendError instanceof Error ? sendError.message : sendError,
+        });
 
         // RLS retries are handled inside the sequence-retry loop above.
         // If we reach here, either all RLS retries were exhausted (ConnectionError)
