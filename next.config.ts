@@ -46,6 +46,13 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   cleanDistDir: true,
+  // Escape hatch for building alongside a running dev server (#93). The
+  // `builder` compose service is the primary answer — it gets its own .next
+  // volume — but this allows a one-off `NEXT_DIST_DIR=.next-build pnpm build`
+  // without touching compose. `cleanDistDir` above cleans whichever dir this
+  // resolves to, which is why the old `clean:next` script (a blind
+  // `rm -rf .next/*`) was both redundant and unsafe.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   env: {
     NEXT_PUBLIC_PAGESPEED_API_KEY: process.env.NEXT_PUBLIC_PAGESPEED_API_KEY,
   },
