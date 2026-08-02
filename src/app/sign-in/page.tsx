@@ -33,9 +33,7 @@ export default function SignInPage() {
 
       <OAuthButtons layout="row" />
 
-      <div className="divider my-6 text-xs opacity-70">
-        or continue with email
-      </div>
+      <div className="divider my-6 text-xs">or continue with email</div>
 
       <SignInForm
         onSuccess={() => (window.location.href = decodeURIComponent(returnUrl))}

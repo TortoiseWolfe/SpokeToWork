@@ -57,6 +57,14 @@ jobs:
       - name: Run accessibility tests (axe-playwright)
         run: pnpm run test:a11y:ci
 
+      # WCAG AAA colour-contrast sweep (#79). Lives here rather than in the
+      # e2e.yml `gen-` shard where the file would otherwise land: those jobs
+      # carry timeout-minutes: 60 and have historically exceeded it, and the
+      # sweep would run three times (once per browser) for no extra signal,
+      # since contrast does not vary by engine here.
+      - name: Run WCAG AAA colour-contrast sweep
+        run: pnpm run test:contrast
+
       - name: Run component accessibility tests (happy-dom)
         run: |
           # Run all accessibility tests except:

@@ -41,9 +41,7 @@ export default function SignUpPage() {
 
       <OAuthButtons requestedRole={requestedRole} layout="row" />
 
-      <div className="divider my-6 text-xs opacity-70">
-        or continue with email
-      </div>
+      <div className="divider my-6 text-xs">or continue with email</div>
 
       <SignUpForm
         requestedRole={requestedRole}

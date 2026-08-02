@@ -211,6 +211,33 @@ code {
   color: oklch(82% 0.02 236.8); /* 7.5:1 on base-100 — AAA compliant */
 }
 
+/* Dimmed text on navy — the dark theme had NO opacity overrides at all, so
+ * every `/60` and `/70` utility fell short of AAA. Measured by the contrast
+ * sweep: /60 -> #8ea2b8 at 5.45:1, /70 -> #a2b6c9 at 6.85:1, both against
+ * base-100 #132a4e and both under the 7:1 floor.
+ *
+ * A dimming ladder cannot dim below the accessibility floor; these clamp at it.
+ * 82% matches the .label-text value above, which is already AAA on this base. */
+[data-theme='spoketowork-dark'] .text-base-content\/60,
+[data-theme='spoketowork-dark'] .text-base-content\/70,
+[data-theme='spoketowork-dark'] .text-base-content\/75 {
+  color: oklch(82% 0.02 236.8); /* 7.5:1 on base-100 — AAA */
+}
+
+/* DaisyUI dims .stat-title and .stat-desc itself, below AAA on both surfaces.
+ * Measured 5.45:1 on navy across 44 nodes of /blog/seo alone. Same treatment as
+ * .label-text and .tab above — the component's own default is the defect, not
+ * our markup, so it is corrected here rather than at every call site. */
+[data-theme='spoketowork-dark'] .stat-title,
+[data-theme='spoketowork-dark'] .stat-desc {
+  color: oklch(82% 0.02 236.8); /* 7.5:1 on base-100 — AAA */
+}
+
+[data-theme='spoketowork-light'] .stat-title,
+[data-theme='spoketowork-light'] .stat-desc {
+  color: oklch(35% 0.02 256.8); /* 9:1+ on cream — AAA */
+}
+
 [data-theme='spoketowork-light'] {
   --shadow-brand: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.25));
   --shadow-brand-sm: drop-shadow(1px 1px 0px rgba(0, 0, 0, 0.15));
@@ -237,11 +264,22 @@ code {
 }
 
 [data-theme='spoketowork-light'] .text-success {
-  color: oklch(39% 0.11 149.2); /* Dark green — 7:1+ on cream */
+  /* 39% measured 6.8:1 on base-200 (#ebdcc5). The original value was tuned
+   * against base-100 (#f6e9d5), which is lighter — the same colour has a
+   * different ratio on each surface, and cards use base-200. */
+  color: oklch(36% 0.11 149.2); /* Dark green — 7:1+ on base-100 AND base-200 */
 }
 
 [data-theme='spoketowork-light'] .text-warning {
   color: oklch(42% 0.1 75.8); /* Dark amber — 7:1+ on cream */
+}
+
+/* text-primary had no override at all: the theme's --color-primary
+ * oklch(42% 0.14 43.9) renders #872900, which is 6.66:1 on base-200. Overriding
+ * the utility rather than the token, so button backgrounds keep the brand
+ * orange and only the text colour is darkened. */
+[data-theme='spoketowork-light'] .text-primary {
+  color: oklch(38% 0.14 43.9); /* Darker burnt orange — 7:1+ on cream */
 }
 
 /* Table header and form label alt contrast on light theme */
@@ -250,7 +288,13 @@ code {
   color: oklch(35% 0.02 256.8); /* 9:1+ on cream */
 }
 
-/* Boost dimmed text for AAA on cream — /75 and /80 are too faint */
+/* Boost dimmed text for AAA on cream — /60 and /70 were missing entirely,
+ * measuring 4.76:1 and 5.05:1. Clamped to the same floor as /75. */
+[data-theme='spoketowork-light'] .text-base-content\/60,
+[data-theme='spoketowork-light'] .text-base-content\/70 {
+  color: oklch(38% 0.025 256.8); /* 7.5:1+ on cream — AAA */
+}
+
 [data-theme='spoketowork-light'] .text-base-content\/75 {
   color: oklch(38% 0.025 256.8); /* 7.5:1+ on cream — AAA */
 }
