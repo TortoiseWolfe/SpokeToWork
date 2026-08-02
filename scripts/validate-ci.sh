@@ -80,27 +80,47 @@ if [ "$1" != "--quick" ]; then
     run_check "Test coverage" "pnpm test:coverage"
 fi
 
-# 7. Production build
-# next build and next dev both use .next/ — running them in the same container
-# causes race conditions (dev server overwrites manifest files mid-build).
-# Fix: stop the dev server container, build in a temporary container, restart.
+# 7. Production build — in its OWN container (#93)
+#
+# This must never be `docker compose exec spoketowork pnpm build`. That is the
+# dev server's container, and `next dev` and `next build` both own /app/.next:
+# the dev server rewrites webpack-runtime.js mid-build and the static-export
+# workers then die on `Cannot find module './NNNN.js'`.
+#
+# The `builder` service is the same image with its own .next volume, so the two
+# cannot collide — which also means the dev server no longer has to be stopped
+# and restarted around every build.
 if [ "$IN_DOCKER" = true ]; then
+    # Already inside a container. That is fine — UNLESS it is the one serving
+    # `next dev`, which is exactly the collision above. Test for the dev server
+    # rather than for "am I in Docker": running this inside the builder
+    # container is legitimate, running it inside the dev container is the bug.
+    #
+    # Scans /proc rather than using pgrep: node:22-slim ships no procps, so
+    # `pgrep` there exits "command not found" and the guard would silently
+    # never fire — a guard that always passes is worse than no guard.
+    # The glob is expanded by the shell before grep is forked, so grep cannot
+    # match its own command line.
+    if cat /proc/[0-9]*/cmdline 2>/dev/null | tr '\0' '\n' \
+        | grep -qE 'next-server|next/dist/bin/next'; then
+        echo -e "\n${RED}❌ Refusing to build inside the dev-server container (#93).${NC}"
+        echo -e "   It would clobber the .next this container is serving from."
+        echo -e "   Run from the host instead:"
+        echo -e "     ${YELLOW}./scripts/validate-ci.sh $*${NC}"
+        echo -e "   or build directly:"
+        echo -e "     ${YELLOW}docker compose run --rm builder pnpm build${NC}"
+        exit 1
+    fi
     run_check "Production build" "pnpm build"
 else
     echo -e "\n${YELLOW}🔍 Running: Production build${NC}"
     echo "--------------------------------"
-    echo "Stopping dev server to avoid .next conflicts..."
-    docker compose stop spoketowork >/dev/null 2>&1
-    if docker compose run --rm -T spoketowork pnpm run build; then
+    if docker compose run --rm -T builder pnpm build; then
         echo -e "${GREEN}✅ Production build passed${NC}"
     else
         echo -e "${RED}❌ Production build failed${NC}"
-        echo "Restarting dev server..."
-        docker compose up -d spoketowork >/dev/null 2>&1
         exit 1
     fi
-    echo "Restarting dev server..."
-    docker compose up -d spoketowork >/dev/null 2>&1
 fi
 
 # 8. Storybook build (optional - can be slow)

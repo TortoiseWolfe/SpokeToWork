@@ -158,7 +158,12 @@ fi
 # 7. Build Test
 print_header "7. Production Build"
 echo "Testing production build..."
-if $CMD_PREFIX pnpm run build > /tmp/build-output.txt 2>&1; then
+# Always the `builder` service, never $CMD_PREFIX (#93). $CMD_PREFIX is
+# `docker compose exec -T spoketowork`, i.e. the dev-server container — and
+# `next dev` and `next build` both own /app/.next, so building there clobbered
+# the dev server's output. `builder` is the same image with its own .next
+# volume. This is also why the container restart below is no longer needed.
+if docker compose run --rm -T builder pnpm build > /tmp/build-output.txt 2>&1; then
     print_result "Production Build" "pass" "Build completed successfully"
 else
     print_result "Production Build" "fail" "Build failed"
@@ -169,21 +174,10 @@ fi
 # 8. Accessibility Tests (only if server is running)
 print_header "8. Accessibility Tests"
 
-# Production build corrupts .next permissions - restart container to fix
-if ! in_docker; then
-    echo "Restarting container to restore dev server after build..."
-    docker compose restart spoketowork > /dev/null 2>&1
-
-    # Wait for dev server to be ready
-    echo "Waiting for dev server to recover..."
-    for i in $(seq 1 30); do
-        if curl -s http://localhost:3000 | grep -q "html" 2>/dev/null; then
-            echo "Dev server ready."
-            break
-        fi
-        sleep 2
-    done
-fi
+# NOTE: the build no longer touches the dev server's .next (#93), so the
+# "restart the container to recover the dev server" step that used to live here
+# is gone. If the dev server is unhealthy after a build, that is a real bug now
+# rather than an expected side effect.
 
 echo "Checking if dev server is available..."
 if curl -s http://localhost:3000 > /dev/null 2>&1; then
