@@ -8,42 +8,74 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { TEST_PAGES, CRITICAL_MOBILE_WIDTHS } from '@/config/test-viewports';
+import { CRITICAL_MOBILE_WIDTHS } from '@/config/test-viewports';
+
+/**
+ * #79 — this gate could not fail, for the life of the project.
+ *
+ * The original predicate was:
+ *
+ *     const hasOverflow = html.scrollWidth > html.clientWidth;
+ *     const isHidden = style.overflowX === 'hidden';
+ *     return hasOverflow && !isHidden;        // asserted toBe(false)
+ *
+ * and the app pinned `overflow-x: hidden` on <html> in globals.css AND in
+ * layout.tsx. `isHidden` was therefore permanently true, the expression
+ * permanently false, and the assertion passed no matter what the layout did.
+ * The one way to fail it was to remove the very rule that was hiding the bug.
+ *
+ * That suppression is gone now (the frame uses `overflow-x: clip`), so
+ * scrollWidth is a real signal again and this measures it directly. It no
+ * longer consults overflow-x at all: whether the page CAN scroll is not the
+ * question — whether content EXCEEDS THE VIEWPORT is.
+ */
+
+/** Routes that must not overflow. Broader than the original two. */
+const ROUTES = [
+  '/',
+  '/blog',
+  '/docs',
+  '/sign-in',
+  '/sign-up',
+  '/contact',
+  '/accessibility',
+  '/themes',
+  '/privacy',
+];
 
 test.describe('Horizontal Scroll Detection', () => {
-  // Test key pages at most common mobile width
-  const testPages = ['/', '/blog'];
-  const testWidth = 390; // iPhone 12 width
+  test('no horizontal overflow on any route at any critical mobile width', async ({
+    page,
+  }) => {
+    const failures: string[] = [];
+    let measured = 0;
 
-  for (const url of testPages) {
-    test(`No visible horizontal scroll on ${url} at ${testWidth}px`, async ({
-      page,
-    }) => {
-      // Set viewport to iPhone 12 width
-      await page.setViewportSize({ width: testWidth, height: 800 });
+    for (const url of ROUTES) {
+      for (const width of CRITICAL_MOBILE_WIDTHS) {
+        await page.setViewportSize({ width, height: 800 });
+        await page.goto(url);
+        await page.waitForLoadState('domcontentloaded');
 
-      // Navigate to page
-      await page.goto(url);
+        const over = await page.evaluate(() => {
+          const html = document.documentElement;
+          return html.scrollWidth - html.clientWidth;
+        });
+        measured++;
+        // 1px of rounding slack; real regressions here were 63-220px.
+        if (over > 1)
+          failures.push(`${url} @ ${width}px overflows by ${over}px`);
+      }
+    }
 
-      // Wait for page to fully render
-      await page.waitForLoadState('domcontentloaded');
+    // Coverage floor. Without this, a navigation failure or an empty route
+    // list would produce zero measurements and a green result — the shape of
+    // failure this whole issue is about.
+    expect(measured, 'measured no viewport/route combinations at all').toBe(
+      ROUTES.length * CRITICAL_MOBILE_WIDTHS.length
+    );
 
-      // Check if there's a visible scrollbar by testing if user can scroll
-      const canScrollHorizontally = await page.evaluate(() => {
-        const html = document.documentElement;
-        // Check if content overflows AND overflow is not hidden
-        const style = window.getComputedStyle(html);
-        const hasOverflow = html.scrollWidth > html.clientWidth;
-        const isHidden = style.overflowX === 'hidden';
-        return hasOverflow && !isHidden;
-      });
-
-      expect(
-        canScrollHorizontally,
-        `Visible horizontal scroll detected on ${url}`
-      ).toBe(false);
-    });
-  }
+    expect(failures, failures.join('\n')).toEqual([]);
+  });
 
   test('Main content fits within narrow viewport', async ({ page }) => {
     // Test at narrowest supported width

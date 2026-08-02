@@ -18,6 +18,21 @@ test.describe('Touch Target Standards', () => {
   const MINIMUM = TOUCH_TARGET_STANDARDS.AAA.minWidth;
   const TOLERANCE = 1; // Allow 1px tolerance for sub-pixel rendering
 
+  /**
+   * COVERAGE LIMIT, learned the hard way while mutation-testing this gate.
+   *
+   * It measures only what is VISIBLE at 390px in the current auth state, which
+   * is narrower than it looks. Two mutations that should have turned it red did
+   * not, and neither was a gate defect:
+   *
+   *   - a nav <Link> inside `hidden ... md:flex` — not rendered at 390px
+   *   - the messages icon inside `{user && ...}` — not rendered when signed out
+   *
+   * So a regression in the desktop nav, or in any signed-in-only control, will
+   * not be caught here. Widening this to several viewports and both auth states
+   * is worthwhile; until then, do not read a green result as "every control in
+   * the app meets 44px".
+   */
   test('Primary interactive elements meet 44x44px minimum on iPhone 12', async ({
     page,
   }) => {
@@ -25,15 +40,31 @@ test.describe('Touch Target Standards', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
 
-    // Test buttons and button-like elements (not inline text links)
-    // WCAG 2.2 allows exceptions for inline links within text
+    // Open the mobile menu before measuring.
+    //
+    // This gate previously contained no click at all, so all three DaisyUI
+    // dropdowns (mobile nav, account, theme list) were `isVisible() === false`
+    // and every control inside them was silently skipped — the single most
+    // likely place for a sub-44px target went unmeasured. DaisyUI dropdowns
+    // open on :focus-within, and a real click is what produces that; focus()
+    // alone does not reliably.
+    const menuTrigger = page.locator('[aria-label="Navigation menu"]').first();
+    if (await menuTrigger.isVisible().catch(() => false)) {
+      await menuTrigger.click();
+      await page.waitForTimeout(200);
+    }
+
+    // Anchors carrying `btn` are button-like and were excluded before, which
+    // skipped every <Link className="btn ..."> in the nav. Inline prose links
+    // are still excluded (WCAG 2.2 exempts them).
     const primaryInteractive = await page
       .locator(
-        'button, [role="button"], input[type="submit"], input[type="button"]'
+        'button, [role="button"], input[type="submit"], input[type="button"], a.btn'
       )
       .all();
 
     const failures: string[] = [];
+    let measured = 0;
 
     for (let i = 0; i < primaryInteractive.length; i++) {
       const element = primaryInteractive[i];
@@ -42,6 +73,7 @@ test.describe('Touch Target Standards', () => {
         const box = await element.boundingBox();
 
         if (box) {
+          measured++;
           const text =
             (await element.textContent())?.trim().substring(0, 30) || '';
 
@@ -62,11 +94,21 @@ test.describe('Touch Target Standards', () => {
       }
     }
 
-    // Report all failures at once for better debugging
-    if (failures.length > 0) {
-      const summary = `${failures.length} buttons failed touch target requirements:\n${failures.join('\n')}`;
-      expect(failures.length, summary).toBe(0);
-    }
+    // Coverage floor FIRST. The assertion below used to live inside
+    // `if (failures.length > 0)`, so finding zero elements — a hydration
+    // failure, a selector drift, everything hidden — produced a green test
+    // that had asserted nothing at all (#79).
+    expect(
+      measured,
+      'measured no interactive elements; the selector or the page is broken, ' +
+        'which must not read as a pass'
+    ).toBeGreaterThan(8);
+
+    // Unconditional: outside the if, so it reports whether or not failures exist.
+    expect(
+      failures,
+      `${failures.length} controls below the ${MINIMUM}px touch target:\n${failures.join('\n')}`
+    ).toEqual([]);
   });
 
   test('Navigation buttons meet touch target standards', async ({ page }) => {

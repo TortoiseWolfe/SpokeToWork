@@ -36,10 +36,9 @@ test.describe('Mobile Navigation', () => {
       // (nav element may internally overflow but page handles it with overflow-x)
       const canScrollHorizontally = await page.evaluate(() => {
         const html = document.documentElement;
-        const style = window.getComputedStyle(html);
         const hasOverflow = html.scrollWidth > html.clientWidth;
-        const isHidden = style.overflowX === 'hidden';
-        return hasOverflow && !isHidden;
+        // See note above: consulting overflow-x made this unfailable (#79).
+        return hasOverflow;
       });
 
       expect(
@@ -77,10 +76,12 @@ test.describe('Mobile Navigation', () => {
     // Page should not have horizontal scroll
     const canScrollHorizontally = await page.evaluate(() => {
       const html = document.documentElement;
-      const style = window.getComputedStyle(html);
       const hasOverflow = html.scrollWidth > html.clientWidth;
-      const isHidden = style.overflowX === 'hidden';
-      return hasOverflow && !isHidden;
+      // Deliberately does NOT consult overflow-x. When the frame pinned
+      // overflow-x: hidden, `hasOverflow && !isHidden` was permanently false
+      // and this assertion could not fail (#79). Whether the page CAN scroll
+      // is not the question; whether content exceeds the viewport is.
+      return hasOverflow;
     });
 
     expect(canScrollHorizontally).toBe(false);
@@ -121,7 +122,13 @@ test.describe('Mobile Navigation', () => {
     // Just verify the menu button is interactive (doesn't error on click)
     // The actual dropdown visibility depends on DaisyUI's :focus-within behavior
     // which may or may not work in automated tests
-    expect(visibleLinksAfterClick).toBeGreaterThanOrEqual(0);
+    // Was `toBeGreaterThanOrEqual(0)` — true for every possible count, so the
+    // menu could render nothing and still pass. The point of the test is that
+    // opening the menu reveals links.
+    expect(
+      visibleLinksAfterClick,
+      'opening the mobile menu should reveal navigation links'
+    ).toBeGreaterThan(0);
 
     // Click elsewhere to close any dropdown
     await page.locator('body').click({ position: { x: 10, y: 10 } });
@@ -146,10 +153,12 @@ test.describe('Mobile Navigation', () => {
     // Page should not have horizontal scroll in landscape
     const canScrollHorizontally = await page.evaluate(() => {
       const html = document.documentElement;
-      const style = window.getComputedStyle(html);
       const hasOverflow = html.scrollWidth > html.clientWidth;
-      const isHidden = style.overflowX === 'hidden';
-      return hasOverflow && !isHidden;
+      // Deliberately does NOT consult overflow-x. When the frame pinned
+      // overflow-x: hidden, `hasOverflow && !isHidden` was permanently false
+      // and this assertion could not fail (#79). Whether the page CAN scroll
+      // is not the question; whether content exceeds the viewport is.
+      return hasOverflow;
     });
 
     expect(

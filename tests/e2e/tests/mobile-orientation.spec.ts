@@ -145,10 +145,15 @@ test.describe('Mobile Orientation Detection', () => {
           'Some element extends beyond the viewport in landscape mode.'
       );
     }
+    // Was `844 + 100` — 11.8% of the viewport, so a 60px element hanging off
+    // the right edge passed. The 20px console.warn above gated nothing, since
+    // warnings are invisible in CI output. Now 1px of rounding slack, which is
+    // only meaningful because `overflow-x: hidden` no longer masks the
+    // measurement (#79).
     expect(
       scrollWidth,
-      'No significant horizontal scroll in landscape'
-    ).toBeLessThanOrEqual(844 + 100);
+      'No horizontal scroll in landscape'
+    ).toBeLessThanOrEqual(844 + 1);
 
     await context.close();
   });
@@ -191,9 +196,14 @@ test.describe('Mobile Orientation Detection', () => {
 
     // No significant horizontal scroll
     const scrollWidth = await page.evaluate(() => document.body.scrollWidth);
+    // Was `844 + 100` — 11.8% of the viewport, so a 60px element hanging off
+    // the right edge passed. The 20px console.warn above gated nothing, since
+    // warnings are invisible in CI output. Now 1px of rounding slack, which is
+    // only meaningful because `overflow-x: hidden` no longer masks the
+    // measurement (#79).
     expect(
       scrollWidth,
-      'No significant horizontal scroll in landscape'
-    ).toBeLessThanOrEqual(844 + 100);
+      'No horizontal scroll in landscape'
+    ).toBeLessThanOrEqual(844 + 1);
   });
 });

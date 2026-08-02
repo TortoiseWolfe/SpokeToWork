@@ -174,7 +174,14 @@ function GlobalNavComponent() {
           cap to force full-bleed, which the @utility container fix makes
           unnecessary. */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 w-full max-w-full items-center justify-between">
+        {/* min-h-16 + flex-wrap, not a fixed h-16 row.
+            Every control here now carries the 44px touch-target floor, and at
+            320-430px the logo plus the auth/messages/theme/menu controls simply
+            do not fit on one 44px-tall line — they used to be shoved off-screen,
+            invisibly, because the frame had `overflow-x: hidden`. Wrapping to a
+            second row keeps every control reachable instead of hiding some of
+            them off the right edge. */}
+        <div className="flex min-h-16 w-full max-w-full flex-wrap items-center justify-between gap-y-2 py-1">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
             <Link
@@ -233,7 +240,10 @@ function GlobalNavComponent() {
 
           {/* Right Section: Auth, Theme & PWA - Mobile-first spacing (PRP-017 T025) */}
           {/* gap-2 (8px) required for WCAG touch target spacing */}
-          <div className="flex min-w-0 flex-shrink items-center gap-2">
+          {/* flex-wrap here too: `flex-shrink` cannot help once every child
+              carries min-w-11, so at 320px the last two controls were pushed
+              past the right edge. They wrap now instead. */}
+          <div className="flex min-w-0 flex-shrink flex-wrap items-center justify-end gap-2">
             {/* Messages Icon (authenticated users only) */}
             {user && (
               <Link
