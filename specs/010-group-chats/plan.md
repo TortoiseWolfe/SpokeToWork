@@ -77,7 +77,8 @@ src/
 │   └── connection-service.ts      # MODIFY: Group creation
 ├── hooks/
 │   ├── useGroupMembers.ts         # NEW: Group member management
-│   └── useConversationRealtime.ts # MODIFY: Group message handling
+│                                  # (no hook here — the realtime subscription
+│                                  #  lives in src/app/messages/page.tsx)
 ├── types/
 │   └── messaging.ts               # MODIFY: Add group types
 ├── lib/
