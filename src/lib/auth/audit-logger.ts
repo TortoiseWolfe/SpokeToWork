@@ -65,7 +65,9 @@ export async function logAuthEvent(entry: AuditLogEntry): Promise<void> {
   try {
     // Get user agent from browser
     const userAgent =
-      typeof navigator !== 'undefined' ? navigator.userAgent : undefined;
+      // `window`, not `navigator`: Node 21+ has navigator.userAgent too, so
+      // the old guard recorded Node's own UA string as the user's.
+      typeof window !== 'undefined' ? window.navigator.userAgent : undefined;
 
     // Prepare log entry
     const logEntry = {

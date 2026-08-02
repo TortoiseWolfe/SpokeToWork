@@ -74,9 +74,25 @@ export function useOfflineQueue(): UseOfflineQueueReturn {
   const [queueCount, setQueueCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isOnline, setIsOnline] = useState(
-    typeof navigator !== 'undefined' ? navigator.onLine : true
-  );
+  // Always `true` for the first render, on BOTH sides.
+  //
+  // This used to be `typeof navigator !== 'undefined' ? navigator.onLine : true`,
+  // which reads as an SSR guard but no longer is one: Node 21+ ships a global
+  // `navigator` that does NOT implement `onLine`. So during the static export
+  // the guard passed, `navigator.onLine` was `undefined`, and this seeded
+  // `false` — the server rendered the whole page AS IF OFFLINE.
+  //
+  // out/contact/index.html literally shipped "You are currently offline" and a
+  // "Queue for Later" submit button. The client's first render then had
+  // isOnline === true, that subtree did not exist, and React threw #418 and
+  // re-rendered the tree — which rebuilds <html> from JSX and discards the
+  // data-theme attribute ThemeScript sets imperatively, leaving the page
+  // unthemed. False banner, flicker, no theme.
+  //
+  // A corrected guard alone would not fix it: reading navigator.onLine during
+  // the initial render is hydration-unsafe regardless, because the client's
+  // first render must match the server's. Sync in the effect below instead.
+  const [isOnline, setIsOnline] = useState(true);
   const hasInitialSyncRef = useRef(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined
@@ -155,6 +171,9 @@ export function useOfflineQueue(): UseOfflineQueueReturn {
 
   // Handle online event - automatic sync
   useEffect(() => {
+    // Correct to the real value once mounted, after hydration has matched.
+    setIsOnline(window.navigator.onLine);
+
     const handleOnline = () => {
       logger.info('Network online - triggering queue sync');
       setIsOnline(true);

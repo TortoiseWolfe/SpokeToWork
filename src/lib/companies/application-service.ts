@@ -72,7 +72,9 @@ export class ApplicationService {
    * Check if browser is online
    */
   isOnline(): boolean {
-    return typeof navigator !== 'undefined' ? navigator.onLine : true;
+    // `window`, not `navigator` — Node 21+ defines navigator without onLine,
+    // so the old guard returned `undefined` from a method typed `boolean`.
+    return typeof window !== 'undefined' ? window.navigator.onLine : true;
   }
 
   // =========================================================================

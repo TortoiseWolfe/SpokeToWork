@@ -84,7 +84,10 @@ function isTransientFetchError(error: unknown): boolean {
  * Detect genuine network/offline errors that warrant offline queuing.
  */
 function isNetworkError(error: unknown): boolean {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) return true;
+  // `window`, not `navigator`: Node 21+ has a global navigator without
+  // `onLine`, so the old guard passed on the server and `!undefined` made
+  // EVERY error look like a network error during SSR.
+  if (typeof window !== 'undefined' && !window.navigator.onLine) return true;
   if (error instanceof TypeError) {
     const msg = error.message.toLowerCase();
     return msg.includes('fetch') || msg.includes('network');

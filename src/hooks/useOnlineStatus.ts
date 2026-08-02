@@ -52,9 +52,9 @@ export function useOnlineStatus(): boolean {
 
   useEffect(() => {
     // Sync to the real value once mounted, after hydration has matched.
-    if (typeof navigator !== 'undefined') {
-      setIsOnline(navigator.onLine);
-    }
+    // Inside an effect this is browser-only anyway, but `window` is the guard
+    // that actually discriminates — Node 21+ defines a global `navigator`.
+    setIsOnline(window.navigator.onLine);
 
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);

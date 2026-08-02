@@ -126,13 +126,6 @@ const EXCLUDED: Record<string, string> = {
     'renders 34 nested data-theme preview scopes at once, so violations attribute to preview cards rather than the active theme',
   '/auth/callback':
     'transient OAuth handler — redirects on load, no UI to measure',
-  '/contact':
-    'React #418 hydration mismatch on this route (ContactForm). React recovers by ' +
-    're-rendering client-side, which rebuilds <html> from JSX and discards the ' +
-    'data-theme attribute ThemeScript sets imperatively — so NO theme is applied ' +
-    'and any contrast measurement here would be of the wrong palette. This is a ' +
-    'cannot-measure, not a pass: the hydration bug is tracked separately and this ' +
-    'entry comes out the moment it is fixed.',
   '/reset-password': 'transient token-driven state',
   '/verify-email': 'transient token-driven state',
 };

@@ -39,7 +39,10 @@ export function useGeolocation(
 
   const watchId = useRef<number | null>(null);
   const isSupported =
-    typeof navigator !== 'undefined' && 'geolocation' in navigator;
+    // `window`, not `navigator` — Node 21+ defines navigator, so this guard
+    // no longer discriminates server from browser. Correct by accident here
+    // (Node's navigator has no geolocation), fixed for consistency.
+    typeof window !== 'undefined' && 'geolocation' in window.navigator;
 
   // Check permission status
   useEffect(() => {
