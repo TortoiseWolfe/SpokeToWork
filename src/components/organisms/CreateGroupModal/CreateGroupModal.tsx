@@ -213,7 +213,7 @@ export function CreateGroupModal({
                 </span>
                 <button
                   type="button"
-                  className="btn btn-ghost btn-xs min-h-0 min-w-0 p-0"
+                  className="btn btn-ghost btn-xs min-h-11 min-w-11"
                   onClick={() => removeMember(member.id)}
                   disabled={isCreating}
                   aria-label={`Remove ${member.display_name || 'Unknown'}`}

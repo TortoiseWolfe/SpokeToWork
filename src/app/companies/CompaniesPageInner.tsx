@@ -92,7 +92,7 @@ export function CompaniesPageInner() {
 
   if (authLoading || home.isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-full items-center justify-center">
         <span className="loading loading-spinner loading-lg" />
       </div>
     );

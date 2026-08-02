@@ -105,6 +105,14 @@ jobs:
       - name: Type check
         run: pnpm type-check
 
+      # scripts/validate-breakpoints.ts asserts that the --breakpoint-* custom
+      # properties in globals.css match BREAKPOINTS in src/config/breakpoints.ts,
+      # and that the ranges have no gaps. It has existed since the breakpoints
+      # were introduced and was invoked by no workflow, so CSS and TS could
+      # drift apart silently. This is the only check that catches that.
+      - name: Validate breakpoints (CSS <-> TS drift)
+        run: pnpm validate:breakpoints
+
       - name: Run unit tests
         run: pnpm exec vitest run
 

@@ -133,7 +133,7 @@ export default function CompanyImport({
           <div className="alert alert-error mb-4">
             <span>{error}</span>
             <button
-              className="btn btn-ghost btn-sm"
+              className="btn btn-ghost btn-sm min-h-11 min-w-11"
               onClick={() => setError(null)}
               aria-label="Dismiss error"
             >
@@ -169,7 +169,10 @@ export default function CompanyImport({
               </div>
             )}
 
-            <button className="btn btn-sm btn-ghost mt-2" onClick={handleReset}>
+            <button
+              className="btn btn-sm btn-ghost mt-2 min-h-11 min-w-11"
+              onClick={handleReset}
+            >
               Import Another File
             </button>
           </div>

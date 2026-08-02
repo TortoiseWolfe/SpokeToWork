@@ -139,7 +139,7 @@ function SortableCompanyItem({
       {/* Remove button */}
       <button
         onClick={() => onRemove?.(company.id)}
-        className="btn btn-ghost btn-xs btn-circle text-error hover:bg-error/10"
+        className="btn btn-ghost btn-xs btn-circle text-error hover:bg-error/10 min-h-11 min-w-11"
         aria-label={`Remove ${companyName} from route`}
       >
         <svg

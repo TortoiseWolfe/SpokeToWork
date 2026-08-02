@@ -65,7 +65,7 @@ export default function RouteFilter({
         <button
           type="button"
           onClick={() => onRouteChange(null)}
-          className="btn btn-ghost btn-xs mt-1"
+          className="btn btn-ghost btn-xs mt-1 min-h-11 min-w-11"
           aria-label="Clear route filter"
         >
           <svg

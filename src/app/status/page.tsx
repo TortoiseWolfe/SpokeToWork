@@ -76,7 +76,7 @@ const InfoTooltip = ({
     <div className={`dropdown dropdown-hover ${positionClass}`}>
       <button
         type="button"
-        className="btn btn-circle btn-ghost btn-xs"
+        className="btn btn-circle btn-ghost btn-xs min-h-11 min-w-11"
         aria-label={`Learn more about ${title}`}
       >
         <svg
@@ -758,7 +758,7 @@ export default function StatusPage() {
   const pwaTestSummary = pwaTester.getTestSummary();
 
   return (
-    <div className="bg-base-200 min-h-screen overflow-x-hidden p-2 sm:p-4 md:p-6 lg:p-8">
+    <div className="bg-base-200 min-h-full overflow-x-hidden p-2 sm:p-4 md:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-4 sm:mb-6 md:mb-8">
           <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
@@ -876,7 +876,7 @@ export default function StatusPage() {
                       <button
                         type="button"
                         tabIndex={0}
-                        className="btn btn-circle btn-ghost btn-xs"
+                        className="btn btn-circle btn-ghost btn-xs min-h-11 min-w-11"
                         aria-label="Learn more about First Contentful Paint"
                       >
                         <svg
@@ -932,7 +932,7 @@ export default function StatusPage() {
                       <button
                         type="button"
                         tabIndex={0}
-                        className="btn btn-circle btn-ghost btn-xs"
+                        className="btn btn-circle btn-ghost btn-xs min-h-11 min-w-11"
                         aria-label="Learn more about Largest Contentful Paint"
                       >
                         <svg
@@ -991,7 +991,7 @@ export default function StatusPage() {
                       <button
                         type="button"
                         tabIndex={0}
-                        className="btn btn-circle btn-ghost btn-xs"
+                        className="btn btn-circle btn-ghost btn-xs min-h-11 min-w-11"
                         aria-label="Learn more about Cumulative Layout Shift"
                       >
                         <svg
@@ -1055,7 +1055,7 @@ export default function StatusPage() {
                       <button
                         type="button"
                         tabIndex={0}
-                        className="btn btn-circle btn-ghost btn-xs"
+                        className="btn btn-circle btn-ghost btn-xs min-h-11 min-w-11"
                         aria-label="Learn more about Time to First Byte"
                       >
                         <svg
@@ -1109,7 +1109,7 @@ export default function StatusPage() {
                 </div>
                 <button
                   onClick={collectPerformanceMetrics}
-                  className="btn btn-xs btn-ghost mt-2 w-full"
+                  className="btn btn-xs btn-ghost mt-2 min-h-11 w-full min-w-11"
                 >
                   Refresh Metrics
                 </button>
@@ -1160,7 +1160,7 @@ export default function StatusPage() {
                       </div>
                     </label>
                     <button
-                      className={`btn btn-xs sm:btn-sm ${
+                      className={`btn btn-xs sm:btn-sm min-h-11 min-w-11 ${
                         isTestingPWA
                           ? 'btn-warning'
                           : testError
@@ -1920,7 +1920,7 @@ export default function StatusPage() {
                         href={feature.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn btn-ghost btn-xs"
+                        className="btn btn-ghost btn-xs min-h-11 min-w-11"
                       >
                         Visit →
                       </a>
@@ -2028,7 +2028,7 @@ export default function StatusPage() {
                     <div className="dropdown dropdown-hover">
                       <button
                         type="button"
-                        className="btn btn-circle btn-ghost btn-xs"
+                        className="btn btn-circle btn-ghost btn-xs min-h-11 min-w-11"
                         aria-label="View lighthouse score information"
                       >
                         <svg
@@ -2074,7 +2074,7 @@ export default function StatusPage() {
                             'Cache cleared. Using default scores.'
                           );
                         }}
-                        className="btn btn-xs sm:btn-sm btn-ghost"
+                        className="btn btn-xs sm:btn-sm btn-ghost min-h-11 min-w-11"
                         title="Clear cached scores"
                       >
                         Clear Cache
@@ -2083,7 +2083,7 @@ export default function StatusPage() {
                     <button
                       onClick={runLighthouseTest}
                       disabled={isTestingLighthouse || rateLimitCooldown > 0}
-                      className={`btn btn-xs sm:btn-sm ${
+                      className={`btn btn-xs sm:btn-sm min-h-11 min-w-11 ${
                         isTestingLighthouse
                           ? 'btn-warning'
                           : lighthouseError
@@ -2278,7 +2278,7 @@ export default function StatusPage() {
                             {data.details && (
                               <button
                                 tabIndex={0}
-                                className="btn btn-circle btn-ghost btn-sm"
+                                className="btn btn-circle btn-ghost btn-sm min-h-11 min-w-11"
                                 aria-label="View details"
                               >
                                 <svg

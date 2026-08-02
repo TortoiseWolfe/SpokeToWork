@@ -237,7 +237,7 @@ export function ReAuthModal({
           {onClose && (
             <button
               onClick={onClose}
-              className="btn btn-sm btn-circle btn-ghost"
+              className="btn btn-sm btn-circle btn-ghost min-h-11 min-w-11"
               aria-label="Close modal"
               type="button"
             >
@@ -327,7 +327,7 @@ export function ReAuthModal({
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="btn btn-ghost btn-sm absolute top-1/2 right-1 -translate-y-1/2"
+                  className="btn btn-ghost btn-sm absolute top-1/2 right-1 min-h-11 min-w-11 -translate-y-1/2"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (

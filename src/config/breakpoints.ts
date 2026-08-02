@@ -24,16 +24,22 @@ export const BREAKPOINTS: BreakpointConfig[] = [
   {
     name: 'xs',
     minWidth: 320,
-    maxWidth: 427,
+    // 429, not 427: `sm` starts at 430 so that it does not fire ON the
+    // iPhone 14/15 Pro Max (428px) but above it. Kept adjacent to sm.minWidth
+    // by scripts/validate-breakpoints.ts, which rejects gaps and overlaps.
+    maxWidth: 429,
     category: 'mobile',
-    mediaQuery: '(min-width: 320px) and (max-width: 427px)',
+    mediaQuery: '(min-width: 320px) and (max-width: 429px)',
   },
   {
     name: 'sm',
-    minWidth: 428,
+    // 430px. At 428 this breakpoint activated exactly at the width of the
+    // most common large phone, so that device landed on the wrong side of
+    // every sm: rule. Mirrors --breakpoint-sm: 26.875rem in globals.css.
+    minWidth: 430,
     maxWidth: 767,
     category: 'mobile',
-    mediaQuery: '(min-width: 428px) and (max-width: 767px)',
+    mediaQuery: '(min-width: 430px) and (max-width: 767px)',
   },
   {
     name: 'md',
@@ -105,8 +111,8 @@ export function getDeviceCategory(width: number): string {
 export const mediaQueries = {
   /** Mobile and up (>= 320px) */
   mobile: '(min-width: 320px)',
-  /** Standard mobile and up (>= 428px) */
-  sm: '(min-width: 428px)',
+  /** Standard mobile and up (>= 430px) */
+  sm: '(min-width: 430px)',
   /** Tablet and up (>= 768px) */
   md: '(min-width: 768px)',
   /** Desktop and up (>= 1024px) */

@@ -305,7 +305,7 @@ export default function RouteStartEndEditor({
         >
           <button
             type="button"
-            className={`btn btn-sm flex-1 ${start.type === 'home' ? 'btn-primary' : 'btn-ghost'}`}
+            className={`btn btn-sm min-h-11 min-w-11 flex-1 ${start.type === 'home' ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => handleStartTypeChange('home')}
             disabled={disabled || !hasHomeLocation}
             role="radio"
@@ -316,7 +316,7 @@ export default function RouteStartEndEditor({
           </button>
           <button
             type="button"
-            className={`btn btn-sm flex-1 ${start.type === 'custom' ? 'btn-primary' : 'btn-ghost'}`}
+            className={`btn btn-sm min-h-11 min-w-11 flex-1 ${start.type === 'custom' ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => handleStartTypeChange('custom')}
             disabled={disabled}
             role="radio"
@@ -407,7 +407,7 @@ export default function RouteStartEndEditor({
           >
             <button
               type="button"
-              className={`btn btn-sm flex-1 ${end.type === 'home' ? 'btn-primary' : 'btn-ghost'}`}
+              className={`btn btn-sm min-h-11 min-w-11 flex-1 ${end.type === 'home' ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => handleEndTypeChange('home')}
               disabled={disabled || !hasHomeLocation}
               role="radio"
@@ -418,7 +418,7 @@ export default function RouteStartEndEditor({
             </button>
             <button
               type="button"
-              className={`btn btn-sm flex-1 ${end.type === 'custom' ? 'btn-primary' : 'btn-ghost'}`}
+              className={`btn btn-sm min-h-11 min-w-11 flex-1 ${end.type === 'custom' ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => handleEndTypeChange('custom')}
               disabled={disabled}
               role="radio"

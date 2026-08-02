@@ -409,19 +409,32 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
 
       // STEP 4b: Verify friend request exists in database (bypass UI/RLS)
       const verifyClient = getAdminClient();
-      const { userAId, userBId } = verifyClient ? await getUserIds(verifyClient) : { userAId: null, userBId: null };
+      const { userAId, userBId } = verifyClient
+        ? await getUserIds(verifyClient)
+        : { userAId: null, userBId: null };
       if (userAId && userBId) {
         const safeUserId = escapeSQL(userAId);
         const safeAdminId = escapeSQL(userBId);
         const rows = (await executeSQL(
           `SELECT id, status, requester_id, addressee_id FROM connections WHERE requester_id = '${safeUserId}' AND addressee_id = '${safeAdminId}' ORDER BY created_at DESC LIMIT 1`
-        )) as { id: string; status: string; requester_id: string; addressee_id: string }[];
+        )) as {
+          id: string;
+          status: string;
+          requester_id: string;
+          addressee_id: string;
+        }[];
         if (rows.length === 0) {
-          console.log(`Step 4b: SKIP — no connection row in DB for ${userAId} → ${userBId}. Friend request send failed silently.`);
-          test.skip(true, 'Friend request did not persist to DB — send failed silently');
-          return;
+          // Previously `test.skip(true, ...)`, which recorded a real product
+          // failure as a passing test. The UI reported success, so if no row
+          // was written the send genuinely failed — that must go red.
+          throw new Error(
+            `Step 4b: friend request did not persist to DB for ${userAId} → ${userBId}. ` +
+              'The UI reported success but no connections row was written — silent send failure.'
+          );
         } else {
-          console.log(`Step 4b: DB confirmed connection ${rows[0].id} status=${rows[0].status}`);
+          console.log(
+            `Step 4b: DB confirmed connection ${rows[0].id} status=${rows[0].status}`
+          );
         }
       }
 
@@ -461,8 +474,13 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
           .catch(() => false);
         if (requestVisible) break;
         // Log diagnostic info on failure
-        const tabState = await receivedTab.getAttribute('aria-selected').catch(() => 'unknown');
-        const managerVisible = await pageB.locator('[data-testid="connection-manager"]').isVisible().catch(() => false);
+        const tabState = await receivedTab
+          .getAttribute('aria-selected')
+          .catch(() => 'unknown');
+        const managerVisible = await pageB
+          .locator('[data-testid="connection-manager"]')
+          .isVisible()
+          .catch(() => false);
         const pageUrl = pageB.url();
         console.log(
           `Step 6: attempt ${attempt + 1}/10 — tab selected=${tabState}, manager visible=${managerVisible}, url=${pageUrl}`
@@ -489,13 +507,14 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
           );
         }
         if (dbExists) {
-          // Connection exists in DB but UI didn't render it — read replica
-          // or React state issue. Skip rather than fail the entire shard.
-          console.log(
-            'Step 6: SKIP — connection exists in DB but UI did not render after 15 attempts (read replica / React state lag)'
+          // Previously `test.skip(true, ...)` attributed to read-replica or
+          // React-state lag. 15 polling attempts is well past replica
+          // propagation, so a row that exists but never renders is a real
+          // ConnectionManager defect and must go red.
+          throw new Error(
+            'Step 6: connection row exists in the DB but ConnectionManager did not render it ' +
+              'after 15 polling attempts — not replica lag at that duration.'
           );
-          test.skip(true, 'Connection exists in DB but ConnectionManager UI did not render it');
-          return;
         }
         throw new Error(
           'Step 6: Connection request not in DB after send — friend request may have failed silently'

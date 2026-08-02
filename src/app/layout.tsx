@@ -111,9 +111,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="overflow-x-hidden">
+    <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col overflow-x-hidden antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col antialiased`}
         suppressHydrationWarning
       >
         <ThemeScript />
@@ -135,7 +135,14 @@ export default function RootLayout({
                 </header>
                 {/* <CountdownBanner /> */}
                 <ErrorBoundary level="page">
-                  <main id="main" className="min-h-0 flex-1 overflow-hidden">
+                  {/* overflow-x-clip, not overflow-hidden. The previous value
+                      clipped BOTH axes, which established a block formatting
+                      context and silently disabled `position: sticky` for every
+                      descendant of <main>. `clip` (not `hidden`) because
+                      overflow-x: hidden computes overflow-y to auto and
+                      re-creates a scroll container — the exact behaviour that
+                      let the horizontal-overflow gate pass unconditionally. */}
+                  <main id="main" className="min-h-0 flex-1 overflow-x-clip">
                     {children}
                   </main>
                 </ErrorBoundary>

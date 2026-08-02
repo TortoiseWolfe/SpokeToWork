@@ -101,7 +101,7 @@ function SortableCompanyItem({
         {onToggleNextRide && (
           <button
             type="button"
-            className={`btn btn-xs ${
+            className={`btn btn-xs min-h-11 min-w-11 ${
               rc.visit_on_next_ride ? 'btn-primary' : 'btn-ghost'
             }`}
             onClick={() => onToggleNextRide(rc.id)}
@@ -122,7 +122,7 @@ function SortableCompanyItem({
         {onRemoveCompany && (
           <button
             type="button"
-            className="btn btn-ghost btn-xs text-error"
+            className="btn btn-ghost btn-xs text-error min-h-11 min-w-11"
             onClick={() => onRemoveCompany(rc.id)}
             aria-label={`Remove ${rc.company.name} from route`}
           >
@@ -375,7 +375,7 @@ export default function RouteDetailDrawer({
             {onEditRoute && !route.is_system_route && (
               <button
                 type="button"
-                className="btn btn-ghost btn-sm"
+                className="btn btn-ghost btn-sm min-h-11 min-w-11"
                 onClick={() => onEditRoute(route)}
                 aria-label="Edit route"
               >
@@ -397,7 +397,7 @@ export default function RouteDetailDrawer({
             )}
             <button
               type="button"
-              className="btn btn-ghost btn-sm"
+              className="btn btn-ghost btn-sm min-h-11 min-w-11"
               onClick={onClose}
               aria-label="Close drawer"
             >
@@ -427,7 +427,7 @@ export default function RouteDetailDrawer({
               {!isLoading && localCompanies.length >= 2 && route && (
                 <button
                   type="button"
-                  className="btn btn-primary btn-xs gap-1"
+                  className="btn btn-primary btn-xs min-h-11 min-w-11 gap-1"
                   onClick={() => optimization.optimize(route.id)}
                   disabled={optimization.isLoading}
                   aria-label="Optimize route order"
@@ -521,7 +521,7 @@ export default function RouteDetailDrawer({
           {onDeleteRoute && !route.is_system_route ? (
             <button
               type="button"
-              className="btn btn-error btn-sm btn-outline"
+              className="btn btn-error btn-sm btn-outline min-h-11 min-w-11"
               onClick={() => {
                 if (window.confirm(`Delete route "${route.name}"?`)) {
                   onDeleteRoute(route);
@@ -536,7 +536,7 @@ export default function RouteDetailDrawer({
           )}
           <button
             type="button"
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost btn-sm min-h-11 min-w-11"
             onClick={onClose}
           >
             Close

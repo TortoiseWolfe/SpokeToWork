@@ -181,7 +181,7 @@ function NewGroupContent() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    className="btn btn-ghost btn-xs text-error"
+                    className="btn btn-ghost btn-xs text-error min-h-11 min-w-11"
                     onClick={(e) => {
                       e.stopPropagation();
                       clearSelection();

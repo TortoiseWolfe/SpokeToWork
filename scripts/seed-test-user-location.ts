@@ -18,15 +18,18 @@ async function seedTestUser() {
   console.log('Test user ID:', testUser.id);
 
   // Set home location (Cleveland Bradley County Public Library)
-  const { error } = await supabase
-    .from('user_profiles')
-    .update({
+  // Home location lives in user_home_locations (split off user_profiles,
+  // where the columns were dropped). Upsert so re-runs are idempotent.
+  const { error } = await supabase.from('user_home_locations').upsert(
+    {
+      user_id: testUser.id,
       home_address: '795 Church St NE, Cleveland, TN 37311',
       home_latitude: 35.1595,
       home_longitude: -84.8766,
       distance_radius_miles: 20,
-    })
-    .eq('id', testUser.id);
+    },
+    { onConflict: 'user_id' }
+  );
 
   if (error) {
     console.log('Error updating profile:', error.message);

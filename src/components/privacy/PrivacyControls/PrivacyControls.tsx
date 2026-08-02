@@ -152,7 +152,7 @@ export function PrivacyControls({
           </svg>
           <button
             onClick={handleManage}
-            className="btn btn-sm btn-ghost"
+            className="btn btn-sm btn-ghost min-h-11 min-w-11"
             aria-label="Manage cookie preferences"
           >
             Manage
@@ -234,7 +234,7 @@ export function PrivacyControls({
           {expandable && !expanded && (
             <button
               onClick={() => setExpanded(true)}
-              className="btn btn-sm btn-ghost"
+              className="btn btn-sm btn-ghost min-h-11 min-w-11"
               aria-label="Show details"
             >
               Show Details
@@ -243,7 +243,7 @@ export function PrivacyControls({
           {expandable && expanded && (
             <button
               onClick={() => setExpanded(false)}
-              className="btn btn-sm btn-ghost"
+              className="btn btn-sm btn-ghost min-h-11 min-w-11"
               aria-label="Hide details"
             >
               Hide Details
@@ -251,21 +251,21 @@ export function PrivacyControls({
           )}
           <button
             onClick={handleManage}
-            className="btn btn-sm btn-primary"
+            className="btn btn-sm btn-primary min-h-11 min-w-11"
             aria-label="Manage cookie preferences"
           >
             Manage Cookies
           </button>
           <button
             onClick={handleExport}
-            className="btn btn-sm btn-ghost"
+            className="btn btn-sm btn-ghost min-h-11 min-w-11"
             aria-label="Export my data"
           >
             Export My Data
           </button>
           <button
             onClick={handleDelete}
-            className="btn btn-sm btn-ghost text-warning"
+            className="btn btn-sm btn-ghost text-warning min-h-11 min-w-11"
             aria-label="Delete my data"
           >
             Delete My Data
@@ -273,7 +273,7 @@ export function PrivacyControls({
           {hasConsented() && (
             <button
               onClick={handleRevoke}
-              className="btn btn-sm btn-ghost text-error"
+              className="btn btn-sm btn-ghost text-error min-h-11 min-w-11"
               aria-label="Revoke consent"
             >
               Revoke Consent
@@ -308,14 +308,14 @@ export function PrivacyControls({
             <div className="flex gap-2">
               <button
                 onClick={() => setShowRevokeConfirm(false)}
-                className="btn btn-sm"
+                className="btn btn-sm min-h-11 min-w-11"
                 aria-label="Cancel"
               >
                 Cancel
               </button>
               <button
                 onClick={handleRevoke}
-                className="btn btn-sm btn-error"
+                className="btn btn-sm btn-error min-h-11 min-w-11"
                 aria-label="Confirm revoke"
               >
                 Confirm
@@ -352,14 +352,14 @@ export function PrivacyControls({
             <div className="flex gap-2">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="btn btn-sm"
+                className="btn btn-sm min-h-11 min-w-11"
                 aria-label="Cancel"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
-                className="btn btn-sm btn-error"
+                className="btn btn-sm btn-error min-h-11 min-w-11"
                 aria-label="Confirm delete"
               >
                 Delete All Data

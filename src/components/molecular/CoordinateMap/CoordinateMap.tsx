@@ -92,7 +92,7 @@ export default function CoordinateMap({
       {interactive && (
         <button
           type="button"
-          className={`btn btn-sm absolute top-2 right-2 z-[1000] ${isLocked ? 'btn-outline' : 'btn-warning'}`}
+          className={`btn btn-sm absolute top-2 right-2 z-[1000] min-h-11 min-w-11 ${isLocked ? 'btn-outline' : 'btn-warning'}`}
           onClick={() => setIsLocked(!isLocked)}
         >
           {isLocked ? 'Unlock to Move' : 'Lock Position'}

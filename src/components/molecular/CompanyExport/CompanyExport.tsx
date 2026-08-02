@@ -112,7 +112,7 @@ export default function CompanyExport({
         <div className="alert alert-error mb-4">
           <span>{error}</span>
           <button
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost btn-sm min-h-11 min-w-11"
             onClick={() => setError(null)}
             aria-label="Dismiss error"
           >
@@ -130,7 +130,7 @@ export default function CompanyExport({
           return (
             <button
               key={format}
-              className={`btn btn-sm ${isExporting ? 'btn-primary' : 'btn-outline'}`}
+              className={`btn btn-sm min-h-11 min-w-11 ${isExporting ? 'btn-primary' : 'btn-outline'}`}
               onClick={() => handleExport(format)}
               disabled={isDisabled || exporting !== null}
               title={info.description}

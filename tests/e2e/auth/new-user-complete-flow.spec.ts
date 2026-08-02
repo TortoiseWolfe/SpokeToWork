@@ -262,13 +262,25 @@ test.describe('New User Complete Flow', () => {
         throw new Error(`Invalid test user ID: ${testUserId}`);
       }
       // All interpolated values use escapeSQL to prevent injection (047-test-security)
+      // Home location moved to user_home_locations; the columns were dropped
+      // from user_profiles. trg_assign_user_metro_area fires AFTER INSERT OR
+      // UPDATE OF home_latitude, home_longitude on this table, which is what
+      // assigns metro_area_id and in turn fires trg_seed_user_companies.
       await executeSQL(`
-        UPDATE user_profiles
-        SET home_address = '1450 Blythe Ferry Rd NE Cleveland TN 37312',
-            home_latitude = 35.17783840,
-            home_longitude = -84.83535530,
-            distance_radius_miles = 20
-        WHERE id = '${escapeSQL(testUserId!)}'
+        INSERT INTO user_home_locations
+          (user_id, home_address, home_latitude, home_longitude, distance_radius_miles)
+        VALUES (
+          '${escapeSQL(testUserId!)}',
+          '1450 Blythe Ferry Rd NE Cleveland TN 37312',
+          35.17783840,
+          -84.83535530,
+          20
+        )
+        ON CONFLICT (user_id) DO UPDATE
+          SET home_address = EXCLUDED.home_address,
+              home_latitude = EXCLUDED.home_latitude,
+              home_longitude = EXCLUDED.home_longitude,
+              distance_radius_miles = EXCLUDED.distance_radius_miles
       `);
 
       // Verify metro area was assigned by trigger (any valid metro area, not a specific one)

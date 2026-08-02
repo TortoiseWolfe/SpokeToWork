@@ -25,7 +25,7 @@ function IconButton({
   return (
     <button
       type="button"
-      className={`btn btn-ghost btn-xs ${tone ?? ''}`}
+      className={`btn btn-ghost btn-xs min-h-11 min-w-11 ${tone ?? ''}`}
       onClick={onClick}
       aria-label={label}
       title={title}

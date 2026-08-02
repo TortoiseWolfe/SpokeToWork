@@ -201,7 +201,7 @@ jobs:
           retention-days: 1
 
   # ============================================
-  # STEP 4a: Chromium E2E (7 shards, runs first)
+  # STEP 4a: Chromium E2E (12 shards, runs first)
   # ============================================
   # Sequential browser execution (ScriptHammer pattern): only one browser
   # hits Supabase at a time. Eliminates the 21-concurrent-shard contention
@@ -224,6 +224,9 @@ jobs:
           - { group: msg-, shard: 3/4 }
           - { group: msg-, shard: 4/4 }
           - { group: heavy-, shard: 1/4 }
+          - { group: heavy-, shard: 2/4 }
+          - { group: heavy-, shard: 3/4 }
+          - { group: heavy-, shard: 4/4 }
 
     steps:
       - name: Checkout code
@@ -351,6 +354,9 @@ jobs:
           - { group: msg-, shard: 3/4 }
           - { group: msg-, shard: 4/4 }
           - { group: heavy-, shard: 1/4 }
+          - { group: heavy-, shard: 2/4 }
+          - { group: heavy-, shard: 3/4 }
+          - { group: heavy-, shard: 4/4 }
 
     steps:
       - name: Checkout code
@@ -479,6 +485,9 @@ jobs:
           - { group: msg-, shard: 3/4 }
           - { group: msg-, shard: 4/4 }
           - { group: heavy-, shard: 1/4 }
+          - { group: heavy-, shard: 2/4 }
+          - { group: heavy-, shard: 3/4 }
+          - { group: heavy-, shard: 4/4 }
 
     steps:
       - name: Checkout code
@@ -636,7 +645,7 @@ jobs:
           echo "## 📊 E2E Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "**PR Mode**: Chromium only (7 shards)" >> $GITHUB_STEP_SUMMARY
+            echo "**PR Mode**: Chromium only (12 shards)" >> $GITHUB_STEP_SUMMARY
           else
             echo "**Full Mode**: Chromium -> Firefox -> WebKit (21 shards, sequential browsers)" >> $GITHUB_STEP_SUMMARY
           fi

@@ -172,7 +172,7 @@ export default function NextRidePanel({
           {totalCount > 0 && onClearAll && (
             <button
               onClick={onClearAll}
-              className="btn btn-ghost btn-xs text-error"
+              className="btn btn-ghost btn-xs text-error min-h-11 min-w-11"
               aria-label="Clear all next ride markers"
             >
               Clear All
@@ -266,7 +266,7 @@ function NextRideItem({ item, onToggle, onSelect }: NextRideItemProps) {
       {/* Remove button */}
       <button
         onClick={onToggle}
-        className="btn btn-ghost btn-xs"
+        className="btn btn-ghost btn-xs min-h-11 min-w-11"
         aria-label={`Remove ${item.company.name} from next ride`}
       >
         <svg

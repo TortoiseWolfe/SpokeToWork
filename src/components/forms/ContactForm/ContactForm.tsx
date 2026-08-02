@@ -161,7 +161,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
             <span>{successMessage}</span>
             <button
               type="button"
-              className="btn btn-sm"
+              className="btn btn-sm min-h-11 min-w-11"
               onClick={resetSubmission}
               aria-label="Dismiss success message"
             >

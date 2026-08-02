@@ -439,7 +439,10 @@ export default function MapPage() {
 
         <div className="flex-1" />
 
-        <a href="/companies" className="btn btn-xs btn-ghost gap-1">
+        <a
+          href="/companies"
+          className="btn btn-xs btn-ghost min-h-11 min-w-11 gap-1"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             className="h-3 w-3"

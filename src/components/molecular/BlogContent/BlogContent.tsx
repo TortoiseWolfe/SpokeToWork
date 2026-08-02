@@ -39,7 +39,7 @@ export default function BlogContent({ htmlContent }: BlogContentProps) {
             <div class="absolute top-2 right-12 text-xs text-base-content/80">${lang}</div>
             <button
               data-copy-code="${id}"
-              class="btn btn-xs btn-ghost absolute top-2 right-2"
+              class="btn btn-xs min-h-11 min-w-11 btn-ghost absolute top-2 right-2"
               title="Copy code"
             >📋</button>
             <pre><code class="language-${lang}" id="${id}">${code}</code></pre>

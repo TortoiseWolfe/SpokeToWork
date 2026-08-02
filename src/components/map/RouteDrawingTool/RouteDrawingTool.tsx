@@ -322,7 +322,7 @@ function DrawingControls({
       <div className="flex gap-2">
         <button
           type="button"
-          className="btn btn-sm btn-ghost"
+          className="btn btn-sm btn-ghost min-h-11 min-w-11"
           onClick={onUndo}
           disabled={waypointCount === 0}
           aria-label="Undo last point"
@@ -331,7 +331,7 @@ function DrawingControls({
         </button>
         <button
           type="button"
-          className="btn btn-sm btn-ghost text-error"
+          className="btn btn-sm btn-ghost text-error min-h-11 min-w-11"
           onClick={onClear}
           disabled={waypointCount === 0}
           aria-label="Clear all points"
@@ -340,7 +340,7 @@ function DrawingControls({
         </button>
         <button
           type="button"
-          className="btn btn-sm btn-primary"
+          className="btn btn-sm btn-primary min-h-11 min-w-11"
           onClick={onComplete}
           disabled={!canComplete}
           aria-label="Save route path"

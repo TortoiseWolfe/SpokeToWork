@@ -364,16 +364,17 @@ test.describe.serial('Blog Screenshot Capture with Accuracy Audit', () => {
           console.log('✅ Deleted bicycle routes');
         }
 
-        // Clear home location from user_profiles
+        // Clear home location — it lives in user_home_locations now, not
+        // user_profiles (those columns were dropped there).
         const { error: profileError } = await adminClient
-          .from('user_profiles')
+          .from('user_home_locations')
           .update({
             home_address: null,
             home_latitude: null,
             home_longitude: null,
             distance_radius_miles: null,
           })
-          .eq('id', userId);
+          .eq('user_id', userId);
 
         if (profileError) {
           console.log(

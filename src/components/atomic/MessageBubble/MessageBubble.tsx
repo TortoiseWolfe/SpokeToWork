@@ -201,7 +201,7 @@ const MessageBubble = memo(
             <span className="text-base-content/85 text-sm">
               {message.senderName}
             </span>
-            <time className="ml-2 text-xs text-base-content/75">
+            <time className="text-base-content/75 ml-2 text-xs">
               {formatTimestamp(message.created_at)}
             </time>
           </div>
@@ -226,7 +226,7 @@ const MessageBubble = memo(
             <span className="text-base-content/85 text-sm">
               {message.senderName}
             </span>
-            <time className="ml-2 text-xs text-base-content/75">
+            <time className="text-base-content/75 ml-2 text-xs">
               {formatTimestamp(message.created_at)}
             </time>
           </div>
@@ -237,7 +237,7 @@ const MessageBubble = memo(
           >
             <div className="flex items-center gap-2">
               <button
-                className="btn btn-ghost btn-xs p-0"
+                className="btn btn-ghost btn-xs min-h-11 min-w-11 p-0"
                 aria-label="This message was encrypted before your current encryption keys were set up"
                 title="This message was encrypted before your current encryption keys were set up"
                 tabIndex={0}
@@ -275,11 +275,11 @@ const MessageBubble = memo(
           <span className="text-base-content/85 text-sm">
             {message.senderName}
           </span>
-          <time className="ml-2 text-xs text-base-content/75">
+          <time className="text-base-content/75 ml-2 text-xs">
             {formatTimestamp(message.created_at)}
           </time>
           {message.edited && message.edited_at && (
-            <span className="ml-2 text-xs text-base-content/75">
+            <span className="text-base-content/75 ml-2 text-xs">
               (Edited {formatTimestamp(message.edited_at)})
             </span>
           )}

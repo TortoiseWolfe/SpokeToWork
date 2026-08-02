@@ -56,7 +56,7 @@ export const LocationButton: React.FC<LocationButtonProps> = ({
   const getSizeClasses = () => {
     switch (size) {
       case 'sm':
-        return 'btn-sm';
+        return 'btn-sm min-h-11 min-w-11';
       case 'lg':
         return 'btn-lg';
       default:

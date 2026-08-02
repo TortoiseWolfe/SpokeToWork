@@ -194,7 +194,7 @@ export function ConsentModal({
           <button
             ref={firstFocusableRef}
             onClick={handleClose}
-            className="btn btn-sm btn-circle btn-ghost"
+            className="btn btn-sm btn-circle btn-ghost min-h-11 min-w-11"
             aria-label="Close modal"
           >
             <svg
@@ -290,7 +290,7 @@ export function ConsentModal({
                                 onClick={() =>
                                   toggleDetails(categoryInfo.category)
                                 }
-                                className="btn btn-xs btn-ghost mt-2"
+                                className="btn btn-xs btn-ghost mt-2 min-h-11 min-w-11"
                                 aria-label={`Learn more about ${categoryInfo.title.toLowerCase()}`}
                                 aria-expanded={isExpanded}
                               >

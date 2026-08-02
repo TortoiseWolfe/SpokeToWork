@@ -563,7 +563,7 @@ function MessagesContent() {
             </div>
             <button
               onClick={() => setShowSetupToast(false)}
-              className="btn btn-ghost btn-sm"
+              className="btn btn-ghost btn-sm min-h-11 min-w-11"
               aria-label="Dismiss"
             >
               Dismiss

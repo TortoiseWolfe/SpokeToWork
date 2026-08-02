@@ -52,7 +52,7 @@ export function RoutesDrawer({
         <div className="flex items-center justify-end p-2">
           <button
             type="button"
-            className="btn btn-sm btn-ghost"
+            className="btn btn-sm btn-ghost min-h-11 min-w-11"
             aria-label="Close routes sidebar"
             onClick={onClose}
           >

@@ -3,20 +3,95 @@
 @import '../styles/prism-vscode-dark.css';
 @import '../styles/mobile-first-utilities.css';
 
-/* Prevent horizontal scroll at page level (PRP-017 mobile-first) */
-html,
-body {
-  overflow-x: hidden;
-  max-width: 100vw;
-}
+/* The `html, body { overflow-x: hidden; max-width: 100vw }` rule that lived
+ * here is GONE, along with `overflow-x-hidden` on <html> and <body> and
+ * `overflow-hidden` on <main> (see layout.tsx).
+ *
+ * It did not prevent horizontal scroll, it CONCEALED it — and it took the
+ * detector with it. tests/e2e/tests/mobile-horizontal-scroll.spec.ts asserted
+ * `hasOverflow && !isHidden`; with overflow-x pinned to hidden, `isHidden` was
+ * permanently true and the expression permanently false, so that gate could not
+ * fail under any layout change. Four layers of suppression, zero detection.
+ *
+ * Overflow containment now lives on the content frame as `overflow-x: clip`.
+ * `clip`, never `hidden`: per CSS Overflow 3, `overflow-x: hidden` computes
+ * `overflow-y` to `auto`, re-establishing a scroll container — which is how the
+ * old rule silently defeated its own gate. `clip` does not. */
 
 @theme {
   /* Mobile-first breakpoints (PRP-017) */
   --breakpoint-xs: 20rem; /* 320px - Small phones (minimum supported) */
-  --breakpoint-sm: 26.75rem; /* 428px - Standard phones */
+  --breakpoint-sm: 26.875rem; /* 430px - Standard phones. NOT 428px: that is
+   * exactly the iPhone 14/15 Pro Max width, so `sm:` fired ON that device
+   * rather than above it, putting the most common large phone on the wrong
+   * side of every sm: rule. Kept in sync with src/config/breakpoints.ts by
+   * scripts/validate-breakpoints.ts, now wired into ci.yml. */
   --breakpoint-md: 48rem; /* 768px - Tablets */
   --breakpoint-lg: 64rem; /* 1024px - Desktop */
   --breakpoint-xl: 80rem; /* 1280px - Large desktop */
+}
+
+/* `.container` caps at ONE max-width, not a per-breakpoint ladder.
+ *
+ * Tailwind v4 generates `.container` from the --breakpoint-* values above, so
+ * declaring `--breakpoint-xs: 20rem` (which stock Tailwind has no equivalent
+ * for) taught it to cap `.container` at 320px. Measured before this rule:
+ *
+ *     viewport   max-width   dead gutter
+ *        375px       320px        55px
+ *        390px       320px        70px
+ *        767px       428px       339px   (43% of the viewport)
+ *       1023px       768px       255px
+ *
+ * 35 files use a bare `container mx-auto`, so every one of them was pinned to
+ * a phone-width column on tablets. This single block replaces the generated
+ * ladder; padding is what should vary by breakpoint, not the cap. */
+@utility container {
+  width: 100%;
+  max-width: 80rem; /* 1280px, matching --breakpoint-xl */
+}
+
+/* TEXT MUST WRAP RATHER THAN TRUNCATE AT NARROW WIDTHS.
+ *
+ * `overflow-wrap: break-word` only acts when a single token cannot fit on a
+ * line by itself, so it changes nothing about text that already wraps. That is
+ * what makes it safe to apply globally. No hyphenation: that would move where
+ * every wrapping heading breaks, which is a typographic change, not a fix. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  overflow-wrap: break-word;
+}
+
+/* The heading rule does not reach these. What overflows a list item or an
+ * inline code span is never prose — it is a URL, an env var name, or a repo
+ * path: single tokens with no break opportunity, which is exactly the case
+ * `break-word` acts on. `break-word`, not `break-all`, so ordinary words are
+ * left alone. */
+li,
+code {
+  overflow-wrap: break-word;
+}
+
+/* `.card-title` needs `anywhere`, and the difference is not cosmetic.
+ *
+ * `.card-title` is `display: flex` and its text is a bare text node, which
+ * becomes an ANONYMOUS flex item that no selector can reach. A flex item's
+ * automatic minimum size comes from its content's min-content width, and
+ * `overflow-wrap: break-word` deliberately does NOT change min-content.
+ * `overflow-wrap: anywhere` does. So this is not a stronger flavour of the
+ * rule above — it is the only one of the two that alters the sizing the
+ * layout actually depends on. (min-width: 0 does nothing here for the same
+ * anonymous-item reason.)
+ *
+ * Not theme-scoped: this is layout correctness, and all 32 stock DaisyUI
+ * themes share the defect. 55 usages in this repo, none of which pair
+ * card-title with break-words or truncate today. */
+.card-title {
+  overflow-wrap: anywhere;
 }
 
 @plugin "daisyui" {
@@ -855,20 +930,28 @@ p:not([class*='text-']) {
   @apply font-mono text-sm;
 }
 
-/* Mobile-first button sizing override for status page */
+/* Compact button for the status page.
+ *
+ * This used to force height/min-height to 1.5rem (24px), ramping only to 2rem
+ * (32px) at sm — so it never reached the 44px touch-target floor at ANY
+ * viewport, while `!important` guaranteed it beat any utility class trying to
+ * fix it. It is the one place in the codebase that violated the rule in CSS
+ * rather than in markup, which is why the class-level sweep could not catch it.
+ *
+ * The visual intent was a small, dense control. That is preserved with padding
+ * and font-size; the tap area is not negotiable, so height is now the floor
+ * rather than a cap. */
 .btn-mobile-compact {
-  height: 1.5rem !important;
-  min-height: 1.5rem !important;
+  min-height: 2.75rem !important; /* 44px */
+  min-width: 2.75rem !important;
   padding-left: 0.5rem !important;
   padding-right: 0.5rem !important;
   font-size: 0.625rem !important;
   line-height: 1 !important;
 }
 
-@media (min-width: 26.75rem) {
+@media (width >= theme(--breakpoint-sm)) {
   .btn-mobile-compact {
-    height: 2rem !important;
-    min-height: 2rem !important;
     padding-left: 0.75rem !important;
     padding-right: 0.75rem !important;
     font-size: 0.75rem !important;
@@ -886,7 +969,7 @@ p:not([class*='text-']) {
   margin-bottom: 0.25rem !important;
 }
 
-@media (min-width: 26.75rem) {
+@media (width >= theme(--breakpoint-sm)) {
   /* sm breakpoint */
   .page-title {
     font-size: var(--text-2xl) !important;
@@ -895,7 +978,7 @@ p:not([class*='text-']) {
   }
 }
 
-@media (min-width: 48rem) {
+@media (width >= theme(--breakpoint-md)) {
   /* md breakpoint */
   .page-title {
     font-size: var(--text-3xl) !important;
@@ -904,7 +987,7 @@ p:not([class*='text-']) {
   }
 }
 
-@media (min-width: 64rem) {
+@media (width >= theme(--breakpoint-lg)) {
   /* lg breakpoint */
   .page-title {
     font-size: var(--text-4xl) !important;
@@ -927,7 +1010,7 @@ p:not([class*='text-']) {
   font-weight: 600 !important;
 }
 
-@media (min-width: 26.75rem) {
+@media (width >= theme(--breakpoint-sm)) {
   .section-title {
     font-size: var(--text-xl) !important;
     margin-top: 1rem !important;
@@ -939,7 +1022,7 @@ p:not([class*='text-']) {
   }
 }
 
-@media (min-width: 48rem) {
+@media (width >= theme(--breakpoint-md)) {
   .section-title {
     font-size: var(--text-2xl) !important;
     margin-top: 1.5rem !important;
@@ -951,7 +1034,7 @@ p:not([class*='text-']) {
   }
 }
 
-@media (min-width: 64rem) {
+@media (width >= theme(--breakpoint-lg)) {
   .section-title {
     font-size: var(--text-3xl) !important;
     margin-top: 2rem !important;
@@ -967,7 +1050,7 @@ p:not([class*='text-']) {
   margin-bottom: 0.25rem !important;
 }
 
-@media (min-width: 26.75rem) {
+@media (width >= theme(--breakpoint-sm)) {
   .subsection-title {
     font-size: var(--text-lg) !important;
     margin-top: 0.75rem !important;
@@ -975,7 +1058,7 @@ p:not([class*='text-']) {
   }
 }
 
-@media (min-width: 48rem) {
+@media (width >= theme(--breakpoint-md)) {
   .subsection-title {
     font-size: var(--text-xl) !important;
     margin-top: 1rem !important;
@@ -983,7 +1066,7 @@ p:not([class*='text-']) {
   }
 }
 
-@media (min-width: 64rem) {
+@media (width >= theme(--breakpoint-lg)) {
   .subsection-title {
     font-size: var(--text-2xl) !important;
     margin-top: 1.5rem !important;
@@ -999,7 +1082,7 @@ p:not([class*='text-']) {
   margin-bottom: 0.125rem !important;
 }
 
-@media (min-width: 26.75rem) {
+@media (width >= theme(--breakpoint-sm)) {
   .minor-heading {
     font-size: var(--text-base) !important;
     margin-top: 0.5rem !important;
@@ -1007,7 +1090,7 @@ p:not([class*='text-']) {
   }
 }
 
-@media (min-width: 48rem) {
+@media (width >= theme(--breakpoint-md)) {
   .minor-heading {
     font-size: var(--text-lg) !important;
     margin-top: 0.75rem !important;
@@ -1015,7 +1098,7 @@ p:not([class*='text-']) {
   }
 }
 
-@media (min-width: 64rem) {
+@media (width >= theme(--breakpoint-lg)) {
   .minor-heading {
     font-size: var(--text-xl) !important;
     margin-top: 1rem !important;

@@ -142,7 +142,7 @@ export function ThemeSwitcher() {
             <button
               key={theme}
               onClick={() => handleThemeChange(theme)}
-              className={`btn btn-sm ${
+              className={`btn btn-sm min-h-11 min-w-11 ${
                 currentTheme === theme ? 'btn-primary' : 'btn-ghost'
               }`}
               data-theme={theme}

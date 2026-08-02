@@ -49,7 +49,7 @@ export function FontSizeControl() {
               <button
                 key={size}
                 onClick={() => updateSettings({ fontSize: size })}
-                className={`btn btn-sm flex-1 ${
+                className={`btn btn-sm min-h-11 min-w-11 flex-1 ${
                   fontSize === size ? 'btn-primary' : 'btn-ghost'
                 }`}
                 title={
@@ -78,7 +78,7 @@ export function FontSizeControl() {
               <button
                 key={height}
                 onClick={() => updateSettings({ lineHeight: height })}
-                className={`btn btn-sm flex-1 ${
+                className={`btn btn-sm min-h-11 min-w-11 flex-1 ${
                   lineHeight === height ? 'btn-primary' : 'btn-ghost'
                 }`}
               >
@@ -98,7 +98,7 @@ export function FontSizeControl() {
           {/* Reset button */}
           <button
             onClick={resetSettings}
-            className="btn btn-outline btn-sm flex-1"
+            className="btn btn-outline btn-sm min-h-11 min-w-11 flex-1"
             title="Reset all accessibility settings to defaults"
           >
             Reset
@@ -107,7 +107,7 @@ export function FontSizeControl() {
           {/* Link to accessibility page with wheelchair icon */}
           <Link
             href="/accessibility"
-            className="btn btn-ghost btn-sm flex-1"
+            className="btn btn-ghost btn-sm min-h-11 min-w-11 flex-1"
             title="All accessibility options"
             aria-label="View all accessibility options"
           >

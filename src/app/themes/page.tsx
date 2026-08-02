@@ -5,7 +5,7 @@ import Text from '@/components/subatomic/Text/Text';
 
 export default function ThemesPage() {
   return (
-    <div className="bg-base-100 min-h-screen">
+    <div className="bg-base-100 min-h-full">
       <div className="container mx-auto px-4 py-6 sm:py-8 md:py-12">
         <div className="mb-8 text-center">
           <h1 className="mb-4 !text-2xl font-bold sm:!text-4xl md:!text-5xl">
@@ -55,10 +55,18 @@ export default function ThemesPage() {
                 <button className="btn btn-secondary w-full">Secondary</button>
                 <button className="btn btn-accent w-full">Accent</button>
                 <div className="flex gap-2">
-                  <button className="btn btn-success btn-sm">Success</button>
-                  <button className="btn btn-warning btn-sm">Warning</button>
-                  <button className="btn btn-error btn-sm">Error</button>
-                  <button className="btn btn-info btn-sm">Info</button>
+                  <button className="btn btn-success btn-sm min-h-11 min-w-11">
+                    Success
+                  </button>
+                  <button className="btn btn-warning btn-sm min-h-11 min-w-11">
+                    Warning
+                  </button>
+                  <button className="btn btn-error btn-sm min-h-11 min-w-11">
+                    Error
+                  </button>
+                  <button className="btn btn-info btn-sm min-h-11 min-w-11">
+                    Info
+                  </button>
                 </div>
               </div>
             </div>

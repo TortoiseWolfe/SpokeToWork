@@ -292,7 +292,7 @@ export default function EmployerDashboard({
                 <th>
                   <button
                     onClick={() => handleSort('position_title')}
-                    className="btn btn-ghost btn-xs gap-1"
+                    className="btn btn-ghost btn-xs min-h-11 min-w-11 gap-1"
                     aria-label="Sort by position"
                   >
                     Position
@@ -306,7 +306,7 @@ export default function EmployerDashboard({
                   <th key={field}>
                     <button
                       onClick={() => handleSort(field)}
-                      className="btn btn-ghost btn-xs gap-1"
+                      className="btn btn-ghost btn-xs min-h-11 min-w-11 gap-1"
                       aria-label={`Sort by ${label.toLowerCase()}`}
                     >
                       {label}

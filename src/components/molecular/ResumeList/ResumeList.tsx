@@ -29,7 +29,13 @@ interface ResumeItemProps {
   onRename: (id: string, label: string) => Promise<void>;
 }
 
-function ResumeItem({ resume, disabled, onRemove, onSetDefault, onRename }: ResumeItemProps) {
+function ResumeItem({
+  resume,
+  disabled,
+  onRemove,
+  onSetDefault,
+  onRename,
+}: ResumeItemProps) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(resume.label);
 
@@ -49,7 +55,7 @@ function ResumeItem({ resume, disabled, onRemove, onSetDefault, onRename }: Resu
   };
 
   return (
-    <li className="flex flex-col gap-2 rounded-lg border border-base-300 p-3">
+    <li className="border-base-300 flex flex-col gap-2 rounded-lg border p-3">
       <div className="flex items-center gap-2">
         {isRenaming ? (
           <div className="flex flex-1 items-center gap-2">
@@ -63,7 +69,7 @@ function ResumeItem({ resume, disabled, onRemove, onSetDefault, onRename }: Resu
             />
             <button
               type="button"
-              className="btn btn-sm btn-primary"
+              className="btn btn-sm btn-primary min-h-11 min-w-11"
               onClick={handleRenameSave}
               disabled={disabled || !renameValue.trim()}
             >
@@ -71,7 +77,7 @@ function ResumeItem({ resume, disabled, onRemove, onSetDefault, onRename }: Resu
             </button>
             <button
               type="button"
-              className="btn btn-sm btn-ghost"
+              className="btn btn-sm btn-ghost min-h-11 min-w-11"
               onClick={handleRenameCancel}
               disabled={disabled}
             >
@@ -94,7 +100,7 @@ function ResumeItem({ resume, disabled, onRemove, onSetDefault, onRename }: Resu
         <div className="flex gap-2">
           <button
             type="button"
-            className="btn btn-sm btn-ghost"
+            className="btn btn-sm btn-ghost min-h-11 min-w-11"
             onClick={handleRenameStart}
             disabled={disabled}
             aria-label={`Rename ${resume.label}`}
@@ -103,7 +109,7 @@ function ResumeItem({ resume, disabled, onRemove, onSetDefault, onRename }: Resu
           </button>
           <button
             type="button"
-            className="btn btn-sm btn-ghost text-error"
+            className="btn btn-sm btn-ghost text-error min-h-11 min-w-11"
             onClick={() => onRemove(resume.id)}
             disabled={disabled}
             aria-label={`Remove ${resume.label}`}
@@ -113,7 +119,7 @@ function ResumeItem({ resume, disabled, onRemove, onSetDefault, onRename }: Resu
           {!resume.is_default && (
             <button
               type="button"
-              className="btn btn-sm btn-ghost"
+              className="btn btn-sm btn-ghost min-h-11 min-w-11"
               onClick={() => onSetDefault(resume.id)}
               disabled={disabled}
               aria-label={`Set ${resume.label} as default`}
@@ -178,7 +184,10 @@ export function ResumeList({
         role="status"
         aria-label="Loading resumes"
       >
-        <span className="loading loading-spinner loading-md" aria-hidden="true" />
+        <span
+          className="loading loading-spinner loading-md"
+          aria-hidden="true"
+        />
         <span className="sr-only">Loading resumes…</span>
       </div>
     );
@@ -206,7 +215,7 @@ export function ResumeList({
       )}
 
       {pendingFile ? (
-        <div className="flex items-center gap-2 rounded-lg border border-base-300 p-3">
+        <div className="border-base-300 flex items-center gap-2 rounded-lg border p-3">
           <input
             type="text"
             className="input input-bordered input-sm flex-1"
@@ -218,7 +227,7 @@ export function ResumeList({
           />
           <button
             type="button"
-            className="btn btn-sm btn-primary"
+            className="btn btn-sm btn-primary min-h-11 min-w-11"
             onClick={handleUploadSave}
             disabled={disabled || isUploading || !uploadLabel.trim()}
           >
@@ -226,7 +235,7 @@ export function ResumeList({
           </button>
           <button
             type="button"
-            className="btn btn-sm btn-ghost"
+            className="btn btn-sm btn-ghost min-h-11 min-w-11"
             onClick={handleUploadCancel}
             disabled={isUploading}
           >
@@ -246,7 +255,7 @@ export function ResumeList({
             />
             <button
               type="button"
-              className="btn btn-sm btn-outline"
+              className="btn btn-sm btn-outline min-h-11 min-w-11"
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled}
             >

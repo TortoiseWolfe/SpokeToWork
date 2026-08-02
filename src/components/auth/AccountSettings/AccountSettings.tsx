@@ -74,11 +74,25 @@ function AccountSettings({ className = '' }: AccountSettingsProps) {
 
   // Worker skills (worker role only)
   const { skills: allSkills, resolve: resolveSkill } = useSkills();
-  const { skills: userSkills, addSkill, removeSkill, setPrimary } = useMySkills(profile?.role === 'worker' ? (user?.id ?? null) : null);
+  const {
+    skills: userSkills,
+    addSkill,
+    removeSkill,
+    setPrimary,
+  } = useMySkills(profile?.role === 'worker' ? (user?.id ?? null) : null);
 
   // Resume & visibility (worker role only)
-  const { resumes, isLoading: resumesLoading, upload, remove: removeResume, setDefault: setDefaultResume, rename: renameResume } = useWorkerResumes(profile?.role === 'worker' ? user?.id : undefined);
-  const { visibility, update: updateVisibility } = useWorkerVisibility(profile?.role === 'worker' ? user?.id : undefined);
+  const {
+    resumes,
+    isLoading: resumesLoading,
+    upload,
+    remove: removeResume,
+    setDefault: setDefaultResume,
+    rename: renameResume,
+  } = useWorkerResumes(profile?.role === 'worker' ? user?.id : undefined);
+  const { visibility, update: updateVisibility } = useWorkerVisibility(
+    profile?.role === 'worker' ? user?.id : undefined
+  );
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -526,12 +540,12 @@ function AccountSettings({ className = '' }: AccountSettingsProps) {
         <div className="card bg-base-200">
           <div className="card-body">
             <h3 className="card-title">My Skills</h3>
-            <p className="text-base-content/70 text-sm mb-3">
+            <p className="text-base-content/70 mb-3 text-sm">
               Tag your skills to appear in employer searches.
             </p>
             {/* Current skills */}
             {userSkills.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
+              <div className="mb-3 flex flex-wrap gap-2">
                 {userSkills.map((us) => {
                   const resolved = resolveSkill(us.skill_id);
                   return resolved ? (
@@ -540,7 +554,7 @@ function AccountSettings({ className = '' }: AccountSettingsProps) {
                       {!us.is_primary && (
                         <button
                           type="button"
-                          className="btn btn-xs btn-ghost"
+                          className="btn btn-xs btn-ghost min-h-11 min-w-11"
                           onClick={() => setPrimary(us.skill_id)}
                           aria-label={`Set ${resolved.name} as primary`}
                         >
@@ -549,7 +563,7 @@ function AccountSettings({ className = '' }: AccountSettingsProps) {
                       )}
                       <button
                         type="button"
-                        className="btn btn-xs btn-ghost text-error"
+                        className="btn btn-xs btn-ghost text-error min-h-11 min-w-11"
                         onClick={() => removeSkill(us.skill_id)}
                         aria-label={`Remove ${resolved.name}`}
                       >
@@ -563,15 +577,22 @@ function AccountSettings({ className = '' }: AccountSettingsProps) {
             {/* Add skill dropdown */}
             <select
               className="select select-bordered select-sm w-full max-w-xs"
-              onChange={(e) => { if (e.target.value) addSkill(e.target.value); e.target.value = ''; }}
+              onChange={(e) => {
+                if (e.target.value) addSkill(e.target.value);
+                e.target.value = '';
+              }}
               defaultValue=""
               aria-label="Add a skill"
             >
-              <option value="" disabled>Add a skill…</option>
+              <option value="" disabled>
+                Add a skill…
+              </option>
               {allSkills
                 .filter((s) => !userSkills.some((us) => us.skill_id === s.id))
                 .map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
                 ))}
             </select>
           </div>

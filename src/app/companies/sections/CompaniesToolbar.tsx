@@ -29,7 +29,7 @@ function ToggleBtn(props: {
   const { active, primary, on, off, onClick } = props;
   return (
     <button
-      className={`btn btn-sm ${primary ? 'btn-primary' : 'btn-outline'}`}
+      className={`btn btn-sm min-h-11 min-w-11 ${primary ? 'btn-primary' : 'btn-outline'}`}
       onClick={onClick}
     >
       {active ? on : off}
@@ -92,7 +92,10 @@ export function CompaniesToolbar({
       {error && (
         <div className="alert alert-error mb-6">
           <span>{error}</span>
-          <button className="btn btn-ghost btn-sm" onClick={onDismissError}>
+          <button
+            className="btn btn-ghost btn-sm min-h-11 min-w-11"
+            onClick={onDismissError}
+          >
             Dismiss
           </button>
         </div>
@@ -117,7 +120,10 @@ export function CompaniesToolbar({
             Set your home location to enable distance calculations and extended
             range warnings.
           </span>
-          <button className="btn btn-sm" onClick={modals.openSettings}>
+          <button
+            className="btn btn-sm min-h-11 min-w-11"
+            onClick={modals.openSettings}
+          >
             Set Location
           </button>
         </div>

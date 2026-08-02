@@ -170,7 +170,7 @@ export default function CompanyFilters({
         <div className="dropdown dropdown-end">
           <label
             tabIndex={0}
-            className="btn btn-sm btn-outline"
+            className="btn btn-sm btn-outline min-h-11 min-w-11"
             aria-label="Filter by priority"
           >
             Priority
@@ -250,7 +250,7 @@ export default function CompanyFilters({
       {hasActiveFilters && (
         <button
           type="button"
-          className="btn btn-ghost btn-sm"
+          className="btn btn-ghost btn-sm min-h-11 min-w-11"
           onClick={handleClearFilters}
           aria-label="Clear all filters"
         >

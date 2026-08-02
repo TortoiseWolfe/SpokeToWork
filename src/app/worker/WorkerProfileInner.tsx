@@ -44,7 +44,7 @@ export function WorkerProfileInner() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-full items-center justify-center">
         <span className="loading loading-spinner loading-lg" />
       </div>
     );
@@ -57,7 +57,9 @@ export function WorkerProfileInner() {
         <p className="text-base-content/70 mt-2">
           This worker may not be discoverable or no longer exists.
         </p>
-        <Link href="/workers" className="btn btn-primary mt-6">Browse workers</Link>
+        <Link href="/workers" className="btn btn-primary mt-6">
+          Browse workers
+        </Link>
       </div>
     );
   }
@@ -109,7 +111,10 @@ export function WorkerProfileInner() {
       )}
 
       <div className="mt-8">
-        <Link href="/workers" className="btn btn-ghost btn-sm">
+        <Link
+          href="/workers"
+          className="btn btn-ghost btn-sm min-h-11 min-w-11"
+        >
           ← Back to workers
         </Link>
       </div>

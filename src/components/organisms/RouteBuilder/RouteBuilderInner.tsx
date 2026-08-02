@@ -359,7 +359,7 @@ export default function RouteBuilderInner({
           </h2>
           <button
             onClick={onClose}
-            className="btn btn-ghost btn-sm btn-circle"
+            className="btn btn-ghost btn-sm btn-circle min-h-11 min-w-11"
             aria-label="Close"
           >
             <svg
@@ -491,7 +491,7 @@ export default function RouteBuilderInner({
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
-                className="btn btn-error btn-outline btn-sm"
+                className="btn btn-error btn-outline btn-sm min-h-11 min-w-11"
                 disabled={isSubmitting}
               >
                 Delete

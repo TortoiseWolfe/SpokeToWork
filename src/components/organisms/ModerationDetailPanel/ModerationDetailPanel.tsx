@@ -117,7 +117,7 @@ export function ModerationDetailPanel({
         </div>
         <button
           type="button"
-          className="btn btn-ghost btn-sm btn-circle"
+          className="btn btn-ghost btn-sm btn-circle min-h-11 min-w-11"
           onClick={onClose}
           aria-label="Close panel"
         >

@@ -26,7 +26,7 @@ function SortButton({
   return (
     <button
       type="button"
-      className={`btn btn-ghost btn-xs ${className ?? ''}`}
+      className={`btn btn-ghost btn-xs min-h-11 min-w-11 ${className ?? ''}`}
       onClick={() => onSort(field)}
       title={title}
     >

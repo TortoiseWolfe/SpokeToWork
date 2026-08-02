@@ -119,7 +119,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
   };
 
   const getButtonClass = () => {
-    const baseClass = 'btn btn-xs btn-ghost';
+    const baseClass = 'btn btn-xs min-h-11 min-w-11 btn-ghost';
     const stateClass =
       copyState === 'success'
         ? 'text-success'

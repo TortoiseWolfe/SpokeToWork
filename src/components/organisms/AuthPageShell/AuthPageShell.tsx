@@ -21,7 +21,7 @@ export default function AuthPageShell({
   className = '',
 }: AuthPageShellProps) {
   return (
-    <div className={`flex min-h-screen flex-col md:flex-row ${className}`}>
+    <div className={`flex min-h-full flex-col md:flex-row ${className}`}>
       {/* Mobile-only compact header */}
       <div className="flex justify-center py-6 md:hidden">
         <RouteHeroIllustration className="w-40" aria-hidden />

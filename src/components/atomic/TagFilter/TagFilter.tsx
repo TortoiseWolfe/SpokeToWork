@@ -114,7 +114,7 @@ export default function TagFilter({
           <div className="flex gap-1">
             <button
               onClick={handleSelectAll}
-              className="btn btn-ghost btn-xs"
+              className="btn btn-ghost btn-xs min-h-11 min-w-11"
               disabled={filteredSelectedCount === filteredTags.length}
               aria-label="Select all visible tags"
             >
@@ -123,7 +123,7 @@ export default function TagFilter({
             {searchQuery && (
               <button
                 onClick={handleClearFiltered}
-                className="btn btn-ghost btn-xs"
+                className="btn btn-ghost btn-xs min-h-11 min-w-11"
                 disabled={filteredSelectedCount === 0}
                 aria-label="Clear visible selections"
               >
@@ -132,7 +132,7 @@ export default function TagFilter({
             )}
             <button
               onClick={handleClearAll}
-              className="btn btn-ghost btn-xs"
+              className="btn btn-ghost btn-xs min-h-11 min-w-11"
               disabled={selectedCount === 0}
               aria-label="Clear all selections"
             >

@@ -83,7 +83,7 @@ export default function RouteOptimizationModal({
           </h2>
           <button
             onClick={onClose}
-            className="btn btn-ghost btn-sm btn-circle"
+            className="btn btn-ghost btn-sm btn-circle min-h-11 min-w-11"
             aria-label="Close"
             disabled={isLoading}
           >

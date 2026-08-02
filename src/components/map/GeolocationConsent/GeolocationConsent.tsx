@@ -89,7 +89,7 @@ export const GeolocationConsent: React.FC<GeolocationConsentProps> = ({
       >
         {!required && (
           <button
-            className="btn btn-sm btn-circle btn-ghost absolute top-2 right-2"
+            className="btn btn-sm btn-circle btn-ghost absolute top-2 right-2 min-h-11 min-w-11"
             onClick={handleClose}
             aria-label="Close"
           >

@@ -389,7 +389,7 @@ function CompanyDetailDrawer({
             {onEditCompany && (
               <button
                 type="button"
-                className="btn btn-ghost btn-sm"
+                className="btn btn-ghost btn-sm min-h-11 min-w-11"
                 onClick={() => onEditCompany(company)}
                 aria-label="Edit company"
               >
@@ -411,7 +411,7 @@ function CompanyDetailDrawer({
             )}
             <button
               type="button"
-              className="btn btn-ghost btn-sm"
+              className="btn btn-ghost btn-sm min-h-11 min-w-11"
               onClick={onClose}
               aria-label="Close drawer"
             >
@@ -441,7 +441,7 @@ function CompanyDetailDrawer({
               <span className="text-base-content/85 text-sm">Phone:</span>
               <button
                 type="button"
-                className="btn btn-ghost btn-sm font-mono"
+                className="btn btn-ghost btn-sm min-h-11 min-w-11 font-mono"
                 onClick={() => {
                   navigator.clipboard.writeText(company.phone!);
                   // Visual feedback - button text changes briefly
@@ -642,7 +642,7 @@ function CompanyDetailDrawer({
                 onSubmitToCommunity && (
                   <button
                     type="button"
-                    className="btn btn-outline btn-secondary btn-sm"
+                    className="btn btn-outline btn-secondary btn-sm min-h-11 min-w-11"
                     onClick={() => handleSubmitToCommunity(company)}
                     disabled={isSubmitting}
                     data-testid="submit-to-community-btn"
@@ -689,7 +689,7 @@ function CompanyDetailDrawer({
                   {!editingField && (
                     <button
                       type="button"
-                      className="btn btn-ghost btn-xs"
+                      className="btn btn-ghost btn-xs min-h-11 min-w-11"
                       onClick={() =>
                         handleStartEdit('website', company.website)
                       }
@@ -753,7 +753,7 @@ function CompanyDetailDrawer({
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        className="btn btn-primary btn-sm flex-1"
+                        className="btn btn-primary btn-sm min-h-11 min-w-11 flex-1"
                         onClick={() => {
                           const oldValue =
                             company[editingField as keyof typeof company];
@@ -774,7 +774,7 @@ function CompanyDetailDrawer({
                       </button>
                       <button
                         type="button"
-                        className="btn btn-ghost btn-sm"
+                        className="btn btn-ghost btn-sm min-h-11 min-w-11"
                         onClick={handleCancelEdit}
                         disabled={isSubmittingEdit}
                         data-testid="cancel-edit-btn"
@@ -794,7 +794,7 @@ function CompanyDetailDrawer({
                 <span className="text-base-content/85 text-sm">Routes</span>
                 <button
                   type="button"
-                  className="btn btn-ghost btn-xs text-primary"
+                  className="btn btn-ghost btn-xs text-primary min-h-11 min-w-11"
                   onClick={() => onAddToRoute(company)}
                   aria-label={`Add ${company.name} to a route`}
                   data-testid="add-to-route-btn"
@@ -838,7 +838,7 @@ function CompanyDetailDrawer({
             {onAddApplication && (
               <button
                 type="button"
-                className="btn btn-primary btn-sm"
+                className="btn btn-primary btn-sm min-h-11 min-w-11"
                 onClick={() => onAddApplication(company)}
                 aria-label="Add application"
               >
@@ -869,7 +869,7 @@ function CompanyDetailDrawer({
                 {onAddApplication && (
                   <button
                     type="button"
-                    className="btn btn-outline btn-sm mt-2"
+                    className="btn btn-outline btn-sm mt-2 min-h-11 min-w-11"
                     onClick={() => onAddApplication(company)}
                   >
                     Add your first application
@@ -956,7 +956,7 @@ function CompanyDetailDrawer({
                           {onEditApplication && (
                             <button
                               type="button"
-                              className="btn btn-ghost btn-xs"
+                              className="btn btn-ghost btn-xs min-h-11 min-w-11"
                               onClick={() => onEditApplication(app)}
                               aria-label={`Edit ${app.position_title || 'application'}`}
                             >
@@ -979,7 +979,7 @@ function CompanyDetailDrawer({
                           {onDeleteApplication && (
                             <button
                               type="button"
-                              className="btn btn-ghost btn-xs text-error"
+                              className="btn btn-ghost btn-xs text-error min-h-11 min-w-11"
                               onClick={() => onDeleteApplication(app)}
                               aria-label={`Delete ${app.position_title || 'application'}`}
                             >

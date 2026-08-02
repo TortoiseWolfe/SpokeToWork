@@ -85,14 +85,17 @@ export async function ensureTestRoutes(userEmail: string): Promise<void> {
   console.log('Checking test routes...');
 
   // Get user ID and check existing routes
+  // Home location lives in user_home_locations, not user_profiles — the
+  // columns were split off user_profiles (dropped there) so that no
+  // cross-user read path can expose a job seeker's home address.
   const result = (await executeSQL(`
     SELECT
       u.id as user_id,
-      up.home_latitude,
-      up.home_longitude,
+      uhl.home_latitude,
+      uhl.home_longitude,
       (SELECT COUNT(*) FROM bicycle_routes br WHERE br.user_id = u.id) as route_count
     FROM auth.users u
-    LEFT JOIN user_profiles up ON up.id = u.id
+    LEFT JOIN user_home_locations uhl ON uhl.user_id = u.id
     WHERE u.email = '${escapeSQL(userEmail)}'
   `)) as Array<{
     user_id: string;
@@ -118,9 +121,16 @@ export async function ensureTestRoutes(userEmail: string): Promise<void> {
     `Test user has ${existingRoutes} routes, creating test routes...`
   );
 
-  // Use user's home or fallback to Chattanooga area coordinates
-  const homeLat = home_latitude || 35.0456;
-  const homeLng = home_longitude || -85.3097;
+  // Use the user's real home, or fall back to Chattanooga. Log the fallback:
+  // while this query was reading dropped columns it always fell through here,
+  // so route E2E seeded fixed coordinates and passed regardless of the data.
+  if (home_latitude == null || home_longitude == null) {
+    console.log(
+      `No home location for ${userEmail} — seeding routes from fallback Chattanooga coordinates`
+    );
+  }
+  const homeLat = home_latitude ?? 35.0456;
+  const homeLng = home_longitude ?? -85.3097;
 
   const routes = [
     {

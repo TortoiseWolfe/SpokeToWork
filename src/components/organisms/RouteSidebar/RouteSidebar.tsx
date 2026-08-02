@@ -169,7 +169,7 @@ export default function RouteSidebar({
           <h2 className="text-lg font-semibold">Routes</h2>
           <button
             onClick={onCreateRoute}
-            className="btn btn-primary btn-sm"
+            className="btn btn-primary btn-sm min-h-11 min-w-11"
             aria-label="Create new route"
           >
             <svg
@@ -215,7 +215,7 @@ export default function RouteSidebar({
         <div className="flex flex-wrap gap-1">
           <button
             onClick={() => handleSortChange('updated_at')}
-            className={`btn btn-xs ${sortBy === 'updated_at' ? 'btn-primary' : 'btn-ghost'}`}
+            className={`btn btn-xs min-h-11 min-w-11 ${sortBy === 'updated_at' ? 'btn-primary' : 'btn-ghost'}`}
             aria-pressed={sortBy === 'updated_at'}
           >
             Recent{' '}
@@ -223,7 +223,7 @@ export default function RouteSidebar({
           </button>
           <button
             onClick={() => handleSortChange('name')}
-            className={`btn btn-xs ${sortBy === 'name' ? 'btn-primary' : 'btn-ghost'}`}
+            className={`btn btn-xs min-h-11 min-w-11 ${sortBy === 'name' ? 'btn-primary' : 'btn-ghost'}`}
             aria-pressed={sortBy === 'name'}
           >
             Name {sortBy === 'name' && (sortDirection === 'desc' ? '↓' : '↑')}
@@ -231,7 +231,7 @@ export default function RouteSidebar({
           {/* DEPRECATED: System trails toggle - Feature 048 cancelled
           <button
             onClick={() => setShowSystemRoutes((prev) => !prev)}
-            className={`btn btn-xs ${showSystemRoutes ? 'btn-ghost' : 'btn-secondary'}`}
+            className={`btn btn-xs min-h-11 min-w-11 ${showSystemRoutes ? 'btn-ghost' : 'btn-secondary'}`}
             aria-pressed={!showSystemRoutes}
           >
             {showSystemRoutes ? 'Hide Trails' : 'Show Trails'}
@@ -389,7 +389,7 @@ function RouteListItem({
           <div className="dropdown dropdown-end">
             <button
               tabIndex={0}
-              className="btn btn-ghost btn-xs"
+              className="btn btn-ghost btn-xs min-h-11 min-w-11"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowMenu(!showMenu);

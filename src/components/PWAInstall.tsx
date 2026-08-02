@@ -206,7 +206,7 @@ export default function PWAInstall() {
       <div className="fixed top-20 right-4 z-50">
         <button
           onClick={handleExpand}
-          className="btn btn-circle btn-info btn-sm shadow-lg transition-all hover:scale-110"
+          className="btn btn-circle btn-info btn-sm min-h-11 min-w-11 shadow-lg transition-all hover:scale-110"
           aria-label="Install Progressive Web App"
           title="Progressive Web App (PWA) - An app that works offline, can be installed like a native app, and loads instantly"
         >
@@ -253,14 +253,14 @@ export default function PWAInstall() {
         </span>
         <button
           onClick={handleInstallClick}
-          className="btn btn-info btn-xs"
+          className="btn btn-info btn-xs min-h-11 min-w-11"
           title="Progressive Web App (PWA) - Install this website as an app that works offline, loads instantly, and doesn't require an app store"
         >
           Install
         </button>
         <button
           onClick={handleMinimize}
-          className="btn btn-ghost btn-circle btn-xs"
+          className="btn btn-ghost btn-circle btn-xs min-h-11 min-w-11"
           aria-label="Minimize"
         >
           <svg

@@ -153,7 +153,7 @@ export default function MessagingSetupPage() {
   // Loading states
   if (authLoading || checkingKeys) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-full items-center justify-center">
         <span className="loading loading-spinner loading-lg"></span>
       </div>
     );
@@ -162,7 +162,7 @@ export default function MessagingSetupPage() {
   // Redirect if already set up
   if (hasExistingKeys) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-full items-center justify-center">
         <span className="loading loading-spinner loading-lg"></span>
         <span className="ml-2">Redirecting to messages...</span>
       </div>
@@ -170,7 +170,7 @@ export default function MessagingSetupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <div className="flex min-h-full items-center justify-center p-4">
       <div className="card bg-base-100 w-full max-w-md shadow-xl">
         <div className="card-body">
           <h1 className="card-title text-2xl">Set Up Encrypted Messaging</h1>
@@ -259,7 +259,7 @@ export default function MessagingSetupPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="btn btn-ghost btn-sm absolute top-1/2 right-1 -translate-y-1/2"
+                  className="btn btn-ghost btn-sm absolute top-1/2 right-1 min-h-11 min-w-11 -translate-y-1/2"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? '👁️' : '👁️‍🗨️'}

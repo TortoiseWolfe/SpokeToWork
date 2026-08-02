@@ -100,7 +100,7 @@ export function WorkerProfileForEmployer({
               <div>
                 <button
                   type="button"
-                  className="btn btn-sm btn-primary"
+                  className="btn btn-sm btn-primary min-h-11 min-w-11"
                   disabled={isDownloading}
                   onClick={() =>
                     download(resume.storage_path, resume.file_name)

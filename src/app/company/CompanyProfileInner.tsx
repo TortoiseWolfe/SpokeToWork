@@ -47,9 +47,16 @@ export function CompanyProfileInner() {
       // are not yet in the generated Database type, but they exist in the DB.
       const sb = createClient() as unknown as SupabaseClient;
       const [companyRes, junctionRes, locRes] = await Promise.all([
-        sb.from('shared_companies').select('id,name,website,careers_url,is_verified').eq('id', id).maybeSingle(),
+        sb
+          .from('shared_companies')
+          .select('id,name,website,careers_url,is_verified')
+          .eq('id', id)
+          .maybeSingle(),
         sb.from('company_industries').select('*').eq('shared_company_id', id),
-        sb.from('company_locations').select('id,address,latitude,longitude').eq('shared_company_id', id),
+        sb
+          .from('company_locations')
+          .select('id,address,latitude,longitude')
+          .eq('shared_company_id', id),
       ]);
       if (cancelled) return;
       if (!companyRes.data) {
@@ -57,8 +64,16 @@ export function CompanyProfileInner() {
       } else {
         // Partial render is acceptable for a public page, but don't swallow
         // the reason silently — a column-name typo hid here once already.
-        if (junctionRes.error) console.error('company profile: industries fetch failed', junctionRes.error);
-        if (locRes.error) console.error('company profile: locations fetch failed', locRes.error);
+        if (junctionRes.error)
+          console.error(
+            'company profile: industries fetch failed',
+            junctionRes.error
+          );
+        if (locRes.error)
+          console.error(
+            'company profile: locations fetch failed',
+            locRes.error
+          );
         setCompany(companyRes.data as PublicCompany);
         setIndustries((junctionRes.data ?? []) as CompanyIndustry[]);
         setLocations((locRes.data ?? []) as PublicLocation[]);
@@ -72,7 +87,7 @@ export function CompanyProfileInner() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-full items-center justify-center">
         <span className="loading loading-spinner loading-lg" />
       </div>
     );
@@ -85,7 +100,9 @@ export function CompanyProfileInner() {
         <p className="text-base-content/70 mt-2">
           This company may be private or no longer exists.
         </p>
-        <Link href="/" className="btn btn-primary mt-6">Go home</Link>
+        <Link href="/" className="btn btn-primary mt-6">
+          Go home
+        </Link>
       </div>
     );
   }
@@ -134,12 +151,22 @@ export function CompanyProfileInner() {
           <h2 className="mb-3 text-xl font-semibold">Links</h2>
           <div className="flex flex-wrap gap-2">
             {company.website && (
-              <a href={company.website} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline">
+              <a
+                href={company.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-sm btn-outline min-h-11 min-w-11"
+              >
                 Website
               </a>
             )}
             {company.careers_url && (
-              <a href={company.careers_url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline">
+              <a
+                href={company.careers_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-sm btn-outline min-h-11 min-w-11"
+              >
                 Careers
               </a>
             )}

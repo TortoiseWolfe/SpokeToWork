@@ -28,7 +28,7 @@ function Row({
   return (
     <>
       <label
-        className="flex min-h-11 cursor-pointer items-center gap-2 rounded px-2 hover:bg-base-200"
+        className="hover:bg-base-200 flex min-h-11 cursor-pointer items-center gap-2 rounded px-2"
         style={{ paddingLeft: `${0.5 + depth * 1.25}rem` }}
       >
         <input
@@ -41,7 +41,13 @@ function Row({
         <span className="text-sm">{item.name}</span>
       </label>
       {children.map((c) => (
-        <Row key={c.node.id} node={c} depth={depth + 1} selected={selected} onToggle={onToggle} />
+        <Row
+          key={c.node.id}
+          node={c}
+          depth={depth + 1}
+          selected={selected}
+          onToggle={onToggle}
+        />
       ))}
     </>
   );
@@ -61,21 +67,29 @@ export function SkillFilter({ tree, selected, onChange }: SkillFilterProps) {
       <summary className="btn btn-sm btn-outline min-h-11">
         Trade
         {selected.length > 0 && (
-          <span className="badge badge-primary badge-sm">{selected.length}</span>
+          <span className="badge badge-primary badge-sm">
+            {selected.length}
+          </span>
         )}
       </summary>
       <div className="dropdown-content rounded-box bg-base-100 z-20 mt-1 max-h-96 w-72 overflow-y-auto p-2 shadow-lg">
         {selected.length > 0 && (
           <button
             type="button"
-            className="btn btn-ghost btn-xs mb-2 w-full"
+            className="btn btn-ghost btn-xs mb-2 min-h-11 w-full min-w-11"
             onClick={() => onChange([])}
           >
             Clear all
           </button>
         )}
         {tree.map((n) => (
-          <Row key={n.node.id} node={n} depth={0} selected={selSet} onToggle={toggle} />
+          <Row
+            key={n.node.id}
+            node={n}
+            depth={0}
+            selected={selSet}
+            onToggle={toggle}
+          />
         ))}
         {tree.length === 0 && (
           <p className="text-base-content/60 p-2 text-sm">Loading trades…</p>

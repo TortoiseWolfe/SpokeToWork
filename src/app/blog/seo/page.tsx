@@ -209,7 +209,7 @@ export default async function SEODashboardPage() {
                   <div className="card-actions mt-4 justify-end">
                     <a
                       href={`/blog/${post.slug}`}
-                      className="btn btn-ghost btn-sm"
+                      className="btn btn-ghost btn-sm min-h-11 min-w-11"
                     >
                       View Post
                     </a>

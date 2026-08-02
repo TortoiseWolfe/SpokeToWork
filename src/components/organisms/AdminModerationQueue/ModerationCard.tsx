@@ -53,7 +53,7 @@ export function ModerationCard({
           <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
-              className="btn btn-success btn-sm"
+              className="btn btn-success btn-sm min-h-11 min-w-11"
               onClick={onApprove}
               disabled={isProcessing}
               aria-label={approveLabel}
@@ -66,7 +66,7 @@ export function ModerationCard({
             </button>
             <button
               type="button"
-              className="btn btn-error btn-sm"
+              className="btn btn-error btn-sm min-h-11 min-w-11"
               onClick={onToggleExpand}
               disabled={isProcessing}
               aria-label={rejectLabel}
@@ -88,14 +88,14 @@ export function ModerationCard({
             <div className="flex justify-end gap-2">
               <button
                 type="button"
-                className="btn btn-ghost btn-sm"
+                className="btn btn-ghost btn-sm min-h-11 min-w-11"
                 onClick={onCancelReject}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className="btn btn-error btn-sm"
+                className="btn btn-error btn-sm min-h-11 min-w-11"
                 onClick={onConfirmReject}
                 disabled={!rejectNotes.trim() || isProcessing}
               >

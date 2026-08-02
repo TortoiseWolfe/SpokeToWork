@@ -176,7 +176,10 @@ export default async function TagPage({ params }: PageProps) {
           <div className="card bg-base-200 mb-6">
             <div className="card-body">
               <h2 className="card-title text-lg">Browse Tags</h2>
-              <Link href="/blog/tags" className="btn btn-sm btn-primary">
+              <Link
+                href="/blog/tags"
+                className="btn btn-sm btn-primary min-h-11 min-w-11"
+              >
                 View All Tags
               </Link>
             </div>
@@ -185,7 +188,10 @@ export default async function TagPage({ params }: PageProps) {
           {/* Back to Blog */}
           <div className="card bg-base-200">
             <div className="card-body">
-              <Link href="/blog" className="btn btn-sm btn-outline">
+              <Link
+                href="/blog"
+                className="btn btn-sm btn-outline min-h-11 min-w-11"
+              >
                 ← Back to Blog
               </Link>
             </div>

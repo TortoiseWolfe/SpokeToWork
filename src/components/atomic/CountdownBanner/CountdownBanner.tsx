@@ -90,7 +90,7 @@ export const CountdownBanner = () => {
         </div>
 
         <button
-          className="btn btn-sm btn-circle btn-ghost absolute top-2 right-2"
+          className="btn btn-sm btn-circle btn-ghost absolute top-2 right-2 min-h-11 min-w-11"
           onClick={() => {
             try {
               localStorage.setItem(DISMISS_KEY, Date.now().toString());

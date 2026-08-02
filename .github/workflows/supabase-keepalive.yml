@@ -47,6 +47,43 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: pnpm run prime
 
+      # Issue #85: anon holds write privileges on spatial_ref_sys. The table is
+      # owned by supabase_admin, so REVOKE and ENABLE ROW LEVEL SECURITY both
+      # fail from the project role (42501: must be owner) — the grant cannot be
+      # closed from here. Detection is therefore the whole mitigation: if the
+      # row count moves, someone has written to it.
+      - name: Detect spatial_ref_sys tampering (#85)
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPECTED_ROWS: '8500'
+        run: |
+          set -euo pipefail
+          RANGE=$(curl -sS -o /dev/null -D - \
+            "${SUPABASE_URL}/rest/v1/spatial_ref_sys?select=srid" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            -H "Prefer: count=exact" \
+            -H "Range: 0-0" \
+            | tr -d '\r' | grep -i '^content-range:' || true)
+
+          if [ -z "$RANGE" ]; then
+            echo "No content-range returned — could not read spatial_ref_sys."
+            echo "If the table is no longer exposed to anon that is an improvement,"
+            echo "but confirm it deliberately rather than assuming."
+            exit 1
+          fi
+
+          ACTUAL="${RANGE##*/}"
+          echo "spatial_ref_sys rows: ${ACTUAL} (expected ${EXPECTED_ROWS})"
+
+          if [ "$ACTUAL" != "$EXPECTED_ROWS" ]; then
+            echo "::error::spatial_ref_sys row count changed: ${ACTUAL} vs expected ${EXPECTED_ROWS}."
+            echo "Either the table was written to (see #85) or PostGIS was upgraded."
+            echo "Confirm which, then update EXPECTED_ROWS if the change is legitimate."
+            exit 1
+          fi
+
       - name: Notify on failure
         if: failure()
         run: |

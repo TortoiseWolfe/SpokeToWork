@@ -103,7 +103,7 @@ export default function TeamPanel({
                     onClick={() => void handleRemove(m.user_id)}
                     disabled={busy === m.user_id}
                     aria-label={`Remove ${name}`}
-                    className="btn btn-ghost btn-xs h-5 min-h-0 px-1"
+                    className="btn btn-ghost btn-xs min-h-11 min-w-11 px-1"
                   >
                     ×
                   </button>

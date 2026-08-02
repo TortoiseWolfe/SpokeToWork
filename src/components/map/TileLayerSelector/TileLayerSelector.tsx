@@ -105,7 +105,7 @@ export default function TileLayerSelector({
       {/* Trigger button */}
       <button
         type="button"
-        className="btn btn-sm btn-ghost gap-2"
+        className="btn btn-sm btn-ghost min-h-11 min-w-11 gap-2"
         onClick={() => setIsOpen(!isOpen)}
         aria-haspopup="listbox"
         aria-expanded={isOpen}

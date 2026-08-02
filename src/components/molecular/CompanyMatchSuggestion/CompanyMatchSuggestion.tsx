@@ -62,7 +62,7 @@ export default function CompanyMatchSuggestion({
         </h3>
         <button
           type="button"
-          className="btn btn-ghost btn-sm"
+          className="btn btn-ghost btn-sm min-h-11 min-w-11"
           onClick={onAddNew}
           disabled={isLoading}
           aria-label="Add as new private company"
@@ -152,7 +152,7 @@ export default function CompanyMatchSuggestion({
               {/* Track Button */}
               <button
                 type="button"
-                className="btn btn-primary btn-sm"
+                className="btn btn-primary btn-sm min-h-11 min-w-11"
                 onClick={() => onTrack?.(match)}
                 disabled={isLoading}
                 aria-label={`Track this company: ${match.company_name}`}

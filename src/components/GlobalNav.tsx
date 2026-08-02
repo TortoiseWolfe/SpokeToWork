@@ -166,7 +166,14 @@ function GlobalNavComponent() {
       aria-label="Site navigation"
       className="border-base-300 bg-base-100/95 sticky top-0 z-50 w-full max-w-full border-b shadow-sm backdrop-blur-md"
     >
-      <div className="container mx-auto max-w-full px-4">
+      {/* Same gutter ladder as Footer.tsx, which was already correct. These are
+          siblings framing every page and had no reason to disagree: the nav's
+          content edge sat at 16px from 320px to 1280px while the footer's
+          climbed 16 -> 24 -> 32, differing at every width (worst case 177px
+          apart at 767px). max-w-full is gone too — it overrode the container
+          cap to force full-bleed, which the @utility container fix makes
+          unnecessary. */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 w-full max-w-full items-center justify-between">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
@@ -196,7 +203,7 @@ function GlobalNavComponent() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`btn btn-ghost btn-sm ${
+                className={`btn btn-ghost btn-sm min-h-11 min-w-11 ${
                   pathname === item.href ||
                   (pathname?.startsWith(item.href + '/') && item.href !== '/')
                     ? 'btn-active'
@@ -209,7 +216,7 @@ function GlobalNavComponent() {
             {user && profile?.role === 'employer' && (
               <Link
                 href="/employer"
-                className={`btn btn-ghost btn-sm ${pathname === '/employer' ? 'btn-active' : ''}`}
+                className={`btn btn-ghost btn-sm min-h-11 min-w-11 ${pathname === '/employer' ? 'btn-active' : ''}`}
               >
                 Employer
               </Link>
@@ -217,7 +224,7 @@ function GlobalNavComponent() {
             {user && (
               <Link
                 href="/companies"
-                className={`btn btn-ghost btn-sm ${pathname === '/companies' ? 'btn-active' : ''}`}
+                className={`btn btn-ghost btn-sm min-h-11 min-w-11 ${pathname === '/companies' ? 'btn-active' : ''}`}
               >
                 Companies
               </Link>
@@ -515,7 +522,7 @@ function GlobalNavComponent() {
                 {themes.map((t) => (
                   <li key={t}>
                     <button
-                      className={`btn btn-ghost btn-sm w-full justify-start ${theme === t ? 'btn-active' : ''}`}
+                      className={`btn btn-ghost btn-sm min-h-11 w-full min-w-11 justify-start ${theme === t ? 'btn-active' : ''}`}
                       onClick={() => handleThemeChange(t)}
                     >
                       <span className="capitalize">{t}</span>

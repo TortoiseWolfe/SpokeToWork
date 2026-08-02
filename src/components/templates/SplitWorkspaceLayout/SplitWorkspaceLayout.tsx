@@ -102,7 +102,7 @@ export function SplitWorkspaceLayout({
           {onToggleRoutes && !routesOpen ? (
             <button
               type="button"
-              className="btn btn-sm btn-neutral shadow-lg"
+              className="btn btn-sm btn-neutral min-h-11 min-w-11 shadow-lg"
               onClick={onToggleRoutes}
               aria-label="Open routes sidebar"
             >
@@ -113,7 +113,7 @@ export function SplitWorkspaceLayout({
           )}
           <button
             type="button"
-            className="btn btn-sm btn-neutral shadow-lg"
+            className="btn btn-sm btn-neutral min-h-11 min-w-11 shadow-lg"
             onClick={() => setShowTable(!showTable)}
             aria-label={showTable ? 'Hide company list' : 'Show company list'}
           >

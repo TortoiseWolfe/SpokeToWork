@@ -182,7 +182,7 @@ function PaymentDemoContent() {
                 <div className="alert alert-error">
                   <span>Error: {paymentError.message}</span>
                   <button
-                    className="btn btn-sm"
+                    className="btn btn-sm min-h-11 min-w-11"
                     onClick={() => {
                       setPaymentResultId(null);
                       setPaymentError(null);

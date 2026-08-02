@@ -251,7 +251,10 @@ export default function ConversationList({
         {error && (
           <div className="alert alert-error m-4">
             <span>{error}</span>
-            <button className="btn btn-ghost btn-sm" onClick={reload}>
+            <button
+              className="btn btn-ghost btn-sm min-h-11 min-w-11"
+              onClick={reload}
+            >
               Retry
             </button>
           </div>

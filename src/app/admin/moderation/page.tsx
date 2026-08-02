@@ -49,7 +49,7 @@ export default function AdminModerationPage() {
 
   if (authLoading || q.isLoading)
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-full items-center justify-center">
         <span className="loading loading-spinner loading-lg" />
       </div>
     );
@@ -84,7 +84,7 @@ export default function AdminModerationPage() {
           <span>{q.error}</span>
           <button
             type="button"
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost btn-sm min-h-11 min-w-11"
             onClick={q.clearError}
           >
             Dismiss

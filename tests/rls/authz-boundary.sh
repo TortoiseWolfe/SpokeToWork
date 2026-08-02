@@ -2,9 +2,22 @@
 # Consolidated authorization verification against local Supabase.
 # Each check asserts the exploit is BLOCKED and the legitimate path still WORKS.
 set -uo pipefail
-cd /home/TurtleWolfe/repos/SpokeToWork
-API=http://localhost:54321
-ANON=$(grep '^SUPABASE_LOCAL_ANON_KEY=' .env | cut -d= -f2- | tr -d '"'\''\r')
+# Repo-relative, so this runs from any checkout (CI included) rather than one
+# developer's absolute path.
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) \
+  || REPO_ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+cd "$REPO_ROOT"
+
+# Overridable so a CI job can point at whatever local stack it stood up.
+API=${SUPABASE_LOCAL_API_URL:-http://localhost:54321}
+ANON=${SUPABASE_LOCAL_ANON_KEY:-}
+if [ -z "$ANON" ] && [ -f .env ]; then
+  ANON=$(grep '^SUPABASE_LOCAL_ANON_KEY=' .env | cut -d= -f2- | tr -d '"'\''\r')
+fi
+if [ -z "$ANON" ]; then
+  echo "SUPABASE_LOCAL_ANON_KEY not set and not found in .env" >&2
+  exit 2
+fi
 PASS=0; FAIL=0
 ok(){ echo "  PASS  $1"; PASS=$((PASS+1)); }
 bad(){ echo "  FAIL  $1"; FAIL=$((FAIL+1)); }
