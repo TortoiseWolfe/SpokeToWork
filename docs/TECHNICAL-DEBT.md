@@ -417,7 +417,8 @@ This runs all phases (plan → checklist → tasks → analyze → implement) wi
 - Tested build without any Pages Router files - works perfectly
 - Next.js 15.5.2 supports pure App Router with static export
 - No dummy files or workarounds needed
-- Build completes successfully after clearing cache (`pnpm run clean:next`)
+- Build completes successfully with a clean dist dir (`cleanDistDir: true` in
+  `next.config.ts` handles this; the old `clean:next` script was removed in #93)
 
 ### ~~2. ContactForm Storybook Stories~~ ✅ RESOLVED
 

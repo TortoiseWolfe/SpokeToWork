@@ -90,8 +90,9 @@ docker compose exec spoketowork pnpm run test:a11y
 ### Tests failing
 
 ```bash
-# Clear test cache and re-run
-docker compose exec spoketowork pnpm run clean:next
+# Re-run the tests. (The old `clean:next` step was removed in #93 — wiping
+# .next mid-session is what corrupted the dev server, and Vitest does not
+# read .next anyway.)
 docker compose exec spoketowork pnpm test --run
 ```
 

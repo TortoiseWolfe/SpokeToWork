@@ -71,7 +71,13 @@ docker compose up                                    # Start dev
 docker compose exec spoketowork pnpm test            # Unit tests
 docker compose exec spoketowork pnpm run type-check  # Type check
 docker compose exec spoketowork pnpm storybook       # Storybook
+
+docker compose run --rm builder pnpm build           # Production build
 ```
+
+The production build uses the separate `builder` service, not `exec` into the
+dev container — `next dev` and `next build` both own `/app/.next` and corrupt
+each other's output (#93).
 
 See [CLAUDE.md](./CLAUDE.md) for architecture, Supabase workflow, and project conventions.
 
