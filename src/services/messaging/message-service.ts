@@ -97,7 +97,38 @@ function isTransientFetchError(error: unknown): boolean {
     return looksLikeFetchFailure(error.message);
   }
   if (!error || typeof error !== 'object') return false;
+
+  // Judge the ORIGINAL, not the wrapper. The send path wraps failures as
+  // `ConnectionError("Failed to send message: " + original.message, original)`,
+  // which concatenates the database's own text into the wrapper — so string
+  // matching the wrapper would happily find 'network' inside a constraint name
+  // and undo the code gate below. Following `cause` keeps the gate effective
+  // after wrapping.
+  if (error instanceof Error && error.cause) {
+    return isTransientFetchError(error.cause);
+  }
+
   const err = error as Record<string, unknown>;
+
+  // A PostgREST/Postgres rejection ALWAYS carries a code — a SQLSTATE like
+  // '23505', or a 'PGRST***'. A fetch-layer failure carries `code: ''` and
+  // `status: 0` (postgrest-js builds that envelope in its response .catch).
+  // So a non-empty code proves the server answered and refused us, which is
+  // never a transport failure no matter what the message happens to contain.
+  //
+  // Without this gate the predicate is correct only by naming coincidence: it
+  // matches 'fetch'/'network' ANYWHERE in the message, and nothing stops a
+  // future migration adding, say, a `check_network_*` constraint or a
+  // `network_id` column — whose violation message would then be classified as
+  // a network failure and silently queued. That failure mode is nasty:
+  // `queued: true` shows no error banner at all, the optimistic bubble sits
+  // there looking sent, and useOfflineQueue polls every 3s forever because
+  // failed rows never clear queueCount.
+  //
+  // Checked at time of writing: no identifier in the schema contains 'network'
+  // or 'fetch'. This makes that a guarantee instead of a coincidence.
+  if (typeof err.code === 'string' && err.code !== '') return false;
+
   return typeof err.message === 'string' && looksLikeFetchFailure(err.message);
 }
 
@@ -282,6 +313,25 @@ export class MessageService {
 
       if (convError || !conversation) {
         logStep(`4-conversation-FAIL: ${convError?.message || 'no data'}`);
+
+        // Do not blame the conversation for a network fault. This lookup sits
+        // OUTSIDE the inner try that owns the offline-queue decision, so a
+        // fetch failure here used to surface as "Conversation not found" — a
+        // confident, wrong diagnosis — and messages/page.tsx then deleted the
+        // user's optimistic bubble.
+        //
+        // The message is not queued here on purpose: it has not been encrypted
+        // yet (encryption needs the recipient key fetched further down), so
+        // queuing would write PLAINTEXT to IndexedDB. That is the exposure in
+        // GHSA-94f4-7f3v-g4g5, and widening a live security finding to fix a
+        // UX bug is the wrong trade. The page keeps the text in the composer
+        // instead, so nothing is lost and nothing is persisted in the clear.
+        if (isTransientFetchError(convError)) {
+          throw new ConnectionError(
+            'Could not reach the server. Check your connection and try again.',
+            convError
+          );
+        }
         throw new ValidationError('Conversation not found', 'conversation_id');
       }
       logStep('4-conversation-ok');
@@ -461,8 +511,13 @@ export class MessageService {
 
               if (retryErr.code === '23505') continue;
               if (!isRLSError(retryErr)) {
+                // Carry the original as `cause`. The queue decision downstream
+                // needs the PostgREST `code` to tell a dead socket from a
+                // server rejection, and concatenating the message into a
+                // wrapper throws that away.
                 throw new ConnectionError(
-                  'Failed to send message: ' + retryErr.message
+                  'Failed to send message: ' + retryErr.message,
+                  retryErr
                 );
               }
             }
@@ -475,7 +530,8 @@ export class MessageService {
 
           // Non-retryable error or retries exhausted
           throw new ConnectionError(
-            'Failed to send message: ' + insertError.message
+            'Failed to send message: ' + insertError.message,
+            insertError
           );
         }
 
@@ -554,6 +610,14 @@ export class MessageService {
       if (
         error instanceof AuthenticationError ||
         error instanceof ValidationError ||
+        // ConnectionError must pass through, not be rewrapped. It is what the
+        // conversation lookup and getUserPublicKey throw on a network fault,
+        // and both of those sit outside the inner try that owns the queue
+        // decision. Rewrapping them as a generic EncryptionError("Failed to
+        // send message") discarded the fact that the network was the cause —
+        // so the UI could not tell a transport problem from a crypto one, and
+        // the user got a misleading error on top of a deleted message.
+        error instanceof ConnectionError ||
         error instanceof EncryptionError ||
         error instanceof EncryptionLockedError
       ) {
