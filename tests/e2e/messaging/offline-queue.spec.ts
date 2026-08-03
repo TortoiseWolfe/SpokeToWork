@@ -449,7 +449,15 @@ test.describe('Offline Message Queue', () => {
     }
   });
 
-  test('should show failed status after max retries', async ({ browser }) => {
+  // Renamed: the old name ("should show failed status after max retries")
+  // promised a failed-message status UI that does not exist — MessageBubble has
+  // no status handling and DecryptedMessage has no status field. What this
+  // actually asserts, and what matters, is that the message is not silently
+  // discarded when the send fails. It goes to the offline queue instead
+  // (QueueStatusIndicator, mounted at ChatWindow.tsx:179, surfaces it).
+  test('should keep the message when the network fails mid-send', async ({
+    browser,
+  }) => {
     test.setTimeout(180000);
     const context = await browser.newContext();
     const page = await context.newPage();
@@ -468,9 +476,13 @@ test.describe('Offline Message Queue', () => {
       await dismissReAuthModal(page);
 
       // ===== STEP 2: Intercept API and always fail =====
-      let interceptCount = 0;
+      //
+      // Count POSTs only. The pattern also matches the GET that the 10s
+      // polling refetch issues, so a plain counter reached >= 1 without a
+      // single send ever being attempted — the assertion below was vacuous.
+      let sendAttempts = 0;
       await page.route('**/rest/v1/messages*', async (route) => {
-        interceptCount++;
+        if (route.request().method() === 'POST') sendAttempts++;
         await route.abort('failed');
       });
 
@@ -482,12 +494,17 @@ test.describe('Offline Message Queue', () => {
       const sendButton = page.getByRole('button', { name: /send/i });
       await sendButton.click();
 
-      // ===== STEP 4: Wait for retries to exhaust =====
-      await page.waitForTimeout(35000);
+      // ===== STEP 4: Wait for the send to fail and be queued =====
+      //
+      // Was 35s "for retries to exhaust". They never exhaust on this path: the
+      // INSERT aborts, the RLS-retry loop sleeps ~2s, the retry aborts too, and
+      // since that error has no `.code` and is not an RLS error the send throws
+      // right there. The outcome is settled ~2s after the click, so the extra
+      // 33s was dead time on every run, in every browser.
+      await page.waitForTimeout(10000);
 
-      // ===== STEP 5: Verify message was attempted and failed gracefully =====
-      // The system should have tried to send multiple times
-      expect(interceptCount).toBeGreaterThanOrEqual(1);
+      // ===== STEP 5: Verify the send was attempted and the message survived =====
+      expect(sendAttempts).toBeGreaterThanOrEqual(1);
 
       // Message should still be visible in the UI (not lost)
       await expect(page.getByText(testMessage)).toBeVisible({ timeout: 5000 });
