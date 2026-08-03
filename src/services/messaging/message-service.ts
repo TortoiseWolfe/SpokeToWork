@@ -65,11 +65,6 @@ function isRLSError(error: unknown): boolean {
 }
 
 /**
- * Detect transient fetch/network errors that should be retried.
- * Under CI load, Supabase REST API can timeout with TypeError("Failed to fetch").
- * These are NOT RLS errors (no .code property) but are equally transient.
- */
-/**
  * Does this message describe a failed fetch, in ANY engine?
  *
  * The three engines word it differently, and missing one silently disables
@@ -89,6 +84,11 @@ function looksLikeFetchFailure(message: string): boolean {
   );
 }
 
+/**
+ * Detect transient fetch/network errors that should be retried.
+ * Under CI load, Supabase REST API can time out at the fetch layer. These are
+ * NOT RLS errors (no .code property) but are equally transient.
+ */
 function isTransientFetchError(error: unknown): boolean {
   // Both branches share one predicate. They used to differ — the TypeError
   // branch matched 'fetch'/'network' while the object branch matched the
