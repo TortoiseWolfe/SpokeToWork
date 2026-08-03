@@ -48,6 +48,15 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 # --chown on COPY sets ownership at copy time, eliminating the expensive
 # RUN chown -R that previously re-owned hundreds of thousands of files
 # on every rebuild.
+# Pre-create .next node-owned so the named volumes mounted there inherit that
+# ownership (#93). Docker initialises a fresh named volume from whatever the
+# image has at the mount point — if the path does not exist in the image, the
+# volume is created ROOT-owned, the node user cannot write to it, and the dev
+# server crash-loops on "/app/.next is not writable by user node (UID 1000)".
+# Must run as root and before `USER node`, since /app itself is root-owned.
+# Both next_cache (dev) and builder_next (builder) mount here.
+RUN mkdir -p /app/.next && chown node:node /app/.next
+
 USER node
 
 # Copy dependencies with correct ownership

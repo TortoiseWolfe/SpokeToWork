@@ -7,7 +7,13 @@ Workspace conventions (Docker-first mandate, 5-file component pattern, SpecKit `
 ## Docker service
 
 - Service name is `spoketowork`. Run everything through it: `docker compose exec spoketowork pnpm ...` (`dev`, `test`, `test:suite`, `storybook`, `type-check`, `lint`, `generate:component`, `docker:clean`).
-- Never `sudo`. The container runs as your host UID/GID, so `docker compose down && docker compose up` fixes `.next`/permission issues.
+- **Except the production build — that gets its own container (#93):**
+  ```bash
+  docker compose run --rm builder pnpm build     # correct
+  docker compose exec spoketowork pnpm build     # WRONG — corrupts the build
+  ```
+  `next dev` and `next build` both own `/app/.next`. Building inside the dev container had the two overwriting each other, and the static-export workers died on `Cannot find module './NNNN.js'` _after_ reporting "Compiled successfully". The `builder` service is the same image with its own `.next` volume; `out/` still lands on the bind mount. `scripts/validate-ci.sh` refuses to build in the dev container rather than letting this recur.
+- Never `sudo`. The container runs as your host UID/GID, so `docker compose down && docker compose up` fixes permission issues.
 
 ## Secrets (safety)
 

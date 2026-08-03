@@ -1,7 +1,7 @@
 #!/bin/sh
-# Clean .next directory contents before running pre-commit checks
-echo "🧹 Cleaning .next directory before checks..."
-rm -rf .next/* .next/.* 2>/dev/null || true
+# NOTE: this hook deliberately does NOT clean .next (#93). `next dev` owns that
+# directory; wiping it on every commit made the dev server recompile mid-flight
+# and, when a build was running, corrupted its output.
 
 # Secret scanning - run gitleaks on staged files
 echo "🔐 Scanning for secrets..."

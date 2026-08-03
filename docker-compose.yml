@@ -32,10 +32,17 @@ services:
     volumes:
       - .:/app
       - node_modules:/app/node_modules
-      - type: tmpfs
-        target: /app/.next
-        tmpfs:
-          mode: 01777
+      # Named volume, NOT the bind mount and NOT tmpfs (#93).
+      #
+      # This was declared as tmpfs and was silently inert on any container
+      # created before that declaration, leaving /app/.next on the WSL2 bind
+      # mount — where Next's page-data workers intermittently cannot see
+      # freshly written artifacts ("Cannot find module for page: /docs").
+      # A named volume is container-local, survives restarts, and costs no RAM.
+      #
+      # out/ deliberately stays on the bind mount so `serve out`, Playwright
+      # and pa11y keep seeing build output on the host.
+      - next_cache:/app/.next
     env_file:
       - .env
       - path: .env.supabase.local
@@ -57,6 +64,56 @@ services:
       start_period: 40s
     init: true
     restart: unless-stopped
+    networks:
+      - SpokeToWork
+
+  # ===========================================================================
+  # Production builds — their own container, their own .next (#93)
+  #
+  # A production build must never run inside the dev-server container. Both
+  # `next dev` and `next build` own /app/.next, so `docker compose exec
+  # spoketowork pnpm build` had the build and the dev server writing the same
+  # directory: the dev server rewrote webpack-runtime.js mid-build and the
+  # static-export workers died on `Cannot find module './4873.js'`.
+  #
+  # A separate container makes that collision structurally impossible rather
+  # than something every call site has to remember to avoid.
+  #
+  # Uses `target: dev`, not a dedicated build stage — under output: 'export'
+  # Next never emits .next/standalone, so a standalone runner stage cannot
+  # work here. This is the dev toolchain run once against the live source.
+  #
+  # `profiles:` is required, not cosmetic: without it `docker compose up`
+  # starts this service too, and it inherits CMD ["pnpm","run","dev"] from the
+  # image — a second dev server fighting for the same ports.
+  #
+  #   docker compose run --rm builder pnpm build
+  #
+  # out/ still lands on the bind mount, so `serve out`, Playwright and pa11y
+  # see this build's output exactly as they do in CI.
+  # ===========================================================================
+  builder:
+    profiles: ['build']
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: dev
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+      # NOT next_cache — that one belongs to the dev server. This separate
+      # volume is the entire point of the service.
+      - builder_next:/app/.next
+    env_file:
+      - .env
+      - path: .env.supabase.local
+        required: false
+    environment:
+      - CI=true
+      - HUSKY=0
+    # One-shot service, but without PID1 init a Ctrl-C mid-build orphans the
+    # child processes `pnpm build` spawns.
+    init: true
     networks:
       - SpokeToWork
 
@@ -281,4 +338,8 @@ networks:
 
 volumes:
   node_modules:
+  # Dev server's .next. Separate from builder_next so a production build can
+  # never clobber what the dev server is serving (#93).
+  next_cache:
+  builder_next:
   supabase_db_data:
