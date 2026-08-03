@@ -63,6 +63,27 @@ export async function executeSQL(
     }
 
     const errorText = await response.text();
+
+    // Programming errors are ALWAYS a bug in the test, never a legitimate
+    // runtime state — and swallowing them into `[]` is indistinguishable from
+    // "the query ran and matched nothing". That is not hypothetical: a query
+    // against a non-existent `connections` table (the table is
+    // `user_connections`) returned [] for weeks, and the caller reported it as
+    // "the UI claimed success but no row was written — silent send failure".
+    // A test bug impersonated a data-loss bug and kept main red.
+    //
+    // These SQLSTATEs are fatal. Everything else (transient 5xx, permissions,
+    // exhausted retries) keeps the tolerant behaviour the 85 call sites rely
+    // on, so cleanup helpers still degrade gracefully.
+    //   42P01 undefined_table    42703 undefined_column
+    //   42601 syntax_error       42883 undefined_function
+    if (/\b(42P01|42703|42601|42883)\b/.test(errorText)) {
+      throw new Error(
+        `SQL is malformed — this is a bug in the test, not a data condition.\n` +
+          `Query: ${query}\nResponse: ${response.status} ${errorText}`
+      );
+    }
+
     console.warn(`SQL warning: ${response.status} - ${errorText}`);
     return [];
   }
