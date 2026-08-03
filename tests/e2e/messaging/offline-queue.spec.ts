@@ -118,8 +118,8 @@ test.describe('Offline Message Queue', () => {
       // queue at all.
       //
       // The underlying inability to restore cached keys offline is a real
-      // product bug, tracked separately — this wait establishes the
-      // precondition, it does not paper over that.
+      // product bug, tracked as #96 — this wait establishes the precondition,
+      // it does not paper over that.
       const messageInput = page.locator('textarea[aria-label="Message input"]');
       await expect(messageInput).toBeVisible({ timeout: 30000 });
 
