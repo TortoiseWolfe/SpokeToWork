@@ -180,22 +180,40 @@ Auth events are logged to `audit_logs` table:
 
 ## Performance Security Trade-offs
 
-### ECDH Caching
+### ECDH derivation is amortized per batch, not cached
 
-To prevent denial-of-service via expensive cryptographic operations, shared secrets are cached:
+There is **no client-side shared-secret cache**. A cached design existed in
+`useConversationRealtime` / `decryption-cache`, but it was never wired to any
+route and was deleted (#92) — this section previously described it as a live
+DoS mitigation, which it never was.
 
-```typescript
-// Module-level cache (cleared on page unload)
-const sharedSecretCache = new Map<string, CryptoKey>();
-```
+The shipping path derives the shared secret **once per `getMessageHistory()`
+call** and reuses it across every message in that page:
 
-- **Key**: `${conversationId}:${otherParticipantId}`
-- **Value**: Derived CryptoKey
-- **Invalidation**: Page unload, logout
+- `message-service.ts:801` — one `deriveSharedSecret()` per batch
+- `message-service.ts:813-876` — up to 50 AES-GCM decryptions against it
 
-This reduces per-message decryption from ~50ms to ~1ms.
+So the expensive asymmetric operation is already amortized over the page. Cost
+scales with the number of _fetches_, not the number of messages.
 
-**File**: `src/hooks/useConversationRealtime.ts`
+**Security properties this gives up, and gains:**
+
+- **Gives up**: nothing meaningful. Re-derivation is a cost issue, not a
+  security one, and it is tracked as such in #91.
+- **Gains**: no long-lived key material in module scope, and rotation and
+  revocation self-heal — `getUserPublicKey()` re-applies `.eq('revoked', false)`
+  (`key-service.ts:691`) on every fetch, so a revoked peer key stops being used
+  within one cycle with no invalidation machinery to get wrong.
+
+Derived message keys are created **non-extractable** (`encryption.ts:97`), so
+they cannot be exported to raw bytes by page script.
+
+If per-message memoization is ever reintroduced, key it on
+`(messageId, keyEpoch)` where the epoch derives from **both** parties' current
+public keys, with evict-and-retry-once on decrypt failure. A subscription-based
+invalidation (the previous design) is structurally blind to _peer_ rotation:
+static-static ECDH means K(A,B) changes when either side rotates, and nothing
+subscribes to the other party's key changes.
 
 ## OWASP Top 10 Compliance
 

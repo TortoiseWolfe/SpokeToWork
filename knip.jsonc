@@ -1,0 +1,86 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+
+  // Next.js app-router entry points. knip's built-in Next plugin is disabled
+  // (`"next": { "entry": [] }`) because this project is a static export with a
+  // non-default layout, and the plugin's assumptions produced false entries.
+  "entry": [
+    "src/app/**/{page,layout,template,loading,error,not-found,global-error,route,default}.{ts,tsx}",
+    ".storybook/{main,preview}.{ts,tsx}",
+    "scripts/**/*.{ts,mjs,js}",
+    "tests/**/*.{ts,tsx}",
+    "src/**/*.stories.tsx",
+    "src/**/*.test.{ts,tsx}",
+    "src/**/*.accessibility.test.tsx",
+    "public/sw.js"
+  ],
+
+  "project": ["src/**/*.{ts,tsx}"],
+
+  "ignoreDependencies": ["sharp", "canvas", "argon2"],
+  "ignoreBinaries": ["docker", "supabase"],
+
+  // ── Baseline (#92) ────────────────────────────────────────────────────────
+  //
+  // knip was added to catch a *closed dead island* — four messaging modules
+  // that imported each other and nothing else, which survived eight months
+  // because TypeScript's unused-symbol checks do not span modules. Nothing in
+  // the repo could detect that mechanically.
+  //
+  // These entries are the pre-existing findings at the time knip landed. They
+  // are ignored so the gate is green on day one and fails on anything NEW.
+  // This is a burn-down list, not an allowlist — see #90, which is the audit
+  // of these same orphans. Delete entries from here as they are resolved.
+  //
+  // Two distinct categories, deliberately not separated in config because knip
+  // takes one list:
+  //   1. One-line barrel files (`index.ts`) re-exporting a LIVE component.
+  //      An import-style decision, not dead code — see #82's out-of-scope note.
+  //   2. Genuine orphans awaiting individual verification under #90.
+  "ignore": [
+    // Resolved by Vite alias in .storybook/main.ts:43,47 (path.resolve), which
+    // knip cannot follow — these are reachable, not orphaned.
+    ".storybook/mocks/**",
+
+    "src/components/AccessibilityProvider.tsx",
+    "src/components/atomic/Card/index.tsx",
+    "src/components/atomic/index.ts",
+    "src/components/atomic/QueueStatusIndicator/useQueueStatusIndicator.ts",
+    "src/components/atomic/ReadReceipt/index.tsx",
+    "src/components/forms/FormError.tsx",
+    "src/components/forms/FormField.tsx",
+    "src/components/forms/index.ts",
+    "src/components/forms/ValidatedInput.tsx",
+    "src/components/molecular/BlogContent/index.tsx",
+    "src/components/molecular/MessageThread/useMessageThread.ts",
+    "src/components/organisms/ChatWindow/useChatWindow.ts",
+    "src/components/organisms/CompanyMap/index.tsx",
+    "src/components/organisms/ConnectionManager/useConnectionManager.ts",
+    "src/components/payment/PaymentButton/index.tsx",
+    "src/components/payment/PaymentConsentModal/index.tsx",
+    "src/components/payment/PaymentHistory/index.tsx",
+    "src/components/payment/PaymentStatusDisplay/index.tsx",
+    "src/components/subatomic/index.ts",
+    "src/components/subatomic/Text/index.tsx",
+    "src/config/blog.config.ts",
+    "src/config/social-platforms.ts",
+    "src/config/social.ts",
+    "src/lib/analytics/index.tsx",
+    "src/lib/auth/protected-route.tsx",
+    "src/lib/companies/index.ts",
+    "src/lib/map/index.ts",
+    "src/lib/seo/content.ts",
+    "src/lib/seo/keywords.ts",
+    "src/lib/seo/readability.ts",
+    "src/lib/seo/technical.ts",
+    "src/lib/supabase/messaging-types.ts",
+    "src/lib/supabase/server.ts",
+    "src/lib/validation/index.ts",
+    "src/types/**",
+    "src/utils/codeblock-utils.ts",
+    "src/utils/map-colors.ts",
+    "src/utils/test-utils.ts"
+  ],
+
+  "next": { "entry": [] }
+}

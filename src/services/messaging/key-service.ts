@@ -32,9 +32,6 @@ import {
 
 const logger = createLogger('messaging:keys');
 
-/** Listener fired whenever the active key pair changes (derived, rotated, or cleared). */
-export type KeyChangeListener = () => void;
-
 export class KeyManagementService {
   /** In-memory storage for derived keys (cleared on logout) */
   private derivedKeys: DerivedKeyPair | null = null;
@@ -46,35 +43,6 @@ export class KeyManagementService {
 
   /** Key derivation service (Argon2id) */
   private keyDerivationService = new KeyDerivationService();
-
-  /** Listeners notified when derivedKeys changes (set/rotate/clear).
-   *  Downstream caches (e.g., shared-secret cache in useConversationRealtime)
-   *  subscribe so they can invalidate on re-auth or key rotation. */
-  private keyChangeListeners = new Set<KeyChangeListener>();
-
-  /**
-   * Subscribe to key lifecycle changes. Fires on:
-   * - initializeKeys / deriveKeys (new keys loaded)
-   * - rotateKeys (keys replaced)
-   * - clearKeys / revokeKeys (keys cleared)
-   * - restoreKeysFromSession (keys rehydrated from localStorage)
-   *
-   * @returns unsubscribe function
-   */
-  onKeysChanged(listener: KeyChangeListener): () => void {
-    this.keyChangeListeners.add(listener);
-    return () => this.keyChangeListeners.delete(listener);
-  }
-
-  private notifyKeyChange(): void {
-    this.keyChangeListeners.forEach((l) => {
-      try {
-        l();
-      } catch (err) {
-        logger.error('Key-change listener threw', { error: err });
-      }
-    });
-  }
 
   /**
    * Initialize encryption keys for NEW user (first login after registration)
@@ -157,8 +125,6 @@ export class KeyManagementService {
       // Step 4: Store in memory + localStorage cache (per-user)
       this.derivedKeys = keyPair;
       await this.cacheKeysToStorage(keyPair, user.id);
-      this.notifyKeyChange();
-
       logger.info('Keys initialized for user', { userId: user.id });
       return keyPair;
     } catch (error) {
@@ -279,8 +245,6 @@ export class KeyManagementService {
       // Step 4: Store in memory + localStorage cache (per-user)
       this.derivedKeys = keyPair;
       await this.cacheKeysToStorage(keyPair, user.id);
-      this.notifyKeyChange();
-
       logger.info('Keys derived for user', { userId: user.id });
       return keyPair;
     } catch (error) {
@@ -334,7 +298,6 @@ export class KeyManagementService {
     } catch {
       // SSR or restricted context — ignore
     }
-    this.notifyKeyChange();
     logger.debug('Keys cleared from memory');
   }
 
@@ -374,7 +337,6 @@ export class KeyManagementService {
         []
       );
       this.derivedKeys = { privateKey, publicKey, publicKeyJwk, salt };
-      this.notifyKeyChange();
       console.log('[key-cache] Keys restored from localStorage');
       logger.debug('Keys restored from localStorage cache');
       return true;
@@ -599,8 +561,6 @@ export class KeyManagementService {
       // Update in-memory keys (password-derived keys are never persisted to IndexedDB)
       this.derivedKeys = keyPair;
       await this.cacheKeysToStorage(keyPair, user.id);
-      this.notifyKeyChange();
-
       logger.info('Keys rotated for user', { userId: user.id });
       return true;
     } catch (error) {
