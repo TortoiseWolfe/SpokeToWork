@@ -416,7 +416,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
         const safeUserId = escapeSQL(userAId);
         const safeAdminId = escapeSQL(userBId);
         const rows = (await executeSQL(
-          `SELECT id, status, requester_id, addressee_id FROM connections WHERE requester_id = '${safeUserId}' AND addressee_id = '${safeAdminId}' ORDER BY created_at DESC LIMIT 1`
+          `SELECT id, status, requester_id, addressee_id FROM user_connections WHERE requester_id = '${safeUserId}' AND addressee_id = '${safeAdminId}' ORDER BY created_at DESC LIMIT 1`
         )) as {
           id: string;
           status: string;
@@ -498,7 +498,7 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
           const safeUserId = escapeSQL(reqId);
           const safeAdminId = escapeSQL(addrId);
           const dbRows = (await executeSQL(
-            `SELECT id, status FROM connections WHERE requester_id = '${safeUserId}' AND addressee_id = '${safeAdminId}' LIMIT 1`
+            `SELECT id, status FROM user_connections WHERE requester_id = '${safeUserId}' AND addressee_id = '${safeAdminId}' LIMIT 1`
           )) as { id: string; status: string }[];
           dbExists = dbRows.length > 0;
           console.log(

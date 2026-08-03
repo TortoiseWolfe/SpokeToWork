@@ -19,19 +19,30 @@ test.describe('Touch Target Standards', () => {
   const TOLERANCE = 1; // Allow 1px tolerance for sub-pixel rendering
 
   /**
-   * COVERAGE LIMIT, learned the hard way while mutation-testing this gate.
+   * COVERAGE LIMIT — corrected. The previous version of this comment was wrong
+   * in a way that cost five red CI runs of being waved off.
    *
-   * It measures only what is VISIBLE at 390px in the current auth state, which
-   * is narrower than it looks. Two mutations that should have turned it red did
-   * not, and neither was a gate defect:
+   * It claimed the gate runs "signed out", citing a mutation that survived
+   * because `{user && ...}` did not render. That is true LOCALLY when the
+   * storage state is empty, and false in CI: `playwright.config.ts:107-112`
+   * gives every project `storageState: fixtures/storage-state-auth.json`, so
+   * CI measures the SIGNED-IN tree. Reading the stale note, a real failure
+   * ("Sign Out": 26px) looked like a known blind spot instead of a finding.
    *
-   *   - a nav <Link> inside `hidden ... md:flex` — not rendered at 390px
-   *   - the messages icon inside `{user && ...}` — not rendered when signed out
+   * What is actually measured: elements VISIBLE at 390px, signed in, on `/`,
+   * with the mobile nav dropdown opened, matching the selector below.
    *
-   * So a regression in the desktop nav, or in any signed-in-only control, will
-   * not be caught here. Widening this to several viewports and both auth states
-   * is worthwhile; until then, do not read a green result as "every control in
-   * the app meets 44px".
+   * What is still NOT measured, and is genuinely blind:
+   *   - the desktop nav — `hidden ... md:flex` does not render at 390px
+   *   - the ACCOUNT dropdown — only the navigation menu is clicked, so the
+   *     second Sign Out button (GlobalNav.tsx:333) is never measured, and it
+   *     is byte-identical to the one this gate does catch
+   *   - plain anchors — excluded by the selector; menu rows are anchors, so a
+   *     26px menu row is invisible to this gate even though the WCAG 2.2
+   *     inline-link exemption does not cover menu rows
+   *   - the signed-OUT tree, which CI never exercises here
+   *
+   * Do not read green as "every control meets 44px".
    */
   test('Primary interactive elements meet 44x44px minimum on iPhone 12', async ({
     page,
@@ -48,10 +59,16 @@ test.describe('Touch Target Standards', () => {
     // likely place for a sub-44px target went unmeasured. DaisyUI dropdowns
     // open on :focus-within, and a real click is what produces that; focus()
     // alone does not reliably.
-    const menuTrigger = page.locator('[aria-label="Navigation menu"]').first();
-    if (await menuTrigger.isVisible().catch(() => false)) {
-      await menuTrigger.click();
-      await page.waitForTimeout(200);
+    // Both dropdowns, not just the nav. The account dropdown holds a Sign Out
+    // button byte-identical to the one in the nav menu; measuring only the nav
+    // left an equally-broken control shipping and untested. They are separate
+    // DaisyUI dropdowns and do not open together.
+    for (const label of ['Navigation menu', 'User account menu']) {
+      const trigger = page.locator(`[aria-label="${label}"]`).first();
+      if (await trigger.isVisible().catch(() => false)) {
+        await trigger.click();
+        await page.waitForTimeout(200);
+      }
     }
 
     // Anchors carrying `btn` are button-like and were excluded before, which

@@ -101,6 +101,28 @@ test.describe('Offline Message Queue', () => {
       await completeEncryptionSetup(page);
       await dismissReAuthModal(page);
 
+      // Wait for the thread to actually render BEFORE cutting the network.
+      //
+      // Without this the test went offline ~90ms after `goto` resolved —
+      // before hydration. `messages/page.tsx:129-140` then calls
+      // `supabase.auth.getUser()`, a NETWORK round trip, to learn the user id;
+      // offline it returns null, so `restoreKeysFromSession(undefined)` builds
+      // a null storage key and never even looks at the keys injected above.
+      // `hasKeys()` makes a second network call, also fails, and the app
+      // redirects to /messages/setup — whose RSC payload cannot be fetched
+      // offline either. The document ends up as chrome-error://chromewebdata/,
+      // so "element(s) not found" was literal: there was no app on the page.
+      //
+      // That made this a test of cold-starting with no network, which is not
+      // what "queue a message while offline" means, and it never reached the
+      // queue at all.
+      //
+      // The underlying inability to restore cached keys offline is a real
+      // product bug, tracked as #96 — this wait establishes the precondition,
+      // it does not paper over that.
+      const messageInput = page.locator('textarea[aria-label="Message input"]');
+      await expect(messageInput).toBeVisible({ timeout: 30000 });
+
       // ===== STEP 3: Go offline =====
       await context.setOffline(true);
 
@@ -110,8 +132,6 @@ test.describe('Offline Message Queue', () => {
 
       // ===== STEP 4: Send message while offline =====
       const testMessage = `Offline test message ${Date.now()}`;
-      const messageInput = page.locator('textarea[aria-label="Message input"]');
-      await expect(messageInput).toBeVisible({ timeout: 10000 });
       await messageInput.fill(testMessage);
 
       const sendButton = page.getByRole('button', { name: /send/i });
@@ -159,6 +179,13 @@ test.describe('Offline Message Queue', () => {
       await dismissCookieBanner(page);
       await completeEncryptionSetup(page);
       await dismissReAuthModal(page);
+
+      // Same precondition as T146: the thread must render before the network
+      // is cut, or the app cannot restore its keys and redirects to a route
+      // that cannot load offline. See the comment in T146.
+      await expect(
+        page.locator('textarea[aria-label="Message input"]')
+      ).toBeVisible({ timeout: 30000 });
 
       // ===== STEP 2: Go offline =====
       await context.setOffline(true);

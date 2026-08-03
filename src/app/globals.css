@@ -1002,6 +1002,33 @@ p:not([class*='text-']) {
   }
 }
 
+/* Dropdown/menu rows must be tappable (#93 follow-up, WCAG 2.5.5).
+ *
+ * DaisyUI's `.menu-sm` sizes rows as `font-size: .75rem` with
+ * `padding-block: .25rem`, so a row is 12px x 1.5 line-height + 8px = 26px.
+ * That is what CI caught: `Button 8 "Sign Out": height 26.0px < 44px`, on the
+ * primary destructive action, at 390px.
+ *
+ * Fixed here rather than per-element for two reasons:
+ *   1. There are two byte-identical Sign Out buttons (GlobalNav.tsx:333 and
+ *      :441). The touch-target gate only opens the mobile menu, so it can
+ *      never see the account-dropdown twin — a markup fix would leave a
+ *      known-broken control shipping and untested.
+ *   2. Every OTHER row in those menus is 26px too (Profile, Account Settings,
+ *      Companies, Messages, Connections). They are plain anchors, which the
+ *      gate's selector excludes under the WCAG-2.2 inline-link exemption —
+ *      an exemption that does not apply to menu rows. Patching only the
+ *      button would leave one 44px row among six 26px ones: worse-looking
+ *      and still non-compliant.
+ *
+ * `:where()` keeps specificity at 0 so utilities and explicit heights still
+ * win. Scoped to `li` children so the `.menu.card` content panels that hold
+ * arbitrary markup (FontSwitcher) are untouched. */
+.menu :where(li:not(.menu-title)) > :where(a, button) {
+  min-height: 2.75rem; /* 44px */
+  align-content: center;
+}
+
 /* Global Typography Scale (Mobile-first) */
 /* Ensures consistent heading sizes across all pages */
 
