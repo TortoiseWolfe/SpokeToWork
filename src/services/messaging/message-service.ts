@@ -69,15 +69,36 @@ function isRLSError(error: unknown): boolean {
  * Under CI load, Supabase REST API can timeout with TypeError("Failed to fetch").
  * These are NOT RLS errors (no .code property) but are equally transient.
  */
+/**
+ * Does this message describe a failed fetch, in ANY engine?
+ *
+ * The three engines word it differently, and missing one silently disables
+ * every retry/queue path on that browser:
+ *   Chromium  "TypeError: Failed to fetch"
+ *   Firefox   "TypeError: NetworkError when attempting to fetch resource."
+ *   WebKit    "TypeError: Load failed"          <-- matches neither of the
+ *                                                   substrings used before
+ * Kept as one predicate so a fourth wording only has to be added once.
+ */
+function looksLikeFetchFailure(message: string): boolean {
+  const msg = message.toLowerCase();
+  return (
+    msg.includes('fetch') ||
+    msg.includes('network') ||
+    msg.includes('load failed')
+  );
+}
+
 function isTransientFetchError(error: unknown): boolean {
+  // Both branches share one predicate. They used to differ — the TypeError
+  // branch matched 'fetch'/'network' while the object branch matched the
+  // narrower 'failed to fetch'/'networkerror' — and neither covered WebKit.
   if (error instanceof TypeError) {
-    const msg = error.message.toLowerCase();
-    return msg.includes('fetch') || msg.includes('network');
+    return looksLikeFetchFailure(error.message);
   }
   if (!error || typeof error !== 'object') return false;
   const err = error as Record<string, unknown>;
-  const msg = typeof err.message === 'string' ? err.message.toLowerCase() : '';
-  return msg.includes('failed to fetch') || msg.includes('networkerror');
+  return typeof err.message === 'string' && looksLikeFetchFailure(err.message);
 }
 
 /**
@@ -88,11 +109,34 @@ function isNetworkError(error: unknown): boolean {
   // `onLine`, so the old guard passed on the server and `!undefined` made
   // EVERY error look like a network error during SSR.
   if (typeof window !== 'undefined' && !window.navigator.onLine) return true;
-  if (error instanceof TypeError) {
-    const msg = error.message.toLowerCase();
-    return msg.includes('fetch') || msg.includes('network');
-  }
-  return false;
+
+  // Delegate rather than re-implement. This used to test only
+  // `error instanceof TypeError`, while its sibling also matched an object
+  // whose `.message` names a fetch failure — and that gap silently discarded
+  // users' messages.
+  //
+  // supabase-js never throws on a failed fetch: postgrest-js catches it and
+  // RETURNS `{ error: { message: "TypeError: Failed to fetch", ... }, status: 0 }`
+  // (PostgrestBuilder, the `.catch` on the response promise). So when the
+  // network drops while `navigator.onLine` is still true — a captive portal, a
+  // dropped tunnel, a proxy 500ing — the INSERT sees that object,
+  // isTransientFetchError sends it into the RLS-retry loop, the retry aborts
+  // too, and because the retry error has no `.code` and is not an RLS error it
+  // throws `ConnectionError("Failed to send message: <fetch error>")` on the
+  // FIRST inner retry — about two seconds in, not after the retry budget is
+  // spent.
+  //
+  // That ConnectionError is not a TypeError, so the old check returned false,
+  // the message was never queued, and messages/page.tsx then deleted the
+  // optimistic bubble in its catch — the user's typed text vanished with only
+  // an error banner. The offline queue exists precisely for this case and was
+  // unreachable in it.
+  //
+  // isTransientFetchError matches on `.message`, so it recognises both the raw
+  // object and the wrapped ConnectionError. Keeping one implementation means
+  // "should we retry this?" and "should we queue this?" cannot drift apart
+  // again.
+  return isTransientFetchError(error);
 }
 
 export class MessageService {
