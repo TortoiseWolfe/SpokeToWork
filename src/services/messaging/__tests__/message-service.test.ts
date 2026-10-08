@@ -406,6 +406,130 @@ describe('MessageService', () => {
       });
     });
 
+    /**
+     * Fetch-failure classification had NO unit coverage before this — the only
+     * test touching the queue flipped `navigator.onLine`, which exercises the
+     * early-return at the top of sendMessage and never reaches the predicates.
+     * The bug these pin (a network fault while the browser still reports
+     * online) was invisible to the whole suite.
+     *
+     * The envelope below is the real one: postgrest-js does not throw on a
+     * failed fetch, it RESOLVES `{ data: null, status: 0, error: { message,
+     * code: '' } }`. Note every pre-existing mock in this file omits `status`,
+     * so simulating this correctly means setting it explicitly.
+     */
+    const mockInsertFailure = (insertError: Record<string, unknown>) => {
+      mockMsgClient.from.mockImplementation((table: string) => {
+        if (table === 'conversations') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    participant_1_id: mockUserId,
+                    participant_2_id: mockOtherUserId,
+                    is_group: false,
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+            update: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ error: null }),
+            }),
+          };
+        }
+        if (table === 'user_encryption_keys') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { public_key: otherPublicKeyJwk },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'messages') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockReturnValue({
+                    single: vi
+                      .fn()
+                      .mockResolvedValue({ data: { sequence_number: 5 } }),
+                  }),
+                }),
+              }),
+            }),
+            insert: vi.fn().mockReturnValue({
+              select: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: null,
+                  count: null,
+                  status: insertError.code === '' ? 0 : 400,
+                  statusText: '',
+                  error: insertError,
+                }),
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+    };
+
+    // Each engine words an aborted fetch differently. WebKit's "Load failed"
+    // matched neither substring the code originally looked for, so on Safari
+    // the retry AND queue paths were both dead.
+    const ENGINE_WORDINGS = [
+      ['Chromium', 'TypeError: Failed to fetch'],
+      ['Firefox', 'TypeError: NetworkError when attempting to fetch resource.'],
+      ['WebKit', 'TypeError: Load failed'],
+    ] as const;
+
+    for (const [engine, message] of ENGINE_WORDINGS) {
+      it(`queues the message when the fetch fails (${engine} wording)`, async () => {
+        mockInsertFailure({ message, details: '', hint: '', code: '' });
+
+        const result = await messageService.sendMessage({
+          conversation_id: mockConversationId,
+          content: 'should survive a dropped connection',
+        });
+
+        expect(result.queued).toBe(true);
+        expect(offlineQueueService.queueMessage).toHaveBeenCalled();
+      }, 20000);
+    }
+
+    it('does NOT queue a database rejection, even if its text says "network"', async () => {
+      // The predicate matches 'network' anywhere in the message, which is safe
+      // today only because no schema identifier is named for a network. This
+      // pins the structural guard instead: a real rejection always carries a
+      // SQLSTATE, a fetch failure carries code: ''. Without the guard — and
+      // without threading the original through as `cause` — this constraint
+      // name would be read as a dropped connection and the user's message
+      // silently queued, with no error shown at all.
+      mockInsertFailure({
+        message:
+          'new row for relation "messages" violates check constraint "check_network_id"',
+        details: '',
+        hint: '',
+        code: '23514',
+      });
+
+      await expect(
+        messageService.sendMessage({
+          conversation_id: mockConversationId,
+          content: 'should surface an error, not vanish into the queue',
+        })
+      ).rejects.toThrow();
+
+      expect(offlineQueueService.queueMessage).not.toHaveBeenCalled();
+    }, 20000);
+
     it('should throw ValidationError when recipient has no encryption keys', async () => {
       vi.mocked(keyManagementService.getUserPublicKey).mockResolvedValue(null);
 

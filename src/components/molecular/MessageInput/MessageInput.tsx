@@ -19,6 +19,18 @@ export interface MessageInputProps {
   className?: string;
   /** Forward ref for textarea element */
   inputRef?: React.RefObject<HTMLTextAreaElement | null>;
+  /**
+   * Text to put back in the box after a send failed.
+   *
+   * The input clears optimistically on send — right, because waiting for a
+   * round trip makes the composer feel broken. But when the send then fails,
+   * the user's typing was simply gone. Restoring it here is what stops a
+   * failed send from destroying what they wrote.
+   *
+   * Carries a `token` because the same text can fail twice in a row; without
+   * it the value would be unchanged and the effect would not re-fire.
+   */
+  restoreDraft?: { content: string; token: number } | null;
 }
 
 /**
@@ -44,6 +56,7 @@ export default function MessageInput({
   onTypingChange,
   className = '',
   inputRef,
+  restoreDraft = null,
 }: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +71,21 @@ export default function MessageInput({
   // closure over the initial prop value)
   const onTypingChangeRef = useRef(onTypingChange);
   onTypingChangeRef.current = onTypingChange;
+
+  // Put the text back after a failed send. Keyed on the token so the same
+  // content failing twice still restores the second time.
+  //
+  // Only restores into an EMPTY box: if the user has already started typing
+  // something new, silently overwriting it would be a worse bug than the one
+  // this fixes. That case is rare — the failure usually arrives while the box
+  // is still empty from the optimistic clear.
+  const restoreTokenRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!restoreDraft) return;
+    if (restoreTokenRef.current === restoreDraft.token) return;
+    restoreTokenRef.current = restoreDraft.token;
+    setMessage((current) => (current === '' ? restoreDraft.content : current));
+  }, [restoreDraft]);
 
   const charCount = message.length;
   const charLimit = MESSAGE_CONSTRAINTS.MAX_LENGTH;

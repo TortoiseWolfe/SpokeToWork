@@ -17,6 +17,8 @@ export interface ChatWindowProps {
   messages: DecryptedMessage[];
   /** Callback to send a new message */
   onSendMessage: (content: string) => void;
+  /** Text to restore into the composer after a send failed (see MessageInput) */
+  restoreDraft?: { content: string; token: number } | null;
   /** Callback to edit a message */
   onEditMessage?: (messageId: string, newContent: string) => Promise<void>;
   /** Callback to delete a message */
@@ -59,6 +61,7 @@ export default function ChatWindow({
   conversationId,
   messages,
   onSendMessage,
+  restoreDraft = null,
   onEditMessage,
   onDeleteMessage,
   onLoadMore,
@@ -198,6 +201,7 @@ export default function ChatWindow({
       <div className="border-base-300 bg-base-100 border-t px-4 pt-4 pb-6">
         <MessageInput
           onSend={onSendMessage}
+          restoreDraft={restoreDraft}
           disabled={isBlocked}
           sending={sending}
           onTypingChange={onTypingChange}

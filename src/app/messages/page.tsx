@@ -47,6 +47,12 @@ function MessagesContent() {
   const [messages, setMessages] = useState<DecryptedMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  // Set when a send fails, so MessageInput can put the text back. The token
+  // makes the same content restorable more than once.
+  const [restoreDraft, setRestoreDraft] = useState<{
+    content: string;
+    token: number;
+  } | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -458,6 +464,16 @@ function MessagesContent() {
     } catch (err: unknown) {
       // Remove optimistic message on error
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
+
+      // ...but give the text back. Deleting the bubble without restoring the
+      // draft is how a failed send used to destroy what the user wrote: the
+      // composer had already cleared optimistically, so the words existed
+      // nowhere. sendMessage queues the message itself when it gets far enough
+      // to encrypt it; the paths that throw before that (conversation lookup,
+      // recipient key fetch) cannot queue without writing plaintext to
+      // IndexedDB, so returning the text to the box is the fix for those.
+      setRestoreDraft({ content, token: Date.now() });
+
       const message =
         err instanceof Error
           ? err.message
@@ -648,6 +664,7 @@ function MessagesContent() {
                       conversationId={conversationId}
                       messages={messages}
                       onSendMessage={handleSendMessage}
+                      restoreDraft={restoreDraft}
                       onEditMessage={handleEditMessage}
                       onDeleteMessage={handleDeleteMessage}
                       onLoadMore={handleLoadMore}
