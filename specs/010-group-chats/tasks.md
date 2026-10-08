@@ -103,9 +103,9 @@
 - [ ] T035 [US2] Implement group message encryption: fetch group key, encrypt with AES-GCM, store with key_version (depends on T034)
 - [ ] T036 [US2] Modify getMessageHistory() in same file to decrypt group messages using appropriate key version (depends on T035)
 - [ ] T037 [US2] Implement key_version_joined check: show "[Message before you joined]" placeholder text per SC-003 for pre-join messages (depends on T036)
-- [ ] T038 [US2] Update useConversationRealtime hook in `src/hooks/useConversationRealtime.ts` to handle group message decryption
+- [ ] T038 [US2] Update the realtime subscription in `src/app/messages/page.tsx` to handle group message decryption (retargeted in #92: the `useConversationRealtime` hook this originally named was never wired to a route and has been deleted)
 - [ ] T039 [US2] Modify MessageBubble in `src/components/atomic/MessageBubble/MessageBubble.tsx` to show sender avatar for group messages
-- [ ] T040 [US2] Modify ChatWindow in `src/components/organisms/ChatWindow/ChatWindow.tsx` to detect group and show multiple typing indicators (up to 3 names, then "X others are typing" per FR-015); update useConversationRealtime to track multiple typers
+- [ ] T040 [US2] Modify ChatWindow in `src/components/organisms/ChatWindow/ChatWindow.tsx` to detect group and show multiple typing indicators (up to 3 names, then "X others are typing" per FR-015); update `useTypingIndicator` to track multiple typers
 
 **Checkpoint**: User Story 2 complete - encrypted group messaging works, history restriction verified
 

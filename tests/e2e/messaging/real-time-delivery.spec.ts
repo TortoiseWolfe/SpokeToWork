@@ -166,7 +166,7 @@ async function navigateBothToConversation(
   }
 
   // Best-effort wait for Realtime subscription readiness.
-  // useConversationRealtimeSync sets data-messages-subscribed on document.body
+  // messages/page.tsx sets data-messages-subscribed on document.body
   // when the channel reaches SUBSCRIBED. Under free-tier contention the channel
   // may never reach SUBSCRIBED — the 10s polling fallback in the app guarantees
   // eventual message delivery regardless, so we proceed after a reasonable wait.

@@ -154,7 +154,9 @@ All technical context items resolved. No NEEDS CLARIFICATION items identified - 
 
 - Subscribe to `conversation_members` changes for member join/leave
 - Subscribe to `messages` for new group messages
-- Pattern matches existing `useConversationRealtime` hook
+- Pattern matches the realtime subscription in `src/app/messages/page.tsx`
+  (the former `useConversationRealtime` hook was never wired to a route and was
+  deleted in #92 — do not build against it)
 
 ### RLS Policies for Group Security
 

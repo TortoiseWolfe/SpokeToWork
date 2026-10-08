@@ -105,6 +105,18 @@ jobs:
       - name: Type check
         run: pnpm type-check
 
+      # TypeScript's unused-symbol checks do not span modules, so a *closed
+      # island* — a group of files importing each other with no entry point
+      # from the app — compiles cleanly and type-checks cleanly forever. One
+      # (4 messaging modules, 719 LOC) survived from the initial commit to
+      # 2026-08 and cost two debugging sessions plus a false root cause on #69
+      # before anyone noticed. This is the only check that catches that shape.
+      #
+      # knip.jsonc carries a baseline of pre-existing findings (see #90) so
+      # this gate is green on arrival and fails only on NEW dead files.
+      - name: Detect dead code (unreferenced files)
+        run: pnpm lint:dead
+
       # scripts/validate-breakpoints.ts asserts that the --breakpoint-* custom
       # properties in globals.css match BREAKPOINTS in src/config/breakpoints.ts,
       # and that the ranges have no gaps. It has existed since the breakpoints
