@@ -43,6 +43,41 @@ async function getAuthenticatedUserId(): Promise<string> {
 }
 
 /**
+ * Does this message describe a failed fetch, in ANY engine? (#99)
+ *   Chromium  "TypeError: Failed to fetch"
+ *   Firefox   "TypeError: NetworkError when attempting to fetch resource."
+ *   WebKit    "TypeError: Load failed"
+ *   Node      "connect ECONNREFUSED ..."
+ * Same wording list as looksLikeFetchFailure in
+ * src/services/messaging/message-service.ts (#98), plus ECONNREFUSED.
+ */
+function looksLikeFetchFailure(message: string): boolean {
+  const msg = message.toLowerCase();
+  return (
+    msg.includes('fetch') ||
+    msg.includes('network') ||
+    msg.includes('load failed') ||
+    msg.includes('econnrefused')
+  );
+}
+
+/**
+ * Is this a transport failure (queue and retry later) rather than the server
+ * refusing the insert? (#99)
+ *
+ * postgrest-js never throws on a failed fetch; it RETURNS an error object with
+ * `code: ''` and `status: 0`. A Postgres/PostgREST rejection always carries a
+ * non-empty code (a SQLSTATE like '23514', or 'PGRST...'), so a non-empty code
+ * means the server answered: never a network failure, whatever the message says.
+ */
+function isPaymentNetworkError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const err = error as { code?: unknown; message?: unknown };
+  if (typeof err.code === 'string' && err.code !== '') return false;
+  return typeof err.message === 'string' && looksLikeFetchFailure(err.message);
+}
+
+/**
  * Create a payment intent
  * Queues operation if offline
  * REQ-SEC-001: Requires authentication, uses RLS for data isolation
@@ -124,16 +159,12 @@ export async function createPaymentIntent(
     if (error) throw error;
     return data as PaymentIntent;
   } catch (error) {
-    // If network error, queue it
-    if (
-      error instanceof Error &&
-      (error.message.includes('fetch') ||
-        error.message.includes('network') ||
-        error.message.includes('ECONNREFUSED'))
-    ) {
+    // Queue only a genuine transport failure (#99); see isPaymentNetworkError.
+    if (isPaymentNetworkError(error)) {
       await queueOperation('payment_intent', intentData);
       throw new Error(
-        'Network error. Payment has been queued and will be processed when connection returns.'
+        'Network error. Payment has been queued and will be processed when connection returns.',
+        { cause: error }
       );
     }
     throw error;
