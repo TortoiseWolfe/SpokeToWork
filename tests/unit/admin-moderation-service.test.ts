@@ -303,6 +303,38 @@ describe('AdminModerationService', () => {
 
       expect(result.status).toBe('approved');
     });
+
+    it('refuses to apply a field_name outside the allowlist (#81)', async () => {
+      const sharedUpdate = vi.fn();
+      mockSupabase.from = vi.fn().mockImplementation((table) => {
+        if (table === 'company_edit_suggestions') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: {
+                id: 'sugg-evil',
+                shared_company_id: 'shared-1',
+                field_name: 'is_verified',
+                new_value: 'true',
+              },
+              error: null,
+            }),
+            update: vi.fn(),
+          };
+        }
+        if (table === 'shared_companies') {
+          return { update: sharedUpdate };
+        }
+        return {};
+      });
+
+      await service.initialize('admin-1');
+      await expect(service.approveEditSuggestion('sugg-evil')).rejects.toThrow(
+        'is not an editable shared company field'
+      );
+      expect(sharedUpdate).not.toHaveBeenCalled();
+    });
   });
 
   describe('rejectEditSuggestion (T119)', () => {

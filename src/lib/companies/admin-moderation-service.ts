@@ -13,6 +13,7 @@ import type {
   CompanyEditSuggestion,
   ContributionStatus,
 } from '@/types/company';
+import { SHARED_COMPANY_EDITABLE_FIELDS } from '@/types/company';
 
 /**
  * Pending item in moderation queue
@@ -349,6 +350,18 @@ export class AdminModerationService {
 
     if (fetchError || !suggestion) {
       throw fetchError ?? new Error('Edit suggestion not found');
+    }
+
+    // #81: field_name becomes a column name below. Re-validate the stored row
+    // rather than trusting it: the INSERT policy lets any user set it.
+    if (
+      !(SHARED_COMPANY_EDITABLE_FIELDS as readonly string[]).includes(
+        suggestion.field_name
+      )
+    ) {
+      throw new Error(
+        `Edit suggestion field "${suggestion.field_name}" is not an editable shared company field`
+      );
     }
 
     // Apply the change to shared company

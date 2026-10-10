@@ -31,6 +31,7 @@ import type {
   PrivateCompanyUpdate,
   EditSuggestionCreate,
 } from '@/types/company';
+import { EDIT_SUGGESTION_FIELDS } from '@/types/company';
 
 // Logger for company service operations
 const logger = createLogger('lib:companies:service');
@@ -112,14 +113,18 @@ export class MultiTenantCompanyService {
       const sharedIds = [
         ...new Set(
           rows
-            .map((m: { shared_company_id: string | null }) => m.shared_company_id)
+            .map(
+              (m: { shared_company_id: string | null }) => m.shared_company_id
+            )
             .filter((id: string | null): id is string => id !== null)
         ),
       ];
       const privateIds = [
         ...new Set(
           rows
-            .map((m: { private_company_id: string | null }) => m.private_company_id)
+            .map(
+              (m: { private_company_id: string | null }) => m.private_company_id
+            )
             .filter((id: string | null): id is string => id !== null)
         ),
       ];
@@ -127,8 +132,10 @@ export class MultiTenantCompanyService {
       if (sharedIds.length === 0 && privateIds.length === 0) return [];
 
       const orTerms: string[] = [];
-      if (sharedIds.length) orTerms.push(`company_id.in.(${sharedIds.join(',')})`);
-      if (privateIds.length) orTerms.push(`private_company_id.in.(${privateIds.join(',')})`);
+      if (sharedIds.length)
+        orTerms.push(`company_id.in.(${sharedIds.join(',')})`);
+      if (privateIds.length)
+        orTerms.push(`private_company_id.in.(${privateIds.join(',')})`);
       query = query.or(orTerms.join(','));
     }
 
@@ -635,6 +642,13 @@ export class MultiTenantCompanyService {
     data: EditSuggestionCreate
   ): Promise<CompanyEditSuggestion> {
     this.ensureInitialized();
+
+    // #81: field_name is used as a column name when an admin approves.
+    if (
+      !(EDIT_SUGGESTION_FIELDS as readonly string[]).includes(data.field_name)
+    ) {
+      throw new Error(`Invalid edit suggestion field: ${data.field_name}`);
+    }
 
     const { data: suggestion, error } = await this.supabase
       .from('company_edit_suggestions')

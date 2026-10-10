@@ -2104,6 +2104,24 @@ CREATE INDEX IF NOT EXISTS idx_edit_suggestions_user ON company_edit_suggestions
 CREATE INDEX IF NOT EXISTS idx_edit_suggestions_company ON company_edit_suggestions(shared_company_id);
 CREATE INDEX IF NOT EXISTS idx_edit_suggestions_pending ON company_edit_suggestions(status) WHERE status = 'pending';
 
+-- #81: field_name is used as a COLUMN NAME when an admin approves the
+-- suggestion, so only allowlisted fields may be stored. Mirrors
+-- EDIT_SUGGESTION_FIELDS in src/types/company.ts. NOT VALID: existing rows
+-- are left alone; every new INSERT/UPDATE is checked.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'company_edit_suggestions_field_name_allowlist'
+      AND conrelid = 'public.company_edit_suggestions'::regclass
+  ) THEN
+    ALTER TABLE company_edit_suggestions
+      ADD CONSTRAINT company_edit_suggestions_field_name_allowlist
+      CHECK (field_name IN ('phone', 'email', 'contact_name', 'website', 'careers_url'))
+      NOT VALID;
+  END IF;
+END $$;
+
 ALTER TABLE company_edit_suggestions ENABLE ROW LEVEL SECURITY;
 
 -- Users can view own + admin can view all

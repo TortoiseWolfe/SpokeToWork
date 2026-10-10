@@ -188,6 +188,22 @@ describe('MultiTenantCompanyService - Edit Suggestions (US6)', () => {
         })
       ).rejects.toThrow('MultiTenantCompanyService not initialized');
     });
+
+    it('rejects a field_name outside the allowlist (#81)', async () => {
+      const insert = vi.fn();
+      mockSupabase.from = vi.fn().mockReturnValue({ insert });
+
+      await service.initialize('user-1');
+      await expect(
+        service.submitEditSuggestion({
+          shared_company_id: 'shared-1',
+          field_name: 'is_verified' as never,
+          new_value: 'true',
+          reason: 'fixing a typo in the name',
+        })
+      ).rejects.toThrow('Invalid edit suggestion field: is_verified');
+      expect(insert).not.toHaveBeenCalled();
+    });
   });
 
   describe('getMyEditSuggestions (T102)', () => {

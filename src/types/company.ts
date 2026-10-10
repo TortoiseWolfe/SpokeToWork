@@ -812,12 +812,37 @@ export interface PrivateCompanyUpdate {
 }
 
 /**
+ * Fields a user may propose an edit to (#81). field_name is later used as a
+ * column name, so it is validated against this list at submit time, and the
+ * database enforces the same list (company_edit_suggestions_field_name_allowlist).
+ */
+export const EDIT_SUGGESTION_FIELDS = [
+  'phone',
+  'email',
+  'contact_name',
+  'website',
+  'careers_url',
+] as const;
+
+export type EditSuggestionField = (typeof EDIT_SUGGESTION_FIELDS)[number];
+
+/**
+ * The subset that is a column on shared_companies, and therefore the only
+ * fields approveEditSuggestion may write (#81). phone/email/contact_name live
+ * on company_locations, not shared_companies.
+ */
+export const SHARED_COMPANY_EDITABLE_FIELDS = [
+  'website',
+  'careers_url',
+] as const;
+
+/**
  * Create payload for edit suggestion
  */
 export interface EditSuggestionCreate {
   shared_company_id: string;
   location_id?: string;
-  field_name: 'phone' | 'email' | 'contact_name' | 'website' | 'careers_url';
+  field_name: EditSuggestionField;
   old_value?: string;
   new_value: string;
   reason?: string;
