@@ -22,13 +22,10 @@ name: Supabase Keep-Alive
 # the classification step below exists — the job is to say WHICH failure this
 # is, not to retry harder.
 on:
-  schedule:
-    # 3:00 AM UTC every 3rd day of the month.
-    # NOTE: day-of-month steps restart each month, they do not roll over.
-    # The previous '*/6' fired on days 1,7,13,19,25 — leaving a 7-day gap from
-    # the 25th to the 1st in any 31-day month, which is exactly the auto-pause
-    # threshold. '*/3' fires 1,4,...,28, so the worst-case gap is 4 days.
-    - cron: '0 3 */3 * *'
+  # PAUSED 2026-10-19: the Supabase project is paused, which a ping cannot undo.
+  # See https://github.com/TortoiseWolfe/SpokeToWork/issues/102. When one manual run is green, restore:
+  #   schedule:
+  #     - cron: '0 3 */3 * *'
   workflow_dispatch: # Allows manual trigger from Actions tab
 
 env:
