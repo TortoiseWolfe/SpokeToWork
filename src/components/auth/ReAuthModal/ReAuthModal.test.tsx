@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ReAuthModal } from './ReAuthModal';
+import { KeysUnreachableError } from '@/types/messaging';
 
 // Mock the key service
 vi.mock('@/services/messaging/key-service', () => ({
@@ -646,6 +647,35 @@ describe('ReAuthModal', () => {
       await waitFor(() => {
         expect(window.location.href).toBe('/messages/setup');
       });
+    });
+  });
+
+  describe('keys unreachable (offline)', () => {
+    it('does not redirect to setup when the key check cannot reach the network', async () => {
+      const { keyManagementService } = await import(
+        '@/services/messaging/key-service'
+      );
+      vi.mocked(keyManagementService.hasKeys).mockRejectedValue(
+        new KeysUnreachableError('offline')
+      );
+      Object.defineProperty(window, 'location', {
+        value: { href: '' },
+        writable: true,
+      });
+
+      render(
+        <ReAuthModal
+          isOpen={true}
+          onSuccess={mockOnSuccess}
+          onClose={mockOnClose}
+        />
+      );
+
+      await waitFor(() => {
+        expect(keyManagementService.hasKeys).toHaveBeenCalled();
+      });
+      await new Promise((r) => setTimeout(r, 50));
+      expect(window.location.href).toBe('');
     });
   });
 

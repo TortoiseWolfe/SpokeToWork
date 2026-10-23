@@ -365,6 +365,19 @@ export class ConnectionError extends Error {
   }
 }
 
+/**
+ * The network (or GoTrue / PostgREST behind it) could not be reached, so we
+ * cannot tell whether the user has encryption keys. This is NOT "no keys":
+ * callers must not send the user to key setup (which runs Argon2id and cannot
+ * load offline) on this result.
+ */
+export class KeysUnreachableError extends ConnectionError {
+  constructor(message: string, cause?: unknown) {
+    super(message, cause);
+    this.name = 'KeysUnreachableError';
+  }
+}
+
 export class AuthenticationError extends Error {
   constructor(message: string) {
     super(message);

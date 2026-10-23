@@ -15,6 +15,7 @@ import { ReAuthModal } from '@/components/auth/ReAuthModal';
 import { MessagingGate } from '@/components/auth/MessagingGate';
 import { messageService } from '@/services/messaging/message-service';
 import { keyManagementService } from '@/services/messaging/key-service';
+import { checkMessagingKeys } from '@/lib/messaging/key-check';
 import { connectionService } from '@/services/messaging/connection-service';
 import { realtimeService } from '@/lib/messaging/realtime';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
@@ -59,6 +60,8 @@ function MessagesContent() {
   const [participantName, setParticipantName] = useState('Unknown User');
   const [needsReAuth, setNeedsReAuth] = useState(false);
   const [checkingKeys, setCheckingKeys] = useState(true);
+  // True when the key check could not reach the network (offline).
+  const [keysUnreachable, setKeysUnreachable] = useState(false);
 
   // Badge counts (will be populated from child components)
   const [unreadCount, setUnreadCount] = useState(0);
@@ -130,55 +133,50 @@ function MessagesContent() {
 
   // Check if encryption keys are available on mount
   useEffect(() => {
-    const checkKeys = async () => {
-      // Get current user ID for per-user key cache lookup
-      const supabase = (await import('@/lib/supabase/client')).createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      // Try restoring from localStorage cache first (avoids Argon2id entirely).
-      // This is checked BEFORE hasKeys() because the DB query can fail under
-      // Supabase Cloud read-replica lag, causing a false redirect to /messages/setup
-      // which triggers Argon2id and crashes Firefox on CI.
-      const restored = await keyManagementService.restoreKeysFromSession(
-        user?.id
-      );
-      if (restored) {
-        setNeedsReAuth(false);
-        setCheckingKeys(false);
-      } else {
-        // Cache miss — check if user has keys in database
-        const hasStoredKeys = await keyManagementService.hasKeys();
-
-        if (!hasStoredKeys) {
-          // No keys at all - redirect to setup page (full page for password manager)
-          router.push('/messages/setup');
-          return;
-        }
-
-        // Keys exist in DB but not in cache — need to unlock via password
-        setNeedsReAuth(true);
-        setCheckingKeys(false);
-      }
-
-      // Check for post-setup toast
-      if (typeof sessionStorage !== 'undefined') {
-        const setupComplete = sessionStorage.getItem(
-          'messaging_setup_complete'
+    const showSetupToastIfPending = () => {
+      if (typeof sessionStorage === 'undefined') return;
+      const setupComplete = sessionStorage.getItem('messaging_setup_complete');
+      if (setupComplete === 'true') {
+        setShowSetupToast(true);
+        sessionStorage.removeItem('messaging_setup_complete');
+        // Auto-dismiss after 10 seconds - store in ref for cleanup (FR-003)
+        toastTimeoutRef.current = setTimeout(
+          () => setShowSetupToast(false),
+          10000
         );
-        if (setupComplete === 'true') {
-          setShowSetupToast(true);
-          sessionStorage.removeItem('messaging_setup_complete');
-          // Auto-dismiss after 10 seconds - store in ref for cleanup (FR-003)
-          toastTimeoutRef.current = setTimeout(
-            () => setShowSetupToast(false),
-            10000
-          );
-        }
       }
     };
-    checkKeys();
+
+    const checkKeys = async () => {
+      const supabase = (await import('@/lib/supabase/client')).createClient();
+      // Restores from the localStorage cache BEFORE touching the database (a DB
+      // failure must not cause a false redirect to /messages/setup, which
+      // triggers Argon2id and crashes Firefox on CI), finding the user id from
+      // the locally stored session so this also works offline. See key-check.ts.
+      const result = await checkMessagingKeys(supabase, keyManagementService);
+
+      if (result === 'no-keys') {
+        // No keys at all - redirect to setup page (full page for password manager)
+        // The spinner stays up while the navigation unmounts this page; a throw
+        // from push() lands in the .catch() below, which clears it.
+        router.push('/messages/setup');
+        return;
+      }
+
+      // 'unreachable' (offline): we cannot tell whether keys exist, so never
+      // go to setup. Show an offline notice instead of a route that can't load.
+      setKeysUnreachable(result === 'unreachable');
+      // 'needs-reauth': keys exist in DB but not in cache, unlock via password
+      setNeedsReAuth(result === 'needs-reauth');
+      setCheckingKeys(false);
+
+      showSetupToastIfPending();
+    };
+    checkKeys().catch((err) => {
+      // Never leave the route on its spinner, whatever threw.
+      logger.error('Key check failed', { error: err });
+      setCheckingKeys(false);
+    });
 
     // Cleanup toast timeout on unmount (FR-003)
     return () => {
@@ -189,12 +187,12 @@ function MessagesContent() {
   }, [router]);
 
   useEffect(() => {
-    if (conversationId && !needsReAuth && !checkingKeys) {
+    if (conversationId && !needsReAuth && !checkingKeys && !keysUnreachable) {
       // Chain loadConversationInfo then loadMessages to ensure participant info is available before messages render (FR-019)
       loadConversationInfo().then(() => loadMessages());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadConversationInfo and loadMessages are intentionally excluded to prevent re-fetching when other state changes; they should only run when conversationId/auth state changes (FR-005)
-  }, [conversationId, needsReAuth, checkingKeys]);
+  }, [conversationId, needsReAuth, checkingKeys, keysUnreachable]);
 
   // Subscribe to new messages via Realtime (T098) + polling fallback.
   // Supabase Realtime on the free tier can silently drop messages under
@@ -633,6 +631,18 @@ function MessagesContent() {
 
             {/* Chat content - flex column for error banner + ChatWindow */}
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              {keysUnreachable && (
+                <div
+                  className="alert alert-warning m-4 shrink-0"
+                  role="status"
+                  data-testid="messages-offline-notice"
+                >
+                  <span>
+                    You&apos;re offline, so your messages can&apos;t be unlocked
+                    right now. They&apos;ll load when you&apos;re back online.
+                  </span>
+                </div>
+              )}
               {conversationId ? (
                 <>
                   {error && (
