@@ -21,6 +21,7 @@ import {
 } from '@/utils/metadata';
 import PWAInstall from '@/components/PWAInstall';
 import { CountdownBanner } from '@/components/atomic/CountdownBanner';
+import ChunkLoadRecovery from '@/components/atomic/ChunkLoadRecovery';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -124,6 +125,7 @@ export default function RootLayout({
           <AuthProvider>
             <ActiveRouteProvider>
               <AccessibilityProvider>
+                <ChunkLoadRecovery />
                 <a
                   href="#main"
                   className="focus:bg-base-100 focus:text-base-content sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4"
