@@ -4,11 +4,16 @@ name: Supabase Keep-Alive
 #
 # READ THIS BEFORE TRUSTING A RED RUN.
 #
-# A keep-alive can PREVENT an idle pause. It can never REVERSE one. Once the
-# project goes INACTIVE every subsequent run is guaranteed to fail, and every
-# failure looks identical to the last — so the workflow degrades into a red
-# light that carries no information. That is what happened between 2026-08-19
-# and 2026-09-07: eight consecutive identical failures, none of them read.
+# A keep-alive can PREVENT an idle pause, but it cannot reverse one by pinging.
+# Once the project goes INACTIVE every subsequent ping is guaranteed to fail,
+# and every failure looks identical to the last. The "Restore paused project"
+# step therefore asks the Management API to restore it (added after the
+# 2026-09-16 to 2026-10-23 pause, which went unread for five weeks), and fails
+# with the API's own message if the restore is refused.
+#
+# Without it the workflow degrades into a red light that carries no
+# information. That is what happened between 2026-08-19 and 2026-09-07: eight
+# consecutive identical failures, none of them read.
 #
 # Worse, idleness was not even the cause. The 2026-08-19 failure came back in
 # 100ms with "TypeError: fetch failed" — that is DNS returning NXDOMAIN for a
@@ -23,12 +28,12 @@ name: Supabase Keep-Alive
 # is, not to retry harder.
 on:
   schedule:
-    # 3:00 AM UTC every 3rd day of the month.
-    # NOTE: day-of-month steps restart each month, they do not roll over.
-    # The previous '*/6' fired on days 1,7,13,19,25 — leaving a 7-day gap from
-    # the 25th to the 1st in any 31-day month, which is exactly the auto-pause
-    # threshold. '*/3' fires 1,4,...,28, so the worst-case gap is 4 days.
-    - cron: '0 3 */3 * *'
+    # Daily at 03:17 UTC. GitHub drops or delays scheduled runs under load,
+    # and drops the top of the hour most often. Between 2026-10-01 and
+    # 2026-10-13 the old '0 3 */3 * *' lost three runs in a row (4, 7 and 10
+    # Oct), a 12-day gap against a 7-day idle limit. Daily leaves slack for
+    # several dropped runs; the cost is a 10-second job on a public repo.
+    - cron: '17 3 * * *'
   workflow_dispatch: # Allows manual trigger from Actions tab
 
 env:
@@ -82,18 +87,20 @@ jobs:
           # not overlap with a slow start, a bad key, or a network blip.
           if [ "$RCODE" = "3" ] || [ -z "$ADDRS" ]; then
             echo "verdict=paused" >> "$GITHUB_OUTPUT"
+            echo "host=${HOST}" >> "$GITHUB_OUTPUT"
             {
               echo "## Supabase project is PAUSED or DELETED"
               echo ""
               echo "\`${HOST}\` does not resolve (DoH rcode \`${RCODE}\`, no A records)."
               echo ""
-              echo "**A keep-alive cannot fix this.** Restore it, then work out why it"
-              echo "paused — and check the free-tier ceiling before assuming idleness:"
-              echo "2 active projects per USER across every org where that user is"
-              echo "Owner or Administrator. Creating a third pauses one of the others."
+              echo "The next step asks the Management API to restore it. If that"
+              echo "is refused, the API's own message is printed there. Check the"
+              echo "free-tier ceiling before assuming idleness: 2 active projects"
+              echo "per USER across every org where that user is Owner or"
+              echo "Administrator. Creating a third pauses one of the others."
             } >> "$GITHUB_STEP_SUMMARY"
-            echo "::error::${HOST} does not resolve — project paused or deleted. See job summary."
-            exit 1
+            echo "::warning::${HOST} does not resolve (project paused or deleted). Attempting restore."
+            exit 0
           fi
 
           echo "resolves to: ${ADDRS}"
@@ -120,6 +127,78 @@ jobs:
               echo "::error::/auth/v1/health returned ${CODE}. Backend is up but unhealthy."
               exit 1 ;;
           esac
+
+      # A keep-alive can prevent an idle pause but not reverse one, so a paused
+      # project used to turn every later run red and stay that way until a
+      # person noticed (2026-09-16 to 2026-10-23). Ask the Management API to
+      # restore it instead. This fails loudly, with the API's own message, if
+      # the restore is refused (free-tier ceiling, project past its restore
+      # window, token revoked), so a refusal is never hidden.
+      - name: Restore paused project
+        id: restore
+        if: steps.reach.outputs.verdict == 'paused'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          HOST: ${{ steps.reach.outputs.host }}
+        run: |
+          set -uo pipefail
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN is empty, cannot restore. Restore the project by hand."
+            exit 1
+          fi
+          REF="${HOST%%.*}"
+          API="https://api.supabase.com/v1/projects/${REF}"
+
+          status() {
+            curl -sS --max-time 30 -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" "$API" \
+              | node -pe "try{JSON.parse(require('fs').readFileSync(0)).status||'unknown'}catch(e){'unreadable'}"
+          }
+
+          echo "project status before: $(status)"
+          CODE=$(curl -sS -o restore.json -w '%{http_code}' --max-time 60 \
+            -X POST -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" "${API}/restore" || echo 000)
+          echo "POST /restore: ${CODE}"
+          case "$CODE" in
+            2??) ;;
+            *)
+              MSG=$(head -c 400 restore.json 2>/dev/null || true)
+              echo "::error::Restore refused (${CODE}): ${MSG}"
+              {
+                echo "## Restore was refused (HTTP ${CODE})"
+                echo ""
+                echo "\`${MSG}\`"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 1 ;;
+          esac
+
+          # Waking a paused project takes minutes. Poll for up to 15.
+          S=unknown
+          for i in $(seq 1 45); do
+            S=$(status)
+            echo "[$i] status: ${S}"
+            [ "$S" = "ACTIVE_HEALTHY" ] && break
+            sleep 20
+          done
+          if [ "$S" != "ACTIVE_HEALTHY" ]; then
+            echo "::error::Restore accepted but the project is ${S} after 15 minutes."
+            exit 1
+          fi
+
+          # Status flips before the public hostname answers; wait for auth/v1/health.
+          C=000
+          for i in $(seq 1 12); do
+            C=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 \
+              "https://${HOST}/auth/v1/health" -H "apikey: ${SUPABASE_ANON_KEY}" || echo 000)
+            echo "[$i] auth/v1/health: ${C}"
+            [ "$C" = "200" ] && break
+            sleep 10
+          done
+          if [ "$C" != "200" ]; then
+            echo "::error::Project is ACTIVE_HEALTHY but auth/v1/health returned ${C}."
+            exit 1
+          fi
+          echo "## Project was paused and has been restored" >> "$GITHUB_STEP_SUMMARY"
 
       # pnpm MUST be installed before setup-node: setup-node@v5 defaults to
       # package-manager-cache: true, which shells out to pnpm to resolve the
@@ -204,9 +283,10 @@ jobs:
               echo "   A setup/toolchain failure, or the secrets step. This did NOT"
               echo "   reach Supabase — do not go looking at the project." ;;
             paused)
-              echo "❌ Project is PAUSED or DELETED (DNS does not resolve)."
-              echo "   Restore it, then find out WHY. Check the free-tier ceiling"
-              echo "   before assuming idleness — see the header of this file." ;;
+              echo "❌ Project was PAUSED or DELETED and the automatic restore"
+              echo "   did not succeed. Read the 'Restore paused project' step for"
+              echo "   the API's message, then check the free-tier ceiling (see"
+              echo "   the header of this file) before assuming idleness." ;;
             healthy)
               echo "❌ Backend is UP and the key is good, so this is a real defect."
               echo "   Either 'pnpm run prime' failed against a live database, or"
