@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { isOAuthUser, getOAuthProvider } from '@/lib/auth/oauth-utils';
 import { createLogger } from '@/lib/logger/logger';
+import { KeysUnreachableError } from '@/types/messaging';
 
 const logger = createLogger('components:auth:ReAuthModal');
 
@@ -79,7 +80,10 @@ export function ReAuthModal({
           // No state to set - modal is already unlock-only
         } catch (err) {
           logger.error('Error checking keys', { error: err });
-          // On error, redirect to setup page to be safe
+          // Offline is not "no keys": setup cannot load without a network and
+          // would blank the page. Stay in unlock mode.
+          if (err instanceof KeysUnreachableError) return;
+          // On any other error, redirect to setup page to be safe
           window.location.href = '/messages/setup';
         } finally {
           setCheckingKeys(false);

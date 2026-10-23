@@ -30,7 +30,9 @@ import {
   KeyDerivationError,
   KeyMismatchError,
   ConnectionError,
+  KeysUnreachableError,
 } from '@/types/messaging';
+import { AuthRetryableFetchError } from '@supabase/supabase-js';
 
 // Use vi.hoisted to create mock that can be referenced in vi.mock (vitest 4.0 pattern)
 const { mockKeyDerivationInstance } = vi.hoisted(() => ({
@@ -685,6 +687,79 @@ describe('KeyManagementService', () => {
 
       const needsMigration = await keyService.needsMigration();
       expect(needsMigration).toBe(false);
+    });
+  });
+
+  describe('hasKeys()', () => {
+    const mockKeyQuery = (result: { data: unknown; error: unknown }) => {
+      mockMsgClient.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue(result),
+              }),
+            }),
+          }),
+        }),
+      });
+    };
+
+    it('returns true when the user has an active key', async () => {
+      mockKeyQuery({ data: { id: 'key-1' }, error: null });
+      await expect(keyService.hasKeys()).resolves.toBe(true);
+    });
+
+    it('returns false when the user definitely has no keys', async () => {
+      mockKeyQuery({ data: null, error: null });
+      await expect(keyService.hasKeys()).resolves.toBe(false);
+    });
+
+    it('returns false when nobody is signed in (not a network problem)', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: { name: 'AuthSessionMissingError', message: 'no session' },
+      });
+      await expect(keyService.hasKeys()).resolves.toBe(false);
+    });
+
+    it('throws KeysUnreachableError, not false, when GoTrue is unreachable', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: new AuthRetryableFetchError('Failed to fetch', 0),
+      });
+      await expect(keyService.hasKeys()).rejects.toBeInstanceOf(
+        KeysUnreachableError
+      );
+    });
+
+    it('throws KeysUnreachableError when getUser itself rejects with a fetch failure', async () => {
+      mockSupabase.auth.getUser.mockRejectedValue(
+        new TypeError('Failed to fetch')
+      );
+      await expect(keyService.hasKeys()).rejects.toBeInstanceOf(
+        KeysUnreachableError
+      );
+    });
+
+    it('throws KeysUnreachableError when the key query fails at the network layer', async () => {
+      mockKeyQuery({
+        data: null,
+        error: { code: '', message: 'TypeError: Failed to fetch' },
+      });
+      await expect(keyService.hasKeys()).rejects.toBeInstanceOf(
+        KeysUnreachableError
+      );
+    });
+
+    it('throws a plain ConnectionError for a database error', async () => {
+      mockKeyQuery({
+        data: null,
+        error: { code: '42501', message: 'permission denied' },
+      });
+      const err = await keyService.hasKeys().catch((e) => e);
+      expect(err).toBeInstanceOf(ConnectionError);
+      expect(err).not.toBeInstanceOf(KeysUnreachableError);
     });
   });
 });

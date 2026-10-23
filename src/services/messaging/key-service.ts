@@ -19,6 +19,7 @@ import {
   createMessagingClient,
   type UserEncryptionKeyRow,
 } from '@/lib/supabase/messaging-client';
+import { isAuthRetryableFetchError } from '@supabase/supabase-js';
 import { KeyDerivationService } from '@/lib/messaging/key-derivation';
 import { createLogger } from '@/lib/logger';
 import type { DerivedKeyPair } from '@/types/messaging';
@@ -26,11 +27,31 @@ import {
   AuthenticationError,
   EncryptionError,
   ConnectionError,
+  KeysUnreachableError,
   KeyDerivationError,
   KeyMismatchError,
 } from '@/types/messaging';
 
 const logger = createLogger('messaging:keys');
+
+/**
+ * True when an error means "the network is unreachable" rather than a verdict
+ * from the server: supabase-js wraps a failed fetch as AuthRetryableFetchError,
+ * PostgREST surfaces it as an error whose message is the raw TypeError text.
+ */
+function isNetworkFailure(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  if (isAuthRetryableFetchError(error)) return true;
+  const msg = String(
+    (error as { message?: unknown }).message ?? ''
+  ).toLowerCase();
+  return (
+    msg.includes('failed to fetch') ||
+    msg.includes('networkerror') ||
+    msg.includes('network request failed') ||
+    msg.includes('load failed')
+  );
+}
 
 export class KeyManagementService {
   /** In-memory storage for derived keys (cleared on logout) */
@@ -451,10 +472,29 @@ export class KeyManagementService {
     const supabase = createClient();
     const msgClient = createMessagingClient(supabase);
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    let user: { id: string } | null;
+    let authError: unknown;
+    try {
+      const result = await supabase.auth.getUser();
+      user = result.data.user;
+      authError = result.error;
+    } catch (error) {
+      if (isNetworkFailure(error)) {
+        throw new KeysUnreachableError(
+          'Cannot check encryption keys: network unreachable',
+          error
+        );
+      }
+      throw error;
+    }
+
+    // Offline / GoTrue unreachable is "cannot tell", not "no keys".
+    if (authError && isNetworkFailure(authError)) {
+      throw new KeysUnreachableError(
+        'Cannot check encryption keys: auth server unreachable',
+        authError
+      );
+    }
 
     if (authError || !user) {
       return false;
@@ -474,6 +514,12 @@ export class KeyManagementService {
       // Only return false for no rows, throw on actual errors
       if (error && error.code !== 'PGRST116') {
         logger.error('hasKeys: Database error', { error: error.message });
+        if (isNetworkFailure(error)) {
+          throw new KeysUnreachableError(
+            'Cannot check encryption keys: ' + error.message,
+            error
+          );
+        }
         throw new ConnectionError(
           'Failed to check encryption keys: ' + error.message
         );
@@ -483,6 +529,12 @@ export class KeyManagementService {
     } catch (error) {
       if (error instanceof ConnectionError) {
         throw error;
+      }
+      if (isNetworkFailure(error)) {
+        throw new KeysUnreachableError(
+          'Cannot check encryption keys: network unreachable',
+          error
+        );
       }
       logger.error('hasKeys: Unexpected error', { error });
       return false;
