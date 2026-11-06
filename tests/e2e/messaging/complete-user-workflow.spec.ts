@@ -513,6 +513,26 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
         console.log(
           `Step 6: attempt ${attempt + 1}/10 — tab selected=${tabState}, manager visible=${managerVisible}, url=${pageUrl}`
         );
+        // Issue 110: what is actually on screen? Tab labels carry the counts.
+        const tabLabels = await pageB
+          .getByRole('tab')
+          .allTextContents()
+          .catch(() => [] as string[]);
+        const requestElements = await pageB
+          .locator('[data-testid="connection-request"]')
+          .count()
+          .catch(() => -1);
+        const spinners = await pageB
+          .getByRole('status', { name: /loading connections/i })
+          .count()
+          .catch(() => -1);
+        const alertText = await pageB
+          .locator('[data-testid="connection-manager"] .alert-error')
+          .allTextContents()
+          .catch(() => [] as string[]);
+        console.log(
+          `Step 6: screen — tabs=${JSON.stringify(tabLabels)}, connection-request elements=${requestElements}, loading spinners=${spinners}, alerts=${JSON.stringify(alertText)}`
+        );
         await pageB.waitForTimeout(5000);
       }
       if (!requestVisible) {
