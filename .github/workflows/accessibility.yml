@@ -11,7 +11,8 @@ env:
 
 jobs:
   accessibility:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest became 26.04, which Playwright cannot install chromium on.
+    runs-on: ubuntu-24.04
 
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
