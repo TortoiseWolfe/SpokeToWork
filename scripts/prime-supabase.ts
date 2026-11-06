@@ -30,19 +30,33 @@ async function primeSupabase() {
   const start = Date.now();
 
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // A hung connection must fail the run, not sit until the job's timeout.
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: {
+        fetch: (input, init) =>
+          fetch(input, { ...init, signal: AbortSignal.timeout(60_000) }),
+      },
+    });
 
-    // Execute actual database query to wake up instance
-    // Using a simple count query on user_profiles (lightweight)
-    const { data, error } = await supabase
-      .from('user_profiles')
+    // Execute an actual database query to wake up the instance. The table is
+    // user_profiles unless PRIME_TABLE overrides it (the keep-alive workflow's
+    // manual "probe_table" input uses that to prove the job can go red).
+    const table = process.env.PRIME_TABLE || 'user_profiles';
+    const { error, status } = await supabase
+      .from(table)
       .select('count')
       .limit(1);
 
     const duration = Date.now() - start;
+    console.log(`   GET /rest/v1/${table}: HTTP ${status} in ${duration}ms`);
 
     if (error) {
-      throw new Error(`Database query failed: ${error.message}`);
+      throw new Error(
+        `Database query failed (HTTP ${status}): ${error.message}`
+      );
+    }
+    if (status !== 200) {
+      throw new Error(`Expected HTTP 200, got ${status}`);
     }
 
     // Interpret the duration

@@ -35,13 +35,27 @@ on:
     # several dropped runs; the cost is a 10-second job on a public repo.
     - cron: '17 3 * * *'
   workflow_dispatch: # Allows manual trigger from Actions tab
+    inputs:
+      probe_table:
+        description: >-
+          Test only. Table the "Prime Supabase instance" step reads. Leave empty
+          for the real run (user_profiles). Give a name that does not exist to
+          prove the job goes red when the read fails.
+        required: false
+        default: ''
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+permissions:
+  contents: read
+
 jobs:
   prime-supabase:
     runs-on: ubuntu-latest
+    # The slowest honest path is a restore (up to 15 min of polling). Anything
+    # longer is a hang; fail it instead of waiting out the 6-hour default.
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
@@ -223,7 +237,19 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-        run: pnpm run prime
+          PRIME_TABLE: ${{ inputs.probe_table }}
+        # One real read of a real table (the script prints HTTP code and time
+        # and exits 1 on anything but 200 or after 60 s). Three tries, 20 s
+        # apart, so one Supabase blip does not page us; three failures do.
+        run: |
+          for i in 1 2 3; do
+            echo "::group::attempt ${i} of 3"
+            if pnpm run prime; then echo "::endgroup::"; exit 0; fi
+            echo "::endgroup::"
+            [ "$i" -lt 3 ] && sleep 20
+          done
+          echo "::error::Reading ${PRIME_TABLE:-user_profiles} failed 3 times in a row."
+          exit 1
 
       # Issue #85: anon holds write privileges on spatial_ref_sys. The table is
       # owned by supabase_admin, so REVOKE and ENABLE ROW LEVEL SECURITY both
@@ -243,7 +269,7 @@ jobs:
           EXPECTED_ROWS: '8500'
         run: |
           set -euo pipefail
-          RANGE=$(curl -sS -o /dev/null -D - \
+          RANGE=$(curl -sS --max-time 30 --retry 3 --retry-delay 20 -o /dev/null -D - \
             "${SUPABASE_URL}/rest/v1/spatial_ref_sys?select=srid" \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
@@ -297,3 +323,33 @@ jobs:
               echo "   The classification step named the cause; scroll up to it." ;;
           esac
           exit 1
+
+  # A red run only emails whoever watches GitHub notifications. Open (or add to)
+  # one issue so the failure is visible in the repo, and so a second red day
+  # adds a comment instead of a second issue.
+  alert-on-failure:
+    needs: prime-supabase
+    if: ${{ always() && needs.prime-supabase.result == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update the keep-alive issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: 'Supabase keep-alive is failing'
+        run: |
+          set -euo pipefail
+          BODY="The daily keep-alive run failed: ${RUN_URL}
+
+          Open the run and read the first red step. It says which of these it is: project paused or deleted, wrong key, backend unreachable, backend answering with an error, or the spatial_ref_sys tripwire (#85). Close this issue once a run is green again."
+          N=$(gh issue list -R "$REPO" --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$N" ]; then
+            gh issue comment "$N" -R "$REPO" --body "Failed again: ${RUN_URL}"
+            echo "Commented on #${N}"
+          else
+            gh issue create -R "$REPO" --title "$TITLE" --label bug --body "$BODY"
+          fi
