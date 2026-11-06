@@ -11,7 +11,7 @@
  * - Error announcements (aria-live)
  *
  * Prerequisites:
- * - Pa11y configured (see .pa11yci.js)
+ * - axe-playwright (Pa11y is not used in this repo, #76)
  * - Test server running (pnpm run dev)
  * - Uses createTestUser for dynamic user creation
  */
