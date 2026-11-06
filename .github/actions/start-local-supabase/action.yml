@@ -16,14 +16,16 @@ runs:
         # Pinned so the build job and every shard derive identical local keys.
         version: 3.0.0
 
-    # Studio, email capture, analytics and the connection pooler are not used
-    # by the tests. Leaving them out keeps startup fast on fresh runners.
+    # Studio, analytics and the connection pooler are not used by the tests.
+    # Leaving them out keeps startup fast on fresh runners. Mail capture
+    # (sign-up confirmation) and the Edge Functions runtime (delete-user-account,
+    # used by the GDPR specs) stay on.
     - name: Start Supabase
       shell: bash
       run: |
         set -euo pipefail
         if ! supabase start \
-          -x studio,imgproxy,logflare,vector,mailpit,edge-runtime,postgres-meta,supavisor \
+          -x studio,imgproxy,logflare,vector,postgres-meta,supavisor \
           > "${RUNNER_TEMP}/supabase-start.log" 2>&1; then
           # Keep the diagnostic output, but never echo credentials.
           grep -viE 'anon key|service_role key|publishable key|secret key|jwt secret|password' \
