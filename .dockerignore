@@ -8,12 +8,10 @@ yarn-error.log
 out
 dist
 
-# Environment files
-.env
-.env.local
-.env.production.local
-.env.development.local
-.env.test.local
+# Environment files: every variant stays out of the build context (the
+# supabase local file holds real keys). Only the template is kept.
+.env*
+!.env.example
 
 # IDE
 .idea

@@ -78,34 +78,8 @@ ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 # Start development server (Storybook can be run separately if needed)
 CMD ["pnpm", "run", "dev"]
 
-# Builder stage for production
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-# Build the application
-RUN pnpm run build
-
-# Production image
-FROM base AS runner
-WORKDIR /app
-
-ENV NODE_ENV=production
-
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-# Copy built application
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-USER nextjs
-
-EXPOSE 3000
-
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-
-CMD ["node", "server.js"]
+# There is no production image stage on purpose. next.config.ts sets
+# output: 'export', so `next build` writes a static out/ folder that GitHub
+# Pages serves. It never emits .next/standalone or a server.js, so the old
+# builder and runner stages could not build or run. The production build runs
+# in the `builder` compose service (target: dev); see CLAUDE.md.
