@@ -119,7 +119,7 @@ const phaseCompletionChecks = {
     const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
     return pkg.dependencies['web-vitals'] !== undefined;
   },
-  T056: () => fs.existsSync('src/utils/performance.ts'),
+  T056: () => fs.existsSync('src/utils/web-vitals.ts'),
   T057: () => {
     if (!fs.existsSync('.github/workflows/ci.yml')) return false;
     const ci = fs.readFileSync('.github/workflows/ci.yml', 'utf8');
