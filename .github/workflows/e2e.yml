@@ -267,11 +267,6 @@ jobs:
         with:
           name: build-output
           path: out/
-      - name: Download auth state
-        uses: actions/download-artifact@v5
-        with:
-          name: auth-state
-          path: tests/e2e/fixtures/
       - name: Start server
         run: |
           npx http-server out -p 3000 -c-1 &
@@ -301,17 +296,20 @@ jobs:
           HEAVY_PATTERN="complete-flows|new-user-complete-flow|welcome-message|resume-upload"
           if [ "$E2E_GROUP" = "msg-" ]; then
             GREP_FLAG="--grep=messaging/|employer/"
-            # msg shards need the setup project to run auth.setup.ts per-shard,
+            # Every shard now runs the setup project itself (no --no-deps, no
+            # shared auth-state file): each job has its own throwaway database,
+            # so a sign-in saved by another job names a user that does not exist
+            # here. msg shards need the setup project to run auth.setup.ts per-shard,
             # which injects pre-baked encryption keys into localStorage for
             # shard-specific users (e2e-s{N}-*). Without this, the browser
             # falls back to Argon2id derivation which times out on CI.
             NO_DEPS_FLAG=""
           elif [ "$E2E_GROUP" = "heavy-" ]; then
             GREP_FLAG="--grep=$HEAVY_PATTERN"
-            NO_DEPS_FLAG="--no-deps"
+            NO_DEPS_FLAG=""
           else
             GREP_FLAG="--grep-invert=messaging/|employer/|$HEAVY_PATTERN"
-            NO_DEPS_FLAG="--no-deps"
+            NO_DEPS_FLAG=""
           fi
           pnpm exec playwright test \
             --project=chromium \
@@ -398,11 +396,6 @@ jobs:
         with:
           name: build-output
           path: out/
-      - name: Download auth state
-        uses: actions/download-artifact@v5
-        with:
-          name: auth-state
-          path: tests/e2e/fixtures/
       - name: Start server
         run: |
           npx http-server out -p 3000 -c-1 &
@@ -436,10 +429,10 @@ jobs:
             NO_DEPS_FLAG=""
           elif [ "$E2E_GROUP" = "heavy-" ]; then
             GREP_FLAG="--grep=$HEAVY_PATTERN"
-            NO_DEPS_FLAG="--no-deps"
+            NO_DEPS_FLAG=""
           else
             GREP_FLAG="--grep-invert=messaging/|employer/|$HEAVY_PATTERN"
-            NO_DEPS_FLAG="--no-deps"
+            NO_DEPS_FLAG=""
           fi
           pnpm exec playwright test \
             --project=firefox \
@@ -526,11 +519,6 @@ jobs:
         with:
           name: build-output
           path: out/
-      - name: Download auth state
-        uses: actions/download-artifact@v5
-        with:
-          name: auth-state
-          path: tests/e2e/fixtures/
       - name: Start server
         run: |
           npx http-server out -p 3000 -c-1 &
@@ -564,10 +552,10 @@ jobs:
             NO_DEPS_FLAG=""
           elif [ "$E2E_GROUP" = "heavy-" ]; then
             GREP_FLAG="--grep=$HEAVY_PATTERN"
-            NO_DEPS_FLAG="--no-deps"
+            NO_DEPS_FLAG=""
           else
             GREP_FLAG="--grep-invert=messaging/|employer/|$HEAVY_PATTERN"
-            NO_DEPS_FLAG="--no-deps"
+            NO_DEPS_FLAG=""
           fi
           pnpm exec playwright test \
             --project=webkit \
