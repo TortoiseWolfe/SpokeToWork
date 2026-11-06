@@ -1,0 +1,64 @@
+name: Start local Supabase
+description: Start a throwaway Supabase stack, export its URL/keys, and seed E2E users.
+
+inputs:
+  seed:
+    description: Seed the admin and test users after the stack starts.
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Install Supabase CLI
+      uses: supabase/setup-cli@v1
+      with:
+        # Pinned so the build job and every shard derive identical local keys.
+        version: 3.0.0
+
+    # Studio, email capture, analytics and the connection pooler are not used
+    # by the tests. Leaving them out keeps startup fast on fresh runners.
+    - name: Start Supabase
+      shell: bash
+      run: |
+        set -euo pipefail
+        if ! supabase start \
+          -x studio,imgproxy,logflare,vector,mailpit,edge-runtime,postgres-meta,supavisor \
+          > "${RUNNER_TEMP}/supabase-start.log" 2>&1; then
+          # Keep the diagnostic output, but never echo credentials.
+          grep -viE 'anon key|service_role key|publishable key|secret key|jwt secret|password' \
+            "${RUNNER_TEMP}/supabase-start.log" | tail -200 || true
+          exit 1
+        fi
+
+    # Export the local stack's values into this job. Nothing is printed: the
+    # CLI's status output contains JWTs, and workflow logs are public.
+    - name: Export local Supabase environment
+      shell: bash
+      run: |
+        set -euo pipefail
+        eval "$(supabase status -o env)"
+
+        ANON_KEY="${ANON_KEY:-${PUBLISHABLE_KEY:-}}"
+        SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-${SECRET_KEY:-}}"
+
+        if [ -z "${API_URL:-}" ] || [ -z "${ANON_KEY}" ]; then
+          echo "::error::Could not read the local Supabase API URL / anon key"
+          exit 1
+        fi
+        if [ -z "${DB_URL:-}" ]; then
+          echo "::error::Could not read the local Supabase database URL"
+          exit 1
+        fi
+
+        {
+          echo "NEXT_PUBLIC_SUPABASE_URL=${API_URL}"
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}"
+          echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}"
+          echo "SUPABASE_DB_URL=${DB_URL}"
+        } >> "${GITHUB_ENV}"
+
+    - name: Seed test users
+      if: ${{ inputs.seed != 'false' }}
+      shell: bash
+      run: pnpm exec tsx scripts/seed-test-users.ts

@@ -1,17 +1,49 @@
 /**
  * Supabase Admin Utilities for E2E Tests
  *
- * Uses Supabase Management API to bypass RLS for test data setup.
- * Requires SUPABASE_ACCESS_TOKEN and NEXT_PUBLIC_SUPABASE_URL in env.
+ * Uses the Supabase Management API against the hosted project, or a direct
+ * Postgres connection against the throwaway local stack used by CI.
+ * Requires NEXT_PUBLIC_SUPABASE_URL plus either SUPABASE_ACCESS_TOKEN (cloud)
+ * or SUPABASE_DB_URL (local).
  *
  * Feature: 062-fix-e2e-auth
  */
 
 import 'dotenv/config';
+import { Client } from 'pg';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
 const PROJECT_REF = SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
+const LOCAL_DB_URL = process.env.SUPABASE_DB_URL;
+
+/**
+ * True when NEXT_PUBLIC_SUPABASE_URL points at a local stack rather than a
+ * hosted Supabase project.
+ */
+export function isLocalSupabase(): boolean {
+  if (!SUPABASE_URL) return false;
+  try {
+    const host = new URL(SUPABASE_URL).hostname;
+    return (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '::1' ||
+      host.endsWith('.local')
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * True when this process has a way to run arbitrary SQL against the test DB.
+ */
+export function canExecuteSQL(): boolean {
+  return isLocalSupabase()
+    ? !!LOCAL_DB_URL
+    : !!(PROJECT_REF && ACCESS_TOKEN);
+}
 
 /**
  * Escape a string for safe SQL interpolation.
@@ -23,13 +55,44 @@ export function escapeSQL(value: string): string {
 }
 
 /**
- * Execute SQL via Supabase Management API (bypasses RLS)
+ * Execute SQL directly against the local Postgres instance.
+ * Handles multi-statement strings by returning the rows from the final
+ * statement that produced any (matching the Management API behaviour the
+ * tests were written against).
+ */
+async function executeLocalSQL(query: string): Promise<unknown[]> {
+  if (!LOCAL_DB_URL) {
+    console.log('Skipping SQL: Missing SUPABASE_DB_URL');
+    return [];
+  }
+
+  const client = new Client({ connectionString: LOCAL_DB_URL });
+  await client.connect();
+  try {
+    const result = await client.query(query);
+    const results = Array.isArray(result) ? result : [result];
+    const withRows = [...results]
+      .reverse()
+      .find((r) => Array.isArray(r.rows) && r.rows.length > 0);
+    return (withRows ?? results[results.length - 1])?.rows ?? [];
+  } finally {
+    await client.end();
+  }
+}
+
+/**
+ * Execute SQL via the Supabase Management API (cloud) or a direct Postgres
+ * connection (local stack). Both paths bypass RLS.
  */
 export async function executeSQL(
   query: string,
   retries = 5,
   baseDelay = 2000
 ): Promise<unknown[]> {
+  if (isLocalSupabase()) {
+    return executeLocalSQL(query);
+  }
+
   if (!PROJECT_REF || !ACCESS_TOKEN) {
     console.log('Skipping SQL: Missing SUPABASE_URL or ACCESS_TOKEN');
     return [];
@@ -98,8 +161,8 @@ export async function executeSQL(
  * Routes use test user's home coordinates.
  */
 export async function ensureTestRoutes(userEmail: string): Promise<void> {
-  if (!PROJECT_REF || !ACCESS_TOKEN) {
-    console.log('Skipping route setup: Missing SUPABASE_ACCESS_TOKEN');
+  if (!canExecuteSQL()) {
+    console.log('Skipping route setup: Missing database credentials');
     return;
   }
 

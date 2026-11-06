@@ -17,7 +17,7 @@ Complete guide for configuring Supabase authentication with email/password and O
 
 **Step 2:** Drop all existing tables (clean slate)
 
-- Open file: `supabase/migrations/999_drop_all_tables.sql`
+- Open file: `supabase/scripts/999_drop_all_tables.sql`
 - Copy **entire file contents**
 - Paste into SQL Editor
 - Click **"RUN"**

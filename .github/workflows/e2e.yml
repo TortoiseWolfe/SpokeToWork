@@ -15,10 +15,18 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Shared env vars for all jobs
-  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+  # Test jobs never receive the live project's URL or keys. Each job starts
+  # its own throwaway Supabase stack, and the action exports the relevant
+  # values into the job environment.
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  # The local-stack action seeds these users right after the stack starts, so
+  # every job that starts a stack needs them in its environment.
+  TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
+  TEST_USER_PRIMARY_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
+  TEST_USER_SECONDARY_EMAIL: ${{ vars.TEST_USER_SECONDARY_EMAIL }}
+  TEST_USER_SECONDARY_PASSWORD: ${{ secrets.TEST_USER_SECONDARY_PASSWORD }}
+  TEST_USER_TERTIARY_EMAIL: ${{ vars.TEST_USER_TERTIARY_EMAIL }}
+  TEST_USER_TERTIARY_PASSWORD: ${{ secrets.TEST_USER_TERTIARY_PASSWORD }}
 
 jobs:
   # ============================================
@@ -46,6 +54,11 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Start local Supabase
+        uses: ./.github/actions/start-local-supabase
+        with:
+          seed: 'false'
 
       - name: Build application
         run: pnpm build
@@ -95,6 +108,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Start local Supabase
+        uses: ./.github/actions/start-local-supabase
+
       - name: Install Playwright (chromium only)
         run: pnpm exec playwright install --with-deps chromium
 
@@ -123,8 +139,6 @@ jobs:
           SKIP_WEBSERVER: true
           BASE_URL: http://localhost:3000
           NEXT_PUBLIC_E2E_TEST_MODE: 'true'
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TEST_USER_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
           TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
@@ -163,6 +177,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Start local Supabase
+        uses: ./.github/actions/start-local-supabase
+
       - name: Install Playwright (chromium only for auth)
         run: pnpm exec playwright install --with-deps chromium
 
@@ -184,7 +201,6 @@ jobs:
           SKIP_WEBSERVER: true
           BASE_URL: http://localhost:3000
           NEXT_PUBLIC_E2E_TEST_MODE: 'true'
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           E2E_ENCRYPTION_KEYS: ${{ secrets.E2E_ENCRYPTION_KEYS }}
           TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
           TEST_USER_PRIMARY_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
@@ -192,7 +208,6 @@ jobs:
           TEST_USER_SECONDARY_PASSWORD: ${{ secrets.TEST_USER_SECONDARY_PASSWORD }}
           TEST_USER_TERTIARY_EMAIL: ${{ vars.TEST_USER_TERTIARY_EMAIL }}
           TEST_USER_TERTIARY_PASSWORD: ${{ secrets.TEST_USER_TERTIARY_PASSWORD }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Upload auth state
         uses: actions/upload-artifact@v5
@@ -243,6 +258,8 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Start local Supabase
+        uses: ./.github/actions/start-local-supabase
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
       - name: Download build
@@ -260,13 +277,10 @@ jobs:
           npx http-server out -p 3000 -c-1 &
           npx wait-on http://localhost:3000 --timeout 60000
       - name: Prime Supabase connection pool
-        env:
-          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: |
-          curl -sf "${SUPABASE_URL}/rest/v1/user_profiles?select=id&limit=1" \
-            -H "apikey: ${SUPABASE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_KEY}" \
+          curl -sf "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_profiles?select=id&limit=1" \
+            -H "apikey: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
             > /dev/null 2>&1 || true
       - name: Stagger shards
         env:
@@ -315,8 +329,6 @@ jobs:
           NEXT_PUBLIC_E2E_TEST_MODE: 'true'
           E2E_SHARD_INDEX: ${{ matrix.group == 'msg-' && steps.shard-index.outputs.index || '' }}
           E2E_ENCRYPTION_KEYS: ${{ matrix.group == 'msg-' && secrets.E2E_ENCRYPTION_KEYS || '' }}
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TEST_USER_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
           TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
@@ -373,6 +385,8 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Start local Supabase
+        uses: ./.github/actions/start-local-supabase
       - name: Install Playwright browsers
         run: |
           pnpm exec playwright install --with-deps firefox
@@ -394,13 +408,10 @@ jobs:
           npx http-server out -p 3000 -c-1 &
           npx wait-on http://localhost:3000 --timeout 60000
       - name: Prime Supabase connection pool
-        env:
-          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: |
-          curl -sf "${SUPABASE_URL}/rest/v1/user_profiles?select=id&limit=1" \
-            -H "apikey: ${SUPABASE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_KEY}" \
+          curl -sf "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_profiles?select=id&limit=1" \
+            -H "apikey: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
             > /dev/null 2>&1 || true
       - name: Stagger shards
         env:
@@ -446,8 +457,6 @@ jobs:
           NEXT_PUBLIC_E2E_TEST_MODE: 'true'
           E2E_SHARD_INDEX: ${{ matrix.group == 'msg-' && steps.shard-index.outputs.index || '' }}
           E2E_ENCRYPTION_KEYS: ${{ matrix.group == 'msg-' && secrets.E2E_ENCRYPTION_KEYS || '' }}
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TEST_USER_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
           TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
@@ -504,6 +513,8 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Start local Supabase
+        uses: ./.github/actions/start-local-supabase
       - name: Install Playwright browsers
         run: |
           pnpm exec playwright install --with-deps webkit
@@ -525,13 +536,10 @@ jobs:
           npx http-server out -p 3000 -c-1 &
           npx wait-on http://localhost:3000 --timeout 60000
       - name: Prime Supabase connection pool
-        env:
-          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: |
-          curl -sf "${SUPABASE_URL}/rest/v1/user_profiles?select=id&limit=1" \
-            -H "apikey: ${SUPABASE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_KEY}" \
+          curl -sf "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_profiles?select=id&limit=1" \
+            -H "apikey: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
             > /dev/null 2>&1 || true
       - name: Stagger shards
         env:
@@ -577,8 +585,6 @@ jobs:
           NEXT_PUBLIC_E2E_TEST_MODE: 'true'
           E2E_SHARD_INDEX: ${{ matrix.group == 'msg-' && steps.shard-index.outputs.index || '' }}
           E2E_ENCRYPTION_KEYS: ${{ matrix.group == 'msg-' && secrets.E2E_ENCRYPTION_KEYS || '' }}
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TEST_USER_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
           TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
