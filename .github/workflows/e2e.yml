@@ -7,12 +7,21 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# All Supabase-backed test workflows share ONE queue, because they all sign in
+# to the same free-tier test project. The accessibility workflow uses the same
+# group name below (`supabase-test-project-...`) so E2E and accessibility runs
+# take turns with each other as well as with runs from other branches.
+#
+# `queue: max` is what makes this safe. Without it, a concurrency group holds
+# one running run and one pending run; a third run queued into the group
+# cancels the pending one, silently dropping another PR's tests. `queue: max`
+# instead lets up to 100 runs wait in line, in the order they arrived, and none
+# is cancelled. `cancel-in-progress: false` keeps the run that is already
+# executing alive (sequential browser execution takes ~45 min).
 concurrency:
-  group: e2e-${{ github.ref }}
-  # cancel-in-progress disabled: sequential browser execution takes ~45 min.
-  # With cancel-in-progress, any push within that window kills the running
-  # E2E mid-flight, cascading auth-setup cancellation to all browser batches.
+  group: supabase-test-project-${{ github.repository }}
   cancel-in-progress: false
+  queue: max
 
 env:
   # Shared env vars for all jobs
@@ -214,6 +223,11 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
+      # Cap one run's peak load on the shared Supabase project. All 12 shards
+      # used to start at once; 6 at a time is the same ceiling that keeps the
+      # three-browser lane safe. Combined with the repo-wide queue above, this
+      # means at most 6 shards hit Supabase at once, from any branch.
+      max-parallel: 6
       matrix:
         include:
           - { group: gen-, shard: 1/4 }
@@ -344,6 +358,11 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
+      # Cap one run's peak load on the shared Supabase project. All 12 shards
+      # used to start at once; 6 at a time is the same ceiling that keeps the
+      # three-browser lane safe. Combined with the repo-wide queue above, this
+      # means at most 6 shards hit Supabase at once, from any branch.
+      max-parallel: 6
       matrix:
         include:
           - { group: gen-, shard: 1/4 }
@@ -475,6 +494,11 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
+      # Cap one run's peak load on the shared Supabase project. All 12 shards
+      # used to start at once; 6 at a time is the same ceiling that keeps the
+      # three-browser lane safe. Combined with the repo-wide queue above, this
+      # means at most 6 shards hit Supabase at once, from any branch.
+      max-parallel: 6
       matrix:
         include:
           - { group: gen-, shard: 1/4 }

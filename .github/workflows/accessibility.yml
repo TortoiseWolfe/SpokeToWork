@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [main]
 
+# Same queue as e2e.yml: this workflow signs in to the same free-tier Supabase
+# test project and was failing at auth setup whenever an E2E run overlapped it.
+# `queue: max` lets waiting runs accumulate instead of cancelling the oldest
+# pending one, so no branch's tests disappear just because a newer run queued.
+concurrency:
+  group: supabase-test-project-${{ github.repository }}
+  cancel-in-progress: false
+  queue: max
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
