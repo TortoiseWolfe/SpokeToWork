@@ -53,3 +53,13 @@ Workspace conventions (Docker-first mandate, 5-file component pattern, SpecKit `
 - But `E2E_SHARD_INDEX` is only set when `matrix.group == 'msg-'`. `gen-` and `heavy-` receive `''`, so `getShardUsers()` takes its local-dev branch and every one of those 8 shards shares `TEST_USER_PRIMARY_*`. Fine for the 15 `heavy-` tests that mint their own `e2e-flow1-*` / `e2e-new-user-*` users; `welcome-message` and `resume-upload` do share the one identity, so suspect contention before suspecting a product bug when those flake.
 - `global-setup.ts` only prunes `e2e-shared-%`. Users minted by `heavy-` specs (`e2e-flow1-*`, `e2e-new-user-*`) are cleaned up by the specs themselves, so a crashed run leaks them.
 - Touch targets: `min-h-11 min-w-11` (44px), mobile-first.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
