@@ -450,6 +450,24 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       // Multi-attempt polling: Supabase Cloud read replica lag can delay
       // the friend request from appearing on User B's received tab.
       console.log('Step 6: User B viewing pending requests...');
+      // Diagnostics for the intermittent "row exists but nothing renders"
+      // failure (issue 110): log what the connections request actually
+      // returned to User B's browser (status and row count only, no bodies).
+      pageB.on('response', async (response) => {
+        if (!response.url().includes('/rest/v1/user_connections')) return;
+        let summary = '';
+        try {
+          const body = await response.json();
+          summary = Array.isArray(body)
+            ? `rows=${body.length}`
+            : `error=${String(body?.message ?? body?.code ?? 'unknown')}`;
+        } catch {
+          summary = 'body not JSON';
+        }
+        console.log(
+          `Step 6: user_connections ${response.request().method()} -> ${response.status()} ${summary}`
+        );
+      });
       let requestVisible = false;
       for (let attempt = 0; attempt < 10; attempt++) {
         await pageB.goto('/messages?tab=connections');
