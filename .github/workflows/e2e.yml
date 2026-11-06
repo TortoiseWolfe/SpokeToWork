@@ -340,7 +340,7 @@ jobs:
     name: E2E (firefox ${{ matrix.group }}${{ matrix.shard }})
     runs-on: ubuntu-24.04
     needs: e2e-chromium
-    if: always() && !cancelled() && github.event_name != 'pull_request'
+    if: always() && !cancelled()
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -471,7 +471,7 @@ jobs:
     name: E2E (webkit ${{ matrix.group }}${{ matrix.shard }})
     runs-on: ubuntu-24.04
     needs: e2e-firefox
-    if: always() && !cancelled() && github.event_name != 'pull_request'
+    if: always() && !cancelled()
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -645,10 +645,6 @@ jobs:
         run: |
           echo "## 📊 E2E Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "**PR Mode**: Chromium only (12 shards)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "**Full Mode**: Chromium -> Firefox -> WebKit (21 shards, sequential browsers)" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "**Full Mode**: Chromium -> Firefox -> WebKit (36 shards, sequential browsers), on pull requests and on main alike" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "📁 Download the **playwright-report** artifact for detailed results." >> $GITHUB_STEP_SUMMARY
