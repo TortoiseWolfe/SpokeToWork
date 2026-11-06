@@ -450,6 +450,34 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       // Multi-attempt polling: Supabase Cloud read replica lag can delay
       // the friend request from appearing on User B's received tab.
       console.log('Step 6: User B viewing pending requests...');
+      // Diagnostics for the intermittent "row exists but nothing renders"
+      // failure (issue 110): log what the connections request actually
+      // returned to User B's browser (status, then each row's short id, status and the two user ids; no other fields).
+      pageB.on('response', async (response) => {
+        if (!response.url().includes('/rest/v1/user_connections')) return;
+        let summary = '';
+        try {
+          const body = await response.json();
+          summary = Array.isArray(body)
+            ? `rows=${body.length} [${body
+                .map(
+                  (r: {
+                    id: string;
+                    status: string;
+                    requester_id: string;
+                    addressee_id: string;
+                  }) =>
+                    `${r.id.slice(0, 8)} ${r.status} from=${r.requester_id.slice(0, 8)} to=${r.addressee_id.slice(0, 8)}`
+                )
+                .join('; ')}]`
+            : `error=${String(body?.message ?? body?.code ?? 'unknown')}`;
+        } catch {
+          summary = 'body not JSON';
+        }
+        console.log(
+          `Step 6: user_connections ${response.request().method()} -> ${response.status()} ${summary}`
+        );
+      });
       let requestVisible = false;
       for (let attempt = 0; attempt < 10; attempt++) {
         await pageB.goto('/messages?tab=connections');
@@ -484,6 +512,26 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
         const pageUrl = pageB.url();
         console.log(
           `Step 6: attempt ${attempt + 1}/10 — tab selected=${tabState}, manager visible=${managerVisible}, url=${pageUrl}`
+        );
+        // Issue 110: what is actually on screen? Tab labels carry the counts.
+        const tabLabels = await pageB
+          .getByRole('tab')
+          .allTextContents()
+          .catch(() => [] as string[]);
+        const requestElements = await pageB
+          .locator('[data-testid="connection-request"]')
+          .count()
+          .catch(() => -1);
+        const spinners = await pageB
+          .getByRole('status', { name: /loading connections/i })
+          .count()
+          .catch(() => -1);
+        const alertText = await pageB
+          .locator('[data-testid="connection-manager"] .alert-error')
+          .allTextContents()
+          .catch(() => [] as string[]);
+        console.log(
+          `Step 6: screen — tabs=${JSON.stringify(tabLabels)}, connection-request elements=${requestElements}, loading spinners=${spinners}, alerts=${JSON.stringify(alertText)}`
         );
         await pageB.waitForTimeout(5000);
       }
