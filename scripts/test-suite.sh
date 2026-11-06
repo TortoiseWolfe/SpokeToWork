@@ -183,13 +183,13 @@ echo "Checking if dev server is available..."
 if curl -s http://localhost:3000 > /dev/null 2>&1; then
     echo "Dev server detected, running accessibility tests..."
     if $CMD_PREFIX pnpm run test:a11y > /tmp/a11y-output.txt 2>&1; then
-        print_result "Accessibility (Pa11y)" "pass" "All pages meet WCAG standards"
+        print_result "Accessibility (axe)" "pass" "All pages meet WCAG standards"
     else
         ERRORS=$(grep -c "Error:" /tmp/a11y-output.txt 2>/dev/null || echo "Some")
-        print_result "Accessibility (Pa11y)" "fail" "$ERRORS accessibility issues found"
+        print_result "Accessibility (axe)" "fail" "$ERRORS accessibility issues found"
     fi
 else
-    print_result "Accessibility (Pa11y)" "skip" "Dev server not running - start with 'pnpm run dev'"
+    print_result "Accessibility (axe)" "skip" "Dev server not running - start with 'pnpm run dev'"
 fi
 
 # Calculate elapsed time

@@ -28,22 +28,20 @@ it('should have no accessibility violations', async () => {
 });
 ```
 
-### 3. Pa11y CI
+### 3. Playwright + axe-core (page level)
 
-Automated page-level accessibility testing:
+Automated page-level accessibility testing. This repo does not use Pa11y: it
+is not a dependency and no script runs it (#76). The page-level gate is the
+Playwright spec `tests/e2e/tests/accessibility.spec.ts`, which uses
+`axe-playwright`.
 
 ```bash
-# Run against development server
-pnpm run test:a11y:dev
+# Run against the development server
+pnpm run test:a11y
 
-# Run in CI environment
+# Run the way CI does
 pnpm run test:a11y:ci
-
-# Run against specific pages
-pa11y http://localhost:3000/themes
 ```
-
-Configuration in `.pa11yci` tests all main routes.
 
 ## Component Requirements
 
@@ -143,7 +141,7 @@ describe('ComponentName Accessibility', () => {
 - [ ] Focus indicators visible
 - [ ] Color contrast meets standards
 - [ ] Works with colorblind mode
-- [ ] Pa11y CI tests pass
+- [ ] Page-level axe tests pass (`pnpm run test:a11y`)
 
 ```
 ComponentName/
@@ -191,7 +189,7 @@ ComponentName/
 
 1. **Development**: Use Storybook a11y addon for immediate feedback
 2. **Pre-commit**: Component accessibility tests run automatically
-3. **CI/CD**: Pa11y CI tests all pages on pull requests
+3. **CI/CD**: the Playwright axe spec (`test:a11y:ci`) runs on pull requests
 4. **Manual Testing**: Test with screen readers and keyboard navigation
 
 ## Common Issues and Fixes
@@ -224,4 +222,4 @@ ComponentName/
 - [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
 - [WebAIM Resources](https://webaim.org/resources/)
 - [Axe DevTools](https://www.deque.com/axe/devtools/)
-- [Pa11y Documentation](https://pa11y.org/)
+- [axe-playwright](https://github.com/abhinaba-ghosh/axe-playwright)

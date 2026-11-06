@@ -36,19 +36,14 @@ If coverage still shows issues, check that vitest.config.ts excludes all generat
 
 ### 2. Accessibility Test False Positives
 
-**Problem**: Pa11y reports missing `lang` and `title` attributes that actually exist
+**Problem**: an accessibility tool reports missing `lang` and `title` attributes that actually exist
 
-**Root Cause**: Pa11y tests the initial HTML before Next.js hydration completes
+**Root Cause**: a check that reads the initial HTML runs before Next.js hydration completes. (This repo no longer ships Pa11y, #76; this applies to any such tool.)
 
-**Solutions Applied**:
-
-- Added 2-second wait time for hydration
-- Configured proper timeout settings
-
-**Alternative**: Use Playwright E2E tests for accessibility:
+**Solution**: the page-level gate is the Playwright axe spec, which waits for hydration:
 
 ```bash
-docker compose exec spoketowork pnpm run e2e:accessibility
+docker compose exec spoketowork pnpm run test:a11y
 ```
 
 ### 3. Prettier Formatting Errors
@@ -129,12 +124,11 @@ docker compose exec spoketowork pnpm run test:coverage
 # Open coverage/index.html in browser
 ```
 
-### Pa11y Accessibility
+### Page-level Accessibility (axe)
 
 ```bash
-# Generate screenshots during tests
 docker compose exec spoketowork pnpm run test:a11y
-# Check .pa11y-screenshots/ directory
+# Failure traces and screenshots land in test-results/ (Playwright's default)
 ```
 
 ### Component Structure
