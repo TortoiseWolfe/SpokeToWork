@@ -5098,5 +5098,29 @@ BEGIN
   END IF;
 END $$;
 
+-- #71 backfill: approveContribution() used to create the shared company
+-- without a company_locations row, so every approved contribution sat at
+-- (0, 0). Re-derive the headquarters row from the private company the
+-- contribution came from. Idempotent: only companies with no location yet,
+-- and only where the private company really has an address and coordinates.
+INSERT INTO company_locations (
+  shared_company_id, address, latitude, longitude,
+  phone, email, contact_name, contact_title, is_headquarters
+)
+SELECT
+  cc.created_shared_company_id, pc.address, pc.latitude, pc.longitude,
+  pc.phone, pc.email, pc.contact_name, pc.contact_title, TRUE
+FROM company_contributions cc
+JOIN private_companies pc ON pc.id = cc.private_company_id
+JOIN shared_companies sc ON sc.id = cc.created_shared_company_id
+WHERE cc.created_shared_company_id IS NOT NULL
+  AND pc.address IS NOT NULL
+  AND pc.latitude IS NOT NULL
+  AND pc.longitude IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM company_locations cl
+    WHERE cl.shared_company_id = cc.created_shared_company_id
+  );
+
 -- Commit the transaction - everything succeeded
 COMMIT;
