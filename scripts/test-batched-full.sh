@@ -133,7 +133,6 @@ run_batch "Utils (error-handler)" "src/utils/error-handler.test.ts"
 run_batch "Utils (font-loader)" "src/utils/font-loader.test.ts"
 run_batch "Utils (web3forms)" "src/utils/web3forms.test.ts"
 run_batch "Utils (background-sync)" "src/utils/background-sync.test.ts"
-run_batch "Utils (performance)" "src/utils/performance.test.ts"
 run_batch "Utils (consent)" "src/utils/consent.test.ts"
 run_batch "Utils (email)" "src/utils/email/email-service.test.ts"  # vitest 4.0 fixed tinypool IPC crash
 run_batch "Utils (consent-types)" "src/utils/consent-types.test.ts"

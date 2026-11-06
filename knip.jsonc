@@ -69,6 +69,11 @@
     "src/lib/auth/protected-route.tsx",
     "src/lib/companies/index.ts",
     "src/lib/map/index.ts",
+    // Newly orphaned when the dead hooks that were their only importers were
+    // removed (#90). Deliberately not deleted here: src/lib is the other half
+    // of #90, handled separately.
+    "src/lib/employer/application-meta.ts",
+    "src/lib/map/tile-provider-service.ts",
     "src/lib/seo/content.ts",
     "src/lib/seo/keywords.ts",
     "src/lib/seo/readability.ts",
@@ -77,8 +82,6 @@
     "src/lib/supabase/server.ts",
     "src/lib/validation/index.ts",
     "src/types/**",
-    "src/utils/codeblock-utils.ts",
-    "src/utils/map-colors.ts",
     "src/utils/test-utils.ts"
   ],
 
