@@ -43,6 +43,38 @@ const eslintConfig = [
       'react/no-children-prop': 'off',
     },
   },
+  // Server/browser checks that ship wrong HTML from a static export (#88).
+  // Node 21+ has a global `navigator`, so `typeof navigator` is "object" during
+  // the build and the browser branch runs on the server (#86 rendered "You are
+  // currently offline" for every visitor). `typeof window` is the real check.
+  // Browser-only state in a useState initialiser is read on the server's first
+  // render too, so it has to be read in an effect instead.
+  {
+    ignores: ['**/*.test.ts', '**/*.test.tsx', '**/__tests__/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "UnaryExpression[operator='typeof'][argument.name='navigator']",
+          message:
+            "`typeof navigator` is not a server/browser check: Node 21+ defines navigator. Use `typeof window !== 'undefined'` (#88).",
+        },
+        {
+          selector:
+            "CallExpression[callee.name='useState'] > :not(ArrowFunctionExpression):not(FunctionExpression) MemberExpression[object.name=/^(window|navigator|document|localStorage|sessionStorage)$/]",
+          message:
+            'Browser-only state in a useState initialiser differs between server and client. Start from a fixed default and read the real value in useEffect (#88).',
+        },
+        {
+          selector:
+            "CallExpression[callee.name='useState'] > MemberExpression[object.name=/^(window|navigator|document|localStorage|sessionStorage)$/]",
+          message:
+            'Browser-only state in a useState initialiser differs between server and client. Start from a fixed default and read the real value in useEffect (#88).',
+        },
+      ],
+    },
+  },
   // Secret detection - catches hardcoded API keys and credentials
   {
     plugins: {

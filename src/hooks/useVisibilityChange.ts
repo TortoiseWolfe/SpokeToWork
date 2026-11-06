@@ -35,9 +35,9 @@ export function useVisibilityChange(
   onVisible?: () => void,
   onHidden?: () => void
 ): boolean {
-  const [isVisible, setIsVisible] = useState(
-    typeof document !== 'undefined' ? !document.hidden : true
-  );
+  // The server can't know, so both sides start as visible and the effect below
+  // reads the real state (#88).
+  const [isVisible, setIsVisible] = useState(true);
 
   // Memoize callbacks to prevent unnecessary effect reruns
   const handleVisible = useCallback(() => {
@@ -58,6 +58,9 @@ export function useVisibilityChange(
         handleHidden();
       }
     };
+
+    // Pick up the real state if the tab was already hidden when this mounted
+    setIsVisible(!document.hidden);
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () =>

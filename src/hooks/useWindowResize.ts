@@ -35,10 +35,9 @@ export interface WindowSize {
  * ```
  */
 export function useWindowResize(debounceMs: number = 100): WindowSize {
-  const [size, setSize] = useState<WindowSize>({
-    width: typeof window !== 'undefined' ? window.innerWidth : 0,
-    height: typeof window !== 'undefined' ? window.innerHeight : 0,
-  });
+  // Same value on the server and on the client's first render (hydration must
+  // match). The real size is read in the effect below (#88).
+  const [size, setSize] = useState<WindowSize>({ width: 0, height: 0 });
 
   const handleResize = useCallback(() => {
     setSize({
