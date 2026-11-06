@@ -452,14 +452,24 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
       console.log('Step 6: User B viewing pending requests...');
       // Diagnostics for the intermittent "row exists but nothing renders"
       // failure (issue 110): log what the connections request actually
-      // returned to User B's browser (status and row count only, no bodies).
+      // returned to User B's browser (status, then each row's short id, status and the two user ids; no other fields).
       pageB.on('response', async (response) => {
         if (!response.url().includes('/rest/v1/user_connections')) return;
         let summary = '';
         try {
           const body = await response.json();
           summary = Array.isArray(body)
-            ? `rows=${body.length}`
+            ? `rows=${body.length} [${body
+                .map(
+                  (r: {
+                    id: string;
+                    status: string;
+                    requester_id: string;
+                    addressee_id: string;
+                  }) =>
+                    `${r.id.slice(0, 8)} ${r.status} from=${r.requester_id.slice(0, 8)} to=${r.addressee_id.slice(0, 8)}`
+                )
+                .join('; ')}]`
             : `error=${String(body?.message ?? body?.code ?? 'unknown')}`;
         } catch {
           summary = 'body not JSON';
