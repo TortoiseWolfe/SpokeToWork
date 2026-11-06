@@ -59,6 +59,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Unit tests and the build read NEXT_PUBLIC_SUPABASE_*; they get a
+      # throwaway local stack, never the live project's URL or keys.
+      - name: Start local Supabase
+        uses: ./.github/actions/start-local-supabase
+
       - name: Security audit
         # Only fail on high/critical - low severity elliptic has no patch available.
         # Ignored advisories (dev-server-only vite CVEs, app ships as static export):
