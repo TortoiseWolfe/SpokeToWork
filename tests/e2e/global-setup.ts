@@ -14,6 +14,7 @@ import { FullConfig } from '@playwright/test';
 import * as crypto from 'crypto';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { executeSQL, escapeSQL } from './utils/supabase-admin';
+import { retryOnDbError } from './utils/db-retry';
 import { getPrebakedKeysForUser, hasPrebakedKeys } from './utils/prebaked-keys';
 
 /** Admin Supabase client for local dev (bypasses RLS, works without Management API) */
@@ -24,6 +25,33 @@ function getAdminClient(): SupabaseClient | null {
   return createClient(url, key, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+}
+
+let primaryTestUserLookup: Promise<{ id: string } | null> | null = null;
+
+/**
+ * Find the primary test user once per setup run. Four setup steps used to list
+ * up to 1000 users each, four full listings per job on a shared database.
+ */
+function findPrimaryTestUser(
+  adminClient: SupabaseClient,
+  email: string
+): Promise<{ id: string } | null> {
+  primaryTestUserLookup ??= (async () => {
+    const { data, error } = await retryOnDbError('listUsers', () =>
+      adminClient.auth.admin.listUsers({ perPage: 1000 })
+    );
+    if (error) {
+      throw new Error(`ensureCompaniesForTestUser listUsers: ${error.message}`);
+    }
+    const found = data?.users?.find((u) => u.email === email);
+    return found ? { id: found.id } : null;
+  })();
+  // Do not remember a failure: a later caller gets a fresh attempt.
+  primaryTestUserLookup.catch(() => {
+    primaryTestUserLookup = null;
+  });
+  return primaryTestUserLookup;
 }
 
 const ADMIN_USER = {
@@ -43,7 +71,9 @@ async function cleanupOrphanedE2EUsers(): Promise<void> {
   // Only clean up dynamically created users (e2e-shared-*), NOT shard users (e2e-s*).
   // Shard users are created once and persist across runs — just like production.
   // Deleting them forces re-creation, which causes sign-in failures.
-  console.log('🧹 Cleaning up orphaned e2e-shared-* test users (preserving shard users)...');
+  console.log(
+    '🧹 Cleaning up orphaned e2e-shared-* test users (preserving shard users)...'
+  );
 
   try {
     const countResult = (await executeSQL(
@@ -324,11 +354,15 @@ async function ensureTestUserKeys(): Promise<void> {
               ON CONFLICT DO NOTHING
             `);
             // Create user profile
-            await adminClient.from('user_profiles').upsert(
-              { id: userId, display_name: displayName },
-              { onConflict: 'id' }
+            await adminClient
+              .from('user_profiles')
+              .upsert(
+                { id: userId, display_name: displayName },
+                { onConflict: 'id' }
+              );
+            console.log(
+              `  ✓ Created shard user: ${email} (${userId.slice(0, 8)}...)`
             );
-            console.log(`  ✓ Created shard user: ${email} (${userId.slice(0, 8)}...)`);
           } else {
             console.warn(`  ⚠ Failed to create ${email} — no ID returned`);
           }
@@ -455,10 +489,7 @@ async function ensureModerationTestData(): Promise<void> {
       console.log('  ⚠ TEST_USER_PRIMARY_EMAIL not set');
       return;
     }
-    const { data: users } = await adminClient.auth.admin.listUsers({
-      perPage: 1000,
-    });
-    const testUser = users?.users?.find((u) => u.email === testEmail);
+    const testUser = await findPrimaryTestUser(adminClient, testEmail);
     if (!testUser) {
       console.log(`  ⚠ User ${testEmail} not found`);
       return;
@@ -556,10 +587,7 @@ async function ensureWorkerRole(): Promise<void> {
   const testEmail = process.env.TEST_USER_PRIMARY_EMAIL;
   if (!testEmail) return;
 
-  const { data: users } = await adminClient.auth.admin.listUsers({
-    perPage: 1000,
-  });
-  const testUser = users?.users?.find((u) => u.email === testEmail);
+  const testUser = await findPrimaryTestUser(adminClient, testEmail);
   if (!testUser) return;
 
   console.log('👷 Ensuring primary test user has worker role...');
@@ -654,10 +682,7 @@ async function ensureDiscoverableWorker(): Promise<void> {
 
   console.log('🔧 Ensuring discoverable worker exists...');
   try {
-    const { data: users } = await adminClient.auth.admin.listUsers({
-      perPage: 1000,
-    });
-    const testUser = users?.users?.find((u) => u.email === testEmail);
+    const testUser = await findPrimaryTestUser(adminClient, testEmail);
     if (!testUser) {
       console.log(`  ⚠ User ${testEmail} not found`);
       return;
@@ -735,12 +760,7 @@ async function ensureCompaniesForTestUser(): Promise<void> {
 
   console.log('🏢 Seeding private_companies for', testEmail, '...');
 
-  const { data: users, error: userErr } =
-    await adminClient.auth.admin.listUsers({ perPage: 1000 });
-  if (userErr) {
-    throw new Error(`ensureCompaniesForTestUser listUsers: ${userErr.message}`);
-  }
-  const testUser = users?.users?.find((u) => u.email === testEmail);
+  const testUser = await findPrimaryTestUser(adminClient, testEmail);
   if (!testUser) {
     throw new Error(
       `ensureCompaniesForTestUser: user ${testEmail} not found in auth.users`
@@ -756,19 +776,38 @@ async function ensureCompaniesForTestUser(): Promise<void> {
     longitude: -122.6784 - i * 0.001,
   }));
 
-  const { error: upsertErr } = await adminClient
-    .from('private_companies')
-    .upsert(seedRows, { onConflict: 'id' });
+  // Read first: when an earlier job in this run (or an earlier run) already
+  // seeded all five rows, skip the write. The upsert was the call that hit
+  // "statement timeout" when a dozen jobs wrote at once.
+  const { data: existing } = await retryOnDbError('seed check', () =>
+    adminClient
+      .from('private_companies')
+      .select('id')
+      .in('id', SEEDED_PRIVATE_COMPANY_IDS)
+      .eq('user_id', testUser.id)
+  );
+  const alreadySeeded =
+    (existing?.length ?? 0) >= SEEDED_PRIVATE_COMPANY_IDS.length;
+
+  const { error: upsertErr } = alreadySeeded
+    ? { error: null }
+    : await retryOnDbError('seed upsert', () =>
+        adminClient
+          .from('private_companies')
+          .upsert(seedRows, { onConflict: 'id' })
+      );
   if (upsertErr) {
-    throw new Error(
-      `ensureCompaniesForTestUser upsert: ${upsertErr.message}`
-    );
+    throw new Error(`ensureCompaniesForTestUser upsert: ${upsertErr.message}`);
   }
 
-  const { data: verify, error: verifyErr } = await adminClient
-    .from('private_companies')
-    .select('id')
-    .eq('user_id', testUser.id);
+  const { data: verify, error: verifyErr } = await retryOnDbError(
+    'seed verify',
+    () =>
+      adminClient
+        .from('private_companies')
+        .select('id')
+        .eq('user_id', testUser.id)
+  );
   if (verifyErr) {
     throw new Error(`ensureCompaniesForTestUser verify: ${verifyErr.message}`);
   }
@@ -820,7 +859,5 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   // (46k+ rows were observed causing 10s queries on 2026-04-04)
   await executeSQL(
     `DELETE FROM auth.audit_log_entries WHERE created_at < NOW() - INTERVAL '1 hour'`
-  ).catch((err: unknown) =>
-    console.warn('⚠ Audit log cleanup warning:', err)
-  );
+  ).catch((err: unknown) => console.warn('⚠ Audit log cleanup warning:', err));
 }

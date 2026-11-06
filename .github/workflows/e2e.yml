@@ -271,9 +271,14 @@ jobs:
       - name: Stagger shards
         env:
           MATRIX_SHARD: ${{ matrix.shard }}
+          MATRIX_GROUP: ${{ matrix.group }}
         run: |
+          # Spread the 12 jobs of a browser over about a minute. The old delay
+          # only separated shards 1 to 4, so gen-, msg- and heavy- still
+          # started their database setup at the same second.
           SHARD_NUM=$(echo "$MATRIX_SHARD" | cut -d/ -f1)
-          DELAY=$(((SHARD_NUM - 1) * 5))
+          case "$MATRIX_GROUP" in gen-) G=0 ;; msg-) G=1 ;; *) G=2 ;; esac
+          DELAY=$((((SHARD_NUM - 1) * 3 + G) * 5))
           if [ "$DELAY" -gt 0 ]; then sleep $DELAY; fi
       - name: Extract shard index
         id: shard-index
@@ -344,6 +349,9 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
+      # The shared cloud test database fails (statement timeouts, error
+      # pages) when 12 browser jobs all set up and run at once.
+      max-parallel: 6
       matrix:
         include:
           - { group: gen-, shard: 1/4 }
@@ -405,9 +413,14 @@ jobs:
       - name: Stagger shards
         env:
           MATRIX_SHARD: ${{ matrix.shard }}
+          MATRIX_GROUP: ${{ matrix.group }}
         run: |
+          # Spread the 12 jobs of a browser over about a minute. The old delay
+          # only separated shards 1 to 4, so gen-, msg- and heavy- still
+          # started their database setup at the same second.
           SHARD_NUM=$(echo "$MATRIX_SHARD" | cut -d/ -f1)
-          DELAY=$(((SHARD_NUM - 1) * 5))
+          case "$MATRIX_GROUP" in gen-) G=0 ;; msg-) G=1 ;; *) G=2 ;; esac
+          DELAY=$((((SHARD_NUM - 1) * 3 + G) * 5))
           if [ "$DELAY" -gt 0 ]; then sleep $DELAY; fi
       - name: Extract shard index
         id: shard-index
@@ -475,6 +488,9 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
+      # The shared cloud test database fails (statement timeouts, error
+      # pages) when 12 browser jobs all set up and run at once.
+      max-parallel: 6
       matrix:
         include:
           - { group: gen-, shard: 1/4 }
@@ -536,9 +552,14 @@ jobs:
       - name: Stagger shards
         env:
           MATRIX_SHARD: ${{ matrix.shard }}
+          MATRIX_GROUP: ${{ matrix.group }}
         run: |
+          # Spread the 12 jobs of a browser over about a minute. The old delay
+          # only separated shards 1 to 4, so gen-, msg- and heavy- still
+          # started their database setup at the same second.
           SHARD_NUM=$(echo "$MATRIX_SHARD" | cut -d/ -f1)
-          DELAY=$(((SHARD_NUM - 1) * 5))
+          case "$MATRIX_GROUP" in gen-) G=0 ;; msg-) G=1 ;; *) G=2 ;; esac
+          DELAY=$((((SHARD_NUM - 1) * 3 + G) * 5))
           if [ "$DELAY" -gt 0 ]; then sleep $DELAY; fi
       - name: Extract shard index
         id: shard-index
