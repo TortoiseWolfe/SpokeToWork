@@ -5103,13 +5103,13 @@ END $$;
 -- (0, 0). Re-derive the headquarters row from the private company the
 -- contribution came from. Idempotent: only companies with no location yet,
 -- and only where the private company really has an address and coordinates.
+-- Address and coordinates only: company_locations is publicly readable, so the
+-- contributor's private phone, email and contact are not copied.
 INSERT INTO company_locations (
-  shared_company_id, address, latitude, longitude,
-  phone, email, contact_name, contact_title, is_headquarters
+  shared_company_id, address, latitude, longitude, is_headquarters
 )
 SELECT
-  cc.created_shared_company_id, pc.address, pc.latitude, pc.longitude,
-  pc.phone, pc.email, pc.contact_name, pc.contact_title, TRUE
+  cc.created_shared_company_id, pc.address, pc.latitude, pc.longitude, TRUE
 FROM company_contributions cc
 JOIN private_companies pc ON pc.id = cc.private_company_id
 JOIN shared_companies sc ON sc.id = cc.created_shared_company_id

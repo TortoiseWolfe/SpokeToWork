@@ -292,10 +292,8 @@ export class AdminModerationService {
         address,
         latitude,
         longitude,
-        phone: privateCompany.phone ?? null,
-        email: privateCompany.email ?? null,
-        contact_name: privateCompany.contact_name ?? null,
-        contact_title: privateCompany.contact_title ?? null,
+        // Only where the company is. company_locations is publicly readable,
+        // so the contributor's private phone, email and contact are not copied.
         is_headquarters: true,
       });
 

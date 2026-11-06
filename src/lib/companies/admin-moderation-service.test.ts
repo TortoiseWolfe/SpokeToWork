@@ -213,12 +213,13 @@ describe('AdminModerationService.approveContribution (#71)', () => {
       address: '1 High St',
       latitude: 51.5,
       longitude: -0.1,
-      phone: '555-0100',
-      email: 'hi@acme.test',
-      contact_name: 'Pat',
-      contact_title: 'Owner',
       is_headquarters: true,
     });
+    // The location row is public, so the private contact details stay out.
+    expect(loc?.row).not.toHaveProperty('phone');
+    expect(loc?.row).not.toHaveProperty('email');
+    expect(loc?.row).not.toHaveProperty('contact_name');
+    expect(loc?.row).not.toHaveProperty('contact_title');
     expect(geocode).not.toHaveBeenCalled();
   });
 
