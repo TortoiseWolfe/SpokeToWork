@@ -69,7 +69,8 @@ jobs:
   # ============================================
   smoke:
     name: Smoke Tests
-    runs-on: ubuntu-latest
+    # Pinned (all Playwright jobs below): ubuntu-latest became 26.04, which Playwright cannot install chromium on.
+    runs-on: ubuntu-24.04
     needs: build
     # 10 min: 5 wasn't enough when SMOKE_ONLY cleanup (SQL deletes) runs on
     # a busy Supabase free tier — observed 4.5min stuck in cleanup alone on
@@ -140,7 +141,7 @@ jobs:
   # ============================================
   auth-setup:
     name: Auth Setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: smoke
     timeout-minutes: 10
 
@@ -208,7 +209,7 @@ jobs:
   # that caused auth rate_limit_attempts lockouts and DB connection timeouts.
   e2e-chromium:
     name: E2E (chromium ${{ matrix.group }}${{ matrix.shard }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [smoke, auth-setup]
     timeout-minutes: 60
     strategy:
@@ -337,7 +338,7 @@ jobs:
   # ============================================
   e2e-firefox:
     name: E2E (firefox ${{ matrix.group }}${{ matrix.shard }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: e2e-chromium
     if: always() && !cancelled() && github.event_name != 'pull_request'
     timeout-minutes: 60
@@ -468,7 +469,7 @@ jobs:
   # ============================================
   e2e-webkit:
     name: E2E (webkit ${{ matrix.group }}${{ matrix.shard }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: e2e-firefox
     if: always() && !cancelled() && github.event_name != 'pull_request'
     timeout-minutes: 60
