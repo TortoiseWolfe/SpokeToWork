@@ -33,7 +33,7 @@ vi.mock('./web3forms', () => ({
   submitWithRetry: mockSubmitWithRetry,
 }));
 
-vi.mock('./offline-queue', () => ({
+vi.mock('@/lib/offline-queue', () => ({
   getQueuedItems: mockGetQueuedItems,
   removeFromQueue: mockRemoveFromQueue,
   updateRetryCount: mockUpdateRetryCount,
@@ -218,8 +218,8 @@ describe('background-sync', () => {
       setupServiceWorkerMock();
       const queuedItem = {
         id: '123',
-        data: { name: 'Test', email: 'test@example.com', message: 'Hello' },
-        retryCount: 0,
+        formData: { name: 'Test', email: 'test@example.com', message: 'Hello' },
+        retries: 0,
         lastAttempt: null,
       };
       mockGetQueuedItems
@@ -229,7 +229,7 @@ describe('background-sync', () => {
 
       await processQueue();
 
-      expect(mockSubmitWithRetry).toHaveBeenCalledWith(queuedItem.data, 0);
+      expect(mockSubmitWithRetry).toHaveBeenCalledWith(queuedItem.formData, 0);
       expect(mockRemoveFromQueue).toHaveBeenCalledWith('123');
       expect(mockLogger.info).toHaveBeenCalledWith('Submission successful', {
         submissionId: '123',
@@ -240,8 +240,8 @@ describe('background-sync', () => {
       setupServiceWorkerMock();
       const queuedItem = {
         id: '456',
-        data: { name: 'Test', email: 'test@example.com', message: 'Hello' },
-        retryCount: 0,
+        formData: { name: 'Test', email: 'test@example.com', message: 'Hello' },
+        retries: 0,
         lastAttempt: null,
       };
       mockGetQueuedItems
@@ -262,8 +262,8 @@ describe('background-sync', () => {
       setupServiceWorkerMock();
       const queuedItem = {
         id: '789',
-        data: { name: 'Test', email: 'test@example.com', message: 'Hello' },
-        retryCount: 2, // Already at 2, next will be 3 (max)
+        formData: { name: 'Test', email: 'test@example.com', message: 'Hello' },
+        retries: 2, // Already at 2, next will be 3 (max)
         lastAttempt: null,
       };
       mockGetQueuedItems
@@ -285,8 +285,8 @@ describe('background-sync', () => {
       const now = Date.now();
       const queuedItem = {
         id: '111',
-        data: { name: 'Test', email: 'test@example.com', message: 'Hello' },
-        retryCount: 1, // Required delay = 1000 * 2^1 = 2000ms
+        formData: { name: 'Test', email: 'test@example.com', message: 'Hello' },
+        retries: 1, // Required delay = 1000 * 2^1 = 2000ms
         lastAttempt: now - 1000, // Only 1 second ago
       };
       mockGetQueuedItems.mockResolvedValue([queuedItem]);
@@ -305,8 +305,8 @@ describe('background-sync', () => {
       const now = Date.now();
       const queuedItem = {
         id: '222',
-        data: { name: 'Test', email: 'test@example.com', message: 'Hello' },
-        retryCount: 1, // Required delay = 1000 * 2^1 = 2000ms
+        formData: { name: 'Test', email: 'test@example.com', message: 'Hello' },
+        retries: 1, // Required delay = 1000 * 2^1 = 2000ms
         lastAttempt: now - 3000, // 3 seconds ago (> 2 seconds required)
       };
       mockGetQueuedItems
@@ -323,8 +323,8 @@ describe('background-sync', () => {
       setupServiceWorkerMock();
       const queuedItem = {
         id: '333',
-        data: { name: 'Test', email: 'test@example.com', message: 'Hello' },
-        retryCount: 0,
+        formData: { name: 'Test', email: 'test@example.com', message: 'Hello' },
+        retries: 0,
         lastAttempt: null,
       };
       mockGetQueuedItems
@@ -357,14 +357,14 @@ describe('background-sync', () => {
       const items = [
         {
           id: '1',
-          data: { name: 'Test1', email: 'test1@example.com', message: 'Hello' },
-          retryCount: 0,
+          formData: { name: 'Test1', email: 'test1@example.com', message: 'Hello' },
+          retries: 0,
           lastAttempt: null,
         },
         {
           id: '2',
-          data: { name: 'Test2', email: 'test2@example.com', message: 'Hello' },
-          retryCount: 0,
+          formData: { name: 'Test2', email: 'test2@example.com', message: 'Hello' },
+          retries: 0,
           lastAttempt: null,
         },
       ];
@@ -467,13 +467,13 @@ describe('background-sync', () => {
   // =========================================================================
 
   describe('Exponential backoff', () => {
-    it('requires 1 second delay for first retry (retryCount=0)', async () => {
+    it('requires 1 second delay for first retry (retries=0)', async () => {
       setupServiceWorkerMock();
       const now = Date.now();
       const queuedItem = {
         id: '444',
-        data: { name: 'Test', email: 'test@example.com', message: 'Hello' },
-        retryCount: 0,
+        formData: { name: 'Test', email: 'test@example.com', message: 'Hello' },
+        retries: 0,
         lastAttempt: now - 500, // Only 500ms ago (< 1000ms required)
       };
       mockGetQueuedItems.mockResolvedValue([queuedItem]);
@@ -483,13 +483,13 @@ describe('background-sync', () => {
       expect(mockSubmitWithRetry).not.toHaveBeenCalled();
     });
 
-    it('requires 2 seconds delay for second retry (retryCount=1)', async () => {
+    it('requires 2 seconds delay for second retry (retries=1)', async () => {
       setupServiceWorkerMock();
       const now = Date.now();
       const queuedItem = {
         id: '555',
-        data: { name: 'Test', email: 'test@example.com', message: 'Hello' },
-        retryCount: 1,
+        formData: { name: 'Test', email: 'test@example.com', message: 'Hello' },
+        retries: 1,
         lastAttempt: now - 1500, // 1.5 seconds (< 2 seconds required)
       };
       mockGetQueuedItems.mockResolvedValue([queuedItem]);
@@ -499,13 +499,13 @@ describe('background-sync', () => {
       expect(mockSubmitWithRetry).not.toHaveBeenCalled();
     });
 
-    it('requires 4 seconds delay for third retry (retryCount=2)', async () => {
+    it('requires 4 seconds delay for third retry (retries=2)', async () => {
       setupServiceWorkerMock();
       const now = Date.now();
       const queuedItem = {
         id: '666',
-        data: { name: 'Test', email: 'test@example.com', message: 'Hello' },
-        retryCount: 2,
+        formData: { name: 'Test', email: 'test@example.com', message: 'Hello' },
+        retries: 2,
         lastAttempt: now - 3000, // 3 seconds (< 4 seconds required)
       };
       mockGetQueuedItems.mockResolvedValue([queuedItem]);

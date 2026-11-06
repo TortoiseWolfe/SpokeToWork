@@ -19,17 +19,6 @@ vi.mock('@/utils/email/email-service', () => ({
   },
 }));
 
-// Mock offline queue utilities
-vi.mock('@/utils/offline-queue', () => ({
-  addToQueue: vi.fn().mockResolvedValue(true),
-  getQueueSize: vi.fn().mockResolvedValue(0),
-  getQueuedItems: vi.fn().mockResolvedValue([]),
-  removeFromQueue: vi.fn().mockResolvedValue(true),
-  clearQueue: vi.fn().mockResolvedValue(true),
-  openDatabase: vi.fn(),
-  updateRetryCount: vi.fn().mockResolvedValue(true),
-}));
-
 // Mock background sync utilities
 vi.mock('@/utils/background-sync', () => ({
   registerBackgroundSync: vi.fn().mockResolvedValue(true),
