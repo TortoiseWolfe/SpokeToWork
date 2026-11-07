@@ -28,13 +28,21 @@ function isDesktopViewport(page: Page): boolean {
   return viewportWidth >= 1024;
 }
 
-// Helper to navigate to companies page and wait for table
-async function navigateToCompanies(page: Page): Promise<CompaniesPage> {
+// Helper to navigate to companies page and wait for table.
+// The routes drawer is opened by default because most tests act on its rows;
+// the company-filter tests pass `withDrawer: false` because the open drawer's
+// backdrop (correctly) covers the table's filter checkbox.
+async function navigateToCompanies(
+  page: Page,
+  { withDrawer = true }: { withDrawer?: boolean } = {}
+): Promise<CompaniesPage> {
   const companiesPage = new CompaniesPage(page);
   await page.goto(`${BASE_URL}/companies/`);
   await page.waitForLoadState('networkidle');
   await companiesPage.waitForTable();
-  await openRoutesDrawer(page);
+  if (withDrawer) {
+    await openRoutesDrawer(page);
+  }
   return companiesPage;
 }
 
@@ -87,7 +95,7 @@ test.describe('Route Features', () => {
   test('should display On Active Route filter checkbox in company filters', async ({
     page,
   }) => {
-    await navigateToCompanies(page);
+    await navigateToCompanies(page, { withDrawer: false });
 
     // Feature 044 replaced "Next Ride" with "On Active Route" filter
     // Look for the On Active Route filter checkbox
@@ -104,7 +112,7 @@ test.describe('Route Features', () => {
   test('should toggle On Active Route filter when checkbox clicked', async ({
     page,
   }) => {
-    await navigateToCompanies(page);
+    await navigateToCompanies(page, { withDrawer: false });
 
     // Feature 044: "On Active Route" filter replaces "Next Ride"
     const filterCheckbox = page.getByLabel(
