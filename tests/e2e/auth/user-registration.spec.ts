@@ -5,7 +5,8 @@
  * sign-up → verify email → sign-in → access protected pages
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { signOut } from '../utils/auth-helpers';
 
 test.describe('User Registration E2E', () => {

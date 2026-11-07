@@ -10,7 +10,8 @@
  * Uses createTestUser with email_confirm: true to avoid email verification issues.
  */
 
-import { test, expect, Page } from '@playwright/test';
+import { expect, Page } from '@playwright/test';
+import { test } from '../fixtures/test';
 import {
   createTestUser,
   deleteTestUser,

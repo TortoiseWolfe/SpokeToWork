@@ -17,7 +17,8 @@
 //    that cause the Supabase client's internal retry backoff to exceed the
 //    toBeVisible timeout.
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 
 // The error message element rendered by SignInForm
 const ERROR_ALERT = '.alert-error';

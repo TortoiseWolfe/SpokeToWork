@@ -9,7 +9,8 @@
  * Uses ({ page }) pattern with test.use({ storageState }) for proper isolation
  */
 
-import { test, expect, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { getAuthStatePath } from '../utils/authenticated-context';
 import { openRoutesDrawer } from '../utils/routes-drawer';
 

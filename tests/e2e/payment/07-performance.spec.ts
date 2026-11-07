@@ -7,7 +7,8 @@
  * Marked with test.fail() - tests will pass when they fail (expected).
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 
 test.describe('Payment System Performance', () => {
   test('should handle concurrent payment requests', async ({ browser }) => {

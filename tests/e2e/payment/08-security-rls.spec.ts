@@ -7,7 +7,8 @@
  * UI tests expect dialog/tab patterns that don't exist.
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { createClient } from '@supabase/supabase-js';
 import { executeSQL } from '../utils/supabase-admin';
 

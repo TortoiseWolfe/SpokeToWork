@@ -7,7 +7,8 @@
  * This test should FAIL initially if text is too small (TDD RED phase)
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 
 test.describe('Mobile Typography', () => {
   test('Body text is readable without zoom (≥14px minimum)', async ({

@@ -8,7 +8,8 @@
  * - Edit/delete disabled after 15 minutes
  */
 
-import { test, expect, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { createClient } from '@supabase/supabase-js';
 import {
   ensureConnection,

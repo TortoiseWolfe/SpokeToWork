@@ -3,7 +3,8 @@
  * PRP-017: Mobile-First Design Overhaul
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 
 test.describe('Mobile Responsive Images', () => {
   const widths = [320, 390, 428];

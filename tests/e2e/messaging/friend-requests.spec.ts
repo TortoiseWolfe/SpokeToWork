@@ -15,7 +15,8 @@
  * - ConnectionManager component exists
  */
 
-import { test, expect, Page } from '@playwright/test';
+import { expect, Page } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { executeSQL, escapeSQL } from '../utils/supabase-admin';
 import {

@@ -3,7 +3,8 @@
  * Tests full Stripe checkout flow from payment button to success page
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 
 /**
  * TODO: Feature not yet implemented

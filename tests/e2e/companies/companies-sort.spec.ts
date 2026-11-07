@@ -7,7 +7,8 @@
  * occur if memoization is implemented incorrectly.
  */
 
-import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+import { expect, type BrowserContext, type Page } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { CompaniesPage } from '../pages/CompaniesPage';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';

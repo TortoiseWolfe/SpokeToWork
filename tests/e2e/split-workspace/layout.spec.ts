@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { test } from '../fixtures/test';
 
 /**
  * SplitWorkspaceLayout E2E — desktop/mobile layout, panel toggle, landmarks.

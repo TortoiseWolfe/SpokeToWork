@@ -8,7 +8,8 @@
  * - Connections between users must be established (run scripts/seed-connections.ts first)
  */
 
-import { test, expect, Page } from '@playwright/test';
+import { expect, Page } from '@playwright/test';
+import { test } from '../fixtures/test';
 import {
   getAdminClient,
   ensureConnection,

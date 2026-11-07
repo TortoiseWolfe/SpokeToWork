@@ -16,7 +16,8 @@
  * - Uses createTestUser for dynamic user creation
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 import path from 'path';
 import {
   createTestUser,

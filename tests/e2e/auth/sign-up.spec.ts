@@ -10,7 +10,8 @@
  * Uses test-user-factory for dynamic user creation and cleanup.
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 import {
   createTestUser,
   deleteTestUserByEmail,

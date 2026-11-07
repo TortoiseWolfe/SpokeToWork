@@ -7,7 +7,8 @@
  * This test should FAIL initially (TDD RED phase)
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 import {
   TOUCH_TARGET_STANDARDS,
   getInteractiveElementSelector,

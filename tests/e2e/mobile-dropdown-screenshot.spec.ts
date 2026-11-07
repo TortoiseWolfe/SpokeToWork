@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './fixtures/test';
 
 test.describe('Mobile Dropdown Menu Screenshots', () => {
   test('should capture dropdown menu on mobile', async ({ page }) => {

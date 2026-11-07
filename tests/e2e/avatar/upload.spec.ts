@@ -16,7 +16,8 @@
  * - Test fixtures available at e2e/fixtures/avatars/
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 import path from 'path';
 import {
   createTestUser,

@@ -8,7 +8,8 @@
  * - Integration with route sidebar
  */
 
-import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+import { expect, type BrowserContext, type Page } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { CompaniesPage } from '../pages/CompaniesPage';
 
 // Uses shared auth state from auth.setup.ts - no direct login needed

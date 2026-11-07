@@ -7,7 +7,8 @@
  * This test should FAIL initially (TDD RED phase)
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { CRITICAL_MOBILE_WIDTHS } from '@/config/test-viewports';
 
 /**

@@ -6,7 +6,8 @@
  * Verifies <500ms delivery guarantee and proper typing indicator behavior.
  */
 
-import { test, expect, Page, BrowserContext } from '@playwright/test';
+import { expect, Page, BrowserContext } from '@playwright/test';
+import { test } from '../fixtures/test';
 import * as fs from 'fs';
 import * as path from 'path';
 import {

@@ -7,7 +7,8 @@
  * - Route polylines render correctly
  */
 
-import { test, expect, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { test } from '../fixtures/test';
 
 // Helper to dismiss countdown banner if present
 async function dismissBanner(page: Page) {

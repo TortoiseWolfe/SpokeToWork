@@ -9,7 +9,8 @@
  * 4. T149: Conflict resolution - send same message from two devices → server timestamp wins
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { createClient } from '@supabase/supabase-js';
 import {
   ensureConnection,

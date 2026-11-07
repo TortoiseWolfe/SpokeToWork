@@ -11,7 +11,8 @@
  * 6. Test pagination and message history
  */
 
-import { test, expect, Page } from '@playwright/test';
+import { expect, Page } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import {
   ensureConnection,

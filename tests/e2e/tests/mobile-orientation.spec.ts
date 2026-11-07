@@ -7,7 +7,8 @@
  * This test should FAIL initially if layout switches incorrectly (TDD RED phase)
  */
 
-import { test, expect, devices, BrowserContextOptions } from '@playwright/test';
+import { expect, devices, BrowserContextOptions } from '@playwright/test';
+import { test } from '../fixtures/test';
 
 // Helper to extract only viewport/touch settings, not defaultBrowserType
 // This allows tests to run with any browser project (chromium, firefox, webkit)

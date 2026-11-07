@@ -12,7 +12,8 @@
  * - Extended token expiry threshold (10 minutes)
  */
 
-import { test as setup, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test as setup } from './fixtures/test';
 import * as fs from 'fs';
 import {
   createTestUser,
