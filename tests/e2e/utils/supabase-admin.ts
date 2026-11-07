@@ -223,6 +223,19 @@ export async function ensureTestRoutes(userEmail: string): Promise<void> {
         AND route_geometry IS NULL
         AND name IN ('Downtown Loop', 'River Trail', 'East Side Route')
     `);
+    // The map draws the glow layer only for the user's active route
+    // (active_route_planning, one row per user). A fresh database has none,
+    // so make "Downtown Loop" active unless the user already chose one.
+    await executeSQL(`
+      INSERT INTO active_route_planning (user_id, route_id)
+      SELECT '${escapeSQL(user_id)}', br.id
+      FROM bicycle_routes br
+      WHERE br.user_id = '${escapeSQL(user_id)}'
+        AND br.is_system_route = FALSE
+        AND br.name = 'Downtown Loop'
+      LIMIT 1
+      ON CONFLICT (user_id) DO NOTHING
+    `);
   };
 
   if (existingRoutes >= 2) {
