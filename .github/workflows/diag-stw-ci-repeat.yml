@@ -59,26 +59,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: webkit delivery status x20
+          - name: webkit whole messaging spec x8
             project: webkit
             msg: 'yes'
-            repeat: 20
-            args: tests/e2e/messaging/encrypted-messaging.spec.ts --grep "delivery status indicators"
-          - name: firefox back-forward x20
+            repeat: 8
+            args: tests/e2e/messaging/encrypted-messaging.spec.ts
+          - name: webkit msg shard 1/4 x3
+            project: webkit
+            msg: 'yes'
+            repeat: 3
+            args: --grep "messaging/|employer/" --shard 1/4
+          - name: firefox whole navigation file x10
             project: firefox
             msg: 'no'
-            repeat: 20
-            args: tests/e2e/tests/cross-page-navigation.spec.ts --grep "back/forward navigation"
-          - name: webkit employer team badge x10
-            project: webkit
-            msg: 'yes'
             repeat: 10
-            args: tests/e2e/employer/employer-team-workflow.spec.ts --grep "pending connection badge"
-          - name: webkit blog capture home location x10
-            project: webkit
-            msg: 'no'
-            repeat: 10
-            args: tests/e2e/blog/capture-blog-screenshots.spec.ts --grep "Home Location Settings"
+            args: tests/e2e/tests/cross-page-navigation.spec.ts
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -113,7 +108,7 @@ jobs:
           CI: true
           SKIP_WEBSERVER: true
           BASE_URL: http://localhost:3000
-          DEBUG: pw:api
+          DEBUG: pw:api,pw:browser
           PLAYWRIGHT_JSON_OUTPUT_NAME: diag-result.json
           NEXT_PUBLIC_E2E_TEST_MODE: 'true'
           E2E_SHARD_INDEX: ${{ matrix.msg == 'yes' && '9' || '' }}
