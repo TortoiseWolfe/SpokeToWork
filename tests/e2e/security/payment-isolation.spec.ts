@@ -2,10 +2,10 @@
 // Feature 017 - Task T016
 // Purpose: Test end-to-end payment data isolation between users
 //
-// TODO: Feature not yet implemented
-// Tests expect: payment forms, payment history with data attributes, payment creation
-// Actual: payment-demo page has different UI pattern (card consent, PaymentButton)
-// Marked with test.fail() - tests will pass when they fail (expected).
+// The "signed out" tests below run for real. The other tests are still marked
+// with test.fail(): they expect payment forms, payment history with data
+// attributes and payment creation, but the payment-demo page has a different
+// UI pattern (card consent, PaymentButton).
 
 import { test, expect } from '@playwright/test';
 
@@ -185,35 +185,46 @@ test.describe('Payment Isolation E2E - REQ-SEC-001', () => {
     await contextB.close();
   });
 
-  test('Unauthenticated users cannot create payments', async ({ page }) => {
-    test.fail(
-      true,
-      'Redirect behavior may differ - ProtectedRoute may not redirect to /sign-in'
-    );
-    // Try to access payment page without signing in
-    await page.goto('/payment-demo');
+  // The default `page` fixture is signed in (the project's storage state holds
+  // the primary test user's session), so a "signed out" test has to start from
+  // an empty browser state or it would never meet the sign-in redirect.
+  test.describe('signed out', () => {
+    test.use({ storageState: { cookies: [], origins: [] } });
 
-    // Should be redirected to sign-in
-    await expect(page).toHaveURL(/sign-in/, { timeout: 3000 });
+    test('Unauthenticated users cannot create payments', async ({ page }) => {
+      // Try to access payment page without signing in
+      await page.goto('/payment-demo');
 
-    // Or should see authentication required message
-    await expect(
-      page.locator('text=/sign.*in|authentication.*required/i')
-    ).toBeVisible();
-  });
+      // ProtectedRoute sends visitors to sign-in and remembers where they were going
+      await expect(page).toHaveURL(/sign-in\?returnUrl=.*payment-demo/, {
+        timeout: 3000,
+      });
+      await expect(
+        page.getByRole('heading', { name: 'Sign In', level: 1 })
+      ).toBeVisible();
 
-  test('Unauthenticated users cannot view payment history', async ({
-    page,
-  }) => {
-    test.fail(
-      true,
-      'Redirect behavior may differ - ProtectedRoute may not redirect to /sign-in'
-    );
-    // Try to access payment history without auth
-    await page.goto('/payment-demo');
+      // None of the payment page's content was shown
+      await expect(
+        page.getByRole('heading', { name: 'Payment Integration Demo' })
+      ).toHaveCount(0);
+    });
 
-    // Should require authentication
-    await expect(page).toHaveURL(/sign-in/, { timeout: 3000 });
+    test('Unauthenticated users cannot view payment history', async ({
+      page,
+    }) => {
+      // Try to access payment history without auth
+      await page.goto('/payment-demo');
+
+      // Should require authentication
+      await expect(page).toHaveURL(/sign-in/, { timeout: 3000 });
+
+      // The payment history section is not on the page the visitor ends up on
+      await expect(
+        page.getByRole('heading', {
+          name: /payment history|transaction history/i,
+        })
+      ).toHaveCount(0);
+    });
   });
 
   test('Payment intent includes correct user association', async ({
