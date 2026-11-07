@@ -90,7 +90,7 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - uses: ./.github/actions/start-local-supabase
-      - run: pnpm exec playwright install --with-deps ${{ matrix.project }}
+      - run: pnpm exec playwright install --with-deps chromium ${{ matrix.project }}
       - uses: actions/download-artifact@v5
         with:
           name: build-output
