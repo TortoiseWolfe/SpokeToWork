@@ -453,10 +453,15 @@ test.describe('Broken Links Detection', () => {
     // call that aborted a navigation once (NS_BINDING_ABORTED) and says nothing
     // about whether this build serves every page the sitemap lists. The
     // shortest entry is the site root, so its path is the production base path.
-    const productionBasePath = sitemapUrls
-      .map((url) => new URL(url).pathname.replace(/\/$/, ''))
-      .reduce((shortest, p) => (p.length < shortest.length ? p : shortest), '');
-    // (with no entries there is nothing to visit, so the loop below never runs)
+    const entryPaths = sitemapUrls.map((url) =>
+      new URL(url).pathname.replace(/\/$/, '')
+    );
+    const productionBasePath =
+      entryPaths.length > 0
+        ? entryPaths.reduce((shortest, p) =>
+            p.length < shortest.length ? p : shortest
+          )
+        : '';
     const localRoot = baseUrl.replace(/\/$/, '');
 
     for (const sitemapEntry of sitemapUrls) {
