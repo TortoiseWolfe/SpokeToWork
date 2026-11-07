@@ -11,6 +11,7 @@
 import { test, expect, Page } from '@playwright/test';
 import {
   getAdminClient,
+  getUserIdByEmail,
   ensureConnection,
   completeEncryptionSetup,
   dismissCookieBanner,
@@ -318,7 +319,22 @@ test.describe('Group Chat E2E', () => {
 });
 
 test('contract - test users configured', async () => {
-  console.log('Primary email:', PRIMARY_USER.email);
-  console.log('Tertiary email:', TERTIARY_EMAIL);
-  expect(true).toBe(true);
+  // Without an admin client, beforeEach quietly skips creating the
+  // connection between the users, so a missing key must fail here.
+  expect(
+    adminClient,
+    'NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set'
+  ).not.toBeNull();
+
+  // Both users must be real, distinct accounts in the database the app uses.
+  expect(PRIMARY_USER.email).toBeTruthy();
+  expect(TERTIARY_EMAIL).toBeTruthy();
+  expect(TERTIARY_EMAIL).not.toBe(PRIMARY_USER.email);
+  expect(PRIMARY_USER.password).toBeTruthy();
+
+  const primaryId = await getUserIdByEmail(adminClient!, PRIMARY_USER.email);
+  const tertiaryId = await getUserIdByEmail(adminClient!, TERTIARY_EMAIL);
+  expect(primaryId, `no account for ${PRIMARY_USER.email}`).toBeTruthy();
+  expect(tertiaryId, `no account for ${TERTIARY_EMAIL}`).toBeTruthy();
+  expect(tertiaryId).not.toBe(primaryId);
 });
