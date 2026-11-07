@@ -46,12 +46,15 @@ export function RoutesDrawer({
         aria-hidden="true"
       />
       <div
-        className={`bg-base-200 border-base-300 fixed top-0 left-0 z-50 h-full max-w-full border-r shadow-xl transition-transform duration-300 ease-in-out ${
-          open ? 'translate-x-0' : '-translate-x-full'
+        className={`bg-base-200 border-base-300 fixed top-0 left-0 z-50 h-full max-w-full border-r shadow-xl transition-[transform,visibility] duration-300 ease-in-out ${
+          open ? 'translate-x-0' : 'invisible -translate-x-full'
         }`}
       >
-        {/* Width is user-adjustable on desktop (200-400px, remembered between
-            visits). Below 768px the panel keeps the fixed w-80 drawer width. */}
+        {/* A closed drawer is invisible as well as slid off-screen, so its
+            buttons and links are out of reach of the keyboard and screen
+            readers. On desktop the width is adjustable (200-400px) and
+            remembered between visits; below 768px it keeps the fixed w-80
+            drawer width. */}
         <ResizablePanel
           className="h-full w-80"
           data-testid="route-sidebar-panel"
