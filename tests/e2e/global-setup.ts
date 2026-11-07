@@ -300,8 +300,13 @@ async function ensureTestUserKeys(): Promise<void> {
     return;
   }
 
-  // In CI with per-shard users, create the users if they don't exist
-  if (shardIndex && adminClient) {
+  // In CI with per-shard users, create missing users and reset existing users.
+  if (shardIndex) {
+    if (!adminClient) {
+      throw new Error(
+        'Supabase admin client is required to prepare E2E shard users'
+      );
+    }
     const password = process.env.TEST_USER_PRIMARY_PASSWORD;
     if (password) {
       for (const email of testUsers) {
@@ -366,8 +371,22 @@ async function ensureTestUserKeys(): Promise<void> {
           } else {
             console.warn(`  ⚠ Failed to create ${email} — no ID returned`);
           }
+        } else {
+          const { error } = await adminClient.auth.admin.updateUserById(
+            rows[0].id,
+            { password, email_confirm: true }
+          );
+          if (error) {
+            throw new Error(
+              `Failed to reset credentials for existing shard user ${email}`
+            );
+          }
         }
       }
+    } else {
+      throw new Error(
+        'TEST_USER_PRIMARY_PASSWORD is required to prepare E2E shard users'
+      );
     }
   }
 

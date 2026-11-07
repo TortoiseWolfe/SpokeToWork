@@ -8,10 +8,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: e2e-${{ github.ref }}
-  # cancel-in-progress disabled: sequential browser execution takes ~45 min.
-  # With cancel-in-progress, any push within that window kills the running
-  # E2E mid-flight, cascading auth-setup cancellation to all browser batches.
+  # E2E runs share one cloud Supabase database across all refs.
+  group: e2e-shared-supabase
+  queue: max
   cancel-in-progress: false
 
 env:
