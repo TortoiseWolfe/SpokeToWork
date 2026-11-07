@@ -60,10 +60,11 @@ test.describe('Route Geometry Generation', () => {
     await page.goto(`${BASE_URL}/companies/`);
     await page.waitForLoadState('networkidle');
     await companiesPage.waitForTable();
-    await openRoutesDrawer(page);
 
-    // Dismiss any overlays
+    // Dismiss any overlays. This presses Escape, which also closes the routes
+    // drawer, so open the drawer afterwards.
     await dismissOverlays(page);
+    await openRoutesDrawer(page);
 
     // Skip on mobile - route sidebar not visible
     if (!isDesktopViewport(page)) {
