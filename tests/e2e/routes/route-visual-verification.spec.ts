@@ -144,6 +144,13 @@ test.describe('Route Visual Verification', () => {
     await dismissBanner(page);
     await page.waitForTimeout(2000);
 
+    // The route drawer is closed by default on desktop (fixed, off-screen)
+    const openBtn = page.getByRole('button', { name: 'Open routes sidebar' });
+    if (await openBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await openBtn.click();
+      await expect(openBtn).toBeHidden({ timeout: 5000 });
+    }
+
     // Find route list items - RouteSidebar is an <aside> with aria-label="Route sidebar"
     const routeSidebar = page.locator('aside[aria-label="Route sidebar"]');
     const routeItems = routeSidebar.locator('[role="listitem"]');

@@ -281,8 +281,10 @@ function AccountSettings({ className = '' }: AccountSettingsProps) {
     }
   };
 
-  // Show loading state while profile is being fetched
-  if (profileLoading) {
+  // Show the loading state only for the first fetch. A refetch (after an
+  // avatar upload, say) also sets `loading`, and swapping the whole form for
+  // a spinner then unmounts AvatarUpload and drops its "uploaded" message.
+  if (profileLoading && !profile) {
     return (
       <div className={`space-y-6${className ? ` ${className}` : ''}`}>
         <div className="card bg-base-200">

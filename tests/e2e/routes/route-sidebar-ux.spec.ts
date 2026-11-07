@@ -30,6 +30,20 @@ async function navigateToCompanies(
   return companiesPage;
 }
 
+// Mobile (< 768px) renders a map plus a bottom sheet instead of the company
+// table, so waitForTable() (which waits for the table's "N companies" count)
+// can never succeed there. Wait for the bottom sheet that replaces it.
+async function navigateToCompaniesMobile(
+  page: import('@playwright/test').Page
+): Promise<CompaniesPage> {
+  const companiesPage = new CompaniesPage(page);
+  await companiesPage.goto();
+  await expect(page.getByTestId('bottom-sheet')).toBeVisible({
+    timeout: 30000,
+  });
+  return companiesPage;
+}
+
 /**
  * T033: Auto-open drawer flow (US1+US3)
  *
@@ -435,7 +449,7 @@ test.describe('Route Sidebar - Mobile Behavior', () => {
   });
 
   test('resize handle is not visible on mobile', async ({ page }) => {
-    await navigateToCompanies(page);
+    await navigateToCompaniesMobile(page);
 
     // On mobile, the route sidebar is typically hidden or in a different layout
     const resizeHandle = page.locator(
@@ -448,7 +462,7 @@ test.describe('Route Sidebar - Mobile Behavior', () => {
   });
 
   test('sidebar uses drawer pattern on mobile', async ({ page }) => {
-    await navigateToCompanies(page);
+    await navigateToCompaniesMobile(page);
 
     // On mobile, the route sidebar should be hidden initially (drawer pattern)
     const routeSidebar = page.locator('aside[aria-label="Route sidebar"]');
@@ -474,7 +488,7 @@ test.describe('Route Sidebar - Mobile Behavior', () => {
   });
 
   test('touch scrolling works on route list', async ({ page }) => {
-    await navigateToCompanies(page);
+    await navigateToCompaniesMobile(page);
 
     // On mobile, click the "Routes" button to open the sidebar
     const routesButton = page.locator('button:has-text("Routes")');

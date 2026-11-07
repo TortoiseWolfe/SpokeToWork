@@ -196,8 +196,41 @@ export async function ensureTestRoutes(userEmail: string): Promise<void> {
   const { user_id, home_latitude, home_longitude, route_count } = result[0];
   const existingRoutes = parseInt(route_count || '0', 10);
 
+  // Seeded routes need a drawn path (route_geometry) or the map has no
+  // `route-*` layers and no start/end markers to assert on, and the primary
+  // user needs a saved home so the home marker renders. Both statements are
+  // idempotent and run on every setup, including when the routes already exist.
+  const seedGeometryAndHome = async (
+    homeLat: number,
+    homeLng: number
+  ): Promise<void> => {
+    await executeSQL(`
+      INSERT INTO user_home_locations (user_id, home_address, home_latitude, home_longitude)
+      VALUES ('${escapeSQL(user_id)}', 'Chattanooga, TN', ${homeLat}, ${homeLng})
+      ON CONFLICT (user_id) DO NOTHING
+    `);
+    await executeSQL(`
+      UPDATE bicycle_routes
+      SET route_geometry = jsonb_build_object(
+        'type', 'LineString',
+        'coordinates', jsonb_build_array(
+          jsonb_build_array(start_longitude, start_latitude),
+          jsonb_build_array(end_longitude, end_latitude)
+        )
+      )
+      WHERE user_id = '${escapeSQL(user_id)}'
+        AND is_system_route = FALSE
+        AND route_geometry IS NULL
+        AND name IN ('Downtown Loop', 'River Trail', 'East Side Route')
+    `);
+  };
+
   if (existingRoutes >= 2) {
     console.log(`Test user has ${existingRoutes} routes`);
+    await seedGeometryAndHome(
+      home_latitude ?? 35.0456,
+      home_longitude ?? -85.3097
+    );
     return;
   }
 
@@ -259,6 +292,8 @@ export async function ensureTestRoutes(userEmail: string): Promise<void> {
       )
     `);
   }
+
+  await seedGeometryAndHome(homeLat, homeLng);
 
   console.log(`Created ${routes.length} test routes for ${userEmail}`);
 }

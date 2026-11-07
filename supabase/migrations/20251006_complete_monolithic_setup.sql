@@ -4124,6 +4124,9 @@ GRANT EXECUTE ON FUNCTION get_worker_week_summary(DATE, DATE) TO authenticated;
 -- auth.users. The admin check inside the function is the access policy —
 -- non-admins get a raised exception, never the data.
 -- This does NOT modify any existing RLS policies on user_profiles.
+-- The return type gained company_names (the admin Users table reads it), and
+-- CREATE OR REPLACE cannot change a return type, so drop first. Re-runnable.
+DROP FUNCTION IF EXISTS admin_list_users();
 CREATE OR REPLACE FUNCTION admin_list_users()
 RETURNS TABLE (
   id UUID,
@@ -4133,7 +4136,8 @@ RETURNS TABLE (
   role TEXT,
   is_admin BOOLEAN,
   created_at TIMESTAMPTZ,
-  last_sign_in_at TIMESTAMPTZ
+  last_sign_in_at TIMESTAMPTZ,
+  company_names TEXT[]
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -4155,7 +4159,14 @@ BEGIN
     up.role,
     up.is_admin,
     up.created_at,
-    au.last_sign_in_at
+    au.last_sign_in_at,
+    COALESCE(
+      (SELECT array_agg(sc.name::TEXT ORDER BY sc.name)
+         FROM employer_company_links ecl
+         JOIN shared_companies sc ON sc.id = ecl.shared_company_id
+        WHERE ecl.user_id = up.id),
+      ARRAY[]::TEXT[]
+    )
   FROM user_profiles up
   JOIN auth.users au ON au.id = up.id
   ORDER BY up.created_at DESC;

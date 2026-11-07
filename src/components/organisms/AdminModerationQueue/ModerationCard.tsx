@@ -43,7 +43,7 @@ export function ModerationCard({
   return (
     <div
       data-item-id={item.id}
-      className={`card bg-base-100 border-base-300 border shadow-sm${isSelected ? 'ring-primary ring-2' : ''}${isClickable ? 'cursor-pointer' : ''}`}
+      className={`card bg-base-100 border-base-300 border shadow-sm${isSelected ? ' ring-primary ring-2' : ''}${isClickable ? ' cursor-pointer' : ''}`}
       data-testid={`${testIdPrefix}-${item.id}`}
       onClick={onItemClick}
     >

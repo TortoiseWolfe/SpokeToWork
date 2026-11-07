@@ -67,7 +67,8 @@ test.describe('Admin user list — authenticated admin', () => {
       timeout: 15000,
     });
 
-    const adminBadge = page.locator('.badge.badge-warning', {
+    // The table marks an admin with an "admin" badge labelled "Admin flag".
+    const adminBadge = page.locator('[aria-label="Admin flag"]', {
       hasText: 'admin',
     });
     await expect(adminBadge.first()).toBeVisible();

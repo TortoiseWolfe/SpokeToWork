@@ -97,7 +97,9 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
     let iterations = 0;
     let focused = false;
 
-    while (iterations < 20 && !focused) {
+    // The header, nav links and display settings come before the profile
+    // picture section, so allow enough Tab presses to get past them.
+    while (iterations < 80 && !focused) {
       await page.keyboard.press('Tab');
       iterations++;
 
@@ -305,11 +307,20 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
 
     // Convert RGB to luminance and calculate contrast ratio
     const contrastRatio = await page.evaluate((styles) => {
-      const rgbToLuminance = (rgb: string): number => {
-        const match = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-        if (!match) return 0;
-
-        const [r, g, b] = match.slice(1).map(Number);
+      // Computed colours come back as oklch()/color() with the Tailwind 4 +
+      // DaisyUI theme, not rgb(). Painting the colour onto a 1x1 canvas makes
+      // the browser convert any CSS colour format to RGB for us. A parser that
+      // matches only rgb() returned 0 for both colours and a ratio of 1.
+      const canvas = document.createElement('canvas');
+      canvas.width = 1;
+      canvas.height = 1;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+      const rgbToLuminance = (cssColor: string): number => {
+        ctx.clearRect(0, 0, 1, 1);
+        ctx.fillStyle = '#000';
+        ctx.fillStyle = cssColor;
+        ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
         const [rs, gs, bs] = [r, g, b].map((c) => {
           const s = c / 255;
           return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
