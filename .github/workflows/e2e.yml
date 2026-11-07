@@ -214,6 +214,8 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
+      # The shared cloud database times out when all 12 shards set up together.
+      max-parallel: 6
       matrix:
         include:
           - { group: gen-, shard: 1/4 }
