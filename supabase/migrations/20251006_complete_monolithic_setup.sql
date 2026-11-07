@@ -399,6 +399,21 @@ INSERT INTO storage.buckets (id, name)
 VALUES ('avatars', 'avatars')
 ON CONFLICT (id) DO NOTHING;                         -- Idempotent
 
+-- Avatars are read through the public object URL (getPublicUrl), which only
+-- serves buckets flagged public. Hosted projects have the flag set; a fresh
+-- local stack does not, so every avatar fell back to initials. Set it when
+-- the column exists (the note above says some versions lack it).
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'storage' AND table_name = 'buckets'
+      AND column_name = 'public'
+  ) THEN
+    EXECUTE 'UPDATE storage.buckets SET public = true WHERE id = ''avatars''';
+  END IF;
+END $$;
+
 -- Drop existing avatar policies (for clean re-run)
 DROP POLICY IF EXISTS "Users can upload own avatar" ON storage.objects;
 DROP POLICY IF EXISTS "Users can update own avatar" ON storage.objects;
@@ -4124,6 +4139,9 @@ GRANT EXECUTE ON FUNCTION get_worker_week_summary(DATE, DATE) TO authenticated;
 -- auth.users. The admin check inside the function is the access policy —
 -- non-admins get a raised exception, never the data.
 -- This does NOT modify any existing RLS policies on user_profiles.
+-- The return type gained company_names (the admin Users table reads it), and
+-- CREATE OR REPLACE cannot change a return type, so drop first. Re-runnable.
+DROP FUNCTION IF EXISTS admin_list_users();
 CREATE OR REPLACE FUNCTION admin_list_users()
 RETURNS TABLE (
   id UUID,
@@ -4133,7 +4151,8 @@ RETURNS TABLE (
   role TEXT,
   is_admin BOOLEAN,
   created_at TIMESTAMPTZ,
-  last_sign_in_at TIMESTAMPTZ
+  last_sign_in_at TIMESTAMPTZ,
+  company_names TEXT[]
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -4155,7 +4174,14 @@ BEGIN
     up.role,
     up.is_admin,
     up.created_at,
-    au.last_sign_in_at
+    au.last_sign_in_at,
+    COALESCE(
+      (SELECT array_agg(sc.name::TEXT ORDER BY sc.name)
+         FROM employer_company_links ecl
+         JOIN shared_companies sc ON sc.id = ecl.shared_company_id
+        WHERE ecl.user_id = up.id),
+      ARRAY[]::TEXT[]
+    )
   FROM user_profiles up
   JOIN auth.users au ON au.id = up.id
   ORDER BY up.created_at DESC;

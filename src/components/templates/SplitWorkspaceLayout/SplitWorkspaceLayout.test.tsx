@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 
 const mockDeviceType = vi.fn();
 vi.mock('@/hooks/useDeviceType', () => ({
@@ -125,6 +125,35 @@ describe('SplitWorkspaceLayout', () => {
       expect(screen.getByTestId('slot-map')).toBeInTheDocument();
       expect(screen.getByTestId('slot-sheet')).toBeInTheDocument();
       expect(screen.queryByTestId('slot-table')).not.toBeInTheDocument();
+    });
+
+    it('offers a Routes button that opens the routes drawer, and hides it once open', () => {
+      const onToggleRoutes = vi.fn();
+      const { rerender } = render(
+        <SplitWorkspaceLayout
+          table={<div>t</div>}
+          map={<div>m</div>}
+          mobileSheet={<div>s</div>}
+          onToggleRoutes={onToggleRoutes}
+        />
+      );
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Open routes sidebar' })
+      );
+      expect(onToggleRoutes).toHaveBeenCalledTimes(1);
+
+      rerender(
+        <SplitWorkspaceLayout
+          table={<div>t</div>}
+          map={<div>m</div>}
+          mobileSheet={<div>s</div>}
+          onToggleRoutes={onToggleRoutes}
+          routesOpen
+        />
+      );
+      expect(
+        screen.queryByRole('button', { name: 'Open routes sidebar' })
+      ).not.toBeInTheDocument();
     });
 
     it('map panel is fixed inset', () => {

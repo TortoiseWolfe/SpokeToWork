@@ -33,13 +33,6 @@ const TEST_IMAGE_PATH = path.join(
 );
 
 test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
-  // Skip in CI: Avatar upload requires dynamic server features (real-time auth session,
-  // Supabase Storage) not available in static export. Tests pass locally with `pnpm run dev`.
-  test.skip(
-    () => !!process.env.CI,
-    'Avatar upload tests require dynamic server features not available in static export'
-  );
-
   let testUser: { id: string; email: string; password: string };
 
   test.beforeAll(async () => {
@@ -104,7 +97,9 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
     let iterations = 0;
     let focused = false;
 
-    while (iterations < 20 && !focused) {
+    // The header, nav links and display settings come before the profile
+    // picture section, so allow enough Tab presses to get past them.
+    while (iterations < 80 && !focused) {
       await page.keyboard.press('Tab');
       iterations++;
 
@@ -134,11 +129,23 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
   }) => {
     const uploadButton = page.getByRole('button', { name: /upload avatar/i });
     await uploadButton.focus();
+    // Wait until the focus has settled (a re-render right after load can
+    // drop it) before pressing Enter.
+    await expect(uploadButton).toBeFocused();
 
     // Press Enter to activate
     const fileChooserPromise = page.waitForEvent('filechooser', {
       timeout: 5000,
     });
+    // Playwright switches file-chooser interception on asynchronously when
+    // the listener above is added. A round trip through the page (one
+    // animation frame) guarantees the switch has reached the browser before
+    // the key is sent; otherwise, under load, the native chooser can open
+    // with nobody listening and no event ever fires.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    );
     await page.keyboard.press('Enter');
     const fileChooser = await fileChooserPromise;
 
@@ -162,28 +169,41 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
     // Verify modal has aria-modal="true"
     await expect(cropModal).toHaveAttribute('aria-modal', 'true');
 
-    // Tab through modal - focus should stay within modal
-    const focusedElements: string[] = [];
+    // Tab through modal - focus should stay within modal. Ask the browser
+    // whether the focused element sits inside the open dialog: judging by
+    // textContent cannot work, because the zoom slider has no text at all.
+    const focusedElements: {
+      inModal: boolean;
+      isBody: boolean;
+      label: string;
+    }[] = [];
 
     for (let i = 0; i < 10; i++) {
       await page.keyboard.press('Tab');
-      const activeElement = await page.evaluateHandle(
-        () => document.activeElement
+      focusedElements.push(
+        await page.evaluate(() => {
+          const el = document.activeElement;
+          return {
+            inModal: !!el?.closest('dialog[open]'),
+            isBody: el === document.body,
+            label: el?.getAttribute('aria-label') || el?.tagName || '',
+          };
+        })
       );
-      const elementText = await page.evaluate(
-        (el) => el?.textContent,
-        activeElement
-      );
-      focusedElements.push(elementText || '');
     }
 
-    // Verify all focused elements are within modal (Save, Cancel, Zoom)
-    const modalInteractiveElements = ['Save', 'Cancel', 'Zoom', 'Crop'];
-    const allWithinModal = focusedElements.every((text) =>
-      modalInteractiveElements.some((label) => text.includes(label))
-    );
+    // Every stop must be inside the modal. A native modal <dialog> makes the
+    // page behind it inert, so when Tab runs past the last button the browser
+    // hands focus to its own toolbar and the page reports <body> as focused.
+    // That is the browser's focus loop, not focus reaching the page behind the
+    // modal; any other element outside the dialog fails the test.
+    expect(focusedElements.every((f) => f.inModal || f.isBody)).toBe(true);
 
-    expect(allWithinModal).toBe(true);
+    // ...and the Tab cycle must really visit the zoom slider and both buttons.
+    const labels = focusedElements.map((f) => f.label);
+    expect(labels).toContain('Zoom level');
+    expect(labels).toContain('Cancel crop');
+    expect(labels).toContain('Save cropped avatar');
   });
 
   test('A11y-006: Escape key closes crop modal', async ({ page }) => {
@@ -278,11 +298,23 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
   test('A11y-009: Success messages announced via aria-live', async ({
     page,
   }) => {
-    // Note: This test requires actual file upload, skipped in quick tests
-    test.skip(true, 'Requires real file upload - test in manual/E2E');
+    // Upload an avatar through the real crop dialog and storage bucket
+    const uploadButton = page.getByRole('button', { name: /upload avatar/i });
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await uploadButton.click();
+    const fileChooser = await fileChooserPromise;
+    await fileChooser.setFiles(TEST_IMAGE_PATH);
 
-    // Upload avatar successfully
-    // Verify success message has aria-live="polite"
+    const cropModal = page.getByRole('dialog', { name: /crop/i });
+    await expect(cropModal).toBeVisible({ timeout: 5000 });
+    await page.getByRole('button', { name: /save/i }).click();
+
+    // The success message is a polite live region
+    const successMessage = page
+      .getByRole('status')
+      .filter({ hasText: /avatar uploaded successfully/i });
+    await expect(successMessage).toBeVisible({ timeout: 10000 });
+    await expect(successMessage).toHaveAttribute('aria-live', 'polite');
   });
 
   test('A11y-010: Color contrast meets WCAG AA (4.5:1)', async ({ page }) => {
@@ -300,11 +332,20 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
 
     // Convert RGB to luminance and calculate contrast ratio
     const contrastRatio = await page.evaluate((styles) => {
-      const rgbToLuminance = (rgb: string): number => {
-        const match = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-        if (!match) return 0;
-
-        const [r, g, b] = match.slice(1).map(Number);
+      // Computed colours come back as oklch()/color() with the Tailwind 4 +
+      // DaisyUI theme, not rgb(). Painting the colour onto a 1x1 canvas makes
+      // the browser convert any CSS colour format to RGB for us. A parser that
+      // matches only rgb() returned 0 for both colours and a ratio of 1.
+      const canvas = document.createElement('canvas');
+      canvas.width = 1;
+      canvas.height = 1;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+      const rgbToLuminance = (cssColor: string): number => {
+        ctx.clearRect(0, 0, 1, 1);
+        ctx.fillStyle = '#000';
+        ctx.fillStyle = cssColor;
+        ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
         const [rs, gs, bs] = [r, g, b].map((c) => {
           const s = c / 255;
           return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);

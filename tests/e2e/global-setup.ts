@@ -13,7 +13,11 @@
 import { FullConfig } from '@playwright/test';
 import * as crypto from 'crypto';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { executeSQL, escapeSQL } from './utils/supabase-admin';
+import {
+  executeSQL,
+  escapeSQL,
+  ensureTestRoutes,
+} from './utils/supabase-admin';
 import { getPrebakedKeysForUser, hasPrebakedKeys } from './utils/prebaked-keys';
 
 /** Admin Supabase client for local dev (bypasses RLS, works without Management API) */
@@ -801,6 +805,9 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   await ensureTestUserKeys();
   await ensureModerationTestData();
   await ensureCompaniesForTestUser();
+  if (process.env.TEST_USER_PRIMARY_EMAIL) {
+    await ensureTestRoutes(process.env.TEST_USER_PRIMARY_EMAIL);
+  }
   await ensureWorkerRole();
   await ensurePublicProfileCompany();
   await ensureDiscoverableWorker();

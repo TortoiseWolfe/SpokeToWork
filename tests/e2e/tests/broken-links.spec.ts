@@ -447,7 +447,28 @@ test.describe('Broken Links Detection', () => {
 
     const brokenSitemapUrls: BrokenLink[] = [];
 
-    for (const url of sitemapUrls) {
+    // The sitemap lists the production address (generate-sitemap.js writes
+    // https://TortoiseWolfe.github.io/SpokeToWork/...). Visit the same paths on
+    // the app under test instead: the production site is an outside network
+    // call that aborted a navigation once (NS_BINDING_ABORTED) and says nothing
+    // about whether this build serves every page the sitemap lists. The
+    // shortest entry is the site root, so its path is the production base path.
+    const entryPaths = sitemapUrls.map((url) =>
+      new URL(url).pathname.replace(/\/$/, '')
+    );
+    const productionBasePath =
+      entryPaths.length > 0
+        ? entryPaths.reduce((shortest, p) =>
+            p.length < shortest.length ? p : shortest
+          )
+        : '';
+    const localRoot = baseUrl.replace(/\/$/, '');
+
+    for (const sitemapEntry of sitemapUrls) {
+      const entryPath = new URL(sitemapEntry).pathname.slice(
+        productionBasePath.length
+      );
+      const url = `${localRoot}${entryPath}`;
       try {
         const response = await page.goto(url, {
           waitUntil: 'domcontentloaded',

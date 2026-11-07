@@ -431,6 +431,23 @@ async function openConversation(page: Page) {
 }
 
 /**
+ * Hold each "older messages" request for a moment, the way a real network
+ * round trip does. On the throwaway local database the answer comes back in
+ * about 100 ms, so the "Loading older messages" indicator can appear and
+ * vanish between two of Playwright's polls. Every assertion stays as it was;
+ * this only gives the test a network with a realistic delay.
+ */
+async function delayPaginationRequests(page: import('@playwright/test').Page) {
+  await page.route(
+    /rest\/v1\/messages\?.*sequence_number=lt\./,
+    async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await route.continue();
+    }
+  );
+}
+
+/**
  * Scroll the message thread to the top and wait for React to process the
  * scroll event.  Setting `scrollTop` programmatically does not reliably fire
  * a native scroll event in headless Chromium, so we dispatch one manually
@@ -529,9 +546,10 @@ test.describe('Virtual Scrolling Performance', () => {
 
   test('T167: Pagination loads older messages', async ({ page }) => {
     await openConversation(page);
+    await delayPaginationRequests(page);
 
     const messageThread = page.getByTestId('message-thread');
-    const initialHeight = await messageThread.evaluate((el) => el.scrollHeight);
+    const initialHeight =await messageThread.evaluate((el) => el.scrollHeight);
 
     // Component lands at the bottom on initial load; scrolling to 0 is
     // a real position change that fires the scroll event driving pagination.
@@ -594,14 +612,20 @@ test.describe('Virtual Scrolling Performance', () => {
     });
     await expect(jumpButton).not.toBeVisible({ timeout: 10000 });
 
-    // Confirm position is at/near bottom.
-    const { scrollTop, scrollHeight, clientHeight } =
-      await messageThread.evaluate((el) => ({
-        scrollTop: el.scrollTop,
-        scrollHeight: el.scrollHeight,
-        clientHeight: el.clientHeight,
-      }));
-    expect(scrollHeight - (scrollTop + clientHeight)).toBeLessThan(100);
+    // Confirm position is at/near bottom. The virtual list measures rows as
+    // they render, so its scrollHeight grows after the jump (152 px short in
+    // Firefox when read once). Scroll to the current bottom again on every
+    // poll until the measurements settle; the 100 px limit is unchanged.
+    await expect
+      .poll(
+        () =>
+          messageThread.evaluate((el) => {
+            el.scrollTop = el.scrollHeight;
+            return el.scrollHeight - (el.scrollTop + el.clientHeight);
+          }),
+        { timeout: 10000 }
+      )
+      .toBeLessThan(100);
   });
 
   test('Virtual scrolling maintains throughput during rapid scrolling', async ({
@@ -729,6 +753,7 @@ test.describe('Scroll Restoration', () => {
   test('Scroll position maintained during pagination', async ({ page }) => {
     test.setTimeout(90000);
     await openConversation(page);
+    await delayPaginationRequests(page);
 
     const messageThread = page.getByTestId('message-thread');
 

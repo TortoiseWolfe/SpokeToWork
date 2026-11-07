@@ -11,19 +11,13 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { CompaniesPage } from '../pages/CompaniesPage';
+import { openRoutesDrawer } from '../utils/routes-drawer';
 import { getAuthStatePath } from '../utils/authenticated-context';
 import { waitForMapReady } from '../utils/map-helpers';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 const AUTH_FILE = getAuthStatePath();
 
-// Requires live Supabase route data and authenticated session.
-// In headless CI against the static export the companies table never loads,
-// causing waitForTable() to time out before the inner conditional skips fire.
-test.skip(
-  !!process.env.CI,
-  'Requires live Supabase route data — not available in headless CI against static export'
-);
 
 // Helper to dismiss overlays that might block button clicks
 async function dismissOverlays(page: Page) {
@@ -67,8 +61,10 @@ test.describe('Route Geometry Generation', () => {
     await page.waitForLoadState('networkidle');
     await companiesPage.waitForTable();
 
-    // Dismiss any overlays
+    // Dismiss any overlays. This presses Escape, which also closes the routes
+    // drawer, so open the drawer afterwards.
     await dismissOverlays(page);
+    await openRoutesDrawer(page);
 
     // Skip on mobile - route sidebar not visible
     if (!isDesktopViewport(page)) {

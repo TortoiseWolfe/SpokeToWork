@@ -28,13 +28,6 @@ import {
 let testUser: { id: string; email: string; password: string } | null = null;
 
 test.describe('Avatar Upload Flow', () => {
-  // Skip in CI: Avatar upload requires dynamic server features (real-time auth session,
-  // Supabase Storage) not available in static export. Tests pass locally with `pnpm run dev`.
-  test.skip(
-    () => !!process.env.CI,
-    'Avatar upload tests require dynamic server features not available in static export'
-  );
-
   test.beforeAll(async () => {
     // Create test user with email pre-confirmed via admin API
     const email = generateTestEmail('e2e-avatar');
@@ -399,9 +392,6 @@ test.describe('Avatar Upload Flow', () => {
     page,
     context,
   }) => {
-    // Simulate network failure during upload
-    await context.setOffline(true);
-
     const uploadButton = page.getByRole('button', { name: /upload avatar/i });
     const fileChooserPromise = page.waitForEvent('filechooser');
     await uploadButton.click();
@@ -413,7 +403,16 @@ test.describe('Avatar Upload Flow', () => {
     );
     await fileChooser.setFiles(testImagePath);
 
-    await page.getByRole('button', { name: /save/i }).click();
+    // Wait for the crop dialog first: the browser decodes the chosen image from
+    // a local blob: URL, and WebKit's offline mode blocks that too, which made
+    // the app report "Invalid or corrupted image file" and never show Save.
+    const saveButton = page.getByRole('button', { name: /save/i });
+    await expect(saveButton).toBeVisible();
+
+    // Simulate network failure during the upload itself
+    await context.setOffline(true);
+
+    await saveButton.click();
 
     // TODO: Network error handling not yet implemented (T050 enhancement)
     // For now, upload silently fails when offline - no error message shown

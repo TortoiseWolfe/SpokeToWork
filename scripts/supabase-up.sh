@@ -36,7 +36,8 @@ sleep 3
 echo "Applying database migrations..."
 DB_PASSWORD="${SUPABASE_LOCAL_DB_PASSWORD:-your-super-secret-and-long-postgres-password}"
 # Only run timestamped migrations (YYYYMMDD_*). Excludes utility scripts like
-# 999_drop_all_tables.sql and misplaced seed files.
+# scripts/999_drop_all_tables.sql (kept out of migrations/ so `supabase start`
+# does not drop the schema it just created).
 for f in supabase/migrations/[0-9][0-9][0-9][0-9]*_*.sql; do
   [ -f "$f" ] || continue
   echo "  Applying $(basename "$f")..."

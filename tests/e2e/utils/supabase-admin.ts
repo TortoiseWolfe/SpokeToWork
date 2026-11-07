@@ -1,17 +1,49 @@
 /**
  * Supabase Admin Utilities for E2E Tests
  *
- * Uses Supabase Management API to bypass RLS for test data setup.
- * Requires SUPABASE_ACCESS_TOKEN and NEXT_PUBLIC_SUPABASE_URL in env.
+ * Uses the Supabase Management API against the hosted project, or a direct
+ * Postgres connection against the throwaway local stack used by CI.
+ * Requires NEXT_PUBLIC_SUPABASE_URL plus either SUPABASE_ACCESS_TOKEN (cloud)
+ * or SUPABASE_DB_URL (local).
  *
  * Feature: 062-fix-e2e-auth
  */
 
 import 'dotenv/config';
+import { Client } from 'pg';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
 const PROJECT_REF = SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
+const LOCAL_DB_URL = process.env.SUPABASE_DB_URL;
+
+/**
+ * True when NEXT_PUBLIC_SUPABASE_URL points at a local stack rather than a
+ * hosted Supabase project.
+ */
+export function isLocalSupabase(): boolean {
+  if (!SUPABASE_URL) return false;
+  try {
+    const host = new URL(SUPABASE_URL).hostname;
+    return (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '::1' ||
+      host.endsWith('.local')
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * True when this process has a way to run arbitrary SQL against the test DB.
+ */
+export function canExecuteSQL(): boolean {
+  return isLocalSupabase()
+    ? !!LOCAL_DB_URL
+    : !!(PROJECT_REF && ACCESS_TOKEN);
+}
 
 /**
  * Escape a string for safe SQL interpolation.
@@ -23,13 +55,44 @@ export function escapeSQL(value: string): string {
 }
 
 /**
- * Execute SQL via Supabase Management API (bypasses RLS)
+ * Execute SQL directly against the local Postgres instance.
+ * Handles multi-statement strings by returning the rows from the final
+ * statement that produced any (matching the Management API behaviour the
+ * tests were written against).
+ */
+async function executeLocalSQL(query: string): Promise<unknown[]> {
+  if (!LOCAL_DB_URL) {
+    console.log('Skipping SQL: Missing SUPABASE_DB_URL');
+    return [];
+  }
+
+  const client = new Client({ connectionString: LOCAL_DB_URL });
+  await client.connect();
+  try {
+    const result = await client.query(query);
+    const results = Array.isArray(result) ? result : [result];
+    const withRows = [...results]
+      .reverse()
+      .find((r) => Array.isArray(r.rows) && r.rows.length > 0);
+    return (withRows ?? results[results.length - 1])?.rows ?? [];
+  } finally {
+    await client.end();
+  }
+}
+
+/**
+ * Execute SQL via the Supabase Management API (cloud) or a direct Postgres
+ * connection (local stack). Both paths bypass RLS.
  */
 export async function executeSQL(
   query: string,
   retries = 5,
   baseDelay = 2000
 ): Promise<unknown[]> {
+  if (isLocalSupabase()) {
+    return executeLocalSQL(query);
+  }
+
   if (!PROJECT_REF || !ACCESS_TOKEN) {
     console.log('Skipping SQL: Missing SUPABASE_URL or ACCESS_TOKEN');
     return [];
@@ -91,6 +154,12 @@ export async function executeSQL(
   return [];
 }
 
+// Home the route specs assert on (route-home-connection.spec.ts expects route
+// geometry to start here). The live database's test user had this saved; a fresh
+// local database has none, so seed the same point instead of a Chattanooga one.
+const TEST_HOME_LAT = 35.1778384;
+const TEST_HOME_LNG = -84.8353553;
+
 /**
  * Ensure test user has routes for route E2E tests
  *
@@ -98,8 +167,8 @@ export async function executeSQL(
  * Routes use test user's home coordinates.
  */
 export async function ensureTestRoutes(userEmail: string): Promise<void> {
-  if (!PROJECT_REF || !ACCESS_TOKEN) {
-    console.log('Skipping route setup: Missing SUPABASE_ACCESS_TOKEN');
+  if (!canExecuteSQL()) {
+    console.log('Skipping route setup: Missing database credentials');
     return;
   }
 
@@ -133,8 +202,54 @@ export async function ensureTestRoutes(userEmail: string): Promise<void> {
   const { user_id, home_latitude, home_longitude, route_count } = result[0];
   const existingRoutes = parseInt(route_count || '0', 10);
 
+  // Seeded routes need a drawn path (route_geometry) or the map has no
+  // `route-*` layers and no start/end markers to assert on, and the primary
+  // user needs a saved home so the home marker renders. Both statements are
+  // idempotent and run on every setup, including when the routes already exist.
+  const seedGeometryAndHome = async (
+    homeLat: number,
+    homeLng: number
+  ): Promise<void> => {
+    await executeSQL(`
+      INSERT INTO user_home_locations (user_id, home_address, home_latitude, home_longitude)
+      VALUES ('${escapeSQL(user_id)}', 'Chattanooga, TN', ${homeLat}, ${homeLng})
+      ON CONFLICT (user_id) DO NOTHING
+    `);
+    await executeSQL(`
+      UPDATE bicycle_routes
+      SET route_geometry = jsonb_build_object(
+        'type', 'LineString',
+        'coordinates', jsonb_build_array(
+          jsonb_build_array(start_longitude, start_latitude),
+          jsonb_build_array(end_longitude, end_latitude)
+        )
+      )
+      WHERE user_id = '${escapeSQL(user_id)}'
+        AND is_system_route = FALSE
+        AND route_geometry IS NULL
+        AND name IN ('Downtown Loop', 'River Trail', 'East Side Route')
+    `);
+    // The map draws the glow layer only for the user's active route
+    // (active_route_planning, one row per user). A fresh database has none,
+    // so make "Downtown Loop" active unless the user already chose one.
+    await executeSQL(`
+      INSERT INTO active_route_planning (user_id, route_id)
+      SELECT '${escapeSQL(user_id)}', br.id
+      FROM bicycle_routes br
+      WHERE br.user_id = '${escapeSQL(user_id)}'
+        AND br.is_system_route = FALSE
+        AND br.name = 'Downtown Loop'
+      LIMIT 1
+      ON CONFLICT (user_id) DO NOTHING
+    `);
+  };
+
   if (existingRoutes >= 2) {
     console.log(`Test user has ${existingRoutes} routes`);
+    await seedGeometryAndHome(
+      home_latitude ?? TEST_HOME_LAT,
+      home_longitude ?? TEST_HOME_LNG
+    );
     return;
   }
 
@@ -147,11 +262,11 @@ export async function ensureTestRoutes(userEmail: string): Promise<void> {
   // so route E2E seeded fixed coordinates and passed regardless of the data.
   if (home_latitude == null || home_longitude == null) {
     console.log(
-      `No home location for ${userEmail} — seeding routes from fallback Chattanooga coordinates`
+      `No home location for ${userEmail} — seeding routes from the fixture home coordinates`
     );
   }
-  const homeLat = home_latitude ?? 35.0456;
-  const homeLng = home_longitude ?? -85.3097;
+  const homeLat = home_latitude ?? TEST_HOME_LAT;
+  const homeLng = home_longitude ?? TEST_HOME_LNG;
 
   const routes = [
     {
@@ -196,6 +311,8 @@ export async function ensureTestRoutes(userEmail: string): Promise<void> {
       )
     `);
   }
+
+  await seedGeometryAndHome(homeLat, homeLng);
 
   console.log(`Created ${routes.length} test routes for ${userEmail}`);
 }
