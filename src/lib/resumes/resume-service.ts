@@ -9,6 +9,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Resume } from './types';
 import { ALLOWED_RESUME_EXTENSIONS } from './types';
 import { validateResumeFile } from './validation';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('lib:resumes:service');
 
 export class ResumeService {
   constructor(private supabase: SupabaseClient) {}
@@ -94,14 +97,9 @@ export class ResumeService {
     if (fetchError) throw fetchError;
     const resume = resumeData as Resume;
 
-    // 2. Remove from storage
-    const { error: storageError } = await this.supabase.storage
-      .from('resumes')
-      .remove([resume.storage_path]);
-
-    if (storageError) throw storageError;
-
-    // 3. Delete the database row
+    // 2. Delete the database row first. If this fails nothing else has
+    //    changed. Removing the file first left a row (and any application's
+    //    resume_id) pointing at a file that no longer existed (#63).
     const { error: deleteError } = await this.supabase
       .from('worker_resumes')
       .delete()
@@ -109,12 +107,26 @@ export class ResumeService {
 
     if (deleteError) throw deleteError;
 
-    // 4. If this was the default resume, promote the next oldest
+    // 3. If this was the default resume, promote the next oldest
     if (resume.is_default) {
       const remaining = await this.getWorkerResumes(resume.user_id);
       if (remaining.length > 0) {
         await this.setDefault(remaining[0].id);
       }
+    }
+
+    // 4. Remove the file last. The row is already gone, so a failure here only
+    //    leaves an unreferenced file in the bucket; the delete still happened.
+    const { error: storageError } = await this.supabase.storage
+      .from('resumes')
+      .remove([resume.storage_path]);
+
+    if (storageError) {
+      logger.warn('Resume row deleted but its file was not removed', {
+        resumeId,
+        storagePath: resume.storage_path,
+        error: storageError.message,
+      });
     }
   }
 

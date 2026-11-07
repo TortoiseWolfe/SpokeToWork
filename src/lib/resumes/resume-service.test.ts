@@ -190,6 +190,54 @@ describe('ResumeService', () => {
       expect(mockDelete).toHaveBeenCalled();
     });
 
+    it('leaves the file alone when the row delete fails (#63)', async () => {
+      const resume = makeResume({ id: 'r1', is_default: false });
+
+      const mockFetchSingle = vi.fn().mockResolvedValue({ data: resume, error: null });
+      const mockFetchEq = vi.fn().mockReturnValue({ single: mockFetchSingle });
+      const mockFetchSelect = vi.fn().mockReturnValue({ eq: mockFetchEq });
+
+      const dbError = new Error('row delete failed');
+      const mockDeleteEq = vi.fn().mockResolvedValue({ error: dbError });
+      const mockDelete = vi.fn().mockReturnValue({ eq: mockDeleteEq });
+
+      mockFrom
+        .mockReturnValueOnce({ select: mockFetchSelect })
+        .mockReturnValueOnce({ delete: mockDelete });
+
+      const mockRemove = vi.fn().mockResolvedValue({ data: null, error: null });
+      mockStorageFrom.mockReturnValue({ remove: mockRemove });
+
+      await expect(service.deleteResume('r1')).rejects.toBe(dbError);
+      // The row still exists, so the file it points at must still exist too.
+      expect(mockRemove).not.toHaveBeenCalled();
+    });
+
+    it('still succeeds when the file removal fails after the row is gone (#63)', async () => {
+      const resume = makeResume({ id: 'r1', is_default: false });
+
+      const mockFetchSingle = vi.fn().mockResolvedValue({ data: resume, error: null });
+      const mockFetchEq = vi.fn().mockReturnValue({ single: mockFetchSingle });
+      const mockFetchSelect = vi.fn().mockReturnValue({ eq: mockFetchEq });
+
+      const mockDeleteEq = vi.fn().mockResolvedValue({ error: null });
+      const mockDelete = vi.fn().mockReturnValue({ eq: mockDeleteEq });
+
+      mockFrom
+        .mockReturnValueOnce({ select: mockFetchSelect })
+        .mockReturnValueOnce({ delete: mockDelete });
+
+      // An unreferenced file left in the bucket is harmless; a row pointing at
+      // a missing file is not. So this must not undo or fail the delete.
+      const mockRemove = vi
+        .fn()
+        .mockResolvedValue({ data: null, error: new Error('storage down') });
+      mockStorageFrom.mockReturnValue({ remove: mockRemove });
+
+      await expect(service.deleteResume('r1')).resolves.toBeUndefined();
+      expect(mockRemove).toHaveBeenCalledWith([resume.storage_path]);
+    });
+
     it('promotes next oldest resume if deleted was default', async () => {
       const defaultResume = makeResume({ id: 'r1', is_default: true, storage_path: 'resumes/u1/r1.pdf' });
       const nextResume = makeResume({ id: 'r2', is_default: false, created_at: '2026-01-02T00:00:00Z' });
