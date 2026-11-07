@@ -30,12 +30,13 @@ export async function waitForSignInFormHydrated(
  * Wait until the service worker the page just registered has finished
  * installing and taking control.
  *
- * PWAInstall registers the worker on every page load at a new address
- * (sw.js?v=<timestamp>), so each load starts an install, skipWaiting and
+ * The first load of a fresh browser profile starts an install, skipWaiting and
  * clients.claim. A page.goto fired in that window made WebKit throw "WebKit
- * encountered an internal error" four times in one full run (the first
- * navigation straight after login). Returns at once when no worker is
- * registered or none is still installing.
+ * encountered an internal error" (the first navigation straight after login).
+ * PWAInstall used to register the worker at a new address on every load
+ * (sw.js?v=<timestamp>), which repeated that window on every page; it now
+ * registers one stable address. Returns at once when no worker is registered
+ * or none is still installing.
  */
 export async function waitForServiceWorkerSettled(page: Page): Promise<void> {
   await page.evaluate(async () => {
