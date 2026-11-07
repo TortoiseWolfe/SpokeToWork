@@ -14,6 +14,7 @@ import type {
   ContributionStatus,
 } from '@/types/company';
 import { SHARED_COMPANY_EDITABLE_FIELDS } from '@/types/company';
+import { geocode } from './geocoding';
 
 /**
  * Pending item in moderation queue
@@ -229,7 +230,39 @@ export class AdminModerationService {
       throw fetchError ?? new Error('Contribution not found');
     }
 
-    const privateCompany = contribution.private_companies;
+    // Supabase sometimes returns the joined row as a one-element array.
+    const joined = contribution.private_companies;
+    const privateCompany = Array.isArray(joined) ? joined[0] : joined;
+    if (!privateCompany) {
+      throw new Error('Contribution has no private company to approve');
+    }
+
+    // Work out where the company is BEFORE writing anything. A shared company
+    // without a company_locations row shows up at (0, 0) and is useless to a
+    // product that exists to say where an employer is (#71).
+    const address: string | null = privateCompany.address?.trim() || null;
+    let latitude: number | null = privateCompany.latitude ?? null;
+    let longitude: number | null = privateCompany.longitude ?? null;
+
+    if (!address) {
+      throw new Error(
+        'Cannot approve: the company has no address, so it has no location to publish'
+      );
+    }
+    if (latitude === null || longitude === null) {
+      const geocoded = await geocode(address);
+      if (
+        !geocoded.success ||
+        geocoded.latitude === undefined ||
+        geocoded.longitude === undefined
+      ) {
+        throw new Error(
+          `Cannot approve: could not find a location for "${address}" (${geocoded.error ?? 'no result'})`
+        );
+      }
+      latitude = geocoded.latitude;
+      longitude = geocoded.longitude;
+    }
 
     // Create new shared company
     const { data: newShared, error: createError } = await this.supabase
@@ -247,6 +280,29 @@ export class AdminModerationService {
 
     if (createError) {
       throw createError;
+    }
+
+    // Copy the address and coordinates across as the headquarters. The client
+    // has no multi-statement transaction, so if this write fails the shared
+    // company is removed again rather than left without a location.
+    const { error: locationError } = await this.supabase
+      .from('company_locations')
+      .insert({
+        shared_company_id: newShared.id,
+        address,
+        latitude,
+        longitude,
+        // Only where the company is. company_locations is publicly readable,
+        // so the contributor's private phone, email and contact are not copied.
+        is_headquarters: true,
+      });
+
+    if (locationError) {
+      await this.supabase
+        .from('shared_companies')
+        .delete()
+        .eq('id', newShared.id);
+      throw locationError;
     }
 
     // Update contribution status

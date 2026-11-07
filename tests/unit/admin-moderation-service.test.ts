@@ -122,6 +122,9 @@ describe('AdminModerationService', () => {
           name: 'New Corp',
           website: 'https://newcorp.com',
           careers_url: null,
+          address: '1 Main St, Chattanooga, TN',
+          latitude: 35.0456,
+          longitude: -85.3097,
         },
       };
 
@@ -169,6 +172,9 @@ describe('AdminModerationService', () => {
               }),
             }),
           };
+        }
+        if (table === 'company_locations') {
+          return { insert: vi.fn().mockResolvedValue({ error: null }) };
         }
         return {};
       });
