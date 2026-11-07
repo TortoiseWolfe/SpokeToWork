@@ -23,6 +23,13 @@
  * quiet first failed 0 times (grand-daze issue 33 and its shared fixture). This is the
  * same wait, in one place instead of in each spec.
  *
+ * "Quiet" here means quiet right now: no request of the page's is in flight and none has
+ * started or ended for `QUIET_MS`. Playwright's `networkidle` alone is not enough: it
+ * fires once after the load and then returns at once for ever, so a page that started
+ * new calls a second later (the messages page reading and marking messages) counted as
+ * quiet while those calls were still running, and WebKit failed the next load with the
+ * internal error (CI run 42409134076, delivery status spec).
+ *
  * The second wait is for the same kind of flake from the other side. `goto` returns at
  * the `load` event, which can be before React hydrates the form, and hydration resets
  * the controlled inputs: a spec that fills the email straight after `goto('/sign-in')`
@@ -53,6 +60,7 @@ import {
   type Browser,
   type BrowserContext,
   type Page,
+  type Request,
 } from '@playwright/test';
 
 /** Longest a page is given to go quiet before the next navigation goes ahead. */
@@ -62,10 +70,57 @@ const PATCHED = Symbol.for('spoketowork.e2e.settleBeforeNavigating');
 
 type Patchable = Page & { [PATCHED]?: true };
 
+/** How long a page must have no request starting or finishing to count as quiet. */
+export const QUIET_MS = 500;
+
+const ACTIVITY = Symbol.for('spoketowork.e2e.requestActivity');
+
+type Activity = { pending: Set<Request>; lastChange: number };
+
+type Tracked = Page & { [ACTIVITY]?: Activity };
+
+/**
+ * Count the page's requests as they start and end.
+ *
+ * Playwright's `waitForLoadState('networkidle')` is a one-time lifecycle event: once the
+ * page has been idle after loading it returns at once, however many requests the app has
+ * started since (reading messages, marking them read, refreshing a session). A spec that
+ * moves on a second or two after the page loaded therefore left with calls still in
+ * flight, which is exactly what makes WebKit fail the next load. This count answers
+ * "is it quiet right now".
+ */
+function trackRequests(page: Page): Activity {
+  const state: Activity = { pending: new Set(), lastChange: Date.now() };
+  (page as Tracked)[ACTIVITY] = state;
+  const started = (request: Request) => {
+    state.pending.add(request);
+    state.lastChange = Date.now();
+  };
+  const ended = (request: Request) => {
+    state.pending.delete(request);
+    state.lastChange = Date.now();
+  };
+  page.on('request', started);
+  page.on('requestfinished', ended);
+  page.on('requestfailed', ended);
+  return state;
+}
+
 /** Wait for the network to go quiet, or give up quietly after the limit. */
 async function waitForQuietOrGiveUp(page: Page): Promise<void> {
+  const deadline = Date.now() + SETTLE_LIMIT_MS;
   try {
     await page.waitForLoadState('networkidle', { timeout: SETTLE_LIMIT_MS });
+    const state = (page as Tracked)[ACTIVITY];
+    while (state && !page.isClosed() && Date.now() < deadline) {
+      if (
+        state.pending.size === 0 &&
+        Date.now() - state.lastChange >= QUIET_MS
+      ) {
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
   } catch {
     // Best effort: a page that keeps a request open (a live subscription, a tile
     // layer) never goes quiet. The navigation goes ahead exactly as it did before.
@@ -86,6 +141,7 @@ function patchPage(page: Page): void {
   const p = page as Patchable;
   if (p[PATCHED]) return;
   p[PATCHED] = true;
+  trackRequests(page);
 
   const originalGoto = page.goto.bind(page);
   const originalReload = page.reload.bind(page);
