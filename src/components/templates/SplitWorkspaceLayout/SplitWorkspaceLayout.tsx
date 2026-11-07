@@ -92,7 +92,7 @@ export function SplitWorkspaceLayout({
         data-testid="split-workspace-map-panel"
         role="region"
         aria-label={mapLabel}
-        className="relative min-w-0 flex-1 overflow-hidden"
+        className="relative isolate min-w-0 flex-1 overflow-hidden"
       >
         {/* Map fills panel via absolute positioning — percentage heights
             can fail inside flex layouts, so we pin to edges instead */}
