@@ -65,7 +65,14 @@ runs:
           exit 1
         fi
 
+        # The admin account exists only inside this throwaway stack, so its
+        # sign-in password is a fresh random value per job. The admin E2E specs
+        # read it from TEST_USER_ADMIN_PASSWORD; the seed step sets it.
+        ADMIN_PASSWORD="$(openssl rand -hex 16)"
+        echo "::add-mask::${ADMIN_PASSWORD}"
+
         {
+          echo "TEST_USER_ADMIN_PASSWORD=${ADMIN_PASSWORD}"
           echo "NEXT_PUBLIC_SUPABASE_URL=${API_URL}"
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}"
           echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}"

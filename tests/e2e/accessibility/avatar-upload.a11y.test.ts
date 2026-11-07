@@ -33,13 +33,6 @@ const TEST_IMAGE_PATH = path.join(
 );
 
 test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
-  // Skip in CI: Avatar upload requires dynamic server features (real-time auth session,
-  // Supabase Storage) not available in static export. Tests pass locally with `pnpm run dev`.
-  test.skip(
-    () => !!process.env.CI,
-    'Avatar upload tests require dynamic server features not available in static export'
-  );
-
   let testUser: { id: string; email: string; password: string };
 
   test.beforeAll(async () => {
@@ -278,11 +271,23 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
   test('A11y-009: Success messages announced via aria-live', async ({
     page,
   }) => {
-    // Note: This test requires actual file upload, skipped in quick tests
-    test.skip(true, 'Requires real file upload - test in manual/E2E');
+    // Upload an avatar through the real crop dialog and storage bucket
+    const uploadButton = page.getByRole('button', { name: /upload avatar/i });
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await uploadButton.click();
+    const fileChooser = await fileChooserPromise;
+    await fileChooser.setFiles(TEST_IMAGE_PATH);
 
-    // Upload avatar successfully
-    // Verify success message has aria-live="polite"
+    const cropModal = page.getByRole('dialog', { name: /crop/i });
+    await expect(cropModal).toBeVisible({ timeout: 5000 });
+    await page.getByRole('button', { name: /save/i }).click();
+
+    // The success message is a polite live region
+    const successMessage = page
+      .getByRole('status')
+      .filter({ hasText: /avatar uploaded successfully/i });
+    await expect(successMessage).toBeVisible({ timeout: 10000 });
+    await expect(successMessage).toHaveAttribute('aria-live', 'polite');
   });
 
   test('A11y-010: Color contrast meets WCAG AA (4.5:1)', async ({ page }) => {

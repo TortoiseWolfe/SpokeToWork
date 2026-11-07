@@ -63,6 +63,8 @@ const ADMIN_USER = {
   displayName: 'SpokeToWork',
 };
 
+const adminPasswordFromEnv = process.env.TEST_USER_ADMIN_PASSWORD || null;
+
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('❌ ERROR: Missing Supabase credentials');
   console.error('Required environment variables:');
@@ -141,6 +143,16 @@ async function setupAdminUser(): Promise<boolean> {
     if (existingAdmin) {
       console.log(`  ℹ️  Admin user already exists (ID: ${existingAdmin.id})`);
       adminUserId = existingAdmin.id;
+      if (adminPasswordFromEnv) {
+        const { error: pwError } = await supabase.auth.admin.updateUserById(
+          existingAdmin.id,
+          { password: adminPasswordFromEnv }
+        );
+        if (pwError) {
+          console.error(`  ❌ Admin password update: ${pwError.message}`);
+          return false;
+        }
+      }
     } else {
       // Create admin auth user with fixed UUID
       console.log('  🔐 Creating admin auth user...');
@@ -148,7 +160,9 @@ async function setupAdminUser(): Promise<boolean> {
         await supabase.auth.admin.createUser({
           id: ADMIN_USER.id, // Fixed UUID for consistent welcome message sender
           email: ADMIN_USER.email,
-          password: 'AdminPassword123!', // Not used - no login needed
+          // Welcome messages need no login. The admin E2E specs do sign in:
+          // CI passes a per-job random TEST_USER_ADMIN_PASSWORD.
+          password: adminPasswordFromEnv ?? 'AdminPassword123!',
           email_confirm: true,
           user_metadata: { username: ADMIN_USER.username },
         });
@@ -183,6 +197,9 @@ async function setupAdminUser(): Promise<boolean> {
         username: ADMIN_USER.username,
         display_name: ADMIN_USER.displayName,
         welcome_message_sent: true, // Admin doesn't receive welcome messages
+        // Only when a test password was supplied (CI): the admin pages gate
+        // on user_profiles.is_admin and the admin E2E specs sign in.
+        ...(adminPasswordFromEnv ? { is_admin: true } : {}),
       },
       { onConflict: 'id' }
     );
