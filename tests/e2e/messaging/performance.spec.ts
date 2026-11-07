@@ -612,14 +612,20 @@ test.describe('Virtual Scrolling Performance', () => {
     });
     await expect(jumpButton).not.toBeVisible({ timeout: 10000 });
 
-    // Confirm position is at/near bottom.
-    const { scrollTop, scrollHeight, clientHeight } =
-      await messageThread.evaluate((el) => ({
-        scrollTop: el.scrollTop,
-        scrollHeight: el.scrollHeight,
-        clientHeight: el.clientHeight,
-      }));
-    expect(scrollHeight - (scrollTop + clientHeight)).toBeLessThan(100);
+    // Confirm position is at/near bottom. The virtual list measures rows as
+    // they render, so its scrollHeight grows after the jump (152 px short in
+    // Firefox when read once). Scroll to the current bottom again on every
+    // poll until the measurements settle; the 100 px limit is unchanged.
+    await expect
+      .poll(
+        () =>
+          messageThread.evaluate((el) => {
+            el.scrollTop = el.scrollHeight;
+            return el.scrollHeight - (el.scrollTop + el.clientHeight);
+          }),
+        { timeout: 10000 }
+      )
+      .toBeLessThan(100);
   });
 
   test('Virtual scrolling maintains throughput during rapid scrolling', async ({
