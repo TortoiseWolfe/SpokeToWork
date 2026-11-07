@@ -12,6 +12,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { CompaniesPage } from '../pages/CompaniesPage';
+import { openRoutesDrawer } from '../utils/routes-drawer';
 import {
   getAuthStatePath,
   createAuthenticatedContext,
@@ -33,6 +34,7 @@ async function navigateToCompanies(page: Page): Promise<CompaniesPage> {
   await page.goto(`${BASE_URL}/companies/`);
   await page.waitForLoadState('networkidle');
   await companiesPage.waitForTable();
+  await openRoutesDrawer(page);
   return companiesPage;
 }
 

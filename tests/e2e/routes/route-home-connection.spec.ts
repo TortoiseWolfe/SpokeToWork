@@ -11,6 +11,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { getAuthStatePath } from '../utils/authenticated-context';
+import { openRoutesDrawer } from '../utils/routes-drawer';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 const AUTH_FILE = getAuthStatePath();
@@ -192,6 +193,7 @@ test.describe('Route Home Connection - REAL VERIFICATION', () => {
     await page.goto(`${BASE_URL}/companies`);
     await dismissBanner(page);
     await page.waitForTimeout(2000);
+    await openRoutesDrawer(page);
 
     const routeSidebar = page.locator('aside[aria-label="Route sidebar"]');
     const routeItems = routeSidebar.locator('[role="listitem"]');

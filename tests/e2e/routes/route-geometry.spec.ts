@@ -11,6 +11,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { CompaniesPage } from '../pages/CompaniesPage';
+import { openRoutesDrawer } from '../utils/routes-drawer';
 import { getAuthStatePath } from '../utils/authenticated-context';
 import { waitForMapReady } from '../utils/map-helpers';
 
@@ -59,6 +60,7 @@ test.describe('Route Geometry Generation', () => {
     await page.goto(`${BASE_URL}/companies/`);
     await page.waitForLoadState('networkidle');
     await companiesPage.waitForTable();
+    await openRoutesDrawer(page);
 
     // Dismiss any overlays
     await dismissOverlays(page);

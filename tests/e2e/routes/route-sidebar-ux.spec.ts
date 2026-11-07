@@ -15,6 +15,7 @@
 import { test, expect } from '@playwright/test';
 import { CompaniesPage } from '../pages/CompaniesPage';
 import { getAuthStatePath } from '../utils/authenticated-context';
+import { openRoutesDrawer } from '../utils/routes-drawer';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 const AUTH_FILE = getAuthStatePath();
@@ -27,6 +28,7 @@ async function navigateToCompanies(
   const companiesPage = new CompaniesPage(page);
   await companiesPage.goto();
   await companiesPage.waitForTable();
+  await openRoutesDrawer(page);
   return companiesPage;
 }
 
