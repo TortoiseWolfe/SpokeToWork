@@ -3,9 +3,12 @@
  *
  * ## What it changes
  *
- * Before a spec leaves a page with `page.goto()` or `page.reload()`, the old page is
- * given a moment to finish its own loads. That is all. Nothing else about `test`
- * differs.
+ * Two things, both waits and nothing else:
+ *
+ * 1. Before a spec leaves a page with `page.goto()` or `page.reload()`, the old page is
+ *    given a moment to finish its own loads.
+ * 2. After `page.goto()` lands on the sign-in page, the call does not return until React
+ *    has attached to the sign-in form (the same wait `loginAndVerify` makes).
  *
  * ## Why
  *
@@ -19,6 +22,14 @@
  * between pages: moving on straight away failed 11 times, waiting for the network to go
  * quiet first failed 0 times (grand-daze issue 33 and its shared fixture). This is the
  * same wait, in one place instead of in each spec.
+ *
+ * The second wait is for the same kind of flake from the other side. `goto` returns at
+ * the `load` event, which can be before React hydrates the form, and hydration resets
+ * the controlled inputs: a spec that fills the email straight after `goto('/sign-in')`
+ * lost it (the failure screenshots showed an empty Email box beside a filled Password
+ * box, then the browser's own "email is required" check blocked the submit). Specs that
+ * sign in without `loginAndVerify` (their own users, their own contexts) hit this in
+ * WebKit.
  *
  * ## What it is not
  *
@@ -36,6 +47,7 @@
  * `test` from here; `tests/unit/e2e-specs-use-the-shared-test.test.ts` fails when one
  * imports `test` from `@playwright/test` directly.
  */
+import { waitForSignInFormHydrated } from '../utils/auth-helpers';
 import {
   test as base,
   type Browser,
@@ -60,6 +72,15 @@ async function waitForQuietOrGiveUp(page: Page): Promise<void> {
   }
 }
 
+/** True when the page is showing the sign-in route (with or without the trailing slash). */
+function isSignInPage(page: Page): boolean {
+  try {
+    return /\/sign-in\/?$/.test(new URL(page.url()).pathname);
+  } catch {
+    return false;
+  }
+}
+
 /** Make `page.goto` and `page.reload` wait for the page being left to go quiet first. */
 function patchPage(page: Page): void {
   const p = page as Patchable;
@@ -77,7 +98,16 @@ function patchPage(page: Page): void {
 
   page.goto = async (...args: Parameters<Page['goto']>) => {
     await settle();
-    return originalGoto(...args);
+    const response = await originalGoto(...args);
+    if (!page.isClosed() && isSignInPage(page)) {
+      try {
+        await waitForSignInFormHydrated(page);
+      } catch {
+        // Best effort: a sign-in page with no form (already signed in and
+        // redirected, or genuinely broken) goes back to the spec unchanged.
+      }
+    }
+    return response;
   };
   page.reload = async (...args: Parameters<Page['reload']>) => {
     await settle();
