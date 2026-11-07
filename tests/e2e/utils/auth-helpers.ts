@@ -1,4 +1,32 @@
 /**
+ * Wait until React has attached to the sign-in form.
+ *
+ * page.goto resolves at the "load" event, which can be before React hydrates
+ * the form (WebKit under load is slowest). Filling the inputs before that
+ * point loses the typed email when hydration resets the controlled input, so
+ * the browser's own "email is required" check then silently blocks the submit
+ * (the failure screenshot showed an empty, focused Email box beside a filled
+ * Password box). React marks every element it has hydrated with a
+ * __reactProps$ property, so wait for that on the form.
+ */
+export async function waitForSignInFormHydrated(
+  page: Page,
+  timeout = 15000
+): Promise<void> {
+  await page.waitForFunction(
+    () => {
+      const form = document.querySelector('form:has(input[type="password"])');
+      return (
+        !!form &&
+        Object.keys(form).some((key) => key.startsWith('__reactProps$'))
+      );
+    },
+    undefined,
+    { timeout }
+  );
+}
+
+/**
  * Authentication Helpers for E2E Tests
  * Feature: 062-fix-e2e-auth
  *
@@ -65,6 +93,9 @@ export async function loginAndVerify(
   // Retry loop: GoTrue may need 5-15s to propagate freshly created test users
   // under concurrent CI load (12 shards creating users simultaneously)
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    // Typing before React hydrates the form loses the email (see the helper)
+    await waitForSignInFormHydrated(page);
+
     // Fill credentials
     await page.fill(
       'input[type="email"], input[name="email"]',
