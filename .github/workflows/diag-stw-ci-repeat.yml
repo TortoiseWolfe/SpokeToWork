@@ -59,11 +59,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: webkit same-url goto experiment x3
+          - name: raw goto control x3
             project: webkit
             msg: 'yes'
             repeat: 3
-            args: tests/e2e/diag-goto-same-url.spec.ts
+            args: tests/e2e/diag-goto-raw.spec.ts
+          - name: fixture goto (quiet right now) x3
+            project: webkit
+            msg: 'yes'
+            repeat: 3
+            args: tests/e2e/diag-goto-fixture.spec.ts
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
