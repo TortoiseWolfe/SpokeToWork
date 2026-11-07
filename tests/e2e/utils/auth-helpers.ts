@@ -250,17 +250,22 @@ export async function signOut(
   await signOutButton.click();
 
   // Wait for redirect - GlobalNav redirects to home '/', not '/sign-in'
-  // Use try/catch because Firefox may treat window.location.href assignment
-  // as a hard navigation that races with the waitForURL
-  try {
-    await page.waitForURL(
-      (url) => url.pathname === '/' || url.pathname.includes('/sign-in'),
-      { timeout }
-    );
-  } catch {
-    // Fallback: wait for page to settle after hard navigation
-    await page.waitForLoadState('domcontentloaded');
-  }
+  // Poll the URL rather than page.waitForURL: Firefox treats the app's
+  // window.location.href assignment as a hard navigation that can make
+  // waitForURL throw straight away. The old code swallowed that and went on
+  // while the page was still the signed-out protected route, which shows an
+  // "Authentication Required" card with a second Sign In link (the check
+  // below then failed on two matches). Polling page.url() does not throw
+  // mid-navigation, so we only continue once the app has really left the page.
+  await expect
+    .poll(
+      () => {
+        const pathname = new URL(page.url()).pathname;
+        return pathname === '/' || pathname.includes('/sign-in');
+      },
+      { timeout, message: 'signOut: page never left the protected route' }
+    )
+    .toBe(true);
 
   // Optionally verify we're logged out
   if (verify) {
