@@ -137,6 +137,15 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
     const fileChooserPromise = page.waitForEvent('filechooser', {
       timeout: 5000,
     });
+    // Playwright switches file-chooser interception on asynchronously when
+    // the listener above is added. A round trip through the page (one
+    // animation frame) guarantees the switch has reached the browser before
+    // the key is sent; otherwise, under load, the native chooser can open
+    // with nobody listening and no event ever fires.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    );
     await page.keyboard.press('Enter');
     const fileChooser = await fileChooserPromise;
 
