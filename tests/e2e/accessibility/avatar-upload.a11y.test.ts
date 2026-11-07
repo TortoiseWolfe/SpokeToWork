@@ -163,7 +163,11 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
     // Tab through modal - focus should stay within modal. Ask the browser
     // whether the focused element sits inside the open dialog: judging by
     // textContent cannot work, because the zoom slider has no text at all.
-    const focusedElements: { inModal: boolean; label: string }[] = [];
+    const focusedElements: {
+      inModal: boolean;
+      isBody: boolean;
+      label: string;
+    }[] = [];
 
     for (let i = 0; i < 10; i++) {
       await page.keyboard.press('Tab');
@@ -172,14 +176,19 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
           const el = document.activeElement;
           return {
             inModal: !!el?.closest('dialog[open]'),
+            isBody: el === document.body,
             label: el?.getAttribute('aria-label') || el?.tagName || '',
           };
         })
       );
     }
 
-    // Every stop must be inside the modal...
-    expect(focusedElements.every((f) => f.inModal)).toBe(true);
+    // Every stop must be inside the modal. A native modal <dialog> makes the
+    // page behind it inert, so when Tab runs past the last button the browser
+    // hands focus to its own toolbar and the page reports <body> as focused.
+    // That is the browser's focus loop, not focus reaching the page behind the
+    // modal; any other element outside the dialog fails the test.
+    expect(focusedElements.every((f) => f.inModal || f.isBody)).toBe(true);
 
     // ...and the Tab cycle must really visit the zoom slider and both buttons.
     const labels = focusedElements.map((f) => f.label);
