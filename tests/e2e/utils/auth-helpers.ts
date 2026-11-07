@@ -27,6 +27,34 @@ export async function waitForSignInFormHydrated(
 }
 
 /**
+ * Wait until the service worker the page just registered has finished
+ * installing and taking control.
+ *
+ * PWAInstall registers the worker on every page load at a new address
+ * (sw.js?v=<timestamp>), so each load starts an install, skipWaiting and
+ * clients.claim. A page.goto fired in that window made WebKit throw "WebKit
+ * encountered an internal error" four times in one full run (the first
+ * navigation straight after login). Returns at once when no worker is
+ * registered or none is still installing.
+ */
+export async function waitForServiceWorkerSettled(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    if (!('serviceWorker' in navigator)) return;
+    const registration = await navigator.serviceWorker.getRegistration();
+    const worker = registration?.installing ?? registration?.waiting;
+    if (!worker) return;
+    await new Promise<void>((resolve) => {
+      const settled = () =>
+        worker.state === 'activated' || worker.state === 'redundant';
+      if (settled()) return resolve();
+      worker.addEventListener('statechange', () => {
+        if (settled()) resolve();
+      });
+    });
+  });
+}
+
+/**
  * Authentication Helpers for E2E Tests
  * Feature: 062-fix-e2e-auth
  *
@@ -164,6 +192,10 @@ export async function loginAndVerify(
         `Email: ${credentials.email}`
     );
   }
+
+  // The caller's next page.goto must not land while the page's service worker
+  // is still being swapped in (see the helper)
+  await waitForServiceWorkerSettled(page);
 }
 
 /**
