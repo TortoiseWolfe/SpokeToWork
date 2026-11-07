@@ -53,10 +53,9 @@ export function RoutesDrawer({
         {/* A closed drawer is invisible as well as slid off-screen, so its
             buttons and links are out of reach of the keyboard and screen
             readers. On desktop the width is adjustable (200-400px) and
-            remembered between visits; below 768px it keeps the fixed w-80
-            drawer width. */}
+            remembered between visits; below 768px the drawer is full width. */}
         <ResizablePanel
-          className="h-full w-80"
+          className="h-full w-screen max-w-full md:w-80"
           data-testid="route-sidebar-panel"
           resizeHandleLabel="Resize routes sidebar"
         >
