@@ -45,13 +45,17 @@ const ROUTES = [
 ];
 
 test.describe('Horizontal Scroll Detection', () => {
-  test('no horizontal overflow on any route at any critical mobile width', async ({
-    page,
-  }) => {
-    const failures: string[] = [];
-    let measured = 0;
+  // One test per route, each measuring every critical width. A single test
+  // looping over all routes made 36 page loads inside one 30 s test budget, and
+  // on WebKit the shared fixture's wait before each navigation pushed it over
+  // that budget. Same checks, same timeout, each test now only 4 page loads.
+  for (const url of ROUTES) {
+    test(`no horizontal overflow on ${url} at any critical mobile width`, async ({
+      page,
+    }) => {
+      const failures: string[] = [];
+      let measured = 0;
 
-    for (const url of ROUTES) {
       for (const width of CRITICAL_MOBILE_WIDTHS) {
         await page.setViewportSize({ width, height: 800 });
         await page.goto(url);
@@ -66,17 +70,17 @@ test.describe('Horizontal Scroll Detection', () => {
         if (over > 1)
           failures.push(`${url} @ ${width}px overflows by ${over}px`);
       }
-    }
 
-    // Coverage floor. Without this, a navigation failure or an empty route
-    // list would produce zero measurements and a green result — the shape of
-    // failure this whole issue is about.
-    expect(measured, 'measured no viewport/route combinations at all').toBe(
-      ROUTES.length * CRITICAL_MOBILE_WIDTHS.length
-    );
+      // Coverage floor. Without this, a navigation failure or an empty width
+      // list would produce zero measurements and a green result — the shape of
+      // failure this whole issue is about.
+      expect(measured, `measured no widths at all on ${url}`).toBe(
+        CRITICAL_MOBILE_WIDTHS.length
+      );
 
-    expect(failures, failures.join('\n')).toEqual([]);
-  });
+      expect(failures, failures.join('\n')).toEqual([]);
+    });
+  }
 
   test('Main content fits within narrow viewport', async ({ page }) => {
     // Test at narrowest supported width
