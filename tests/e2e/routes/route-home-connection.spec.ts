@@ -247,6 +247,8 @@ test.describe('Route Home Connection - REAL VERIFICATION', () => {
     await page.goto(`${BASE_URL}/companies`);
     await dismissBanner(page);
     await page.waitForTimeout(2000);
+    // Navigating away closed the drawer; reopen it before clicking a row.
+    await openRoutesDrawer(page);
 
     await routeItems.nth(1).click();
     await page.waitForTimeout(500);
