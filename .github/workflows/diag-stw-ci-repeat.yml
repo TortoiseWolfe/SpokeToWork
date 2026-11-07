@@ -59,21 +59,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: webkit whole messaging spec x8
-            project: webkit
-            msg: 'yes'
-            repeat: 8
-            args: tests/e2e/messaging/encrypted-messaging.spec.ts
-          - name: webkit msg shard 1/4 x3
+          - name: webkit same-url goto experiment x3
             project: webkit
             msg: 'yes'
             repeat: 3
-            args: --grep "messaging/|employer/" --shard 1/4
-          - name: firefox whole navigation file x10
-            project: firefox
-            msg: 'no'
-            repeat: 10
-            args: tests/e2e/tests/cross-page-navigation.spec.ts
+            args: tests/e2e/diag-goto-same-url.spec.ts
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
