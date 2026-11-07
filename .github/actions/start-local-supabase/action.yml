@@ -23,15 +23,27 @@ runs:
     - name: Start Supabase
       shell: bash
       run: |
-        set -euo pipefail
-        if ! supabase start \
-          -x studio,imgproxy,logflare,vector,postgres-meta,supavisor \
-          > "${RUNNER_TEMP}/supabase-start.log" 2>&1; then
+        set -uo pipefail
+        # The stack's host ports (54321-54329) sit inside the range the
+        # operating system also hands to outgoing connections, so on a busy
+        # shared runner one can be taken a moment before Docker binds it
+        # ("address already in use"). Tear down the half-started stack and
+        # try again; a real failure still fails the job after the last try.
+        attempts=3
+        for attempt in $(seq 1 "${attempts}"); do
+          if supabase start \
+            -x studio,imgproxy,logflare,vector,postgres-meta,supavisor \
+            > "${RUNNER_TEMP}/supabase-start.log" 2>&1; then
+            exit 0
+          fi
           # Keep the diagnostic output, but never echo credentials.
+          echo "::warning::supabase start failed (attempt ${attempt} of ${attempts})"
           grep -viE 'anon key|service_role key|publishable key|secret key|jwt secret|password' \
-            "${RUNNER_TEMP}/supabase-start.log" | tail -200 || true
-          exit 1
-        fi
+            "${RUNNER_TEMP}/supabase-start.log" | tail -40 || true
+          supabase stop --no-backup > /dev/null 2>&1 || true
+          sleep 5
+        done
+        exit 1
 
     # Export the local stack's values into this job. Nothing is printed: the
     # CLI's status output contains JWTs, and workflow logs are public.
