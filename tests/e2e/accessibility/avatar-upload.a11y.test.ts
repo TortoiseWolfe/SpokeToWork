@@ -129,6 +129,9 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
   }) => {
     const uploadButton = page.getByRole('button', { name: /upload avatar/i });
     await uploadButton.focus();
+    // Wait until the focus has settled (a re-render right after load can
+    // drop it) before pressing Enter.
+    await expect(uploadButton).toBeFocused();
 
     // Press Enter to activate
     const fileChooserPromise = page.waitForEvent('filechooser', {
@@ -157,28 +160,32 @@ test.describe('Avatar Upload Accessibility (WCAG 2.1 AA)', () => {
     // Verify modal has aria-modal="true"
     await expect(cropModal).toHaveAttribute('aria-modal', 'true');
 
-    // Tab through modal - focus should stay within modal
-    const focusedElements: string[] = [];
+    // Tab through modal - focus should stay within modal. Ask the browser
+    // whether the focused element sits inside the open dialog: judging by
+    // textContent cannot work, because the zoom slider has no text at all.
+    const focusedElements: { inModal: boolean; label: string }[] = [];
 
     for (let i = 0; i < 10; i++) {
       await page.keyboard.press('Tab');
-      const activeElement = await page.evaluateHandle(
-        () => document.activeElement
+      focusedElements.push(
+        await page.evaluate(() => {
+          const el = document.activeElement;
+          return {
+            inModal: !!el?.closest('dialog[open]'),
+            label: el?.getAttribute('aria-label') || el?.tagName || '',
+          };
+        })
       );
-      const elementText = await page.evaluate(
-        (el) => el?.textContent,
-        activeElement
-      );
-      focusedElements.push(elementText || '');
     }
 
-    // Verify all focused elements are within modal (Save, Cancel, Zoom)
-    const modalInteractiveElements = ['Save', 'Cancel', 'Zoom', 'Crop'];
-    const allWithinModal = focusedElements.every((text) =>
-      modalInteractiveElements.some((label) => text.includes(label))
-    );
+    // Every stop must be inside the modal...
+    expect(focusedElements.every((f) => f.inModal)).toBe(true);
 
-    expect(allWithinModal).toBe(true);
+    // ...and the Tab cycle must really visit the zoom slider and both buttons.
+    const labels = focusedElements.map((f) => f.label);
+    expect(labels).toContain('Zoom level');
+    expect(labels).toContain('Cancel crop');
+    expect(labels).toContain('Save cropped avatar');
   });
 
   test('A11y-006: Escape key closes crop modal', async ({ page }) => {

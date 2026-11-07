@@ -399,6 +399,21 @@ INSERT INTO storage.buckets (id, name)
 VALUES ('avatars', 'avatars')
 ON CONFLICT (id) DO NOTHING;                         -- Idempotent
 
+-- Avatars are read through the public object URL (getPublicUrl), which only
+-- serves buckets flagged public. Hosted projects have the flag set; a fresh
+-- local stack does not, so every avatar fell back to initials. Set it when
+-- the column exists (the note above says some versions lack it).
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'storage' AND table_name = 'buckets'
+      AND column_name = 'public'
+  ) THEN
+    EXECUTE 'UPDATE storage.buckets SET public = true WHERE id = ''avatars''';
+  END IF;
+END $$;
+
 -- Drop existing avatar policies (for clean re-run)
 DROP POLICY IF EXISTS "Users can upload own avatar" ON storage.objects;
 DROP POLICY IF EXISTS "Users can update own avatar" ON storage.objects;
