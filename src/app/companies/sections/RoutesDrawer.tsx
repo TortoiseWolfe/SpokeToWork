@@ -7,6 +7,7 @@
 
 import { useEffect } from 'react';
 import RouteSidebar from '@/components/organisms/RouteSidebar';
+import ResizablePanel from '@/components/molecular/ResizablePanel';
 import type { UseRouteActionsReturn } from '@/hooks/useRouteActions';
 import type { BicycleRoute } from '@/types/route';
 
@@ -45,29 +46,37 @@ export function RoutesDrawer({
         aria-hidden="true"
       />
       <div
-        className={`bg-base-200 border-base-300 fixed top-0 left-0 z-50 h-full w-80 border-r shadow-xl transition-transform duration-300 ease-in-out ${
+        className={`bg-base-200 border-base-300 fixed top-0 left-0 z-50 h-full max-w-full border-r shadow-xl transition-transform duration-300 ease-in-out ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-end p-2">
-          <button
-            type="button"
-            className="btn btn-sm btn-ghost min-h-11 min-w-11"
-            aria-label="Close routes sidebar"
-            onClick={onClose}
-          >
-            ✕
-          </button>
-        </div>
-        <RouteSidebar
-          routes={routes}
-          activeRouteId={activeRouteId}
-          isLoading={isLoading}
-          onCreateRoute={routeActions.openBuilder}
-          onRouteSelect={routeActions.select}
-          onEditRoute={routeActions.edit}
-          onDeleteRoute={routeActions.remove}
-        />
+        {/* Width is user-adjustable on desktop (200-400px, remembered between
+            visits). Below 768px the panel keeps the fixed w-80 drawer width. */}
+        <ResizablePanel
+          className="h-full w-80"
+          data-testid="route-sidebar-panel"
+          resizeHandleLabel="Resize routes sidebar"
+        >
+          <div className="flex items-center justify-end p-2">
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost min-h-11 min-w-11"
+              aria-label="Close routes sidebar"
+              onClick={onClose}
+            >
+              ✕
+            </button>
+          </div>
+          <RouteSidebar
+            routes={routes}
+            activeRouteId={activeRouteId}
+            isLoading={isLoading}
+            onCreateRoute={routeActions.openBuilder}
+            onRouteSelect={routeActions.select}
+            onEditRoute={routeActions.edit}
+            onDeleteRoute={routeActions.remove}
+          />
+        </ResizablePanel>
       </div>
     </>
   );
