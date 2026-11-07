@@ -7,8 +7,8 @@ import {
   getQueuedItems,
   removeFromQueue,
   updateRetryCount,
-  type QueuedSubmission,
-} from './offline-queue';
+  type FormQueueItem,
+} from '@/lib/offline-queue';
 import type { ContactFormData } from '@/schemas/contact.schema';
 import { createLogger } from '@/lib/logger';
 
@@ -47,14 +47,14 @@ export async function registerBackgroundSync(): Promise<boolean> {
  * Process a single queued submission
  */
 async function processQueuedSubmission(
-  submission: QueuedSubmission
+  submission: FormQueueItem
 ): Promise<boolean> {
   try {
     logger.debug('Processing submission', { submissionId: submission.id });
 
     // Attempt to submit
     const response = await submitWithRetry(
-      submission.data as ContactFormData,
+      submission.formData as unknown as ContactFormData,
       0 // No retries in background sync, we'll handle retry with queue
     );
 
@@ -72,7 +72,7 @@ async function processQueuedSubmission(
     });
 
     // Update retry count
-    const newRetryCount = submission.retryCount + 1;
+    const newRetryCount = submission.retries + 1;
 
     if (newRetryCount >= MAX_RETRIES) {
       logger.warn('Max retries reached, removing from queue', {
@@ -109,7 +109,7 @@ export async function processQueue(): Promise<void> {
       // Check if enough time has passed since last attempt
       if (item.lastAttempt) {
         const timeSinceLastAttempt = Date.now() - item.lastAttempt;
-        const requiredDelay = RETRY_DELAY_BASE * Math.pow(2, item.retryCount);
+        const requiredDelay = RETRY_DELAY_BASE * Math.pow(2, item.retries);
 
         if (timeSinceLastAttempt < requiredDelay) {
           logger.debug('Skipping item, not enough time since last attempt', {

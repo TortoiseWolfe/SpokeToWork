@@ -38,6 +38,32 @@ export class FormQueueAdapter extends BaseOfflineQueue<FormQueueItem> {
       tableName: 'submissions',
       ...DEFAULT_QUEUE_CONFIG,
     });
+
+    // The deprecated src/utils/offline-queue.ts wrote rows into this same
+    // database as { data, timestamp, retryCount } with no status or createdAt.
+    // Rows without createdAt are skipped by the createdAt index, so a visitor's
+    // queued submission would be stranded. Convert them in place on upgrade (#89).
+    this.version(2)
+      .stores({ submissions: '++id, status, createdAt, retries' })
+      .upgrade((tx) =>
+        tx
+          .table('submissions')
+          .toCollection()
+          .modify((row: Record<string, any>) => {
+            if (row.status !== undefined) return;
+            row.formData = row.formData ?? row.data ?? {};
+            row.status = 'pending';
+            row.retries = row.retryCount ?? 0;
+            row.createdAt = row.timestamp ?? Date.now();
+            delete row.data;
+            delete row.retryCount;
+            delete row.timestamp;
+          })
+      );
+
+    // Declaring a version rebuilds Dexie's table objects, so point the base
+    // class's table reference at the new one.
+    this.items = this.table('submissions');
   }
 
   /**
