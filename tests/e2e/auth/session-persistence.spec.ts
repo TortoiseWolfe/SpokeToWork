@@ -242,28 +242,29 @@ test.describe('Session Persistence E2E', () => {
     // Wait for page to fully settle after sign-out navigation (window.location.href = '/')
     await page.waitForLoadState('networkidle');
 
-    // Verify session cleared from storage
-    const afterSignOut = await page.evaluate(() =>
-      JSON.stringify(window.localStorage)
-    );
-
     // Session data should be removed or cleared
     // Supabase SSR uses `sb-{ref}-auth-token` key, not `supabase.auth.token`
-    const hasActiveSession = await page.evaluate(() => {
-      const keys = Object.keys(localStorage);
-      const authKey = keys.find((k) => k.match(/^sb-.*-auth-token$/));
-      if (!authKey) return false;
-      const authData = localStorage.getItem(authKey);
-      if (!authData) return false;
-      try {
-        const parsed = JSON.parse(authData);
-        return !!parsed.access_token;
-      } catch {
-        return false;
-      }
-    });
-
-    expect(hasActiveSession).toBeFalsy();
+    // waitForFunction re-runs the check if a second navigation destroys the
+    // page's context mid-read (WebKit), where a one-shot evaluate would throw
+    // "Execution context was destroyed". It fails after 15 s if the session
+    // is still in storage, so the check is as strict as before.
+    await page.waitForFunction(
+      () => {
+        const keys = Object.keys(localStorage);
+        const authKey = keys.find((k) => k.match(/^sb-.*-auth-token$/));
+        if (!authKey) return true;
+        const authData = localStorage.getItem(authKey);
+        if (!authData) return true;
+        try {
+          const parsed = JSON.parse(authData);
+          return !parsed.access_token;
+        } catch {
+          return true;
+        }
+      },
+      undefined,
+      { timeout: 15000 }
+    );
 
     // Verify cannot access protected routes
     await page.goto('/profile');

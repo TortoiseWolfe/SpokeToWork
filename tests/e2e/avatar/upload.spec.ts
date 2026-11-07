@@ -25,6 +25,7 @@ import {
   generateTestEmail,
   DEFAULT_TEST_PASSWORD,
 } from '../utils/test-user-factory';
+import { waitForSignInFormHydrated } from '../utils/auth-helpers';
 
 let testUser: { id: string; email: string; password: string } | null = null;
 
@@ -55,6 +56,10 @@ test.describe('Avatar Upload Flow', () => {
 
     // Sign in with pre-confirmed test user
     await page.goto('/sign-in');
+    // Wait for React to attach to the form first: typing before that point
+    // loses the email when hydration resets the field, and the browser then
+    // blocks the submit and the redirect below never happens (WebKit).
+    await waitForSignInFormHydrated(page);
     await page.fill('input[type="email"]', testUser.email);
     await page.fill('input[type="password"]', testUser.password);
     await page.click('button[type="submit"]');
