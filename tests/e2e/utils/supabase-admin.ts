@@ -154,6 +154,12 @@ export async function executeSQL(
   return [];
 }
 
+// Home the route specs assert on (route-home-connection.spec.ts expects route
+// geometry to start here). The live database's test user had this saved; a fresh
+// local database has none, so seed the same point instead of a Chattanooga one.
+const TEST_HOME_LAT = 35.1778384;
+const TEST_HOME_LNG = -84.8353553;
+
 /**
  * Ensure test user has routes for route E2E tests
  *
@@ -241,8 +247,8 @@ export async function ensureTestRoutes(userEmail: string): Promise<void> {
   if (existingRoutes >= 2) {
     console.log(`Test user has ${existingRoutes} routes`);
     await seedGeometryAndHome(
-      home_latitude ?? 35.0456,
-      home_longitude ?? -85.3097
+      home_latitude ?? TEST_HOME_LAT,
+      home_longitude ?? TEST_HOME_LNG
     );
     return;
   }
@@ -256,11 +262,11 @@ export async function ensureTestRoutes(userEmail: string): Promise<void> {
   // so route E2E seeded fixed coordinates and passed regardless of the data.
   if (home_latitude == null || home_longitude == null) {
     console.log(
-      `No home location for ${userEmail} — seeding routes from fallback Chattanooga coordinates`
+      `No home location for ${userEmail} — seeding routes from the fixture home coordinates`
     );
   }
-  const homeLat = home_latitude ?? 35.0456;
-  const homeLng = home_longitude ?? -85.3097;
+  const homeLat = home_latitude ?? TEST_HOME_LAT;
+  const homeLng = home_longitude ?? TEST_HOME_LNG;
 
   const routes = [
     {
