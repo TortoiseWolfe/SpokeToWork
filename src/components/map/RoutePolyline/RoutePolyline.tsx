@@ -16,6 +16,7 @@ import {
   routeToGeoJSON,
   getRoutePaint,
   getRouteGlowPaint,
+  syncLayerPaint,
   ROUTE_LAYOUT,
 } from '@/lib/map/route-paint';
 import { RoutePopupBody } from './RoutePopupBody';
@@ -103,6 +104,29 @@ export default function RoutePolyline({
     };
   }, [map, layerId, handleLayerClick]);
 
+  // react-map-gl can drop a paint change when the map's style is briefly not
+  // ready, leaving the active route thin with no highlight. Check the drawn
+  // layers against the wanted paint after each render and on each styledata
+  // event, and repair any that differ.
+  const dashPaint = useMemo(
+    () => ({ ...paint, 'line-dasharray': [2, 1] }),
+    [paint]
+  );
+  useEffect(() => {
+    if (!map) return;
+    const glMap = map.getMap();
+    const sync = () => {
+      syncLayerPaint(glMap, layerId, paint);
+      if (system) syncLayerPaint(glMap, `${layerId}-dash`, dashPaint);
+      if (isActive) syncLayerPaint(glMap, `${layerId}-glow`, glowPaint);
+    };
+    sync();
+    glMap.on('styledata', sync);
+    return () => {
+      glMap.off('styledata', sync);
+    };
+  }, [map, layerId, paint, dashPaint, glowPaint, system, isActive]);
+
   if (!geoJsonData) return null;
 
   return (
@@ -121,7 +145,7 @@ export default function RoutePolyline({
           <Layer
             id={`${layerId}-dash`}
             type="line"
-            paint={{ ...paint, 'line-dasharray': [2, 1] }}
+            paint={dashPaint}
             layout={ROUTE_LAYOUT}
           />
         )}
