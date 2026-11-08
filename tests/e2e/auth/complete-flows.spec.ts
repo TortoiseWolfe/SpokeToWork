@@ -12,40 +12,30 @@
  * and create/cleanup test users programmatically.
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
+import {
+  canExecuteSQL,
+  escapeSQL,
+  executeSQL,
+} from '../utils/supabase-admin';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN!;
-
-// Extract project ref from Supabase URL
-const PROJECT_REF = SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
 
 const TEST_PASSWORD = process.env.TEST_USER_PRIMARY_PASSWORD!;
 
-// Skip all tests if required cloud Supabase credentials are missing.
-// These tests use the Supabase Management API and cannot run without cloud credentials.
+// Works against either the hosted project (Management API) or the throwaway
+// local stack used by CI (direct Postgres connection).
 test.beforeEach(() => {
   const missing = [
-    !PROJECT_REF && 'NEXT_PUBLIC_SUPABASE_URL (cloud)',
-    !ACCESS_TOKEN && 'SUPABASE_ACCESS_TOKEN',
+    !canExecuteSQL() &&
+      'database credentials (SUPABASE_DB_URL or SUPABASE_ACCESS_TOKEN)',
     !TEST_PASSWORD && 'TEST_USER_PRIMARY_PASSWORD',
   ].filter(Boolean);
   if (missing.length) {
     test.skip(true, `Missing required env vars: ${missing.join(', ')}`);
   }
 });
-
-interface SQLResult {
-  [key: string]: unknown;
-}
-
-/**
- * Escape single quotes for SQL strings
- */
-function escapeSQL(value: string): string {
-  return value.replace(/'/g, "''");
-}
 
 /**
  * Validate UUID format
@@ -61,49 +51,6 @@ function isValidUUID(value: string): boolean {
  */
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Execute SQL via Supabase Management API with retry logic for rate limits
- */
-async function executeSQL(
-  query: string,
-  retries = 5,
-  baseDelay = 2000
-): Promise<SQLResult[]> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const response = await fetch(
-      `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query }),
-      }
-    );
-
-    if (response.ok) {
-      return response.json();
-    }
-
-    // Handle rate limiting with exponential backoff + jitter
-    if (response.status === 429 && attempt < retries) {
-      const jitter = Math.random() * 1000;
-      const delay = baseDelay * Math.pow(2, attempt) + jitter;
-      console.log(
-        `Rate limited, retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${retries})...`
-      );
-      await sleep(delay);
-      continue;
-    }
-
-    const errorText = await response.text();
-    throw new Error(`SQL failed: ${response.status} - ${errorText}`);
-  }
-
-  throw new Error('Exhausted retries');
 }
 
 /**

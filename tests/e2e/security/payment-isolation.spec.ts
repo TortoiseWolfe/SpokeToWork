@@ -7,7 +7,8 @@
 // Actual: payment-demo page has different UI pattern (card consent, PaymentButton)
 // Marked with test.fail() - tests will pass when they fail (expected).
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 
 // Test users
 const USER_A = {

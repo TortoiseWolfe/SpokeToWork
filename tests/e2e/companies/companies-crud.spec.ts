@@ -10,7 +10,8 @@
  * Uses createTestUser with email_confirm: true to avoid email verification issues.
  */
 
-import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+import { expect, type BrowserContext, type Page } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { CompaniesPage } from '../pages/CompaniesPage';
 import { executeSQL, escapeSQL } from '../utils/supabase-admin';
 // Uses shared auth state - no test user creation needed

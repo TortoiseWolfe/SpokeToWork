@@ -7,7 +7,8 @@
  * map (center, always visible), company table (right, collapsible).
  * Floating toggle buttons on the map let users open/close each panel.
  *
- * Mobile: map is fixed full-screen, mobileSheet slot renders over it.
+ * Mobile: map is fixed full-screen, mobileSheet slot renders over it, and a
+ * Routes button opens the full-width routes drawer.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -77,6 +78,18 @@ export function SplitWorkspaceLayout({
         >
           {map}
         </div>
+        {/* The routes drawer slides over the full screen on mobile; this is
+            the only way to open it (same label as the desktop button). */}
+        {onToggleRoutes && !routesOpen && (
+          <button
+            type="button"
+            className="btn btn-sm btn-neutral fixed top-3 left-3 z-[1000] min-h-11 min-w-11 shadow-lg"
+            onClick={onToggleRoutes}
+            aria-label="Open routes sidebar"
+          >
+            Routes
+          </button>
+        )}
         {mobileSheet}
       </div>
     );
@@ -92,7 +105,7 @@ export function SplitWorkspaceLayout({
         data-testid="split-workspace-map-panel"
         role="region"
         aria-label={mapLabel}
-        className="relative min-w-0 flex-1 overflow-hidden"
+        className="relative isolate min-w-0 flex-1 overflow-hidden"
       >
         {/* Map fills panel via absolute positioning — percentage heights
             can fail inside flex layouts, so we pin to edges instead */}

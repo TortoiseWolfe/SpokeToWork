@@ -1,4 +1,5 @@
-import { test, devices, BrowserContextOptions } from '@playwright/test';
+import { devices, BrowserContextOptions } from '@playwright/test';
+import { test } from './fixtures/test';
 
 // Helper to extract only viewport/touch settings, not defaultBrowserType
 function getDeviceConfig(

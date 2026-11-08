@@ -2,7 +2,8 @@
 // Feature 017 - Task T009 (E2E Tests with Real Browser)
 // Purpose: Test rate limiting from user perspective
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 
 // Next.js injects a [role="alert"] route announcer on every page.
 // Exclude it so strict-mode locators resolve to the auth error only.

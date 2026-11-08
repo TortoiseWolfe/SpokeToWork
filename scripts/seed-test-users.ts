@@ -37,14 +37,12 @@ const SECONDARY_PASSWORD = process.env.TEST_USER_SECONDARY_PASSWORD;
 const TERTIARY_EMAIL = process.env.TEST_USER_TERTIARY_EMAIL;
 const TERTIARY_PASSWORD = process.env.TEST_USER_TERTIARY_PASSWORD;
 
-// Validate required env vars
+// Validate required env vars. Secondary/tertiary are optional: some CI jobs
+// (smoke, accessibility) only authenticate the primary user and do not need
+// the other identities.
 const missingVars: string[] = [];
 if (!PRIMARY_EMAIL) missingVars.push('TEST_USER_PRIMARY_EMAIL');
 if (!PRIMARY_PASSWORD) missingVars.push('TEST_USER_PRIMARY_PASSWORD');
-if (!SECONDARY_EMAIL) missingVars.push('TEST_USER_SECONDARY_EMAIL');
-if (!SECONDARY_PASSWORD) missingVars.push('TEST_USER_SECONDARY_PASSWORD');
-if (!TERTIARY_EMAIL) missingVars.push('TEST_USER_TERTIARY_EMAIL');
-if (!TERTIARY_PASSWORD) missingVars.push('TEST_USER_TERTIARY_PASSWORD');
 
 if (missingVars.length > 0) {
   console.error('❌ ERROR: Missing test user credentials in environment');
@@ -64,6 +62,8 @@ const ADMIN_USER = {
   username: 'spoketowork',
   displayName: 'SpokeToWork',
 };
+
+const adminPasswordFromEnv = process.env.TEST_USER_ADMIN_PASSWORD || null;
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('❌ ERROR: Missing Supabase credentials');
@@ -95,19 +95,25 @@ const TEST_USERS: TestUser[] = [
     username: 'testuser',
     displayName: 'Test User',
   },
-  {
-    email: SECONDARY_EMAIL!,
-    password: SECONDARY_PASSWORD!,
+];
+
+if (SECONDARY_EMAIL && SECONDARY_PASSWORD) {
+  TEST_USERS.push({
+    email: SECONDARY_EMAIL,
+    password: SECONDARY_PASSWORD,
     username: 'testuser-b',
     displayName: 'Test User B',
-  },
-  {
-    email: TERTIARY_EMAIL!,
-    password: TERTIARY_PASSWORD!,
+  });
+}
+
+if (TERTIARY_EMAIL && TERTIARY_PASSWORD) {
+  TEST_USERS.push({
+    email: TERTIARY_EMAIL,
+    password: TERTIARY_PASSWORD,
     username: 'testuser-c',
     displayName: 'Test User C',
-  },
-];
+  });
+}
 
 /**
  * Setup admin user with ECDH P-256 public key (T005)
@@ -137,6 +143,16 @@ async function setupAdminUser(): Promise<boolean> {
     if (existingAdmin) {
       console.log(`  ℹ️  Admin user already exists (ID: ${existingAdmin.id})`);
       adminUserId = existingAdmin.id;
+      if (adminPasswordFromEnv) {
+        const { error: pwError } = await supabase.auth.admin.updateUserById(
+          existingAdmin.id,
+          { password: adminPasswordFromEnv }
+        );
+        if (pwError) {
+          console.error(`  ❌ Admin password update: ${pwError.message}`);
+          return false;
+        }
+      }
     } else {
       // Create admin auth user with fixed UUID
       console.log('  🔐 Creating admin auth user...');
@@ -144,7 +160,9 @@ async function setupAdminUser(): Promise<boolean> {
         await supabase.auth.admin.createUser({
           id: ADMIN_USER.id, // Fixed UUID for consistent welcome message sender
           email: ADMIN_USER.email,
-          password: 'AdminPassword123!', // Not used - no login needed
+          // Welcome messages need no login. The admin E2E specs do sign in:
+          // CI passes a per-job random TEST_USER_ADMIN_PASSWORD.
+          password: adminPasswordFromEnv ?? 'AdminPassword123!',
           email_confirm: true,
           user_metadata: { username: ADMIN_USER.username },
         });
@@ -179,6 +197,9 @@ async function setupAdminUser(): Promise<boolean> {
         username: ADMIN_USER.username,
         display_name: ADMIN_USER.displayName,
         welcome_message_sent: true, // Admin doesn't receive welcome messages
+        // Only when a test password was supplied (CI): the admin pages gate
+        // on user_profiles.is_admin and the admin E2E specs sign in.
+        ...(adminPasswordFromEnv ? { is_admin: true } : {}),
       },
       { onConflict: 'id' }
     );
@@ -452,7 +473,7 @@ async function main() {
   console.log('\n📋 Users:');
   console.log(`   Admin: ${ADMIN_USER.email} (for welcome messages)`);
   for (const user of TEST_USERS) {
-    console.log(`   Test: ${user.email} / ${user.password}`);
+    console.log(`   Test: ${user.email}`);
   }
 
   console.log('\n📋 Next steps:');

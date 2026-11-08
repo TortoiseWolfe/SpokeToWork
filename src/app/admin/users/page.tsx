@@ -64,26 +64,40 @@ export default function AdminUsersPage() {
           </p>
         </div>
         <Link href="/admin" className="btn btn-ghost">
-          ← Admin
+          ← Back to Admin
         </Link>
       </header>
 
       <div className="stats stats-vertical sm:stats-horizontal w-full shadow">
         <div className="stat">
           <div className="stat-title">Total</div>
-          <div className="stat-value">{users.length}</div>
+          <div className="stat-value" data-testid="stat-total-users">
+            {users.length}
+          </div>
         </div>
         <div className="stat">
           <div className="stat-title">Workers</div>
-          <div className="stat-value text-base-content/60">{workers}</div>
+          <div
+            className="stat-value text-base-content/60"
+            data-testid="stat-workers"
+          >
+            {workers}
+          </div>
         </div>
         <div className="stat">
           <div className="stat-title">Employers</div>
-          <div className="stat-value text-secondary">{employers}</div>
+          <div
+            className="stat-value text-secondary"
+            data-testid="stat-employers"
+          >
+            {employers}
+          </div>
         </div>
         <div className="stat">
           <div className="stat-title">Admins</div>
-          <div className="stat-value text-error">{admins}</div>
+          <div className="stat-value text-error" data-testid="stat-admins">
+            {admins}
+          </div>
         </div>
       </div>
 

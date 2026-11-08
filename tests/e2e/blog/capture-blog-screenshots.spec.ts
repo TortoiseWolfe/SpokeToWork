@@ -17,11 +17,13 @@
  * Audit report saved to: public/blog-images/getting-started-job-hunt-companion/audit-report.md
  */
 
-import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+import { expect, type BrowserContext, type Page } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as path from 'path';
 import * as fs from 'fs';
 import { executeSQL, escapeSQL } from '../utils/supabase-admin';
+import { openRoutesDrawer } from '../utils/routes-drawer';
 
 // ============================================================================
 // AUDIT INFRASTRUCTURE
@@ -1029,6 +1031,9 @@ test.describe.serial('Blog Screenshot Capture with Accuracy Audit', () => {
     await page.goto(`${BASE_URL}/companies`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
+    // The sidebar is a drawer that is closed (and hidden) until opened; open
+    // it so the audit and the screenshot see the sidebar a user sees.
+    await openRoutesDrawer(page);
 
     const routeSidebar = page.locator(
       '[data-testid="route-sidebar"], .route-sidebar, aside:has-text("Route")'

@@ -6,7 +6,8 @@
  * Tests data export and account deletion flows
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { loginAndVerify } from '../utils/auth-helpers';
 import { getShardUsers } from '../utils/shard-users';
 

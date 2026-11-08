@@ -1,4 +1,61 @@
 /**
+ * Wait until React has attached to the sign-in form.
+ *
+ * page.goto resolves at the "load" event, which can be before React hydrates
+ * the form (WebKit under load is slowest). Filling the inputs before that
+ * point loses the typed email when hydration resets the controlled input, so
+ * the browser's own "email is required" check then silently blocks the submit
+ * (the failure screenshot showed an empty, focused Email box beside a filled
+ * Password box). React marks every element it has hydrated with a
+ * __reactProps$ property, so wait for that on the form.
+ */
+export async function waitForSignInFormHydrated(
+  page: Page,
+  timeout = 15000
+): Promise<void> {
+  await page.waitForFunction(
+    () => {
+      const form = document.querySelector('form:has(input[type="password"])');
+      return (
+        !!form &&
+        Object.keys(form).some((key) => key.startsWith('__reactProps$'))
+      );
+    },
+    undefined,
+    { timeout }
+  );
+}
+
+/**
+ * Wait until the service worker the page just registered has finished
+ * installing and taking control.
+ *
+ * The first load of a fresh browser profile starts an install, skipWaiting and
+ * clients.claim. A page.goto fired in that window made WebKit throw "WebKit
+ * encountered an internal error" (the first navigation straight after login).
+ * PWAInstall used to register the worker at a new address on every load
+ * (sw.js?v=<timestamp>), which repeated that window on every page; it now
+ * registers one stable address. Returns at once when no worker is registered
+ * or none is still installing.
+ */
+export async function waitForServiceWorkerSettled(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    if (!('serviceWorker' in navigator)) return;
+    const registration = await navigator.serviceWorker.getRegistration();
+    const worker = registration?.installing ?? registration?.waiting;
+    if (!worker) return;
+    await new Promise<void>((resolve) => {
+      const settled = () =>
+        worker.state === 'activated' || worker.state === 'redundant';
+      if (settled()) return resolve();
+      worker.addEventListener('statechange', () => {
+        if (settled()) resolve();
+      });
+    });
+  });
+}
+
+/**
  * Authentication Helpers for E2E Tests
  * Feature: 062-fix-e2e-auth
  *
@@ -65,6 +122,9 @@ export async function loginAndVerify(
   // Retry loop: GoTrue may need 5-15s to propagate freshly created test users
   // under concurrent CI load (12 shards creating users simultaneously)
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    // Typing before React hydrates the form loses the email (see the helper)
+    await waitForSignInFormHydrated(page);
+
     // Fill credentials
     await page.fill(
       'input[type="email"], input[name="email"]',
@@ -133,6 +193,10 @@ export async function loginAndVerify(
         `Email: ${credentials.email}`
     );
   }
+
+  // The caller's next page.goto must not land while the page's service worker
+  // is still being swapped in (see the helper)
+  await waitForServiceWorkerSettled(page);
 }
 
 /**
@@ -219,17 +283,22 @@ export async function signOut(
   await signOutButton.click();
 
   // Wait for redirect - GlobalNav redirects to home '/', not '/sign-in'
-  // Use try/catch because Firefox may treat window.location.href assignment
-  // as a hard navigation that races with the waitForURL
-  try {
-    await page.waitForURL(
-      (url) => url.pathname === '/' || url.pathname.includes('/sign-in'),
-      { timeout }
-    );
-  } catch {
-    // Fallback: wait for page to settle after hard navigation
-    await page.waitForLoadState('domcontentloaded');
-  }
+  // Poll the URL rather than page.waitForURL: Firefox treats the app's
+  // window.location.href assignment as a hard navigation that can make
+  // waitForURL throw straight away. The old code swallowed that and went on
+  // while the page was still the signed-out protected route, which shows an
+  // "Authentication Required" card with a second Sign In link (the check
+  // below then failed on two matches). Polling page.url() does not throw
+  // mid-navigation, so we only continue once the app has really left the page.
+  await expect
+    .poll(
+      () => {
+        const pathname = new URL(page.url()).pathname;
+        return pathname === '/' || pathname.includes('/sign-in');
+      },
+      { timeout, message: 'signOut: page never left the protected route' }
+    )
+    .toBe(true);
 
   // Optionally verify we're logged out
   if (verify) {

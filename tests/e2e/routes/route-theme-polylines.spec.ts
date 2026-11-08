@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { test } from '../fixtures/test';
 
 /**
  * Route polyline color verification across DaisyUI themes.
@@ -35,7 +36,8 @@ async function waitForMapLayers(page: Page, timeout = 55000) {
 async function setThemeAndWait(
   page: Page,
   theme: string,
-  previousColor?: string | null
+  previousColor?: string | null,
+  layerId = 'all-bike-routes'
 ) {
   await page.evaluate(
     (t) => document.documentElement.setAttribute('data-theme', t),
@@ -66,28 +68,26 @@ async function setThemeAndWait(
     )
     .toBe(true);
   // Wait for React to process the theme change and update MapLibre paint.
+  // Watch the same palette-driven layer the test asserts on: individual
+  // route-* layers keep their own custom colors and never follow the theme.
   // useDaisyColors reads CSS vars via MutationObserver → useRoutePalette
   // recomputes → RoutePolyline re-renders → react-map-gl calls setPaintProperty.
   if (previousColor) {
     await expect
       .poll(
         () =>
-          page.evaluate((prev) => {
-            const map = (window as any).maplibreMap;
-            if (!map) return prev;
-            const layers = (map.getStyle()?.layers ?? []).filter(
-              (l: any) =>
-                l.id.startsWith('route-') &&
-                !l.id.includes('glow') &&
-                !l.id.includes('dash')
-            );
-            if (layers.length === 0) return prev;
-            try {
-              return map.getPaintProperty(layers[0].id, 'line-color') ?? prev;
-            } catch {
-              return prev;
-            }
-          }, previousColor),
+          page.evaluate(
+            ({ prev, id }) => {
+              const map = (window as any).maplibreMap;
+              if (!map) return prev;
+              try {
+                return map.getPaintProperty(id, 'line-color') ?? prev;
+              } catch {
+                return prev;
+              }
+            },
+            { prev: previousColor, id: layerId }
+          ),
         {
           message: `Paint update after ${theme} (was ${previousColor})`,
           timeout: 10000,

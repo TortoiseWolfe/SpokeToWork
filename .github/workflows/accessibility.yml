@@ -15,9 +15,8 @@ jobs:
     runs-on: ubuntu-24.04
 
     env:
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # Tests run against a throwaway local Supabase stack, never the live
+      # project. The stack start step exports its URL and keys into this job.
       TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
       TEST_USER_PRIMARY_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
       # Pre-baked encryption keys so auth.setup.ts skips the slow UI-based
@@ -41,6 +40,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Start local Supabase
+        uses: ./.github/actions/start-local-supabase
 
       - name: Build application
         run: pnpm run build

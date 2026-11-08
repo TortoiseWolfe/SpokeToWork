@@ -1,10 +1,19 @@
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
+
+/**
+ * The home page and only the home page. `/\/$/` is not this: the site serves every route
+ * with a trailing slash (`/blog/`), so that pattern matches `/blog/` too. In the back and
+ * forward test it let the check pass before the second `goBack()` had finished, and the
+ * next `goForward()` then raced it (Firefox ended on `/` instead of `/blog/`).
+ */
+const HOME_URL = /^[a-z]+:\/\/[^/]+\/(\?[^#]*)?(#.*)?$/;
 
 test.describe('Cross-Page Navigation', () => {
   test('navigate through all main pages', async ({ page }) => {
     // Start at homepage
     await page.goto('/');
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(HOME_URL);
 
     // Navigate to Blog via direct URL (more reliable in CI)
     await page.goto('/blog');
@@ -23,7 +32,7 @@ test.describe('Cross-Page Navigation', () => {
 
     // Navigate back to Home via nav link
     await page.goto('/');
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(HOME_URL);
   });
 
   test('browser back/forward navigation works', async ({ page }) => {
@@ -41,7 +50,7 @@ test.describe('Cross-Page Navigation', () => {
 
     // Go back again
     await page.goBack();
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(HOME_URL);
 
     // Go forward
     await page.goForward();
@@ -176,7 +185,7 @@ test.describe('Cross-Page Navigation', () => {
         await breadcrumbLinks.first().click();
 
         // Should navigate to home
-        await expect(page).toHaveURL(/\/$/);
+        await expect(page).toHaveURL(HOME_URL);
       }
     }
   });
@@ -310,7 +319,7 @@ test.describe('Cross-Page Navigation', () => {
         await expect(page).toHaveURL(/\/blog/);
       } else if ((await homeLink.count()) > 0) {
         await homeLink.click();
-        await expect(page).toHaveURL(/\/$/);
+        await expect(page).toHaveURL(HOME_URL);
       }
     }
   });

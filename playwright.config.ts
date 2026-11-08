@@ -117,7 +117,9 @@ export default defineConfig({
     {
       name: 'firefox',
       testIgnore:
-        /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts|company\/company-profile-public\.spec\.ts|worker\/(worker-profile-public|workers-filter)\.spec\.ts|map\.spec\.ts|mobile-check\.spec\.ts/,
+        /auth\/(sign-up|user-registration|rate-limiting)\.spec\.ts|company\/company-profile-public\.spec\.ts|worker\/(worker-profile-public|workers-filter)\.spec\.ts|map\.spec\.ts|mobile-check\.spec\.ts|routes\/(route-visual-verification|start-end-markers|active-route-visual|route-geometry|route-home-connection)\.spec\.ts/,
+      // map.spec.ts and the five routes/ specs listed above: MapLibre GL requires WebGL — CI runners have no GPU, firefox has no software fallback
+      //   (they read window.maplibreMap; they still run on chromium and webkit)
       // map.spec.ts: MapLibre GL requires WebGL — CI runners have no GPU, firefox has no software fallback
       //   (chromium/webkit have software WebGL; firefox doesn't — verified with firefoxUserPrefs force-enable)
       // mobile-check.spec.ts: Playwright firefox rejects isMobile context option (driver limitation)

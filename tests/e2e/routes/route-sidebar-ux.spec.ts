@@ -12,20 +12,15 @@
  * Uses ({ page }) pattern with test.use({ storageState }) for proper isolation
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { CompaniesPage } from '../pages/CompaniesPage';
 import { getAuthStatePath } from '../utils/authenticated-context';
+import { openRoutesDrawer } from '../utils/routes-drawer';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 const AUTH_FILE = getAuthStatePath();
 
-// Requires live Supabase route data and authenticated session.
-// In headless CI against the static export the companies table never loads,
-// causing waitForTable() to time out before the inner conditional skips fire.
-test.skip(
-  !!process.env.CI,
-  'Requires live Supabase route data — not available in headless CI against static export'
-);
 
 // Helper to navigate to companies page and wait for table
 async function navigateToCompanies(
@@ -34,6 +29,21 @@ async function navigateToCompanies(
   const companiesPage = new CompaniesPage(page);
   await companiesPage.goto();
   await companiesPage.waitForTable();
+  await openRoutesDrawer(page);
+  return companiesPage;
+}
+
+// Mobile (< 768px) renders a map plus a bottom sheet instead of the company
+// table, so waitForTable() (which waits for the table's "N companies" count)
+// can never succeed there. Wait for the bottom sheet that replaces it.
+async function navigateToCompaniesMobile(
+  page: import('@playwright/test').Page
+): Promise<CompaniesPage> {
+  const companiesPage = new CompaniesPage(page);
+  await companiesPage.goto();
+  await expect(page.getByTestId('bottom-sheet')).toBeVisible({
+    timeout: 30000,
+  });
   return companiesPage;
 }
 
@@ -442,7 +452,7 @@ test.describe('Route Sidebar - Mobile Behavior', () => {
   });
 
   test('resize handle is not visible on mobile', async ({ page }) => {
-    await navigateToCompanies(page);
+    await navigateToCompaniesMobile(page);
 
     // On mobile, the route sidebar is typically hidden or in a different layout
     const resizeHandle = page.locator(
@@ -455,7 +465,7 @@ test.describe('Route Sidebar - Mobile Behavior', () => {
   });
 
   test('sidebar uses drawer pattern on mobile', async ({ page }) => {
-    await navigateToCompanies(page);
+    await navigateToCompaniesMobile(page);
 
     // On mobile, the route sidebar should be hidden initially (drawer pattern)
     const routeSidebar = page.locator('aside[aria-label="Route sidebar"]');
@@ -481,7 +491,7 @@ test.describe('Route Sidebar - Mobile Behavior', () => {
   });
 
   test('touch scrolling works on route list', async ({ page }) => {
-    await navigateToCompanies(page);
+    await navigateToCompaniesMobile(page);
 
     // On mobile, click the "Routes" button to open the sidebar
     const routesButton = page.locator('button:has-text("Routes")');

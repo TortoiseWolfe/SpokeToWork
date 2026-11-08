@@ -107,6 +107,10 @@ export default function AdminModerationPage() {
       </div>
       <AdminModerationQueue
         items={q.items}
+        selectedItemId={selectedId}
+        onItemClick={(item) =>
+          setSelectedId(item.type === 'contribution' ? item.id : null)
+        }
         onApproveContribution={q.approveContribution}
         onRejectContribution={q.rejectContribution}
         onMergeContribution={q.mergeContribution}

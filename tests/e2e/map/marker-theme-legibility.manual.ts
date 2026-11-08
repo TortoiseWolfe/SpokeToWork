@@ -18,7 +18,7 @@
  *   tests/e2e/map/__screenshots__/markers-<theme>.png
  */
 
-import { test } from '@playwright/test';
+import { test } from '../fixtures/test';
 import * as path from 'path';
 
 const STORYBOOK_URL = process.env.STORYBOOK_URL || 'http://localhost:6006';

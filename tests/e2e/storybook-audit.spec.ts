@@ -6,7 +6,8 @@
  * Run: docker compose exec -e STORYBOOK_URL=http://localhost:6006 spoketowork \
  *   npx playwright test --config=tests/e2e/storybook-audit.config.ts
  */
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './fixtures/test';
 
 const STORYBOOK_URL = process.env.STORYBOOK_URL || 'http://localhost:6006';
 const PER_STORY_TIMEOUT = 15_000; // 15s max per story (including evaluate)

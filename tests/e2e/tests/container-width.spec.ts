@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 
 /**
  * #79 — `container` must fill the viewport, not the previous breakpoint.

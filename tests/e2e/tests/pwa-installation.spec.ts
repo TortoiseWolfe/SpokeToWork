@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 
 // Helper to get manifest path (works in both dev and production)
 async function getManifestPath(

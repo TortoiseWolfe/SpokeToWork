@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { injectAxe, checkA11y } from 'axe-playwright';
 
 test.describe('Accessibility', () => {

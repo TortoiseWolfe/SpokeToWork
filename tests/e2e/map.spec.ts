@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { test } from './fixtures/test';
 import { waitForMapReady } from './utils/map-helpers';
 
 // Helper to dismiss countdown banner if present

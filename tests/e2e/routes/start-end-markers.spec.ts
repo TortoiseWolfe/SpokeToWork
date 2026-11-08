@@ -7,7 +7,9 @@
  * Uses ({ page }) pattern with test.use({ storageState }) for proper isolation
  */
 
-import { test, expect, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { test } from '../fixtures/test';
+import { openRoutesDrawer } from '../utils/routes-drawer';
 import { getAuthStatePath } from '../utils/authenticated-context';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
@@ -38,12 +40,6 @@ function addConsoleListener(page: Page) {
 }
 
 test.describe('Start/End Markers - Full Flow', () => {
-  // Requires MapLibre GL (WebGL/GPU) for map rendering and live Supabase
-  // route data. Neither is available in headless CI against the static export.
-  test.skip(
-    !!process.env.CI,
-    'MapLibre GL requires WebGL/GPU not available in headless CI; also needs live Supabase route data'
-  );
 
   // Apply authenticated storage state and desktop viewport
   test.use({
@@ -144,6 +140,8 @@ test.describe('Start/End Markers - Full Flow', () => {
     await page.goto(`${BASE_URL}/companies`);
     await dismissBanner(page);
     await page.waitForTimeout(2000);
+
+    await openRoutesDrawer(page);
 
     // RouteSidebar is an <aside> with aria-label="Route sidebar"
     const routeSidebar = page.locator('aside[aria-label="Route sidebar"]');

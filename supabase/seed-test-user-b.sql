@@ -83,7 +83,11 @@ SELECT
   now(),
   now()
 FROM auth.users
-WHERE email = 'test-user-b@example.com';
+WHERE email = 'test-user-b@example.com'
+ON CONFLICT (id) DO UPDATE SET
+  username = EXCLUDED.username,
+  display_name = EXCLUDED.display_name,
+  updated_at = now();
 
 -- Verify the user and profile were created
 SELECT

@@ -63,17 +63,22 @@ export function useRouteActions(
     if (rx.activeRouteId) setSelectedRouteId(rx.activeRouteId);
   }, [rx.activeRouteId]);
 
+  // Depend on the stable function, never on `rx` itself: `rx` is a new object
+  // on every render, so depending on it made this callback change each render,
+  // re-ran the effect below, set state, and looped, hammering the database
+  // with the same request hundreds of times a second once a route was active.
+  const { getRouteCompanies } = rx;
   const refetchPreview = useCallback(async () => {
     if (!selectedRouteId) return setRouteCompaniesPreview([]);
     setIsLoadingRouteCompanies(true);
     try {
-      setRouteCompaniesPreview(await rx.getRouteCompanies(selectedRouteId));
+      setRouteCompaniesPreview(await getRouteCompanies(selectedRouteId));
     } catch {
       setRouteCompaniesPreview([]);
     } finally {
       setIsLoadingRouteCompanies(false);
     }
-  }, [selectedRouteId, rx]);
+  }, [selectedRouteId, getRouteCompanies]);
 
   useEffect(() => void refetchPreview(), [refetchPreview]);
 

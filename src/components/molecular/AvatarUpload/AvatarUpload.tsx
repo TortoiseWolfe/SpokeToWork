@@ -120,6 +120,7 @@ export default function AvatarUpload({
         ref={dialogRef}
         className="modal"
         role="dialog"
+        aria-modal="true"
         aria-labelledby="crop-title"
       >
         {imageSrc && (

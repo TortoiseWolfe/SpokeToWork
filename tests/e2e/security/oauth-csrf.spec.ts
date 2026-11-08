@@ -2,7 +2,8 @@
 // Feature 017 - Task T014
 // Purpose: Test OAuth CSRF protection prevents session hijacking
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 
 test.describe('OAuth CSRF Protection - REQ-SEC-002', () => {
   // Requires live OAuth redirect flow — the static export cannot intercept

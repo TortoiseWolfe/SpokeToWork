@@ -10,7 +10,7 @@
  *
  * NOTE: This does NOT drop/recreate tables (schema stays intact).
  * For a full schema reset, run the SQL files manually in Supabase Dashboard:
- *   1. supabase/migrations/999_drop_all_tables.sql
+ *   1. supabase/scripts/999_drop_all_tables.sql
  *   2. supabase/migrations/20251006_complete_monolithic_setup.sql
  *
  * Usage: docker compose exec spoketowork pnpm run db:reset

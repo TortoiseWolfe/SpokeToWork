@@ -13,7 +13,21 @@
 
 -- Create _realtime schema (Realtime service stores its internal migrations here)
 CREATE SCHEMA IF NOT EXISTS _realtime;
-ALTER SCHEMA _realtime OWNER TO supabase_admin;
+
+-- The CLI applies migrations as `postgres`, which is not a superuser locally
+-- and therefore cannot SET ROLE to `supabase_admin`. Hosted/Management API
+-- runs can hand over ownership; local runs grant the service role the access
+-- it needs instead.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_admin') THEN
+    BEGIN
+      ALTER SCHEMA _realtime OWNER TO supabase_admin;
+    EXCEPTION WHEN insufficient_privilege THEN
+      EXECUTE 'GRANT USAGE, CREATE ON SCHEMA _realtime TO supabase_admin';
+    END;
+  END IF;
+END $$;
 
 -- Create supabase_realtime publication if it doesn't exist
 DO $$

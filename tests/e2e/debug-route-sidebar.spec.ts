@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './fixtures/test';
 
 // Only run on chromium desktop - sidebar requires lg: breakpoint (1024px+)
 test.describe('Debug Route Sidebar', () => {

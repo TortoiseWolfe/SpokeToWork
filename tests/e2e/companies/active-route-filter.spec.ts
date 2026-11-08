@@ -8,7 +8,8 @@
  * - Integration with route sidebar
  */
 
-import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+import { expect, type BrowserContext, type Page } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { CompaniesPage } from '../pages/CompaniesPage';
 
 // Uses shared auth state from auth.setup.ts - no direct login needed
@@ -121,9 +122,11 @@ test.describe('Companies Page - Active Route Filter (Feature 044)', () => {
 
     if (filteredCount === 0 && initialCount > 0) {
       // Should show the specific empty state message
-      const emptyMessage = sharedPage.getByText(
-        /No companies on this route yet/
-      );
+      // The route detail drawer shows a similar message once a route is
+      // active, so scope this to the company table's own empty state.
+      const emptyMessage = sharedPage
+        .getByTestId('company-table')
+        .getByText(/No companies on this route yet/);
       await expect(emptyMessage).toBeVisible();
     }
 

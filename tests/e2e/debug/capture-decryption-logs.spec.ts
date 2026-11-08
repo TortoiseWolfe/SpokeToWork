@@ -5,7 +5,8 @@
  * This test captures and prints [Decryption] console logs for debugging
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const USER_A = {

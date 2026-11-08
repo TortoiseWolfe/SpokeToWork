@@ -3,7 +3,8 @@
  * Feature: 024-add-third-test
  */
 
-import { test, expect, Page } from '@playwright/test';
+import { expect, Page } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { executeSQL, escapeSQL } from '../utils/supabase-admin';
 import {

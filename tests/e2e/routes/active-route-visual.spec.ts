@@ -7,7 +7,8 @@
  * - Route polylines render correctly
  */
 
-import { test, expect, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { test } from '../fixtures/test';
 
 // Helper to dismiss countdown banner if present
 async function dismissBanner(page: Page) {
@@ -24,12 +25,6 @@ async function dismissBanner(page: Page) {
  * Map Route Display Tests (No Auth Required - System Routes)
  */
 test.describe('Map Route Visual Display', () => {
-  // Requires MapLibre GL (WebGL/GPU) and live Supabase route data.
-  // Neither is available in headless CI against the static export.
-  test.skip(
-    !!process.env.CI,
-    'MapLibre GL requires WebGL/GPU not available in headless CI; also needs live Supabase route data'
-  );
   test.use({ viewport: { width: 1280, height: 900 } });
 
   // Mark these tests as slow since they depend on external tile/route loading
@@ -196,11 +191,6 @@ test.describe('Map Route Visual Display', () => {
  * Tests that active routes are visually distinct from inactive routes
  */
 test.describe('Active Route Visual Differentiation', () => {
-  // Requires MapLibre GL (WebGL/GPU) and live Supabase route data.
-  test.skip(
-    !!process.env.CI,
-    'MapLibre GL requires WebGL/GPU not available in headless CI; also needs live Supabase route data'
-  );
   test.use({ viewport: { width: 1280, height: 900 } });
 
   test('RoutePolyline component applies active styling correctly', async ({
@@ -280,11 +270,6 @@ test.describe('Active Route Visual Differentiation', () => {
  * These tests document the missing start/end marker functionality
  */
 test.describe('Start/End Point Markers (Feature Gap)', () => {
-  // Requires MapLibre GL (WebGL/GPU) and live Supabase route data.
-  test.skip(
-    !!process.env.CI,
-    'MapLibre GL requires WebGL/GPU not available in headless CI; also needs live Supabase route data'
-  );
   test.use({ viewport: { width: 1280, height: 900 } });
 
   test('should have start/end marker implementation', async ({ page }) => {
@@ -366,11 +351,6 @@ test.describe('Start/End Point Markers (Feature Gap)', () => {
  * Visual Regression Baseline
  */
 test.describe('Visual Regression', () => {
-  // Requires MapLibre GL (WebGL/GPU) and live Supabase route data.
-  test.skip(
-    !!process.env.CI,
-    'MapLibre GL requires WebGL/GPU not available in headless CI; also needs live Supabase route data'
-  );
   test.use({ viewport: { width: 1280, height: 900 } });
 
   test('capture map route baseline screenshot', async ({ page }) => {

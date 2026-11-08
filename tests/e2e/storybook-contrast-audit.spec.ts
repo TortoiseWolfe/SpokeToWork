@@ -7,7 +7,8 @@
  * Run: docker compose exec -e STORYBOOK_URL=http://localhost:6006 spoketowork \
  *   npx playwright test tests/e2e/storybook-contrast-audit.spec.ts --config=tests/e2e/storybook-audit.config.ts
  */
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './fixtures/test';
 import * as fs from 'fs';
 
 const STORYBOOK_URL = process.env.STORYBOOK_URL || 'http://localhost:6006';

@@ -17,7 +17,8 @@
  * (AuthRetryableFetchError).
  */
 
-import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+import { expect, type BrowserContext, type Page } from '@playwright/test';
+import { test } from '../fixtures/test';
 import { createClient } from '@supabase/supabase-js';
 import {
   ensureConnection,
