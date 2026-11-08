@@ -15,8 +15,26 @@ function watch(page: Page, t0: number) {
   const cons: string[] = [];
   const short = (u: string) => u.split('?')[0].split('/').slice(-2).join('/');
   page.on('response', (r) => {
-    if (WATCH.test(r.url()))
+    if (WATCH.test(r.url())) {
+      const idx = net.length;
       net.push(`${Date.now() - t0}ms ${r.status()} ${short(r.url())}`);
+      if (/active_route_planning/.test(r.url())) {
+        r.text()
+          .then((b) => {
+            let rid = 'unparsed';
+            try {
+              const j = JSON.parse(b);
+              rid = String(j?.route_id ?? (Array.isArray(j) ? `array${j.length}` : 'none'));
+            } catch {
+              rid = `body:${b.slice(0, 40)}`;
+            }
+            net[idx] += ` route_id=${rid}`;
+          })
+          .catch(() => {
+            net[idx] += ' body-unreadable';
+          });
+      }
+    }
   });
   page.on('requestfailed', (r) => {
     if (WATCH.test(r.url()))
@@ -87,7 +105,24 @@ async function probe(
   }
   console.log('TIMING', label, JSON.stringify(seen));
   if (seen.wide === undefined) {
-    console.log('NOWIDE', label, JSON.stringify(log));
+    const end = await page
+      .evaluate(() => {
+        const m = (window as any).maplibreMap;
+        const map = m?.getMap?.() ?? m;
+        if (!map) return 'nomap';
+        const layers = map.getStyle()?.layers ?? [];
+        return {
+          styleLoaded: map.isStyleLoaded(),
+          layers: layers
+            .filter((l: any) => l.id.startsWith('route-'))
+            .map(
+              (l: any) =>
+                `${l.id}|style=${l.paint?.['line-width']}|live=${map.getPaintProperty(l.id, 'line-width')}`
+            ),
+        };
+      })
+      .catch((e) => `evalfail ${String(e).slice(0, 80)}`);
+    console.log('NOWIDE', label, JSON.stringify(log), 'END', JSON.stringify(end));
   }
 }
 

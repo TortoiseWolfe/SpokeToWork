@@ -59,15 +59,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: webkit timing x40
+          - name: webkit timing x80
             project: webkit
             msg: 'no'
-            repeat: 40
+            repeat: 80
             args: tests/e2e/diag-map-timing.spec.ts
-          - name: chromium timing x40
+          - name: chromium timing x80
             project: chromium
             msg: 'no'
-            repeat: 40
+            repeat: 80
             args: tests/e2e/diag-map-timing.spec.ts
     steps:
       - uses: actions/checkout@v5
