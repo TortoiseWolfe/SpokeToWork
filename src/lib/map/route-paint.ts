@@ -87,3 +87,51 @@ export const ROUTE_LAYOUT: LineLayerSpecification['layout'] = {
   'line-cap': 'round',
   'line-join': 'round',
 };
+
+/** The few map calls syncLayerPaint needs (a MapLibre map or react-map-gl MapRef fits). */
+export interface PaintSyncMap {
+  getLayer(id: string): unknown;
+  getPaintProperty(id: string, name: string): unknown;
+  setPaintProperty(id: string, name: string, value: unknown): void;
+}
+
+/**
+ * Make a drawn layer's paint match the wanted paint.
+ *
+ * react-map-gl applies a paint change inside a try/catch and then remembers
+ * the new props as applied even when the map threw (for example "Style is not
+ * done loading"). The change is then lost for good and the layer keeps its old
+ * look: an active route drawn thin with no highlight. Calling this after each
+ * render, and again on every `styledata` event, repairs that.
+ *
+ * Returns true when the layer exists and every property matches afterwards.
+ */
+export function syncLayerPaint(
+  map: PaintSyncMap,
+  layerId: string,
+  paint: Record<string, unknown> | undefined
+): boolean {
+  if (!paint) return true;
+  try {
+    if (!map.getLayer(layerId)) return false;
+    let allMatch = true;
+    for (const [name, wanted] of Object.entries(paint)) {
+      if (
+        JSON.stringify(map.getPaintProperty(layerId, name)) !==
+        JSON.stringify(wanted)
+      ) {
+        map.setPaintProperty(layerId, name, wanted);
+        if (
+          JSON.stringify(map.getPaintProperty(layerId, name)) !==
+          JSON.stringify(wanted)
+        ) {
+          allMatch = false;
+        }
+      }
+    }
+    return allMatch;
+  } catch {
+    // Style not ready yet; the next styledata event tries again.
+    return false;
+  }
+}
