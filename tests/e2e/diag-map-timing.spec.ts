@@ -1,34 +1,44 @@
 /**
  * Throwaway diagnostic (never merge). Logs how many milliseconds after
- * navigation each map signal appears, as TIMING lines, so a run on Playwright
- * 1.57 can be compared with one on 1.65.
+ * navigation each map signal appears, as TIMING lines. When the active route's
+ * wide line never shows, logs NOWIDE with the route and sign-in calls and the
+ * console messages seen during that load.
  */
 import { test } from './fixtures/test';
 import type { Page } from '@playwright/test';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const WATCH = /active_route_planning|bicycle_routes|auth\/v1/;
 
-async function probe(page: Page, label: string) {
-  const t0 = Date.now();
+function watch(page: Page, t0: number) {
   const net: string[] = [];
   const cons: string[] = [];
+  const short = (u: string) => u.split('?')[0].split('/').slice(-2).join('/');
   page.on('response', (r) => {
-    const u = r.url();
-    if (/active_route_planning|bicycle_routes|auth\/v1/.test(u))
-      net.push(`${Date.now() - t0}ms ${r.status()} ${u.split('?')[0].split('/').slice(-2).join('/')}`);
+    if (WATCH.test(r.url()))
+      net.push(`${Date.now() - t0}ms ${r.status()} ${short(r.url())}`);
   });
   page.on('requestfailed', (r) => {
-    const u = r.url();
-    if (/active_route_planning|bicycle_routes|auth\/v1/.test(u))
-      net.push(`${Date.now() - t0}ms FAILED ${r.failure()?.errorText} ${u.split('?')[0].split('/').slice(-2).join('/')}`);
+    if (WATCH.test(r.url()))
+      net.push(
+        `${Date.now() - t0}ms FAILED ${r.failure()?.errorText} ${short(r.url())}`
+      );
   });
   page.on('console', (m) => {
     const t = m.text();
     if (/route|auth|session|token/i.test(t) && m.type() !== 'log')
       cons.push(`${Date.now() - t0}ms ${m.type()} ${t.slice(0, 200)}`);
   });
+  return { net, cons };
+}
+
+async function probe(
+  page: Page,
+  label: string,
+  t0: number,
+  log: { net: string[]; cons: string[] }
+) {
   const seen: Record<string, number> = {};
-  const marks: string[] = [];
   for (let i = 0; i < 400; i++) {
     const s = await page
       .evaluate(() => {
@@ -56,9 +66,7 @@ async function probe(page: Page, label: string) {
           allSource: hasAll,
           allLayer: layers.some((l: any) => l.id === 'all-bike-routes'),
           routeLayers: routeLayers.length,
-          wide: routeLayers.some(
-            (l: any) => l.paint?.['line-width'] === 10
-          ),
+          wide: routeLayers.some((l: any) => l.paint?.['line-width'] === 10),
         };
       })
       .catch(() => null);
@@ -74,13 +82,12 @@ async function probe(page: Page, label: string) {
       if (s.wide && seen.wide === undefined) seen.wide = el;
     }
     if (seen.allLayer !== undefined && seen.wide !== undefined) break;
-    if (el > 30000) break;
+    if (el > 20000) break;
     await page.waitForTimeout(50);
   }
-  marks.push(label, JSON.stringify(seen));
-  console.log('TIMING', ...marks);
+  console.log('TIMING', label, JSON.stringify(seen));
   if (seen.wide === undefined) {
-    console.log('NOWIDE', label, JSON.stringify({ net, cons }));
+    console.log('NOWIDE', label, JSON.stringify(log));
   }
 }
 
@@ -88,12 +95,16 @@ test.describe('diag map timing', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
   test('map page', async ({ page }) => {
+    const t0 = Date.now();
+    const log = watch(page, t0);
     await page.goto(`${BASE_URL}/map`);
-    await probe(page, 'map');
+    await probe(page, 'map', t0, log);
   });
 
   test('companies page', async ({ page }) => {
+    const t0 = Date.now();
+    const log = watch(page, t0);
     await page.goto(`${BASE_URL}/companies`);
-    await probe(page, 'companies');
+    await probe(page, 'companies', t0, log);
   });
 });
