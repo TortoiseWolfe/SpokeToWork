@@ -1,0 +1,145 @@
+name: Diag map timing (throwaway, never merge)
+
+on:
+  push:
+    branches: ['diag/stw-pw*']
+
+concurrency:
+  group: diag-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
+  TEST_USER_PRIMARY_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
+  TEST_USER_SECONDARY_EMAIL: ${{ vars.TEST_USER_SECONDARY_EMAIL }}
+  TEST_USER_SECONDARY_PASSWORD: ${{ secrets.TEST_USER_SECONDARY_PASSWORD }}
+  TEST_USER_TERTIARY_EMAIL: ${{ vars.TEST_USER_TERTIARY_EMAIL }}
+  TEST_USER_TERTIARY_PASSWORD: ${{ secrets.TEST_USER_TERTIARY_PASSWORD }}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.16.1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/start-local-supabase
+        with:
+          seed: 'false'
+      - name: Build application
+        run: pnpm build
+        env:
+          GITHUB_ACTIONS: false
+          NEXT_PUBLIC_E2E_TEST_MODE: 'true'
+          NEXT_PUBLIC_EMAILJS_PUBLIC_KEY: ${{ secrets.EMAILJS_PUBLIC_KEY }}
+          NEXT_PUBLIC_EMAILJS_SERVICE_ID: ${{ secrets.EMAILJS_SERVICE_ID }}
+          NEXT_PUBLIC_EMAILJS_TEMPLATE_ID: ${{ secrets.EMAILJS_TEMPLATE_ID }}
+          NEXT_PUBLIC_ORS_API_KEY: ${{ secrets.NEXT_PUBLIC_ORS_API_KEY }}
+      - uses: actions/upload-artifact@v5
+        with:
+          name: build-output
+          path: out/
+          retention-days: 1
+
+  repeat:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    needs: build
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: webkit theme-polylines x20
+            project: webkit
+            msg: 'no'
+            repeat: 20
+            args: tests/e2e/routes/route-theme-polylines.spec.ts
+          - name: webkit visual-verification x20
+            project: webkit
+            msg: 'no'
+            repeat: 20
+            args: tests/e2e/routes/route-visual-verification.spec.ts
+          - name: webkit timing x20
+            project: webkit
+            msg: 'no'
+            repeat: 20
+            args: tests/e2e/diag-map-timing.spec.ts
+          - name: chromium theme-polylines x20
+            project: chromium
+            msg: 'no'
+            repeat: 20
+            args: tests/e2e/routes/route-theme-polylines.spec.ts
+          - name: chromium visual-verification x20
+            project: chromium
+            msg: 'no'
+            repeat: 20
+            args: tests/e2e/routes/route-visual-verification.spec.ts
+          - name: chromium timing x20
+            project: chromium
+            msg: 'no'
+            repeat: 20
+            args: tests/e2e/diag-map-timing.spec.ts
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.16.1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/start-local-supabase
+      - run: pnpm exec playwright install --with-deps chromium ${{ matrix.project }}
+      - uses: actions/download-artifact@v5
+        with:
+          name: build-output
+          path: out/
+      - name: Report the Playwright version and the libsoup in its WebKit build
+        run: |
+          pnpm exec playwright --version
+          find ~/.cache/ms-playwright -name 'libsoup-3.0.so.0.*' -type f -exec strings -a {} + | grep -E '^libsoup/3' | sort -u
+      - name: Start server
+        run: |
+          npx http-server out -p 3000 -c-1 &
+          npx wait-on http://localhost:3000 --timeout 60000
+      - name: Repeat the spec
+        run: |
+          pnpm exec playwright test \
+            --project=${{ matrix.project }} \
+            ${{ matrix.args }} \
+            --repeat-each ${{ matrix.repeat }} \
+            --retries=0 \
+            --workers=1 \
+            --trace=retain-on-failure \
+            --reporter=list,json
+        env:
+          CI: true
+          SKIP_WEBSERVER: true
+          BASE_URL: http://localhost:3000
+          DEBUG: pw:api,pw:browser
+          PLAYWRIGHT_JSON_OUTPUT_NAME: diag-result.json
+          NEXT_PUBLIC_E2E_TEST_MODE: 'true'
+          E2E_SHARD_INDEX: ${{ matrix.msg == 'yes' && '9' || '' }}
+          E2E_ENCRYPTION_KEYS: ${{ matrix.msg == 'yes' && secrets.E2E_ENCRYPTION_KEYS || '' }}
+          TEST_USER_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
+      - name: Upload traces and result
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: diag-${{ strategy.job-index }}
+          path: |
+            test-results/
+            diag-result.json
+          retention-days: 2
