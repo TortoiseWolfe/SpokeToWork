@@ -112,6 +112,26 @@ async function getRouteLayerIds(page: Page): Promise<string[]> {
   });
 }
 
+/**
+ * The palette layer comes from BikeRoutesLayer, which draws only after the
+ * 900 KB all-bike-routes.geojson file has been fetched. The file is static,
+ * so the layer always arrives; it can just arrive after the first style
+ * layers do. Wait for it and fail loudly if it never shows, instead of
+ * skipping the test (a skip hides a real break as a pass).
+ */
+async function waitForPaletteLayer(page: Page): Promise<string> {
+  await expect
+    .poll(
+      async () => (await getRouteLayerIds(page)).includes('all-bike-routes'),
+      {
+        message: 'the all-bike-routes palette layer never appeared on the map',
+        timeout: 30000,
+      }
+    )
+    .toBe(true);
+  return 'all-bike-routes';
+}
+
 async function getRouteLineColor(
   page: Page,
   layerId: string
@@ -148,19 +168,14 @@ test.describe('Route polyline theming', () => {
   test('route colors change between light and dracula themes', async ({
     page,
   }) => {
-    const ids = await getRouteLayerIds(page);
-    // Prefer all-bike-routes layer (uses palette colors, not custom route colors)
-    const paletteLayer = ids.find((id) => id === 'all-bike-routes');
-    test.skip(
-      !paletteLayer,
-      'No palette-driven route layer (all-bike-routes) found'
-    );
+    // The all-bike-routes layer uses palette colors, not custom route colors
+    const paletteLayer = await waitForPaletteLayer(page);
 
     await setThemeAndWait(page, 'light');
-    const lightColor = await getRouteLineColor(page, paletteLayer!);
+    const lightColor = await getRouteLineColor(page, paletteLayer);
 
     await setThemeAndWait(page, 'dracula', lightColor);
-    const draculaColor = await getRouteLineColor(page, paletteLayer!);
+    const draculaColor = await getRouteLineColor(page, paletteLayer);
 
     expect(lightColor).toBeTruthy();
     expect(draculaColor).toBeTruthy();
@@ -170,18 +185,13 @@ test.describe('Route polyline theming', () => {
   test('route colors change between dracula and cupcake themes', async ({
     page,
   }) => {
-    const ids = await getRouteLayerIds(page);
-    const paletteLayer = ids.find((id) => id === 'all-bike-routes');
-    test.skip(
-      !paletteLayer,
-      'No palette-driven route layer (all-bike-routes) found'
-    );
+    const paletteLayer = await waitForPaletteLayer(page);
 
     await setThemeAndWait(page, 'dracula');
-    const draculaColor = await getRouteLineColor(page, paletteLayer!);
+    const draculaColor = await getRouteLineColor(page, paletteLayer);
 
     await setThemeAndWait(page, 'cupcake', draculaColor);
-    const cupcakeColor = await getRouteLineColor(page, paletteLayer!);
+    const cupcakeColor = await getRouteLineColor(page, paletteLayer);
 
     expect(draculaColor).toBeTruthy();
     expect(cupcakeColor).toBeTruthy();
