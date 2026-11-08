@@ -59,6 +59,53 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: webkit timing x40
+            project: webkit
+            msg: 'no'
+            repeat: 40
+            args: tests/e2e/diag-map-timing.spec.ts
+          - name: chromium timing x40
+            project: chromium
+            msg: 'no'
+            repeat: 40
+            args: tests/e2e/diag-map-timing.spec.ts
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.16.1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/start-local-supabase
+        with:
+          seed: 'false'
+      - name: Build application
+        run: pnpm build
+        env:
+          GITHUB_ACTIONS: false
+          NEXT_PUBLIC_E2E_TEST_MODE: 'true'
+          NEXT_PUBLIC_EMAILJS_PUBLIC_KEY: ${{ secrets.EMAILJS_PUBLIC_KEY }}
+          NEXT_PUBLIC_EMAILJS_SERVICE_ID: ${{ secrets.EMAILJS_SERVICE_ID }}
+          NEXT_PUBLIC_EMAILJS_TEMPLATE_ID: ${{ secrets.EMAILJS_TEMPLATE_ID }}
+          NEXT_PUBLIC_ORS_API_KEY: ${{ secrets.NEXT_PUBLIC_ORS_API_KEY }}
+      - uses: actions/upload-artifact@v5
+        with:
+          name: build-output
+          path: out/
+          retention-days: 1
+
+  repeat:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    needs: build
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
           - name: webkit theme-polylines x20
             project: webkit
             msg: 'no'

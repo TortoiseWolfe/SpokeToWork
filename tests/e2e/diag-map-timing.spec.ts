@@ -10,6 +10,23 @@ const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
 async function probe(page: Page, label: string) {
   const t0 = Date.now();
+  const net: string[] = [];
+  const cons: string[] = [];
+  page.on('response', (r) => {
+    const u = r.url();
+    if (/active_route_planning|bicycle_routes|auth\/v1/.test(u))
+      net.push(`${Date.now() - t0}ms ${r.status()} ${u.split('?')[0].split('/').slice(-2).join('/')}`);
+  });
+  page.on('requestfailed', (r) => {
+    const u = r.url();
+    if (/active_route_planning|bicycle_routes|auth\/v1/.test(u))
+      net.push(`${Date.now() - t0}ms FAILED ${r.failure()?.errorText} ${u.split('?')[0].split('/').slice(-2).join('/')}`);
+  });
+  page.on('console', (m) => {
+    const t = m.text();
+    if (/route|auth|session|token/i.test(t) && m.type() !== 'log')
+      cons.push(`${Date.now() - t0}ms ${m.type()} ${t.slice(0, 200)}`);
+  });
   const seen: Record<string, number> = {};
   const marks: string[] = [];
   for (let i = 0; i < 400; i++) {
@@ -62,6 +79,9 @@ async function probe(page: Page, label: string) {
   }
   marks.push(label, JSON.stringify(seen));
   console.log('TIMING', ...marks);
+  if (seen.wide === undefined) {
+    console.log('NOWIDE', label, JSON.stringify({ net, cons }));
+  }
 }
 
 test.describe('diag map timing', () => {
