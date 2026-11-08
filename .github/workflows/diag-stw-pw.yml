@@ -69,15 +69,15 @@ jobs:
             msg: 'no'
             repeat: 20
             args: tests/e2e/routes/route-theme-polylines.spec.ts
-          - name: webkit visual x20
+          - name: webkit visual x60
             project: webkit
             msg: 'no'
-            repeat: 20
+            repeat: 60
             args: tests/e2e/routes/route-visual-verification.spec.ts
-          - name: chromium visual x20
+          - name: chromium visual x60
             project: chromium
             msg: 'no'
-            repeat: 20
+            repeat: 60
             args: tests/e2e/routes/route-visual-verification.spec.ts
     steps:
       - uses: actions/checkout@v5
