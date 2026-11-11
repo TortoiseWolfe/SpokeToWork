@@ -266,7 +266,6 @@ jobs:
         run: |
           curl -sf "${SUPABASE_URL}/rest/v1/user_profiles?select=id&limit=1" \
             -H "apikey: ${SUPABASE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_KEY}" \
             > /dev/null 2>&1 || true
       - name: Stagger shards
         env:
@@ -400,7 +399,6 @@ jobs:
         run: |
           curl -sf "${SUPABASE_URL}/rest/v1/user_profiles?select=id&limit=1" \
             -H "apikey: ${SUPABASE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_KEY}" \
             > /dev/null 2>&1 || true
       - name: Stagger shards
         env:
@@ -531,7 +529,6 @@ jobs:
         run: |
           curl -sf "${SUPABASE_URL}/rest/v1/user_profiles?select=id&limit=1" \
             -H "apikey: ${SUPABASE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_KEY}" \
             > /dev/null 2>&1 || true
       - name: Stagger shards
         env:

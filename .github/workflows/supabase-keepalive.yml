@@ -246,7 +246,6 @@ jobs:
           RANGE=$(curl -sS -o /dev/null -D - \
             "${SUPABASE_URL}/rest/v1/spatial_ref_sys?select=srid" \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
             -H "Prefer: count=exact" \
             -H "Range: 0-0" \
             | tr -d '\r' | grep -i '^content-range:' || true)
