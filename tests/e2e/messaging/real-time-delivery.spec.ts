@@ -460,9 +460,44 @@ test.describe('Real-time Message Delivery (T098)', () => {
     // Verify "delivered" status (double checkmark)
     // Timeout allows for the full Realtime round-trip: recipient marks as delivered
     // → DB update → Realtime/polling to sender. Webkit Argon2id eats ~40s of setup.
-    await expect(
-      messageBubble.locator('[aria-label*="delivered"]')
-    ).toBeVisible({ timeout: 60000 });
+    try {
+      await expect(
+        messageBubble.locator('[aria-label*="delivered"]')
+      ).toBeVisible({ timeout: 45000 });
+    } catch (err) {
+      // Issue #138: the tick sometimes never appears. Record which link of the
+      // chain is broken (the recipient never saved delivered_at, or the sender's
+      // page never refreshed) so the failure names it. The wait stays shorter
+      // than the 120 s test limit so this block always gets to run.
+      const pageState = async (p: typeof page1) =>
+        p
+          .evaluate(() => ({
+            hidden: document.hidden,
+            subscribed: document.body.getAttribute('data-messages-subscribed'),
+            lastPoll: document.body.getAttribute('data-messages-last-poll'),
+          }))
+          .catch((e: unknown) => ({ error: String(e) }));
+      let dbRow: unknown = 'no admin client';
+      if (adminClient && conversationId) {
+        const { data, error } = await adminClient
+          .from('messages')
+          .select('delivered_at, read_at, created_at')
+          .eq('conversation_id', conversationId)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        dbRow = error ? { error: error.message } : data;
+      }
+      console.log(
+        'DELIVERED-TICK-DIAG',
+        JSON.stringify({
+          sender: await pageState(page1),
+          recipient: await pageState(page2),
+          newestMessageRow: dbRow,
+          now: new Date().toISOString(),
+        })
+      );
+      throw err;
+    }
 
     // User 2: Scroll to message (should trigger "read" status)
     const message2 = page2.locator(`text="${testMessage}"`);
