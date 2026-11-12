@@ -163,6 +163,16 @@ setup('authenticate shared test user', async ({ page }) => {
   if (!isShardMode && !process.env.TEST_USER_PRIMARY_EMAIL) {
     console.log('Creating dynamic test user...');
     await createTestUser(email, password, { createProfile: true });
+  } else if (!isShardMode) {
+    // A named primary user: CI now starts a fresh local database in every job,
+    // so the user does not exist yet. Create it when missing (a database that
+    // already has it, such as a developer's, is left alone).
+    const { getUserByEmail } = await import('./utils/test-user-factory');
+    const existing = await getUserByEmail(email);
+    if (!existing) {
+      console.log(`Creating primary test user: ${email}`);
+      await createTestUser(email, password, { createProfile: true });
+    }
   }
 
   // Secondary and tertiary user credentials.

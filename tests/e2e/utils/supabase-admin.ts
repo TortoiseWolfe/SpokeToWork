@@ -1,8 +1,11 @@
 /**
  * Supabase Admin Utilities for E2E Tests
  *
- * Uses Supabase Management API to bypass RLS for test data setup.
- * Requires SUPABASE_ACCESS_TOKEN and NEXT_PUBLIC_SUPABASE_URL in env.
+ * Runs SQL as a superuser to bypass RLS for test data setup. Two routes:
+ *  - cloud project (https://<ref>.supabase.co): Management API, needs
+ *    SUPABASE_ACCESS_TOKEN
+ *  - local stack (localhost / supabase-kong): postgres-meta behind Kong at
+ *    /pg/query, needs SUPABASE_SERVICE_ROLE_KEY. This is the route CI uses.
  *
  * Feature: 062-fix-e2e-auth
  */
@@ -11,7 +14,41 @@ import 'dotenv/config';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const PROJECT_REF = SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
+
+/** True when the app under test talks to a local Supabase stack. */
+export const IS_LOCAL_SUPABASE =
+  !!SUPABASE_URL &&
+  /^https?:\/\/(localhost|127\.0\.0\.1|supabase-kong)(:\d+)?(\/|$)/.test(
+    SUPABASE_URL
+  );
+
+/** True when executeSQL can reach a database (cloud or local). */
+export const HAS_SQL_ACCESS = IS_LOCAL_SUPABASE
+  ? !!SERVICE_KEY
+  : !!PROJECT_REF && !!ACCESS_TOKEN;
+
+/** Where executeSQL sends queries, with the headers it needs. */
+function sqlEndpoint(): { url: string; headers: Record<string, string> } {
+  if (IS_LOCAL_SUPABASE) {
+    return {
+      url: `${SUPABASE_URL!.replace(/\/$/, '')}/pg/query`,
+      headers: {
+        apikey: SERVICE_KEY!,
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    };
+  }
+  return {
+    url: `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
+    headers: {
+      Authorization: `Bearer ${ACCESS_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+  };
+}
 
 /**
  * Escape a string for safe SQL interpolation.
@@ -30,23 +67,18 @@ export async function executeSQL(
   retries = 5,
   baseDelay = 2000
 ): Promise<unknown[]> {
-  if (!PROJECT_REF || !ACCESS_TOKEN) {
+  if (!HAS_SQL_ACCESS) {
     console.log('Skipping SQL: Missing SUPABASE_URL or ACCESS_TOKEN');
     return [];
   }
 
+  const { url, headers } = sqlEndpoint();
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const response = await fetch(
-      `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query }),
-      }
-    );
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ query }),
+    });
 
     if (response.ok) {
       return response.json();
@@ -92,14 +124,53 @@ export async function executeSQL(
 }
 
 /**
+ * Same route as executeSQL, but a failed query throws instead of returning [].
+ * For specs that must not continue on a failed setup or assertion query.
+ */
+export async function executeSQLStrict(
+  query: string,
+  retries = 5,
+  baseDelay = 2000
+): Promise<unknown[]> {
+  if (!HAS_SQL_ACCESS) {
+    throw new Error('SQL failed: no SQL access (missing URL or credentials)');
+  }
+  const { url, headers } = sqlEndpoint();
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ query }),
+    });
+
+    if (response.ok) {
+      return response.json();
+    }
+
+    // Handle rate limiting with exponential backoff
+    if (response.status === 429 && attempt < retries) {
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.log(`Rate limited, retrying in ${delay}ms...`);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+
+    const errorText = await response.text();
+    throw new Error(`SQL failed: ${response.status} - ${errorText}`);
+  }
+
+  throw new Error('Exhausted retries');
+}
+
+/**
  * Ensure test user has routes for route E2E tests
  *
  * Creates 3 routes if user has less than 2 routes.
  * Routes use test user's home coordinates.
  */
 export async function ensureTestRoutes(userEmail: string): Promise<void> {
-  if (!PROJECT_REF || !ACCESS_TOKEN) {
-    console.log('Skipping route setup: Missing SUPABASE_ACCESS_TOKEN');
+  if (!HAS_SQL_ACCESS) {
+    console.log('Skipping route setup: no SQL access');
     return;
   }
 

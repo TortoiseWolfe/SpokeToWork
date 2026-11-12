@@ -13,22 +13,17 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { executeSQLStrict, HAS_SQL_ACCESS } from '../utils/supabase-admin';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN!;
-
-// Extract project ref from Supabase URL
-const PROJECT_REF = SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
 
 const TEST_PASSWORD = process.env.TEST_USER_PRIMARY_PASSWORD!;
 
-// Skip all tests if required cloud Supabase credentials are missing.
-// These tests use the Supabase Management API and cannot run without cloud credentials.
+// Skip all tests if the database route (local stack or cloud) or the test
+// password is missing.
 test.beforeEach(() => {
   const missing = [
-    !PROJECT_REF && 'NEXT_PUBLIC_SUPABASE_URL (cloud)',
-    !ACCESS_TOKEN && 'SUPABASE_ACCESS_TOKEN',
+    !HAS_SQL_ACCESS && 'SQL access (SUPABASE_SERVICE_ROLE_KEY or cloud token)',
     !TEST_PASSWORD && 'TEST_USER_PRIMARY_PASSWORD',
   ].filter(Boolean);
   if (missing.length) {
@@ -64,46 +59,11 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Execute SQL via Supabase Management API with retry logic for rate limits
+ * Execute SQL through the shared helper (local stack or cloud); a failed
+ * query throws, so these flows never continue on a bad setup step.
  */
-async function executeSQL(
-  query: string,
-  retries = 5,
-  baseDelay = 2000
-): Promise<SQLResult[]> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const response = await fetch(
-      `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query }),
-      }
-    );
-
-    if (response.ok) {
-      return response.json();
-    }
-
-    // Handle rate limiting with exponential backoff + jitter
-    if (response.status === 429 && attempt < retries) {
-      const jitter = Math.random() * 1000;
-      const delay = baseDelay * Math.pow(2, attempt) + jitter;
-      console.log(
-        `Rate limited, retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${retries})...`
-      );
-      await sleep(delay);
-      continue;
-    }
-
-    const errorText = await response.text();
-    throw new Error(`SQL failed: ${response.status} - ${errorText}`);
-  }
-
-  throw new Error('Exhausted retries');
+async function executeSQL(query: string): Promise<SQLResult[]> {
+  return (await executeSQLStrict(query)) as SQLResult[];
 }
 
 /**

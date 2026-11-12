@@ -15,6 +15,7 @@ import * as crypto from 'crypto';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { executeSQL, escapeSQL } from './utils/supabase-admin';
 import { getPrebakedKeysForUser, hasPrebakedKeys } from './utils/prebaked-keys';
+import { createTestUser, getUserByEmail } from './utils/test-user-factory';
 
 /** Admin Supabase client for local dev (bypasses RLS, works without Management API) */
 function getAdminClient(): SupabaseClient | null {
@@ -781,6 +782,23 @@ async function ensureCompaniesForTestUser(): Promise<void> {
   console.log(`✓ ${count} private_companies present for ${testEmail}`);
 }
 
+/**
+ * CI starts a fresh local database in every job, so the named primary test
+ * user (used by the moderation, companies and worker seeds below) does not
+ * exist yet. Create it when missing; a database that already has it, such as
+ * a developer's, is left alone. No-op when the env vars are absent.
+ */
+async function ensurePrimaryTestUser(): Promise<void> {
+  const email = process.env.TEST_USER_PRIMARY_EMAIL;
+  const password = process.env.TEST_USER_PRIMARY_PASSWORD;
+  if (!email || !password || !getAdminClient()) return;
+
+  if (await getUserByEmail(email)) return;
+
+  console.log(`👤 Creating primary test user: ${email}`);
+  await createTestUser(email, password, { createProfile: true });
+}
+
 export default async function globalSetup(config: FullConfig): Promise<void> {
   if (process.env.SMOKE_ONLY === 'true') {
     console.log('🚀 SMOKE_ONLY mode — running lightweight cleanup only');
@@ -798,6 +816,7 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 
   await cleanupOrphanedE2EUsers();
   await ensureAdminUser();
+  await ensurePrimaryTestUser();
   await ensureTestUserKeys();
   await ensureModerationTestData();
   await ensureCompaniesForTestUser();

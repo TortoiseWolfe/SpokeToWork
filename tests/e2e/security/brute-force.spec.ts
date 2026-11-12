@@ -32,13 +32,13 @@ const LOCKOUT_TEXT =
 const CREDENTIAL_ERROR = /invalid.*login.*credentials|invalid.*credentials/i;
 
 test.describe('Brute Force Prevention - REQ-SEC-003', () => {
-  // Requires live Supabase backend for server-side rate limiting.
-  // The static export has no backend — auth calls return generic errors,
-  // never the rate-limit/lockout messages these tests assert on.
+  // Requires a real Supabase backend for server-side rate limiting. The
+  // throwaway local stack CI now starts (docker supabase, same migration as
+  // production) counts: rate-limiting.spec.ts already treats local as real.
+  // Skip only when no URL is configured at all.
   test.skip(
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-      process.env.NEXT_PUBLIC_SUPABASE_URL.includes('localhost'),
-    'Requires live Supabase rate-limiting — not available against placeholder/local URL'
+    !process.env.NEXT_PUBLIC_SUPABASE_URL,
+    'Requires a real Supabase instance (cloud or local)'
   );
 
   const testEmail = `brute-force-test-${Date.now()}@mailinator.com`;
