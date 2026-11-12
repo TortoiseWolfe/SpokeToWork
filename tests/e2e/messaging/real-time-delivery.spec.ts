@@ -434,7 +434,12 @@ test.describe('Real-time Message Delivery (T098)', () => {
   });
 
   test('should show delivery status (sent → delivered → read)', async () => {
-    // Use describe-level timeout (120s) — beforeEach runs 2× loginAndVerify (~90s on webkit)
+    // This test waits in three stages: the recipient receives the message
+    // (up to ~100s when Realtime misses and the page-reload fallback runs),
+    // then the sender sees "delivered" (60s), then "read" (60s). The 120s set
+    // in beforeEach covered only the fast path, so a Realtime miss on CI
+    // (Firefox, WebKit) used up the budget before the delivered check ran.
+    test.setTimeout(300_000);
     expect(conversationId).not.toBeNull();
     await navigateBothToConversation(page1, page2, conversationId!);
 
