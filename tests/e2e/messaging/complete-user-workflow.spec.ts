@@ -496,9 +496,14 @@ test.describe('Complete User Messaging Workflow (Feature 024)', () => {
         });
         await receivedTab.click({ force: true });
         await pageB.waitForLoadState('domcontentloaded');
-        requestVisible = await pageB
-          .locator('[data-testid="connection-request"]')
-          .isVisible({ timeout: 15000 })
+        // isVisible() answers at once and ignores its timeout option, so it
+        // read the page while the connections list was still loading (spinner
+        // up, 0 requests) on every reload. expect() retries until the timeout.
+        requestVisible = await expect(
+          pageB.locator('[data-testid="connection-request"]').first()
+        )
+          .toBeVisible({ timeout: 8000 })
+          .then(() => true)
           .catch(() => false);
         if (requestVisible) break;
         // Log diagnostic info on failure
