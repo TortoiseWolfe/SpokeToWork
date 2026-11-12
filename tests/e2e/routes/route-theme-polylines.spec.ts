@@ -35,7 +35,11 @@ async function waitForMapLayers(page: Page, timeout = 55000) {
 async function setThemeAndWait(
   page: Page,
   theme: string,
-  previousColor?: string | null
+  previousColor?: string | null,
+  // The layer the caller will read the colour from. Waiting on that same
+  // layer matters on a fresh database, which has no custom `route-*` layers
+  // to wait on (the old first-`route-*`-layer lookup never saw a change).
+  paintLayerId?: string
 ) {
   await page.evaluate(
     (t) => document.documentElement.setAttribute('data-theme', t),
@@ -72,22 +76,27 @@ async function setThemeAndWait(
     await expect
       .poll(
         () =>
-          page.evaluate((prev) => {
-            const map = (window as any).maplibreMap;
-            if (!map) return prev;
-            const layers = (map.getStyle()?.layers ?? []).filter(
-              (l: any) =>
-                l.id.startsWith('route-') &&
-                !l.id.includes('glow') &&
-                !l.id.includes('dash')
-            );
-            if (layers.length === 0) return prev;
-            try {
-              return map.getPaintProperty(layers[0].id, 'line-color') ?? prev;
-            } catch {
-              return prev;
-            }
-          }, previousColor),
+          page.evaluate(
+            ({ prev, layerId }) => {
+              const map = (window as any).maplibreMap;
+              if (!map) return prev;
+              const id =
+                layerId ??
+                (map.getStyle()?.layers ?? []).filter(
+                  (l: any) =>
+                    l.id.startsWith('route-') &&
+                    !l.id.includes('glow') &&
+                    !l.id.includes('dash')
+                )[0]?.id;
+              if (!id) return prev;
+              try {
+                return map.getPaintProperty(id, 'line-color') ?? prev;
+              } catch {
+                return prev;
+              }
+            },
+            { prev: previousColor, layerId: paintLayerId }
+          ),
         {
           message: `Paint update after ${theme} (was ${previousColor})`,
           timeout: 10000,
@@ -159,7 +168,7 @@ test.describe('Route polyline theming', () => {
     await setThemeAndWait(page, 'light');
     const lightColor = await getRouteLineColor(page, paletteLayer!);
 
-    await setThemeAndWait(page, 'dracula', lightColor);
+    await setThemeAndWait(page, 'dracula', lightColor, paletteLayer);
     const draculaColor = await getRouteLineColor(page, paletteLayer!);
 
     expect(lightColor).toBeTruthy();
@@ -180,7 +189,7 @@ test.describe('Route polyline theming', () => {
     await setThemeAndWait(page, 'dracula');
     const draculaColor = await getRouteLineColor(page, paletteLayer!);
 
-    await setThemeAndWait(page, 'cupcake', draculaColor);
+    await setThemeAndWait(page, 'cupcake', draculaColor, paletteLayer);
     const cupcakeColor = await getRouteLineColor(page, paletteLayer!);
 
     expect(draculaColor).toBeTruthy();
