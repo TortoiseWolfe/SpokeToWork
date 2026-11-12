@@ -4706,6 +4706,13 @@ DECLARE
   v_visibility TEXT;
   v_viewer_role TEXT;
 BEGIN
+  -- The viewer is an argument, so without this check any caller could pass
+  -- someone else's id and ask what that person may see. Callers may only ask
+  -- about themselves (the storage policy below passes auth.uid()).
+  IF auth.uid() IS NULL OR p_viewer_id IS DISTINCT FROM auth.uid() THEN
+    RETURN FALSE;
+  END IF;
+
   SELECT wr.id, wr.user_id, wr.is_default, wv.resume_visible_to
   INTO v_resume
   FROM worker_resumes wr
@@ -4816,6 +4823,12 @@ DECLARE
   v_access TEXT := 'none';
   v_reason TEXT := NULL;
 BEGIN
+  -- The viewer is an argument, so without this check any caller could pass an
+  -- employer's id and read a worker's profile and resume details as them.
+  IF auth.uid() IS NULL OR p_viewer_id IS DISTINCT FROM auth.uid() THEN
+    RAISE EXCEPTION 'Not authorized';
+  END IF;
+
   SELECT profile_public, resume_visible_to INTO v_visibility
   FROM worker_visibility
   WHERE user_id = p_worker_id;
@@ -5096,6 +5109,61 @@ BEGIN
       RAISE NOTICE 'spatial_ref_sys hardening skipped: not the table owner (expected on hosted Supabase)';
     END;
   END IF;
+END $$;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- HARDENING: who may call our SECURITY DEFINER functions over the REST API
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- A SECURITY DEFINER function runs with its owner's rights, not the caller's.
+-- Supabase exposes every public-schema function at /rest/v1/rpc/<name>, and its
+-- default privileges grant EXECUTE on new functions to `anon` (a visitor holding
+-- only the public anon key). Earlier blocks wrote `REVOKE ... FROM PUBLIC`, which
+-- does NOT remove that direct grant to `anon`, so the security advisor still
+-- reported every function as callable without signing in.
+--
+-- Most functions already refuse a caller with no auth.uid() (it never matches a
+-- stored id), so this changes nothing for them in practice; it closes the door
+-- instead of relying on each body. The rules, applied to every SECURITY DEFINER
+-- function in `public` that this role owns (extension functions are skipped):
+--   * anon: none, except the two login rate-limit functions, which run before
+--     anyone has signed in.
+--   * authenticated: all, except trigger functions (the database fires them;
+--     nobody needs to call them) and the two internal jobs
+--     close_stale_time_entries (called by other definer functions, which run as
+--     the owner) and cleanup_old_audit_logs (scheduled maintenance).
+--   * service_role and the owner are untouched.
+-- Idempotent: safe to re-run.
+DO $$
+DECLARE
+  f RECORD;
+BEGIN
+  FOR f IN
+    SELECT p.oid::regprocedure AS sig,
+           p.proname,
+           (p.prorettype = 'trigger'::regtype) AS is_trigger
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.prosecdef
+      AND p.prokind = 'f'
+      AND pg_get_userbyid(p.proowner) = current_user
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e'
+      )
+  LOOP
+    EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC, anon', f.sig);
+
+    IF f.proname IN ('check_rate_limit', 'record_failed_attempt') THEN
+      EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO anon', f.sig);
+    END IF;
+
+    IF f.is_trigger OR f.proname IN ('close_stale_time_entries', 'cleanup_old_audit_logs') THEN
+      EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM authenticated', f.sig);
+    ELSE
+      EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', f.sig);
+    END IF;
+  END LOOP;
 END $$;
 
 -- Commit the transaction - everything succeeded

@@ -121,6 +121,30 @@ OTHERSALT=$(curl -s -X POST "$API/rest/v1/rpc/get_own_encryption_salt" -H "apike
 echo "$OTHERSALT" | grep -q "c2FsdHktc2FsdA" && bad "RPC leaked ANOTHER user's salt" || ok "RPC returns only the caller's own salt"
 
 
+echo "== F. who may call our SECURITY DEFINER functions =="
+rpc(){ # rpc <function> <bearer-token> <json-body> -> prints "<http-code> <body>"
+  curl -s -X POST "$API/rest/v1/rpc/$1" -H "apikey: $ANON" -H "Authorization: Bearer $2" \
+    -H "Content-Type: application/json" -d "$3" -w " %{http_code}"; }
+# Catalog check: a function added later without a REVOKE shows up here.
+OPEN_TO_ANON=$(psqlq "SELECT coalesce(string_agg(p.proname,','),'(none)') FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.prosecdef AND p.prokind='f' AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid=p.oid AND d.deptype='e') AND has_function_privilege('anon',p.oid,'EXECUTE') AND p.proname NOT IN ('check_rate_limit','record_failed_attempt')")
+[ "$OPEN_TO_ANON" = "(none)" ] && ok "anon can execute no SECURITY DEFINER function except the two login rate-limit ones" \
+  || bad "anon can still execute: $OPEN_TO_ANON"
+R=$(rpc check_rate_limit "$ANON" '{"p_identifier":"authz-probe","p_attempt_type":"sign_in"}')
+echo "$R" | grep -q " 200$" && ok "anon can still call check_rate_limit (login runs before sign-in)" || bad "login rate limit BROKEN for anon: $R"
+R=$(rpc cleanup_old_audit_logs "$ANON" '{}'); echo "$R" | grep -q " 200$" && bad "anon ran cleanup_old_audit_logs" || ok "anon cannot run cleanup_old_audit_logs"
+R=$(rpc cleanup_old_audit_logs "$TA" '{}'); echo "$R" | grep -q " 200$" && bad "a signed-in user ran cleanup_old_audit_logs" || ok "a signed-in user cannot run cleanup_old_audit_logs"
+R=$(rpc close_stale_time_entries "$ANON" "{\"p_user_id\":\"$UA\"}"); echo "$R" | grep -q " 200$" && bad "anon ran close_stale_time_entries for another user" || ok "anon cannot run close_stale_time_entries"
+R=$(rpc close_stale_time_entries "$TB" "{\"p_user_id\":\"$UA\"}"); echo "$R" | grep -q " 200$" && bad "a user closed ANOTHER user's time entries" || ok "a signed-in user cannot close another user's time entries"
+
+# Worker UA shares their default resume with all employers; UB is an employer.
+psqlq "UPDATE user_profiles SET role='employer' WHERE id='$UB'; INSERT INTO worker_visibility (user_id, profile_public, resume_visible_to) VALUES ('$UA', true, 'all_employers') ON CONFLICT (user_id) DO UPDATE SET resume_visible_to='all_employers', profile_public=true; DELETE FROM worker_resumes WHERE user_id='$UA'; INSERT INTO worker_resumes (user_id,label,storage_path,file_name,mime_type,file_size,is_default) VALUES ('$UA','r','$UA/cv.pdf','cv.pdf','application/pdf',10,true)" >/dev/null
+R=$(rpc get_worker_profile_for_employer "$ANON" "{\"p_worker_id\":\"$UA\",\"p_viewer_id\":\"$UB\"}"); echo "$R" | grep -q " 200$" && bad "anon read a worker profile by naming an employer: $R" || ok "anon cannot read a worker profile by naming an employer"
+R=$(rpc get_worker_profile_for_employer "$TA" "{\"p_worker_id\":\"$UA\",\"p_viewer_id\":\"$UB\"}"); echo "$R" | grep -q "Not authorized" && ok "a signed-in user cannot pass someone else's id as the viewer (profile)" || bad "forged viewer accepted for profile: $R"
+R=$(rpc can_access_resume "$TA" "{\"p_storage_path\":\"$UA/cv.pdf\",\"p_viewer_id\":\"$UB\"}"); echo "$R" | grep -q "^false" && ok "a forged viewer id gets 'no' from can_access_resume" || bad "forged viewer accepted for resume: $R"
+R=$(rpc get_worker_profile_for_employer "$TB" "{\"p_worker_id\":\"$UA\",\"p_viewer_id\":\"$UB\"}"); echo "$R" | grep -q '"resume_access": *"download"' && ok "the employer, asking as themselves, still gets the worker's shared resume" || bad "employer's own lookup BROKEN: $R"
+R=$(rpc can_access_resume "$TB" "{\"p_storage_path\":\"$UA/cv.pdf\",\"p_viewer_id\":\"$UB\"}"); echo "$R" | grep -q "^true" && ok "the employer, asking as themselves, still passes can_access_resume" || bad "employer's own resume check BROKEN: $R"
+
+
 echo
 echo "passed=$PASS failed=$FAIL"
 [ "$FAIL" -eq 0 ]
