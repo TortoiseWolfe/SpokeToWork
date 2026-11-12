@@ -15,6 +15,7 @@ import * as crypto from 'crypto';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { executeSQL, escapeSQL } from './utils/supabase-admin';
 import { getPrebakedKeysForUser, hasPrebakedKeys } from './utils/prebaked-keys';
+import { createTestUser, getUserByEmail } from './utils/test-user-factory';
 
 /** Admin Supabase client for local dev (bypasses RLS, works without Management API) */
 function getAdminClient(): SupabaseClient | null {
@@ -792,9 +793,6 @@ async function ensurePrimaryTestUser(): Promise<void> {
   const password = process.env.TEST_USER_PRIMARY_PASSWORD;
   if (!email || !password || !getAdminClient()) return;
 
-  const { getUserByEmail, createTestUser } = await import(
-    './utils/test-user-factory'
-  );
   if (await getUserByEmail(email)) return;
 
   console.log(`👤 Creating primary test user: ${email}`);
