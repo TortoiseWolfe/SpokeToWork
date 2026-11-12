@@ -460,8 +460,13 @@ test.describe('Real-time Message Delivery (T098)', () => {
     // Verify "delivered" status (double checkmark)
     // Timeout allows for the full Realtime round-trip: recipient marks as delivered
     // → DB update → Realtime/polling to sender. Webkit Argon2id eats ~40s of setup.
+    //
+    // "read" also counts. The recipient's page is open and visible, so it can
+    // save delivered_at and read_at in the same instant (issue #138 measured both
+    // at 04:31:00.692). The sender's bubble then goes straight to "Message read",
+    // and "delivered" never shows. The read check below still runs afterwards.
     await expect(
-      messageBubble.locator('[aria-label*="delivered"]')
+      messageBubble.locator('[aria-label*="delivered"], [aria-label*="read"]')
     ).toBeVisible({ timeout: 60000 });
 
     // User 2: Scroll to message (should trigger "read" status)
