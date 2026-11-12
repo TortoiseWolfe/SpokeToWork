@@ -1,0 +1,15 @@
+name: Start local Supabase
+description: >
+  Starts the repo's own Supabase stack (database, sign-in, REST API, realtime
+  and the Kong gateway) inside the runner, builds the schema from the single
+  migration file, loads the seed data, and waits until it answers on
+  http://localhost:54321. Needs the settings written by
+  scripts/e2e-local-keys.mjs to be in the job environment already. The work
+  is in scripts/e2e-local-supabase.sh so it can also be run by hand.
+
+runs:
+  using: composite
+  steps:
+    - name: Start local Supabase
+      shell: bash
+      run: bash scripts/e2e-local-supabase.sh

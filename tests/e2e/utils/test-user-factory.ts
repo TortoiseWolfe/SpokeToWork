@@ -15,7 +15,7 @@
  */
 
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
-import { executeSQL, escapeSQL } from './supabase-admin';
+import { executeSQL, escapeSQL, HAS_SQL_ACCESS } from './supabase-admin';
 
 // ============================================================================
 // LAZY VALIDATION (updated from fail-fast)
@@ -55,7 +55,7 @@ async function findUserIdByEmail(
   client: SupabaseClient,
   email: string
 ): Promise<string | null> {
-  if (process.env.SUPABASE_ACCESS_TOKEN) {
+  if (HAS_SQL_ACCESS) {
     try {
       const rows = (await executeSQL(
         `SELECT id FROM auth.users WHERE email = '${escapeSQL(email)}'`

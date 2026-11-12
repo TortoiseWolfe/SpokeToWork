@@ -9,22 +9,18 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { executeSQLStrict, HAS_SQL_ACCESS } from '../utils/supabase-admin';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN!;
-
-const PROJECT_REF = SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
-
 const TEST_EMAIL = process.env.TEST_USER_PRIMARY_EMAIL!;
 const TEST_PASSWORD = process.env.TEST_USER_PRIMARY_PASSWORD!;
 
-// Skip all tests if required cloud Supabase credentials are missing.
-// These tests use the Supabase Management API and cannot run without cloud credentials.
+// Skip all tests if the SQL route (cloud Management API or local Kong /pg)
+// is not configured; these tests need direct SQL access.
 test.beforeEach(() => {
   const missing = [
-    !PROJECT_REF && 'NEXT_PUBLIC_SUPABASE_URL (cloud)',
-    !ACCESS_TOKEN && 'SUPABASE_ACCESS_TOKEN',
+    !HAS_SQL_ACCESS &&
+      'SQL access (cloud SUPABASE_ACCESS_TOKEN or local service key)',
     !TEST_EMAIL && 'TEST_USER_PRIMARY_EMAIL',
     !TEST_PASSWORD && 'TEST_USER_PRIMARY_PASSWORD',
   ].filter(Boolean);
@@ -40,42 +36,9 @@ function escapeSQL(str: string): string {
   return str.replace(/'/g, "''");
 }
 
-async function executeSQL(
-  query: string,
-  retries = 5,
-  baseDelay = 2000
-): Promise<unknown[]> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const response = await fetch(
-      `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query }),
-      }
-    );
-
-    if (response.ok) {
-      return response.json();
-    }
-
-    // Handle rate limiting with exponential backoff
-    if (response.status === 429 && attempt < retries) {
-      const delay = baseDelay * Math.pow(2, attempt);
-      console.log(`Rate limited, retrying in ${delay}ms...`);
-      await new Promise((r) => setTimeout(r, delay));
-      continue;
-    }
-
-    const errorText = await response.text();
-    throw new Error(`SQL failed: ${response.status} - ${errorText}`);
-  }
-
-  throw new Error('Exhausted retries');
-}
+// executeSQL (throws on failure) now lives in utils/supabase-admin.ts so it
+// can reach either a cloud project or the local stack CI starts.
+const executeSQL = executeSQLStrict;
 
 /**
  * Get admin user ID by username (dynamic lookup)

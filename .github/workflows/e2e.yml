@@ -11,14 +11,17 @@ concurrency:
   group: e2e-${{ github.ref }}
   # cancel-in-progress disabled: sequential browser execution takes ~45 min.
   # With cancel-in-progress, any push within that window kills the running
-  # E2E mid-flight, cascading auth-setup cancellation to all browser batches.
+  # E2E mid-flight and leaves the later browser batches without a result.
   cancel-in-progress: false
 
 env:
-  # Shared env vars for all jobs
-  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# Every job below that needs a database starts its OWN local Supabase stack
+# (see .github/actions/local-supabase) from the repo's single migration file
+# and seed files. Nothing here reads or writes the production Supabase
+# project: the keys come from scripts/e2e-local-keys.mjs, made fresh from the
+# run id, so they are worthless outside this run. (Issue 141.)
 
 jobs:
   # ============================================
@@ -47,6 +50,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The site is built once and every test job downloads it, so the local
+      # database address and anon key are baked into it here. Every later job
+      # derives the same keys from the same run id.
+      - name: Make this run's local Supabase settings
+        run: node scripts/e2e-local-keys.mjs
+
       - name: Build application
         run: pnpm build
         env:
@@ -65,17 +74,14 @@ jobs:
           retention-days: 1
 
   # ============================================
-  # STEP 2: Smoke tests (~2 min) - FAST FEEDBACK
+  # STEP 2: Smoke tests - FAST FEEDBACK
   # ============================================
   smoke:
     name: Smoke Tests
     # Pinned (all Playwright jobs below): ubuntu-latest became 26.04, which Playwright cannot install chromium on.
     runs-on: ubuntu-24.04
     needs: build
-    # 10 min: 5 wasn't enough when SMOKE_ONLY cleanup (SQL deletes) runs on
-    # a busy Supabase free tier — observed 4.5min stuck in cleanup alone on
-    # run 24123867863. Cleanup + auth tests fit comfortably in 10 min.
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -104,6 +110,12 @@ jobs:
           name: build-output
           path: out/
 
+      - name: Make this run's local Supabase settings
+        run: node scripts/e2e-local-keys.mjs
+
+      - name: Start local Supabase
+        uses: ./.github/actions/local-supabase
+
       - name: Start server
         run: |
           npx http-server out -p 3000 -c-1 &
@@ -123,94 +135,41 @@ jobs:
           SKIP_WEBSERVER: true
           BASE_URL: http://localhost:3000
           NEXT_PUBLIC_E2E_TEST_MODE: 'true'
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          E2E_ENCRYPTION_KEYS: ${{ secrets.E2E_ENCRYPTION_KEYS }}
           TEST_USER_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
-          TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
-          TEST_USER_PRIMARY_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
-
-      - name: Smoke test summary
-        if: always()
-        run: |
-          echo "## 🚀 Smoke Tests Complete" >> $GITHUB_STEP_SUMMARY
-          echo "Core auth and routing tests passed - proceeding to full suite." >> $GITHUB_STEP_SUMMARY
-
-  # ============================================
-  # STEP 3: Auth Setup (runs ONCE, shares state)
-  # ============================================
-  auth-setup:
-    name: Auth Setup
-    runs-on: ubuntu-24.04
-    needs: smoke
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.16.1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: '22'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Install Playwright (chromium only for auth)
-        run: pnpm exec playwright install --with-deps chromium
-
-      - name: Download build
-        uses: actions/download-artifact@v5
-        with:
-          name: build-output
-          path: out/
-
-      - name: Start server
-        run: |
-          npx http-server out -p 3000 -c-1 &
-          npx wait-on http://localhost:3000 --timeout 60000
-
-      - name: Run auth setup
-        run: pnpm exec playwright test --project=setup --reporter=list
-        env:
-          CI: true
-          SKIP_WEBSERVER: true
-          BASE_URL: http://localhost:3000
-          NEXT_PUBLIC_E2E_TEST_MODE: 'true'
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          E2E_ENCRYPTION_KEYS: ${{ secrets.E2E_ENCRYPTION_KEYS }}
           TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
           TEST_USER_PRIMARY_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
           TEST_USER_SECONDARY_EMAIL: ${{ vars.TEST_USER_SECONDARY_EMAIL }}
           TEST_USER_SECONDARY_PASSWORD: ${{ secrets.TEST_USER_SECONDARY_PASSWORD }}
           TEST_USER_TERTIARY_EMAIL: ${{ vars.TEST_USER_TERTIARY_EMAIL }}
           TEST_USER_TERTIARY_PASSWORD: ${{ secrets.TEST_USER_TERTIARY_PASSWORD }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
-      - name: Upload auth state
-        uses: actions/upload-artifact@v5
-        with:
-          name: auth-state
-          path: tests/e2e/fixtures/storage-state-auth.json
-          retention-days: 1
+      - name: Show Supabase logs after a failure
+        if: failure()
+        run: docker compose -p e2e logs --tail=100 supabase-auth supabase-rest supabase-kong supabase-realtime || true
+
+      - name: Smoke test summary
+        if: always()
+        run: |
+          echo "## 🚀 Smoke Tests Complete" >> $GITHUB_STEP_SUMMARY
+          echo "Core auth and routing tests ran against a local Supabase stack started inside this job." >> $GITHUB_STEP_SUMMARY
 
   # ============================================
-  # STEP 4a: Chromium E2E (12 shards, runs first)
+  # STEP 3a: Chromium E2E (12 shards, runs first)
   # ============================================
-  # Sequential browser execution (ScriptHammer pattern): only one browser
-  # hits Supabase at a time. Eliminates the 21-concurrent-shard contention
-  # that caused auth rate_limit_attempts lockouts and DB connection timeouts.
+  # Sequential browser execution: browsers run one after another. Each shard
+  # now has a database of its own, so shards no longer contend for one shared
+  # database, but the chain is kept so a pull request costs one browser's
+  # worth of runners, not three.
+  #
+  # There is no separate auth-setup job any more: a saved login only means
+  # something to the database that issued it, and every shard has its own. So
+  # every shard runs the Playwright `setup` project itself (no --no-deps).
   e2e-chromium:
     name: E2E (chromium ${{ matrix.group }}${{ matrix.shard }})
     runs-on: ubuntu-24.04
-    needs: [smoke, auth-setup]
+    needs: smoke
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -250,31 +209,14 @@ jobs:
         with:
           name: build-output
           path: out/
-      - name: Download auth state
-        uses: actions/download-artifact@v5
-        with:
-          name: auth-state
-          path: tests/e2e/fixtures/
+      - name: Make this run's local Supabase settings
+        run: node scripts/e2e-local-keys.mjs
+      - name: Start local Supabase
+        uses: ./.github/actions/local-supabase
       - name: Start server
         run: |
           npx http-server out -p 3000 -c-1 &
           npx wait-on http://localhost:3000 --timeout 60000
-      - name: Prime Supabase connection pool
-        env:
-          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-        run: |
-          curl -sf "${SUPABASE_URL}/rest/v1/user_profiles?select=id&limit=1" \
-            -H "apikey: ${SUPABASE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_KEY}" \
-            > /dev/null 2>&1 || true
-      - name: Stagger shards
-        env:
-          MATRIX_SHARD: ${{ matrix.shard }}
-        run: |
-          SHARD_NUM=$(echo "$MATRIX_SHARD" | cut -d/ -f1)
-          DELAY=$(((SHARD_NUM - 1) * 5))
-          if [ "$DELAY" -gt 0 ]; then sleep $DELAY; fi
       - name: Extract shard index
         id: shard-index
         env:
@@ -287,25 +229,22 @@ jobs:
           HEAVY_PATTERN="complete-flows|new-user-complete-flow|welcome-message|resume-upload"
           if [ "$E2E_GROUP" = "msg-" ]; then
             GREP_FLAG="--grep=messaging/|employer/"
-            # msg shards need the setup project to run auth.setup.ts per-shard,
-            # which injects pre-baked encryption keys into localStorage for
-            # shard-specific users (e2e-s{N}-*). Without this, the browser
-            # falls back to Argon2id derivation which times out on CI.
-            NO_DEPS_FLAG=""
           elif [ "$E2E_GROUP" = "heavy-" ]; then
             GREP_FLAG="--grep=$HEAVY_PATTERN"
-            NO_DEPS_FLAG="--no-deps"
           else
             GREP_FLAG="--grep-invert=messaging/|employer/|$HEAVY_PATTERN"
-            NO_DEPS_FLAG="--no-deps"
           fi
+          # The setup project (auth.setup.ts) runs first in every shard: it
+          # signs the test users in on this job's own database. For the msg
+          # shards it also injects the pre-baked encryption keys for the
+          # shard users (e2e-s{N}-*); without them the browser would fall back
+          # to Argon2id key derivation, which times out on CI.
           pnpm exec playwright test \
             --project=chromium \
             --shard=${{ matrix.shard }} \
             $GREP_FLAG \
             --reporter=blob \
-            --trace=on-first-retry \
-            $NO_DEPS_FLAG
+            --trace=on-first-retry
         env:
           E2E_GROUP: ${{ matrix.group }}
           CI: true
@@ -314,9 +253,7 @@ jobs:
           DEBUG: pw:api
           NEXT_PUBLIC_E2E_TEST_MODE: 'true'
           E2E_SHARD_INDEX: ${{ matrix.group == 'msg-' && steps.shard-index.outputs.index || '' }}
-          E2E_ENCRYPTION_KEYS: ${{ matrix.group == 'msg-' && secrets.E2E_ENCRYPTION_KEYS || '' }}
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          E2E_ENCRYPTION_KEYS: ${{ secrets.E2E_ENCRYPTION_KEYS }}
           TEST_USER_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
           TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
@@ -325,6 +262,9 @@ jobs:
           TEST_USER_SECONDARY_PASSWORD: ${{ secrets.TEST_USER_SECONDARY_PASSWORD }}
           TEST_USER_TERTIARY_EMAIL: ${{ vars.TEST_USER_TERTIARY_EMAIL }}
           TEST_USER_TERTIARY_PASSWORD: ${{ secrets.TEST_USER_TERTIARY_PASSWORD }}
+      - name: Show Supabase logs after a failure
+        if: failure()
+        run: docker compose -p e2e logs --tail=100 supabase-auth supabase-rest supabase-kong supabase-realtime || true
       - name: Upload blob report
         if: always()
         uses: actions/upload-artifact@v5
@@ -334,7 +274,7 @@ jobs:
           retention-days: 1
 
   # ============================================
-  # STEP 4b: Firefox E2E (waits for chromium)
+  # STEP 3b: Firefox E2E (waits for chromium)
   # ============================================
   e2e-firefox:
     name: E2E (firefox ${{ matrix.group }}${{ matrix.shard }})
@@ -376,39 +316,21 @@ jobs:
       - name: Install Playwright browsers
         run: |
           pnpm exec playwright install --with-deps firefox
-          # msg shards omit --no-deps so auth.setup.ts runs per-shard.
-          # auth.setup uses the 'setup' project which requires chromium.
+          # The setup project (auth.setup.ts) runs in every shard and uses chromium.
           pnpm exec playwright install --with-deps chromium
       - name: Download build
         uses: actions/download-artifact@v5
         with:
           name: build-output
           path: out/
-      - name: Download auth state
-        uses: actions/download-artifact@v5
-        with:
-          name: auth-state
-          path: tests/e2e/fixtures/
+      - name: Make this run's local Supabase settings
+        run: node scripts/e2e-local-keys.mjs
+      - name: Start local Supabase
+        uses: ./.github/actions/local-supabase
       - name: Start server
         run: |
           npx http-server out -p 3000 -c-1 &
           npx wait-on http://localhost:3000 --timeout 60000
-      - name: Prime Supabase connection pool
-        env:
-          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-        run: |
-          curl -sf "${SUPABASE_URL}/rest/v1/user_profiles?select=id&limit=1" \
-            -H "apikey: ${SUPABASE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_KEY}" \
-            > /dev/null 2>&1 || true
-      - name: Stagger shards
-        env:
-          MATRIX_SHARD: ${{ matrix.shard }}
-        run: |
-          SHARD_NUM=$(echo "$MATRIX_SHARD" | cut -d/ -f1)
-          DELAY=$(((SHARD_NUM - 1) * 5))
-          if [ "$DELAY" -gt 0 ]; then sleep $DELAY; fi
       - name: Extract shard index
         id: shard-index
         env:
@@ -422,21 +344,17 @@ jobs:
           HEAVY_PATTERN="complete-flows|new-user-complete-flow|welcome-message|resume-upload"
           if [ "$E2E_GROUP" = "msg-" ]; then
             GREP_FLAG="--grep=messaging/|employer/"
-            NO_DEPS_FLAG=""
           elif [ "$E2E_GROUP" = "heavy-" ]; then
             GREP_FLAG="--grep=$HEAVY_PATTERN"
-            NO_DEPS_FLAG="--no-deps"
           else
             GREP_FLAG="--grep-invert=messaging/|employer/|$HEAVY_PATTERN"
-            NO_DEPS_FLAG="--no-deps"
           fi
           pnpm exec playwright test \
             --project=firefox \
             --shard=${{ matrix.shard }} \
             $GREP_FLAG \
             --reporter=blob \
-            --trace=on-first-retry \
-            $NO_DEPS_FLAG
+            --trace=on-first-retry
         env:
           E2E_GROUP: ${{ matrix.group }}
           CI: true
@@ -445,9 +363,7 @@ jobs:
           DEBUG: pw:api
           NEXT_PUBLIC_E2E_TEST_MODE: 'true'
           E2E_SHARD_INDEX: ${{ matrix.group == 'msg-' && steps.shard-index.outputs.index || '' }}
-          E2E_ENCRYPTION_KEYS: ${{ matrix.group == 'msg-' && secrets.E2E_ENCRYPTION_KEYS || '' }}
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          E2E_ENCRYPTION_KEYS: ${{ secrets.E2E_ENCRYPTION_KEYS }}
           TEST_USER_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
           TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
@@ -456,6 +372,9 @@ jobs:
           TEST_USER_SECONDARY_PASSWORD: ${{ secrets.TEST_USER_SECONDARY_PASSWORD }}
           TEST_USER_TERTIARY_EMAIL: ${{ vars.TEST_USER_TERTIARY_EMAIL }}
           TEST_USER_TERTIARY_PASSWORD: ${{ secrets.TEST_USER_TERTIARY_PASSWORD }}
+      - name: Show Supabase logs after a failure
+        if: failure()
+        run: docker compose -p e2e logs --tail=100 supabase-auth supabase-rest supabase-kong supabase-realtime || true
       - name: Upload blob report
         if: always()
         uses: actions/upload-artifact@v5
@@ -465,7 +384,7 @@ jobs:
           retention-days: 1
 
   # ============================================
-  # STEP 4c: WebKit E2E (waits for firefox)
+  # STEP 3c: WebKit E2E (waits for firefox)
   # ============================================
   e2e-webkit:
     name: E2E (webkit ${{ matrix.group }}${{ matrix.shard }})
@@ -507,39 +426,21 @@ jobs:
       - name: Install Playwright browsers
         run: |
           pnpm exec playwright install --with-deps webkit
-          # msg shards omit --no-deps so auth.setup.ts runs per-shard.
-          # auth.setup uses the 'setup' project which requires chromium.
+          # The setup project (auth.setup.ts) runs in every shard and uses chromium.
           pnpm exec playwright install --with-deps chromium
       - name: Download build
         uses: actions/download-artifact@v5
         with:
           name: build-output
           path: out/
-      - name: Download auth state
-        uses: actions/download-artifact@v5
-        with:
-          name: auth-state
-          path: tests/e2e/fixtures/
+      - name: Make this run's local Supabase settings
+        run: node scripts/e2e-local-keys.mjs
+      - name: Start local Supabase
+        uses: ./.github/actions/local-supabase
       - name: Start server
         run: |
           npx http-server out -p 3000 -c-1 &
           npx wait-on http://localhost:3000 --timeout 60000
-      - name: Prime Supabase connection pool
-        env:
-          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-        run: |
-          curl -sf "${SUPABASE_URL}/rest/v1/user_profiles?select=id&limit=1" \
-            -H "apikey: ${SUPABASE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_KEY}" \
-            > /dev/null 2>&1 || true
-      - name: Stagger shards
-        env:
-          MATRIX_SHARD: ${{ matrix.shard }}
-        run: |
-          SHARD_NUM=$(echo "$MATRIX_SHARD" | cut -d/ -f1)
-          DELAY=$(((SHARD_NUM - 1) * 5))
-          if [ "$DELAY" -gt 0 ]; then sleep $DELAY; fi
       - name: Extract shard index
         id: shard-index
         env:
@@ -553,21 +454,17 @@ jobs:
           HEAVY_PATTERN="complete-flows|new-user-complete-flow|welcome-message|resume-upload"
           if [ "$E2E_GROUP" = "msg-" ]; then
             GREP_FLAG="--grep=messaging/|employer/"
-            NO_DEPS_FLAG=""
           elif [ "$E2E_GROUP" = "heavy-" ]; then
             GREP_FLAG="--grep=$HEAVY_PATTERN"
-            NO_DEPS_FLAG="--no-deps"
           else
             GREP_FLAG="--grep-invert=messaging/|employer/|$HEAVY_PATTERN"
-            NO_DEPS_FLAG="--no-deps"
           fi
           pnpm exec playwright test \
             --project=webkit \
             --shard=${{ matrix.shard }} \
             $GREP_FLAG \
             --reporter=blob \
-            --trace=on-first-retry \
-            $NO_DEPS_FLAG
+            --trace=on-first-retry
         env:
           E2E_GROUP: ${{ matrix.group }}
           CI: true
@@ -576,9 +473,7 @@ jobs:
           DEBUG: pw:api
           NEXT_PUBLIC_E2E_TEST_MODE: 'true'
           E2E_SHARD_INDEX: ${{ matrix.group == 'msg-' && steps.shard-index.outputs.index || '' }}
-          E2E_ENCRYPTION_KEYS: ${{ matrix.group == 'msg-' && secrets.E2E_ENCRYPTION_KEYS || '' }}
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          E2E_ENCRYPTION_KEYS: ${{ secrets.E2E_ENCRYPTION_KEYS }}
           TEST_USER_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PRIMARY_PASSWORD }}
           TEST_USER_PRIMARY_EMAIL: ${{ vars.TEST_USER_PRIMARY_EMAIL }}
@@ -587,6 +482,9 @@ jobs:
           TEST_USER_SECONDARY_PASSWORD: ${{ secrets.TEST_USER_SECONDARY_PASSWORD }}
           TEST_USER_TERTIARY_EMAIL: ${{ vars.TEST_USER_TERTIARY_EMAIL }}
           TEST_USER_TERTIARY_PASSWORD: ${{ secrets.TEST_USER_TERTIARY_PASSWORD }}
+      - name: Show Supabase logs after a failure
+        if: failure()
+        run: docker compose -p e2e logs --tail=100 supabase-auth supabase-rest supabase-kong supabase-realtime || true
       - name: Upload blob report
         if: always()
         uses: actions/upload-artifact@v5
@@ -596,7 +494,7 @@ jobs:
           retention-days: 1
 
   # ============================================
-  # STEP 5: Merge reports and generate summary
+  # STEP 4: Merge reports and generate summary
   # ============================================
   report:
     name: Test Report
@@ -648,7 +546,8 @@ jobs:
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             echo "**PR Mode**: Chromium only (12 shards)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "**Full Mode**: Chromium -> Firefox -> WebKit (21 shards, sequential browsers)" >> $GITHUB_STEP_SUMMARY
+            echo "**Full Mode**: Chromium -> Firefox -> WebKit (36 shards, sequential browsers)" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Every shard ran against its own local Supabase stack." >> $GITHUB_STEP_SUMMARY
           echo "📁 Download the **playwright-report** artifact for detailed results." >> $GITHUB_STEP_SUMMARY
